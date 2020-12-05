@@ -9,6 +9,7 @@
 
 #include "utils.h"
 #include "threaddata.h"
+#include "client.h"
 
 #define MAX_EVENTS 1024
 #define NR_OF_THREADS 4
@@ -17,7 +18,31 @@
 
 void do_thread_work(ThreadData &threadData)
 {
+    int epoll_fd = threadData.epollfd;
 
+    struct epoll_event events[MAX_EVENTS];
+    memset(&events, 0, sizeof (struct epoll_event)*MAX_EVENTS);
+
+    while (1)
+    {
+        int fdcount = epoll_wait(epoll_fd, events, MAX_EVENTS, 100);
+
+        if (fdcount > 0)
+        {
+            for (int i = 0; i < fdcount; i++)
+            {
+                struct epoll_event cur_ev = events[i];
+                int fd = cur_ev.data.fd;
+
+                Client_p client = threadData.getClient(fd);
+
+                if (client) // TODO: is this check necessary?
+                {
+                    // TODO left here
+                }
+            }
+        }
+    }
 }
 
 int main()
@@ -81,9 +106,8 @@ int main()
                 socklen_t len = sizeof(struct sockaddr);
                 int fd = check<std::runtime_error>(accept(cur_fd, &addr, &len));
 
-                // TODO: make client
-
-                thread_data.giveFdToEpoll(fd);
+                Client_p client(new Client(fd, thread_data));
+                thread_data.giveClient(client);
             }
             else
             {
