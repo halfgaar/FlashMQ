@@ -16,9 +16,9 @@
 
 
 
-void do_thread_work(ThreadData &threadData)
+void do_thread_work(ThreadData *threadData)
 {
-    int epoll_fd = threadData.epollfd;
+    int epoll_fd = threadData->epollfd;
 
     struct epoll_event events[MAX_EVENTS];
     memset(&events, 0, sizeof (struct epoll_event)*MAX_EVENTS);
@@ -34,11 +34,14 @@ void do_thread_work(ThreadData &threadData)
                 struct epoll_event cur_ev = events[i];
                 int fd = cur_ev.data.fd;
 
-                Client_p client = threadData.getClient(fd);
+                Client_p client = threadData->getClient(fd);
 
                 if (client) // TODO: is this check necessary?
                 {
-                    // TODO left here
+                    if (!client->readFdIntoBuffer())
+                        threadData->removeClient(client);
+                    client->writeTest();
+
                 }
             }
         }
@@ -74,14 +77,14 @@ int main()
     ev.events = EPOLLIN;
     check<std::runtime_error>(epoll_ctl(epoll_fd_accept, EPOLL_CTL_ADD, listen_fd, &ev) < 0);
 
-    std::vector<ThreadData> threads;
+    std::vector<std::shared_ptr<ThreadData>> threads;
 
     for (int i = 0; i < NR_OF_THREADS; i++)
     {
-        ThreadData t(i);
-        std::thread thread(do_thread_work, std::ref(t));
-        t.thread = std::move(thread);
-        threads.push_back(std::move(t));
+        std::shared_ptr<ThreadData> t(new ThreadData(i));
+        std::thread thread(do_thread_work, t.get());
+        t->thread = std::move(thread);
+        threads.push_back(t);
     }
 
     std::cout << "Listening..." << std::endl;
@@ -97,9 +100,9 @@ int main()
             int cur_fd = events[i].data.fd;
             if (cur_fd == listen_fd)
             {
-                ThreadData &thread_data = threads[next_thread_index++ % NR_OF_THREADS];
+                std::shared_ptr<ThreadData> thread_data = threads[next_thread_index++ % NR_OF_THREADS];
 
-                std::cout << "Accepting connection on thread " << thread_data.threadnr << std::endl;
+                std::cout << "Accepting connection on thread " << thread_data->threadnr << std::endl;
 
                 struct sockaddr addr;
                 memset(&addr, 0, sizeof(struct sockaddr));
@@ -107,7 +110,7 @@ int main()
                 int fd = check<std::runtime_error>(accept(cur_fd, &addr, &len));
 
                 Client_p client(new Client(fd, thread_data));
-                thread_data.giveClient(client);
+                thread_data->giveClient(client);
             }
             else
             {

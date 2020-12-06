@@ -28,4 +28,6 @@ public:
     void removeClient(Client_p client);
 };
 
+typedef  std::shared_ptr<ThreadData> ThreadData_p;
+
 #endif // THREADDATA_H
