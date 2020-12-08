@@ -10,6 +10,7 @@
 #include "utils.h"
 #include "threaddata.h"
 #include "client.h"
+#include "mqttpacket.h"
 
 #define MAX_EVENTS 1024
 #define NR_OF_THREADS 4
@@ -22,6 +23,8 @@ void do_thread_work(ThreadData *threadData)
 
     struct epoll_event events[MAX_EVENTS];
     memset(&events, 0, sizeof (struct epoll_event)*MAX_EVENTS);
+
+    std::vector<MqttPacket> packetQueueIn;
 
     while (1)
     {
@@ -38,12 +41,22 @@ void do_thread_work(ThreadData *threadData)
 
                 if (client) // TODO: is this check necessary?
                 {
-                    if (!client->readFdIntoBuffer())
-                        threadData->removeClient(client);
-                    client->writeTest();
-
+                    if (cur_ev.events | EPOLLIN)
+                    {
+                        if (!client->readFdIntoBuffer())
+                            threadData->removeClient(client);
+                        else
+                        {
+                            client->bufferToMqttPackets(packetQueueIn); // TODO: different, because now I need to give the packet a raw pointer.
+                        }
+                    }
                 }
             }
+        }
+
+        for (MqttPacket &packet : packetQueueIn)
+        {
+            packet.handle();
         }
     }
 }

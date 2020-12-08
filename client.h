@@ -3,13 +3,18 @@
 
 #include <fcntl.h>
 #include <unistd.h>
+#include <vector>
 
 #include "threaddata.h"
+#include "mqttpacket.h"
 
-#define CLIENT_BUFFER_SIZE 16
+#define CLIENT_BUFFER_SIZE 1024
+#define MQTT_HEADER_LENGH 2
 
 class ThreadData;
 typedef  std::shared_ptr<ThreadData> ThreadData_p;
+
+class MqttPacket;
 
 class Client
 {
@@ -20,31 +25,27 @@ class Client
     int wi = 0;
     int ri = 0;
 
+    bool authenticated = false;
+    std::string clientid;
+
     ThreadData_p threadData;
 
     size_t getBufBytesUsed()
     {
-        size_t result = 0;
-        if (wi >= ri)
-            result = wi - ri;
-        else
-            result = (bufsize + wi) - ri;
+        return wi - ri;
     };
 
     size_t getMaxWriteSize()
     {
         size_t available = bufsize - getBufBytesUsed();
-        size_t space_at_end = bufsize - wi;
-        size_t answer = std::min<int>(available, space_at_end);
-        return answer;
+        return available;
     }
 
-    size_t getMaxReadSize()
+    void growBuffer()
     {
-        size_t available = getBufBytesUsed();
-        size_t space_to_end = bufsize - ri;
-        size_t answer = std::min<int>(available, space_to_end);
-        return answer;
+        const size_t newBufSize = bufsize * 2;
+        readbuf = (char*)realloc(readbuf, newBufSize);
+        bufsize = newBufSize;
     }
 
 public:
@@ -53,7 +54,7 @@ public:
 
     int getFd() { return fd;}
     bool readFdIntoBuffer();
-    void writeTest();
+    bool bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn);
 
 };
 

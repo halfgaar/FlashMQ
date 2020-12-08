@@ -35,17 +35,12 @@ bool Client::readFdIntoBuffer()
         }
 
         wi += n;
-        size_t bytesUsed = getBufBytesUsed();
 
-        // TODO: we need a buffer to keep partial frames in, so/and can we reduce the size of this buffer again periodically?
-        if (bytesUsed >= bufsize)
+        if (getBufBytesUsed() >= bufsize)
         {
-            const size_t newBufSize = bufsize * 2;
-            readbuf = (char*)realloc(readbuf, newBufSize);
-            bufsize = newBufSize;
+            growBuffer();
         }
 
-        wi = wi % bufsize;
         read_size = getMaxWriteSize();
     }
 
@@ -57,12 +52,51 @@ bool Client::readFdIntoBuffer()
     return true;
 }
 
-void Client::writeTest()
+bool Client::bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn)
 {
-    char *p = &readbuf[ri];
-    size_t max_read = getMaxReadSize();
-    ri = (ri + max_read) % bufsize;
-    write(fd, p, max_read);
+    while (getBufBytesUsed() >= MQTT_HEADER_LENGH)
+    {
+        // Determine the packet length by decoding the variable length
+        size_t remaining_length_i = 1;
+        int multiplier = 1;
+        size_t packet_length = 0;
+        unsigned char encodedByte = 0;
+        do
+        {
+            if (remaining_length_i >= getBufBytesUsed())
+                break;
+            encodedByte = readbuf[remaining_length_i++];
+            packet_length += (encodedByte & 127) * multiplier;
+            multiplier *= 128;
+            if (multiplier > 128*128*128)
+                return false;
+        }
+        while ((encodedByte & 128) != 0);
+        packet_length += remaining_length_i;
+
+        // TODO: unauth client can't send many bytes
+
+        if (packet_length <= getBufBytesUsed())
+        {
+            MqttPacket packet(&readbuf[ri], packet_length, remaining_length_i, this);
+            packetQueueIn.push_back(std::move(packet));
+
+            ri += packet_length;
+        }
+        else
+            break;
+
+    }
+
+    if (ri == wi)
+    {
+        ri = 0;
+        wi = 0;
+    }
+
+    return true;
+
+    // TODO: reset buffer to normal size after a while of not needing it, or not needing the extra space.
 }
 
 
