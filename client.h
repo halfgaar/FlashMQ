@@ -22,9 +22,14 @@ class Client
     int fd;
 
     char *readbuf = NULL; // With many clients, it may not be smart to keep a (big) buffer around.
-    size_t bufsize = CLIENT_BUFFER_SIZE;
+    size_t readBufsize = CLIENT_BUFFER_SIZE;
     int wi = 0;
     int ri = 0;
+
+    char *writebuf = NULL; // With many clients, it may not be smart to keep a (big) buffer around.
+    size_t writeBufsize = CLIENT_BUFFER_SIZE;
+    int wwi = 0;
+    int wri = 0;
 
     bool authenticated = false;
     bool connectPacketSeen = false;
@@ -34,22 +39,43 @@ class Client
 
     ThreadData_p threadData;
 
-    size_t getBufBytesUsed()
+    size_t getReadBufBytesUsed()
     {
         return wi - ri;
     };
 
-    size_t getMaxWriteSize()
+    size_t getReadBufMaxWriteSize()
     {
-        size_t available = bufsize - getBufBytesUsed();
+        size_t available = readBufsize - getReadBufBytesUsed();
         return available;
     }
 
-    void growBuffer()
+    void growReadBuffer()
     {
-        const size_t newBufSize = bufsize * 2;
+        const size_t newBufSize = readBufsize * 2;
         readbuf = (char*)realloc(readbuf, newBufSize);
-        bufsize = newBufSize;
+        readBufsize = newBufSize;
+    }
+
+    size_t getWriteBufMaxWriteSize()
+    {
+        size_t available = writeBufsize - getWriteBufBytesUsed();
+        return available;
+    }
+
+    size_t getWriteBufBytesUsed()
+    {
+        return wwi - wri;
+    };
+
+    void growWriteBuffer(size_t add_size)
+    {
+        if (add_size == 0)
+            return;
+
+        const size_t newBufSize = writeBufsize + add_size;
+        writebuf = (char*)realloc(readbuf, newBufSize);
+        writeBufsize = newBufSize;
     }
 
 public:
@@ -64,6 +90,10 @@ public:
     bool getAuthenticated() { return authenticated; }
     bool hasConnectPacketSeen() { return connectPacketSeen; }
 
+    void writeMqttPacket(MqttPacket &packet);
+    bool writeBufIntoFd();
+
+    std::string repr();
 
 };
 

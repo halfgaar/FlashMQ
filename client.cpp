@@ -1,5 +1,8 @@
 #include "client.h"
 
+#include <cstring>
+#include <sstream>
+
 Client::Client(int fd, ThreadData_p threadData) :
     fd(fd),
     threadData(threadData)
@@ -7,6 +10,7 @@ Client::Client(int fd, ThreadData_p threadData) :
     int flags = fcntl(fd, F_GETFL);
     fcntl(fd, F_SETFL, flags | O_NONBLOCK);
     readbuf = (char*)malloc(CLIENT_BUFFER_SIZE);
+    writebuf = (char*)malloc(CLIENT_BUFFER_SIZE);
 }
 
 Client::~Client()
@@ -19,7 +23,7 @@ Client::~Client()
 // false means any kind of error we want to get rid of the client for.
 bool Client::readFdIntoBuffer()
 {
-    int read_size = getMaxWriteSize();
+    int read_size = getReadBufMaxWriteSize();
 
     int n;
     while ((n = read(fd, &readbuf[wi], read_size)) != 0)
@@ -36,12 +40,12 @@ bool Client::readFdIntoBuffer()
 
         wi += n;
 
-        if (getBufBytesUsed() >= bufsize)
+        if (getReadBufBytesUsed() >= readBufsize)
         {
-            growBuffer();
+            growReadBuffer();
         }
 
-        read_size = getMaxWriteSize();
+        read_size = getReadBufMaxWriteSize();
     }
 
     if (n == 0) // client disconnected.
@@ -52,9 +56,52 @@ bool Client::readFdIntoBuffer()
     return true;
 }
 
+void Client::writeMqttPacket(MqttPacket &packet)
+{
+    if (packet.getSize() > getWriteBufMaxWriteSize())
+        growWriteBuffer(packet.getSize());
+
+    std::memcpy(&writebuf[wwi], &packet.getBites()[0], packet.getSize());
+    wwi += packet.getSize();
+}
+
+bool Client::writeBufIntoFd() // TODO: ignore the signal BROKEN PIPE we now also get when a client disappears.
+{
+    int n;
+    while ((n = write(fd, &writebuf[wri], getWriteBufBytesUsed())) != 0)
+    {
+        if (n < 0)
+        {
+            if (errno == EINTR)
+                continue;
+            if (errno == EAGAIN || errno == EWOULDBLOCK)
+                break;
+            else
+                return false;
+        }
+
+        wri += n;
+    }
+
+    if (wri == wwi)
+    {
+        wri = 0;
+        wwi = 0;
+    }
+
+    return true;
+}
+
+std::string Client::repr()
+{
+    std::ostringstream a;
+    a << "Client = " << clientid << ", user = " << username;
+    return a.str();
+}
+
 bool Client::bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn)
 {
-    while (getBufBytesUsed() >= MQTT_HEADER_LENGH)
+    while (getReadBufBytesUsed() >= MQTT_HEADER_LENGH)
     {
         // Determine the packet length by decoding the variable length
         size_t remaining_length_i = 1;
@@ -63,7 +110,7 @@ bool Client::bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn)
         unsigned char encodedByte = 0;
         do
         {
-            if (remaining_length_i >= getBufBytesUsed())
+            if (remaining_length_i >= getReadBufBytesUsed())
                 break;
             encodedByte = readbuf[remaining_length_i++];
             packet_length += (encodedByte & 127) * multiplier;
@@ -79,7 +126,7 @@ bool Client::bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn)
             throw ProtocolError("An unauthenticated client sends a packet of 1 MB or bigger? Probably it's just random bytes.");
         }
 
-        if (packet_length <= getBufBytesUsed())
+        if (packet_length <= getReadBufBytesUsed())
         {
             MqttPacket packet(&readbuf[ri], packet_length, remaining_length_i, this);
             packetQueueIn.push_back(std::move(packet));
@@ -109,6 +156,8 @@ void Client::setClientProperties(const std::string &clientId, const std::string 
     this->connectPacketSeen = connectPacketSeen;
     this->keepalive = keepalive;
 }
+
+
 
 
 

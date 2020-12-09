@@ -1,24 +1,39 @@
 #include "mqttpacket.h"
 #include <cstring>
+#include <iostream>
 
 MqttPacket::MqttPacket(char *buf, size_t len, size_t fixed_header_length, Client *sender) :
     bites(len),
     fixed_header_length(fixed_header_length),
     sender(sender)
 {
-    unsigned char _packetType = buf[0] >> 4;
+    unsigned char _packetType = (buf[0] & 0xF0) >> 4;
     packetType = (PacketType)_packetType;
     pos += fixed_header_length;
 
     std::memcpy(&bites[0], buf, len);
+}
 
-    variable_header_length = readTwoBytesToUInt16();
+MqttPacket::MqttPacket(const ConnAck &connAck) :
+    bites(4)
+{
+    packetType = PacketType::CONNACK;
+    char first_byte = static_cast<char>(packetType) << 4;
+    writeByte(first_byte);
+    writeByte(2); // length is always 2.
+    writeByte(0); // all connect-ack flags are 0, except session-present, but we don't have that yet.
+    writeByte(static_cast<char>(connAck.return_code));
+
 }
 
 void MqttPacket::handle()
 {
     if (packetType == PacketType::CONNECT)
         handleConnect();
+    else if (packetType == PacketType::PINGREQ)
+        std::cout << "PING" << std::endl;
+    else if (packetType == PacketType::SUBSCRIBE)
+        std::cout << "Sub" << std::endl;
 }
 
 void MqttPacket::handleConnect()
@@ -26,6 +41,7 @@ void MqttPacket::handleConnect()
     if (sender->hasConnectPacketSeen())
         throw ProtocolError("Client already sent a CONNECT.");
 
+    uint16_t variable_header_length = readTwoBytesToUInt16();
 
     if (variable_header_length == 4 || variable_header_length == 6)
     {
@@ -87,6 +103,13 @@ void MqttPacket::handleConnect()
         // TODO: validate UTF8 encoded username/password.
 
         sender->setClientProperties(client_id, username, true, keep_alive);
+
+        std::cout << "Connect: " << sender->repr() << std::endl;
+
+        ConnAck connAck(ConnAckReturnCodes::Accepted);
+        MqttPacket response(connAck);
+        sender->writeMqttPacket(response);
+        sender->writeBufIntoFd();
     }
     else
     {
@@ -111,6 +134,14 @@ char MqttPacket::readByte()
 
     char b = bites[pos++];
     return b;
+}
+
+void MqttPacket::writeByte(char b)
+{
+    if (pos + 1 > bites.size())
+        throw ProtocolError("Exceeding packet size");
+
+    bites[pos++] = b;
 }
 
 uint16_t MqttPacket::readTwoBytesToUInt16()

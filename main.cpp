@@ -39,16 +39,24 @@ void do_thread_work(ThreadData *threadData)
 
                 Client_p client = threadData->getClient(fd);
 
-                if (client) // TODO: is this check necessary?
+                if (client)
                 {
-                    if (cur_ev.events | EPOLLIN)
+                    if (cur_ev.events & EPOLLIN)
                     {
                         if (!client->readFdIntoBuffer())
+                        {
+                            std::cout << "Disconnect: " << client->repr() << std::endl;
                             threadData->removeClient(client);
+                        }
                         else
                         {
                             client->bufferToMqttPackets(packetQueueIn); // TODO: different, because now I need to give the packet a raw pointer.
                         }
+                    }
+                    if (cur_ev.events & EPOLLOUT)
+                    {
+                        if (!client->writeBufIntoFd())
+                            threadData->removeClient(client);
                     }
                 }
             }
@@ -58,6 +66,7 @@ void do_thread_work(ThreadData *threadData)
         {
             packet.handle();
         }
+        packetQueueIn.clear();
     }
 }
 
