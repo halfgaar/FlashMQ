@@ -25,14 +25,19 @@ class MqttPacket
     char readByte();
     void writeByte(char b);
     uint16_t readTwoBytesToUInt16();
+    size_t remainingAfterPos();
 
 public:
     PacketType packetType = PacketType::Reserved;
     MqttPacket(char *buf, size_t len, size_t fixed_header_length, Client *sender);
     MqttPacket(const ConnAck &connAck);
+    MqttPacket(const SubAck &subAck);
 
     void handle();
     void handleConnect();
+    void handleSubscribe();
+    void handlePing();
+
     size_t getSize() { return bites.size(); }
     const std::vector<char> &getBites() { return bites; }
 

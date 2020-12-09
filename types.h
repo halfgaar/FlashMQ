@@ -1,6 +1,10 @@
 #ifndef TYPES_H
 #define TYPES_H
 
+#include "stdint.h"
+#include <list>
+#include <string>
+
 enum class PacketType
 {
     Reserved = 0,
@@ -44,6 +48,22 @@ class ConnAck
 public:
     ConnAck(ConnAckReturnCodes return_code);
     ConnAckReturnCodes return_code;
+};
+
+enum class SubAckReturnCodes
+{
+    MaxQoS0 = 0,
+    MaxQoS1 = 1,
+    MaxQoS2 = 2,
+    Fail = 0x80
+};
+
+class SubAck
+{
+public:
+    uint16_t packet_id;
+    std::list<SubAckReturnCodes> responses;
+    SubAck(uint16_t packet_id, const std::list<std::string> &subs);
 };
 
 #endif // TYPES_H

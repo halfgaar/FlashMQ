@@ -1,6 +1,7 @@
 #include "mqttpacket.h"
 #include <cstring>
 #include <iostream>
+#include <list>
 
 MqttPacket::MqttPacket(char *buf, size_t len, size_t fixed_header_length, Client *sender) :
     bites(len),
@@ -26,6 +27,25 @@ MqttPacket::MqttPacket(const ConnAck &connAck) :
 
 }
 
+MqttPacket::MqttPacket(const SubAck &subAck) :
+    bites(3)
+{
+    packetType = PacketType::SUBACK;
+    char first_byte = static_cast<char>(packetType) << 4;
+    writeByte(first_byte);
+    writeByte((subAck.packet_id & 0xF0) >> 8);
+    writeByte(subAck.packet_id & 0x0F);
+
+    std::vector<char> returnList;
+    for (SubAckReturnCodes code : subAck.responses)
+    {
+        returnList.push_back(static_cast<char>(code));
+    }
+
+    bites.insert(bites.end(), returnList.begin(), returnList.end());
+    bites[1] = returnList.size() + 1; // TODO: make some generic way of calculating the header and use the multi-byte length
+}
+
 void MqttPacket::handle()
 {
     if (packetType == PacketType::CONNECT)
@@ -33,7 +53,7 @@ void MqttPacket::handle()
     else if (packetType == PacketType::PINGREQ)
         std::cout << "PING" << std::endl;
     else if (packetType == PacketType::SUBSCRIBE)
-        std::cout << "Sub" << std::endl;
+        handleSubscribe();
 }
 
 void MqttPacket::handleConnect()
@@ -117,6 +137,34 @@ void MqttPacket::handleConnect()
     }
 }
 
+void MqttPacket::handleSubscribe()
+{
+    uint16_t packet_id = readTwoBytesToUInt16();
+
+    std::list<std::string> subs; // TODO: list of tuples, probably
+    while (remainingAfterPos() > 1)
+    {
+        uint16_t topicLength = readTwoBytesToUInt16();
+        std::string topic(readBytes(topicLength), topicLength);
+        std::cout << sender->repr() << " Subscribed to " << topic << std::endl;
+        subs.push_back(std::move(topic));
+    }
+
+    char flags = readByte();
+
+    SubAck subAck(packet_id, subs);
+    MqttPacket response(subAck);
+    sender->writeMqttPacket(response);
+    sender->writeBufIntoFd();
+}
+
+void MqttPacket::handlePing()
+{
+
+}
+
+
+
 char *MqttPacket::readBytes(size_t length)
 {
     if (pos + length > bites.size())
@@ -152,6 +200,11 @@ uint16_t MqttPacket::readTwoBytesToUInt16()
     uint16_t i = bites[pos] << 8 | bites[pos+1];
     pos += 2;
     return i;
+}
+
+size_t MqttPacket::remainingAfterPos()
+{
+    return bites.size() - pos;
 }
 
 
