@@ -1,7 +1,7 @@
 #include "mqttpacket.h"
 #include <cstring>
 
-MqttPacket::MqttPacket(char *buf, size_t len, size_t fixed_header_length, Client *sender) : // TODO: length of remaining length
+MqttPacket::MqttPacket(char *buf, size_t len, size_t fixed_header_length, Client *sender) :
     bites(len),
     fixed_header_length(fixed_header_length),
     sender(sender)
@@ -11,6 +11,8 @@ MqttPacket::MqttPacket(char *buf, size_t len, size_t fixed_header_length, Client
     pos += fixed_header_length;
 
     std::memcpy(&bites[0], buf, len);
+
+    variable_header_length = readTwoBytesToUInt16();
 }
 
 void MqttPacket::handle()
@@ -24,8 +26,6 @@ void MqttPacket::handleConnect()
     if (sender->hasConnectPacketSeen())
         throw ProtocolError("Client already sent a CONNECT.");
 
-    // TODO: Do all packets have a variable header?
-    variable_header_length = readTwoBytesToUInt16();
 
     if (variable_header_length == 4 || variable_header_length == 6)
     {
@@ -86,7 +86,7 @@ void MqttPacket::handleConnect()
 
         // TODO: validate UTF8 encoded username/password.
 
-        sender->setClientProperties(clientid, username, true, keep_alive);
+        sender->setClientProperties(client_id, username, true, keep_alive);
     }
     else
     {
@@ -125,22 +125,7 @@ uint16_t MqttPacket::readTwoBytesToUInt16()
 
 
 
-std::string MqttPacket::getClientId()
-{
-    if (packetType != PacketType::CONNECT)
-        throw ProtocolError("Can't get clientid from non-connect packet.");
 
-    uint16_t clientid_length = (bites[fixed_header_length + 10] << 8) | (bites[fixed_header_length + 11]);
-    size_t client_id_start = fixed_header_length + 12;
-
-    if (clientid_length + 12 < bites.size())
-    {
-        std::string result(&bites[client_id_start], clientid_length);
-        return result;
-    }
-
-    throw ProtocolError("Can't get clientid");
-}
 
 
 

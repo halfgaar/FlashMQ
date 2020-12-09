@@ -15,21 +15,16 @@ class Client;
 
 class MqttPacket
 {
-    bool valid = false;
-
     std::vector<char> bites;
     const size_t fixed_header_length;
     uint16_t variable_header_length;
     Client *sender;
-    std::string clientid;
     size_t pos = 0;
     ProtocolVersion protocolVersion = ProtocolVersion::None;
 public:
     PacketType packetType = PacketType::Reserved;
     MqttPacket(char *buf, size_t len, size_t fixed_header_length, Client *sender);
 
-    bool isValid() { return valid; }
-    std::string getClientId();
     void handle();
     void handleConnect();
     char *readBytes(size_t length);
