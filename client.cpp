@@ -128,7 +128,7 @@ bool Client::bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn)
         {
             if (remaining_length_i >= getReadBufBytesUsed())
                 break;
-            encodedByte = readbuf[remaining_length_i++];
+            encodedByte = readbuf[ri + remaining_length_i++];
             packet_length += (encodedByte & 127) * multiplier;
             multiplier *= 128;
             if (multiplier > 128*128*128)
