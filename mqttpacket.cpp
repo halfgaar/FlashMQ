@@ -51,7 +51,7 @@ void MqttPacket::handle()
     if (packetType == PacketType::CONNECT)
         handleConnect();
     else if (packetType == PacketType::PINGREQ)
-        std::cout << "PING" << std::endl;
+        sender->writePingResp();
     else if (packetType == PacketType::SUBSCRIBE)
         handleSubscribe();
 }
@@ -157,12 +157,6 @@ void MqttPacket::handleSubscribe()
     sender->writeMqttPacket(response);
     sender->writeBufIntoFd();
 }
-
-void MqttPacket::handlePing()
-{
-
-}
-
 
 
 char *MqttPacket::readBytes(size_t length)

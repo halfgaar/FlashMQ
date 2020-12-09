@@ -2,6 +2,7 @@
 
 #include <cstring>
 #include <sstream>
+#include <iostream>
 
 Client::Client(int fd, ThreadData_p threadData) :
     fd(fd),
@@ -65,6 +66,19 @@ void Client::writeMqttPacket(MqttPacket &packet)
     wwi += packet.getSize();
 }
 
+// Ping responses are always the same, so hardcoding it for optimization.
+void Client::writePingResp()
+{
+    std::cout << "Sending ping response to " << repr() << std::endl;
+
+    if (2 > getWriteBufMaxWriteSize())
+        growWriteBuffer(CLIENT_BUFFER_SIZE);
+
+    writebuf[wwi++] = 0b11010000;
+    writebuf[wwi++] = 0;
+    writeBufIntoFd();
+}
+
 bool Client::writeBufIntoFd() // TODO: ignore the signal BROKEN PIPE we now also get when a client disappears.
 {
     int n;
@@ -91,6 +105,8 @@ bool Client::writeBufIntoFd() // TODO: ignore the signal BROKEN PIPE we now also
 
     return true;
 }
+
+
 
 std::string Client::repr()
 {
@@ -156,6 +172,8 @@ void Client::setClientProperties(const std::string &clientId, const std::string 
     this->connectPacketSeen = connectPacketSeen;
     this->keepalive = keepalive;
 }
+
+
 
 
 

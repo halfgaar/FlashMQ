@@ -90,6 +90,7 @@ public:
     bool getAuthenticated() { return authenticated; }
     bool hasConnectPacketSeen() { return connectPacketSeen; }
 
+    void writePingResp();
     void writeMqttPacket(MqttPacket &packet);
     bool writeBufIntoFd();
 
