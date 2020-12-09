@@ -34,6 +34,7 @@ public:
     void handleConnect();
     char *readBytes(size_t length);
     char readByte();
+    uint16_t readTwoBytesToUInt16();
 };
 
 #endif // MQTTPACKET_H

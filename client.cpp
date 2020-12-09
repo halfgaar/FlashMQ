@@ -74,7 +74,10 @@ bool Client::bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn)
         while ((encodedByte & 128) != 0);
         packet_length += remaining_length_i;
 
-        // TODO: unauth client can't send many bytes
+        if (!authenticated && packet_length >= 1024*1024)
+        {
+            throw ProtocolError("An unauthenticated client sends a packet of 1 MB or bigger? Probably it's just random bytes.");
+        }
 
         if (packet_length <= getBufBytesUsed())
         {
@@ -97,6 +100,13 @@ bool Client::bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn)
     return true;
 
     // TODO: reset buffer to normal size after a while of not needing it, or not needing the extra space.
+}
+
+void Client::setClientProperties(const std::string &clientId, const std::string username, bool connectPacketSeen)
+{
+    this->clientid = clientId;
+    this->username = username;
+    this->connectPacketSeen = connectPacketSeen;
 }
 
 

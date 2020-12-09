@@ -7,6 +7,7 @@
 
 #include "threaddata.h"
 #include "mqttpacket.h"
+#include "exceptions.h"
 
 #define CLIENT_BUFFER_SIZE 1024
 #define MQTT_HEADER_LENGH 2
@@ -26,7 +27,9 @@ class Client
     int ri = 0;
 
     bool authenticated = false;
+    bool connectPacketSeen = false;
     std::string clientid;
+    std::string username;
 
     ThreadData_p threadData;
 
@@ -55,6 +58,11 @@ public:
     int getFd() { return fd;}
     bool readFdIntoBuffer();
     bool bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn);
+    void setClientProperties(const std::string &clientId, const std::string username, bool connectPacketSeen);
+    void setAuthenticated(bool value) { authenticated = value;}
+    bool getAuthenticated() { return authenticated; }
+    bool hasConnectPacketSeen() { return connectPacketSeen; }
+
 
 };
 
