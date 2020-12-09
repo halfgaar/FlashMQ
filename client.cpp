@@ -102,11 +102,12 @@ bool Client::bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn)
     // TODO: reset buffer to normal size after a while of not needing it, or not needing the extra space.
 }
 
-void Client::setClientProperties(const std::string &clientId, const std::string username, bool connectPacketSeen)
+void Client::setClientProperties(const std::string &clientId, const std::string username, bool connectPacketSeen, uint16_t keepalive)
 {
     this->clientid = clientId;
     this->username = username;
     this->connectPacketSeen = connectPacketSeen;
+    this->keepalive = keepalive;
 }
 
 

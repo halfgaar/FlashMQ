@@ -27,7 +27,7 @@ void MqttPacket::handleConnect()
     // TODO: Do all packets have a variable header?
     variable_header_length = readTwoBytesToUInt16();
 
-    if (variable_header_length == 4)
+    if (variable_header_length == 4 || variable_header_length == 6)
     {
         char *c = readBytes(variable_header_length);
         std::string magic_marker(c, variable_header_length);
@@ -37,54 +37,61 @@ void MqttPacket::handleConnect()
         if (magic_marker == "MQTT" && protocol_level == 0x04)
         {
             protocolVersion = ProtocolVersion::Mqtt311;
+        }
+        else if (magic_marker == "MQIsdp" && protocol_level == 0x03)
+        {
+            protocolVersion = ProtocolVersion::Mqtt31;
+        }
+        else
+        {
+            throw ProtocolError("Only MQTT 3.1 and 3.1.1 supported.");
+        }
 
-            char flagByte = readByte();
-            bool reserved = !!(flagByte & 0b00000001);
+        char flagByte = readByte();
+        bool reserved = !!(flagByte & 0b00000001);
 
-            if (reserved)
-                throw ProtocolError("Protocol demands reserved flag in CONNECT is 0");
+        if (reserved)
+            throw ProtocolError("Protocol demands reserved flag in CONNECT is 0");
 
 
-            bool user_name_flag = !!(flagByte & 0b10000000);
-            bool password_flag = !!(flagByte & 0b01000000);
-            bool will_retain = !!(flagByte & 0b00100000);
-            char will_qos = (flagByte & 0b00011000) >> 3;
-            bool will_flag = !!(flagByte & 0b00000100);
-            bool clean_session = !!(flagByte & 0b00000010);
+        bool user_name_flag = !!(flagByte & 0b10000000);
+        bool password_flag = !!(flagByte & 0b01000000);
+        bool will_retain = !!(flagByte & 0b00100000);
+        char will_qos = (flagByte & 0b00011000) >> 3;
+        bool will_flag = !!(flagByte & 0b00000100);
+        bool clean_session = !!(flagByte & 0b00000010);
 
-            uint16_t keep_alive = readTwoBytesToUInt16();
+        uint16_t keep_alive = readTwoBytesToUInt16();
 
-            uint16_t client_id_length = readTwoBytesToUInt16();
-            std::string client_id(readBytes(client_id_length), client_id_length);
+        uint16_t client_id_length = readTwoBytesToUInt16();
+        std::string client_id(readBytes(client_id_length), client_id_length);
 
-            std::string username;
-            std::string password;
+        std::string username;
+        std::string password;
 
-            if (will_flag)
-            {
-
-            }
-            if (user_name_flag)
-            {
-                uint16_t user_name_length = readTwoBytesToUInt16();
-                username = std::string(readBytes(user_name_length), user_name_length);
-            }
-            if (password_flag)
-            {
-                uint16_t password_length = readTwoBytesToUInt16();
-                password = std::string(readBytes(password_length), password_length);
-            }
-
-            sender->setClientProperties(clientid, username, true);
+        if (will_flag)
+        {
 
         }
-    }
-    else if (variable_header_length == 6)
-    {
-        throw ProtocolError("Only MQTT 3.1.1 implemented.");
-    }
+        if (user_name_flag)
+        {
+            uint16_t user_name_length = readTwoBytesToUInt16();
+            username = std::string(readBytes(user_name_length), user_name_length);
+        }
+        if (password_flag)
+        {
+            uint16_t password_length = readTwoBytesToUInt16();
+            password = std::string(readBytes(password_length), password_length);
+        }
 
-    throw ProtocolError("Unprogrammed sequence in CONNECT.");
+        // TODO: validate UTF8 encoded username/password.
+
+        sender->setClientProperties(clientid, username, true, keep_alive);
+    }
+    else
+    {
+        throw ProtocolError("Invalid variable header length. Garbage?");
+    }
 }
 
 char *MqttPacket::readBytes(size_t length)

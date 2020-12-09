@@ -30,6 +30,7 @@ class Client
     bool connectPacketSeen = false;
     std::string clientid;
     std::string username;
+    uint16_t keepalive = 0;
 
     ThreadData_p threadData;
 
@@ -58,7 +59,7 @@ public:
     int getFd() { return fd;}
     bool readFdIntoBuffer();
     bool bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn);
-    void setClientProperties(const std::string &clientId, const std::string username, bool connectPacketSeen);
+    void setClientProperties(const std::string &clientId, const std::string username, bool connectPacketSeen, uint16_t keepalive);
     void setAuthenticated(bool value) { authenticated = value;}
     bool getAuthenticated() { return authenticated; }
     bool hasConnectPacketSeen() { return connectPacketSeen; }
