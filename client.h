@@ -46,7 +46,7 @@ class Client
 
     size_t getReadBufMaxWriteSize()
     {
-        size_t available = readBufsize - getReadBufBytesUsed();
+        size_t available = readBufsize - wi;
         return available;
     }
 
@@ -54,12 +54,14 @@ class Client
     {
         const size_t newBufSize = readBufsize * 2;
         readbuf = (char*)realloc(readbuf, newBufSize);
+        if (readbuf == NULL)
+            throw std::runtime_error("Memory allocation failure in growReadBuffer()");
         readBufsize = newBufSize;
     }
 
     size_t getWriteBufMaxWriteSize()
     {
-        size_t available = writeBufsize - getWriteBufBytesUsed();
+        size_t available = writeBufsize - wwi;
         return available;
     }
 
@@ -75,6 +77,10 @@ class Client
 
         const size_t newBufSize = writeBufsize + add_size;
         writebuf = (char*)realloc(writebuf, newBufSize);
+
+        if (writebuf == NULL)
+            throw std::runtime_error("Memory allocation failure in growWriteBuffer()");
+
         writeBufsize = newBufSize;
     }
 

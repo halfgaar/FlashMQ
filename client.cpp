@@ -19,16 +19,25 @@ Client::~Client()
     epoll_ctl(threadData->epollfd, EPOLL_CTL_DEL, fd, NULL); // NOTE: the last NULL can cause crash on old kernels
     close(fd);
     free(readbuf);
+    free(writebuf);
 }
 
 // false means any kind of error we want to get rid of the client for.
 bool Client::readFdIntoBuffer()
 {
-    int read_size = getReadBufMaxWriteSize();
-
     int n;
-    while ((n = read(fd, &readbuf[wi], read_size)) != 0)
+    while ((n = read(fd, &readbuf[wi], getReadBufMaxWriteSize())) != 0)
     {
+        if (n > 0)
+        {
+            wi += n;
+
+            if (getReadBufBytesUsed() >= readBufsize)
+            {
+                growReadBuffer();
+            }
+        }
+
         if (n < 0)
         {
             if (errno == EINTR)
@@ -38,15 +47,6 @@ bool Client::readFdIntoBuffer()
             else
                 return false;
         }
-
-        wi += n;
-
-        if (getReadBufBytesUsed() >= readBufsize)
-        {
-            growReadBuffer();
-        }
-
-        read_size = getReadBufMaxWriteSize();
     }
 
     if (n == 0) // client disconnected.
@@ -84,6 +84,8 @@ bool Client::writeBufIntoFd() // TODO: ignore the signal BROKEN PIPE we now also
     int n;
     while ((n = write(fd, &writebuf[wri], getWriteBufBytesUsed())) != 0)
     {
+        if (n > 0)
+            wri += n;
         if (n < 0)
         {
             if (errno == EINTR)
@@ -93,8 +95,6 @@ bool Client::writeBufIntoFd() // TODO: ignore the signal BROKEN PIPE we now also
             else
                 return false;
         }
-
-        wri += n;
     }
 
     if (wri == wwi)
@@ -148,6 +148,9 @@ bool Client::bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn)
             packetQueueIn.push_back(std::move(packet));
 
             ri += packet_length;
+
+            if (ri > wi)
+                throw std::runtime_error("hier");
         }
         else
             break;
