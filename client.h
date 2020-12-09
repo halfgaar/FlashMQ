@@ -74,7 +74,7 @@ class Client
             return;
 
         const size_t newBufSize = writeBufsize + add_size;
-        writebuf = (char*)realloc(readbuf, newBufSize);
+        writebuf = (char*)realloc(writebuf, newBufSize);
         writeBufsize = newBufSize;
     }
 
