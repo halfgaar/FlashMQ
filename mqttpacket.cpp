@@ -3,7 +3,7 @@
 #include <iostream>
 #include <list>
 
-MqttPacket::MqttPacket(char *buf, size_t len, size_t fixed_header_length, Client *sender) :
+MqttPacket::MqttPacket(char *buf, size_t len, size_t fixed_header_length, Client_p &sender) :
     bites(len),
     fixed_header_length(fixed_header_length),
     sender(sender)
@@ -46,14 +46,14 @@ MqttPacket::MqttPacket(const SubAck &subAck) :
     bites[1] = returnList.size() + 1; // TODO: make some generic way of calculating the header and use the multi-byte length
 }
 
-void MqttPacket::handle()
+void MqttPacket::handle(std::shared_ptr<SubscriptionStore> &subscriptionStore)
 {
     if (packetType == PacketType::CONNECT)
         handleConnect();
     else if (packetType == PacketType::PINGREQ)
         sender->writePingResp();
     else if (packetType == PacketType::SUBSCRIBE)
-        handleSubscribe();
+        handleSubscribe(subscriptionStore);
 }
 
 void MqttPacket::handleConnect()
@@ -137,7 +137,7 @@ void MqttPacket::handleConnect()
     }
 }
 
-void MqttPacket::handleSubscribe()
+void MqttPacket::handleSubscribe(std::shared_ptr<SubscriptionStore> &subscriptionStore)
 {
     uint16_t packet_id = readTwoBytesToUInt16();
 
@@ -147,6 +147,7 @@ void MqttPacket::handleSubscribe()
         uint16_t topicLength = readTwoBytesToUInt16();
         std::string topic(readBytes(topicLength), topicLength);
         std::cout << sender->repr() << " Subscribed to " << topic << std::endl;
+        subscriptionStore->addSubscription(sender, topic);
         subs.push_back(std::move(topic));
     }
 
@@ -158,6 +159,16 @@ void MqttPacket::handleSubscribe()
     sender->writeBufIntoFd();
 }
 
+
+Client_p MqttPacket::getSender() const
+{
+    return sender;
+}
+
+void MqttPacket::setSender(const Client_p &value)
+{
+    sender = value;
+}
 
 char *MqttPacket::readBytes(size_t length)
 {

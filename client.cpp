@@ -115,7 +115,7 @@ std::string Client::repr()
     return a.str();
 }
 
-bool Client::bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn)
+bool Client::bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn, Client_p &sender)
 {
     while (getReadBufBytesUsed() >= MQTT_HEADER_LENGH)
     {
@@ -144,7 +144,7 @@ bool Client::bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn)
 
         if (packet_length <= getReadBufBytesUsed())
         {
-            MqttPacket packet(&readbuf[ri], packet_length, remaining_length_i, this);
+            MqttPacket packet(&readbuf[ri], packet_length, remaining_length_i, sender);
             packetQueueIn.push_back(std::move(packet));
 
             ri += packet_length;

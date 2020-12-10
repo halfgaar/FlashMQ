@@ -5,17 +5,14 @@
 #include <unistd.h>
 #include <vector>
 
+#include "forward_declarations.h"
+
 #include "threaddata.h"
 #include "mqttpacket.h"
 #include "exceptions.h"
 
 #define CLIENT_BUFFER_SIZE 1024
 #define MQTT_HEADER_LENGH 2
-
-class ThreadData;
-typedef  std::shared_ptr<ThreadData> ThreadData_p;
-
-class MqttPacket;
 
 class Client
 {
@@ -90,7 +87,7 @@ public:
 
     int getFd() { return fd;}
     bool readFdIntoBuffer();
-    bool bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn);
+    bool bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn, Client_p &sender);
     void setClientProperties(const std::string &clientId, const std::string username, bool connectPacketSeen, uint16_t keepalive);
     void setAuthenticated(bool value) { authenticated = value;}
     bool getAuthenticated() { return authenticated; }
@@ -103,7 +100,5 @@ public:
     std::string repr();
 
 };
-
-typedef std::shared_ptr<Client> Client_p;
 
 #endif // CLIENT_H

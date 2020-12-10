@@ -1,7 +1,8 @@
 #include "threaddata.h"
 
 
-ThreadData::ThreadData(int threadnr) :
+ThreadData::ThreadData(int threadnr, std::shared_ptr<SubscriptionStore> &subscriptionStore) :
+    subscriptionStore(subscriptionStore),
     threadnr(threadnr)
 {
     epollfd = check<std::runtime_error>(epoll_create(999));
@@ -28,4 +29,9 @@ Client_p ThreadData::getClient(int fd)
 void ThreadData::removeClient(Client_p client)
 {
     clients_by_fd.erase(client->getFd());
+}
+
+std::shared_ptr<SubscriptionStore> &ThreadData::getSubscriptionStore()
+{
+    return subscriptionStore;
 }

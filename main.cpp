@@ -7,10 +7,12 @@
 #include <thread>
 #include <vector>
 
+
 #include "utils.h"
 #include "threaddata.h"
 #include "client.h"
 #include "mqttpacket.h"
+#include "subscriptionstore.h"
 
 #define MAX_EVENTS 1024
 #define NR_OF_THREADS 4
@@ -50,7 +52,7 @@ void do_thread_work(ThreadData *threadData)
                         }
                         else
                         {
-                            client->bufferToMqttPackets(packetQueueIn); // TODO: different, because now I need to give the packet a raw pointer.
+                            client->bufferToMqttPackets(packetQueueIn, client);
                         }
                     }
                     if (cur_ev.events & EPOLLOUT)
@@ -64,7 +66,7 @@ void do_thread_work(ThreadData *threadData)
 
         for (MqttPacket &packet : packetQueueIn)
         {
-            packet.handle();
+            packet.handle(threadData->getSubscriptionStore());
         }
         packetQueueIn.clear();
     }
@@ -100,11 +102,13 @@ int main()
     ev.events = EPOLLIN;
     check<std::runtime_error>(epoll_ctl(epoll_fd_accept, EPOLL_CTL_ADD, listen_fd, &ev));
 
+    std::shared_ptr<SubscriptionStore> subscriptionStore(new SubscriptionStore());
+
     std::vector<std::shared_ptr<ThreadData>> threads;
 
     for (int i = 0; i < NR_OF_THREADS; i++)
     {
-        std::shared_ptr<ThreadData> t(new ThreadData(i));
+        std::shared_ptr<ThreadData> t(new ThreadData(i, subscriptionStore));
         std::thread thread(do_thread_work, t.get());
         t->thread = std::move(thread);
         threads.push_back(t);

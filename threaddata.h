@@ -2,18 +2,23 @@
 #define THREADDATA_H
 
 #include <thread>
-#include "utils.h"
+
 #include <sys/epoll.h>
 #include <sys/eventfd.h>
-#include "client.h"
 #include <map>
 
-class Client;
-typedef std::shared_ptr<Client> Client_p;
+#include "forward_declarations.h"
+
+#include "client.h"
+#include "subscriptionstore.h"
+#include "utils.h"
+
+
 
 class ThreadData
 {
     std::map<int, Client_p> clients_by_fd;
+    std::shared_ptr<SubscriptionStore> subscriptionStore;
 
 public:
     std::thread thread;
@@ -21,13 +26,12 @@ public:
     int epollfd = 0;
     int event_fd = 0;
 
-    ThreadData(int threadnr);
+    ThreadData(int threadnr, std::shared_ptr<SubscriptionStore> &subscriptionStore);
 
     void giveClient(Client_p client);
     Client_p getClient(int fd);
     void removeClient(Client_p client);
+    std::shared_ptr<SubscriptionStore> &getSubscriptionStore();
 };
-
-typedef  std::shared_ptr<ThreadData> ThreadData_p;
 
 #endif // THREADDATA_H

@@ -6,18 +6,19 @@
 #include <vector>
 #include <exception>
 
+#include "forward_declarations.h"
+
 #include "client.h"
 #include "exceptions.h"
 #include "types.h"
-
-class Client;
+#include "subscriptionstore.h"
 
 
 class MqttPacket
 {
     std::vector<char> bites;
     size_t fixed_header_length = 0;
-    Client *sender;
+    Client_p sender;
     size_t pos = 0;
     ProtocolVersion protocolVersion = ProtocolVersion::None;
 
@@ -29,18 +30,20 @@ class MqttPacket
 
 public:
     PacketType packetType = PacketType::Reserved;
-    MqttPacket(char *buf, size_t len, size_t fixed_header_length, Client *sender);
+    MqttPacket(char *buf, size_t len, size_t fixed_header_length, Client_p &sender);
     MqttPacket(const ConnAck &connAck);
     MqttPacket(const SubAck &subAck);
 
-    void handle();
+    void handle(std::shared_ptr<SubscriptionStore> &subscriptionStore);
     void handleConnect();
-    void handleSubscribe();
+    void handleSubscribe(std::shared_ptr<SubscriptionStore> &subscriptionStore);
     void handlePing();
 
     size_t getSize() { return bites.size(); }
     const std::vector<char> &getBites() { return bites; }
 
+    Client_p getSender() const;
+    void setSender(const Client_p &value);
 };
 
 #endif // MQTTPACKET_H

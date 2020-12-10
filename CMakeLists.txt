@@ -14,6 +14,8 @@ add_executable(FlashMQ
     bytestopacketparser.cpp
     mqttpacket.cpp
     exceptions.cpp
-    types.cpp)
+    types.cpp
+    subscriptionstore.cpp
+    )
 
 target_link_libraries(FlashMQ pthread)
