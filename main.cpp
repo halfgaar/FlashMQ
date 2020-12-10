@@ -45,14 +45,13 @@ void do_thread_work(ThreadData *threadData)
                 {
                     if (cur_ev.events & EPOLLIN)
                     {
-                        if (!client->readFdIntoBuffer())
+                        bool readSuccess = client->readFdIntoBuffer();
+                        client->bufferToMqttPackets(packetQueueIn, client);
+
+                        if (!readSuccess)
                         {
                             std::cout << "Disconnect: " << client->repr() << std::endl;
                             threadData->removeClient(client);
-                        }
-                        else
-                        {
-                            client->bufferToMqttPackets(packetQueueIn, client);
                         }
                     }
                     if (cur_ev.events & EPOLLOUT)
