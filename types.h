@@ -66,4 +66,12 @@ public:
     SubAck(uint16_t packet_id, const std::list<std::string> &subs);
 };
 
+class Publish
+{
+public:
+    std::string topic;
+    std::string payload;
+    Publish(std::string &topic, std::string payload);
+};
+
 #endif // TYPES_H

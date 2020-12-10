@@ -57,7 +57,7 @@ bool Client::readFdIntoBuffer()
     return true;
 }
 
-void Client::writeMqttPacket(MqttPacket &packet)
+void Client::writeMqttPacket(const MqttPacket &packet)
 {
     if (packet.getSize() > getWriteBufMaxWriteSize())
         growWriteBuffer(packet.getSize());
@@ -113,6 +113,18 @@ std::string Client::repr()
     std::ostringstream a;
     a << "Client = " << clientid << ", user = " << username;
     return a.str();
+}
+
+void Client::queueMessage(const MqttPacket &packet)
+{
+
+
+    // TODO: semaphores on stl containers?
+}
+
+void Client::queuedMessagesToBuffer()
+{
+
 }
 
 bool Client::bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn, Client_p &sender)

@@ -18,6 +18,8 @@ public:
 
     // work with read copies intead of mutex/lock over the central store
     void getReadCopy(); // TODO
+
+    void queueAtClientsTemp(std::string &topic, const MqttPacket &packet, const Client_p &sender);
 };
 
 #endif // SUBSCRIPTIONSTORE_H

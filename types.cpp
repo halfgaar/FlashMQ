@@ -15,3 +15,10 @@ SubAck::SubAck(uint16_t packet_id, const std::list<std::string> &subs) :
         responses.push_back(SubAckReturnCodes::MaxQoS0);
     }
 }
+
+Publish::Publish(std::string &topic, std::string payload) :
+    topic(topic),
+    payload(payload)
+{
+
+}

@@ -3,16 +3,17 @@
 #include <iostream>
 #include <list>
 
+// constructor for parsing incoming packets
 MqttPacket::MqttPacket(char *buf, size_t len, size_t fixed_header_length, Client_p &sender) :
     bites(len),
     fixed_header_length(fixed_header_length),
     sender(sender)
 {
-    unsigned char _packetType = (buf[0] & 0xF0) >> 4;
+    std::memcpy(&bites[0], buf, len);
+    first_byte = bites[0];
+    unsigned char _packetType = (first_byte & 0xF0) >> 4;
     packetType = (PacketType)_packetType;
     pos += fixed_header_length;
-
-    std::memcpy(&bites[0], buf, len);
 }
 
 MqttPacket::MqttPacket(const ConnAck &connAck) :
@@ -46,14 +47,42 @@ MqttPacket::MqttPacket(const SubAck &subAck) :
     bites[1] = returnList.size() + 1; // TODO: make some generic way of calculating the header and use the multi-byte length
 }
 
+MqttPacket::MqttPacket(const Publish &publish) :
+    bites(publish.topic.length() + publish.payload.length() + 2 + 2) // TODO: same as above
+{
+    packetType = PacketType::PUBLISH;
+    char first_byte = static_cast<char>(packetType) << 4;
+    writeByte(first_byte);
+
+    char topicLenMSB = (publish.topic.length() & 0xF0) >> 8;
+    char topicLenLSB = publish.topic.length() & 0x0F;
+    writeByte(topicLenMSB);
+    writeByte(topicLenLSB);
+    writeBytes(publish.topic.c_str(), publish.topic.length());
+
+    writeBytes(publish.payload.c_str(), publish.payload.length());
+
+    // TODO: untested. May be unnecessary, because a received packet can be resent just like that.
+}
+
 void MqttPacket::handle(std::shared_ptr<SubscriptionStore> &subscriptionStore)
 {
+    if (packetType != PacketType::CONNECT)
+    {
+        if (!sender->getAuthenticated())
+        {
+            throw ProtocolError("Non-connect packet from non-authenticated client.");
+        }
+    }
+
     if (packetType == PacketType::CONNECT)
         handleConnect();
     else if (packetType == PacketType::PINGREQ)
         sender->writePingResp();
     else if (packetType == PacketType::SUBSCRIBE)
         handleSubscribe(subscriptionStore);
+    else if (packetType == PacketType::PUBLISH)
+        handlePublish(subscriptionStore);
 }
 
 void MqttPacket::handleConnect()
@@ -123,6 +152,7 @@ void MqttPacket::handleConnect()
         // TODO: validate UTF8 encoded username/password.
 
         sender->setClientProperties(client_id, username, true, keep_alive);
+        sender->setAuthenticated(true);
 
         std::cout << "Connect: " << sender->repr() << std::endl;
 
@@ -157,6 +187,30 @@ void MqttPacket::handleSubscribe(std::shared_ptr<SubscriptionStore> &subscriptio
     MqttPacket response(subAck);
     sender->writeMqttPacket(response);
     sender->writeBufIntoFd();
+}
+
+void MqttPacket::handlePublish(std::shared_ptr<SubscriptionStore> &subscriptionStore)
+{
+    uint16_t variable_header_length = readTwoBytesToUInt16();
+
+    if (variable_header_length == 0)
+        throw ProtocolError("Empty publish topic");
+
+    char qos = (first_byte & 0b00000110) >> 1;
+
+    std::string topic(readBytes(variable_header_length), variable_header_length);
+
+    if (qos)
+    {
+        throw ProtocolError("Qos not implemented.");
+        //uint16_t packet_id = readTwoBytesToUInt16();
+    }
+
+    // TODO: validate UTF8.
+    size_t payload_length = remainingAfterPos();
+    std::string payload(readBytes(payload_length), payload_length);
+
+    subscriptionStore->queueAtClientsTemp(topic, *this, sender);
 }
 
 
@@ -195,6 +249,14 @@ void MqttPacket::writeByte(char b)
         throw ProtocolError("Exceeding packet size");
 
     bites[pos++] = b;
+}
+
+void MqttPacket::writeBytes(const char *b, size_t len)
+{
+    if (pos + len > bites.size())
+        throw ProtocolError("Exceeding packet size");
+
+    memcpy(&bites[pos], b, len);
 }
 
 uint16_t MqttPacket::readTwoBytesToUInt16()

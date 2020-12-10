@@ -35,3 +35,21 @@ std::shared_ptr<SubscriptionStore> &ThreadData::getSubscriptionStore()
 {
     return subscriptionStore;
 }
+
+void ThreadData::wakeUpThread()
+{
+    uint64_t one = 1;
+    write(event_fd, &one, sizeof(uint64_t));
+}
+
+void ThreadData::addToReadyForDequeuing(Client_p &client)
+{
+    this->readyForDequeueing.insert(client);
+}
+
+void ThreadData::clearReadyForDequeueing()
+{
+    this->readyForDequeueing.clear();
+}
+
+

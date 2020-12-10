@@ -92,13 +92,16 @@ public:
     void setAuthenticated(bool value) { authenticated = value;}
     bool getAuthenticated() { return authenticated; }
     bool hasConnectPacketSeen() { return connectPacketSeen; }
+    ThreadData_p getThreadData() { return threadData; }
 
     void writePingResp();
-    void writeMqttPacket(MqttPacket &packet);
+    void writeMqttPacket(const MqttPacket &packet);
     bool writeBufIntoFd();
 
     std::string repr();
 
+    void queueMessage(const MqttPacket &packet);
+    void queuedMessagesToBuffer();
 };
 
 #endif // CLIENT_H
