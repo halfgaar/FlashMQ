@@ -36,7 +36,8 @@ void do_thread_work(ThreadData *threadData)
         {
             for (Client_p client : threadData->getReadyForDequeueing())
             {
-                client->queuedMessagesToBuffer();
+                //client->queuedMessagesToBuffer();
+                client->writeBufIntoFd();
             }
             threadData->clearReadyForDequeueing();
             eventfd_value = 0;

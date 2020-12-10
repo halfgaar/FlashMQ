@@ -66,6 +66,13 @@ void Client::writeMqttPacket(const MqttPacket &packet)
     wwi += packet.getSize();
 }
 
+// Not sure if this is the method I want to use
+void Client::writeMqttPacketLocked(const MqttPacket &packet)
+{
+    std::lock_guard<std::mutex> lock(writeBufMutex);
+    writeMqttPacket(packet);
+}
+
 // Ping responses are always the same, so hardcoding it for optimization.
 void Client::writePingResp()
 {

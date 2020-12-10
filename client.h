@@ -4,12 +4,14 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <vector>
+#include <mutex>
 
 #include "forward_declarations.h"
 
 #include "threaddata.h"
 #include "mqttpacket.h"
 #include "exceptions.h"
+
 
 #define CLIENT_BUFFER_SIZE 1024
 #define MQTT_HEADER_LENGH 2
@@ -35,6 +37,7 @@ class Client
     uint16_t keepalive = 0;
 
     ThreadData_p threadData;
+    std::mutex writeBufMutex;
 
     size_t getReadBufBytesUsed()
     {
@@ -96,6 +99,7 @@ public:
 
     void writePingResp();
     void writeMqttPacket(const MqttPacket &packet);
+    void writeMqttPacketLocked(const MqttPacket &packet);
     bool writeBufIntoFd();
 
     std::string repr();

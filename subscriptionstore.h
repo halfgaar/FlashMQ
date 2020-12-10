@@ -3,6 +3,7 @@
 
 #include <unordered_map>
 #include <list>
+#include <mutex>
 
 #include "forward_declarations.h"
 
@@ -11,6 +12,7 @@
 class SubscriptionStore
 {
     std::unordered_map<std::string, std::list<Client_p>> subscriptions;
+    std::mutex subscriptionsMutex;
 public:
     SubscriptionStore();
 

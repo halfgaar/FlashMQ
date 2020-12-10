@@ -7,6 +7,12 @@ ThreadData::ThreadData(int threadnr, std::shared_ptr<SubscriptionStore> &subscri
 {
     epollfd = check<std::runtime_error>(epoll_create(999));
     event_fd = eventfd(0, EFD_NONBLOCK);
+
+    struct epoll_event ev;
+    memset(&ev, 0, sizeof (struct epoll_event));
+    ev.data.fd = event_fd;
+    ev.events = EPOLLIN;
+    check<std::runtime_error>(epoll_ctl(epollfd, EPOLL_CTL_ADD, event_fd, &ev));
 }
 
 void ThreadData::giveClient(Client_p client)
@@ -44,11 +50,13 @@ void ThreadData::wakeUpThread()
 
 void ThreadData::addToReadyForDequeuing(Client_p &client)
 {
+    std::lock_guard<std::mutex> lock(readForDequeuingMutex);
     this->readyForDequeueing.insert(client);
 }
 
 void ThreadData::clearReadyForDequeueing()
 {
+    std::lock_guard<std::mutex> lock(readForDequeuingMutex);
     this->readyForDequeueing.clear();
 }
 
