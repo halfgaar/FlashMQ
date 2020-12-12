@@ -1,4 +1,5 @@
 #include "mainapp.h"
+#include "cassert"
 
 #define MAX_EVENTS 1024
 #define NR_OF_THREADS 4
@@ -26,8 +27,6 @@ void do_thread_work(ThreadData *threadData)
             threadData->clearReadyForDequeueing();
             eventfd_value = 0;
         }
-
-        // TODO: do all the buftofd here, not spread out over
 
         int fdcount = epoll_wait(epoll_fd, events, MAX_EVENTS, 100);
 
@@ -66,6 +65,10 @@ void do_thread_work(ThreadData *threadData)
                             threadData->removeClient(client);
                     }
                 }
+                else
+                {
+                    assert(false);
+                }
             }
         }
 
@@ -85,11 +88,11 @@ MainApp::MainApp() :
 
 void MainApp::start()
 {
-    int listen_fd = socket(AF_INET, SOCK_STREAM, 0);
+    int listen_fd = check<std::runtime_error>(socket(AF_INET, SOCK_STREAM, 0));
 
     // Not needed for now. Maybe I will make multiple accept threads later, with SO_REUSEPORT.
-    //int optval = 1;
-    //check<std::runtime_error>(setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &optval, sizeof(optval)));
+    int optval = 1;
+    check<std::runtime_error>(setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &optval, sizeof(optval)));
 
     int flags = fcntl(listen_fd, F_GETFL);
     check<std::runtime_error>(fcntl(listen_fd, F_SETFL, flags | O_NONBLOCK ));
@@ -153,11 +156,13 @@ void MainApp::start()
 
         }
     }
+
+    close(listen_fd);
 }
 
 void MainApp::quit()
 {
-    std::cout << "Quitting application" << std::endl;
+    std::cout << "Quitting FlashMQ" << std::endl;
 
     running = false;
 

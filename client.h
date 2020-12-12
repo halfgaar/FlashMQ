@@ -14,6 +14,7 @@
 
 
 #define CLIENT_BUFFER_SIZE 1024
+#define CLIENT_MAX_BUFFER_SIZE 1048576
 #define MQTT_HEADER_LENGH 2
 
 class Client
@@ -32,6 +33,8 @@ class Client
 
     bool authenticated = false;
     bool connectPacketSeen = false;
+    bool readyForWriting = false;
+
     std::string clientid;
     std::string username;
     uint16_t keepalive = 0;
@@ -84,11 +87,14 @@ class Client
         writeBufsize = newBufSize;
     }
 
+
+
 public:
     Client(int fd, ThreadData_p threadData);
     ~Client();
 
     int getFd() { return fd;}
+    void closeConnection();
     bool readFdIntoBuffer();
     bool bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn, Client_p &sender);
     void setClientProperties(const std::string &clientId, const std::string username, bool connectPacketSeen, uint16_t keepalive);
@@ -96,6 +102,7 @@ public:
     bool getAuthenticated() { return authenticated; }
     bool hasConnectPacketSeen() { return connectPacketSeen; }
     ThreadData_p getThreadData() { return threadData; }
+    std::string &getClientId() { return this->clientid; }
 
     void writePingResp();
     void writeMqttPacket(const MqttPacket &packet);
@@ -106,6 +113,8 @@ public:
 
     void queueMessage(const MqttPacket &packet);
     void queuedMessagesToBuffer();
+
+    void setReadyForWriting(bool val);
 };
 
 #endif // CLIENT_H

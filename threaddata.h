@@ -9,6 +9,7 @@
 #include <unordered_set>
 #include <unordered_map>
 #include <mutex>
+#include <shared_mutex>
 
 #include "forward_declarations.h"
 
@@ -21,6 +22,7 @@
 class ThreadData
 {
     std::unordered_map<int, Client_p> clients_by_fd;
+    std::mutex clients_by_fd_mutex;
     std::shared_ptr<SubscriptionStore> subscriptionStore;
     std::unordered_set<Client_p> readyForDequeueing;
     std::mutex readForDequeuingMutex;

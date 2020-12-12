@@ -11,12 +11,13 @@
 
 class SubscriptionStore
 {
-    std::unordered_map<std::string, std::list<Client_p>> subscriptions;
+    std::unordered_map<std::string, std::unordered_set<Client_p>> subscriptions;
     std::mutex subscriptionsMutex;
 public:
     SubscriptionStore();
 
     void addSubscription(Client_p &client, std::string &topic);
+    void removeClient(const Client_p &client);
 
     // work with read copies intead of mutex/lock over the central store
     void getReadCopy(); // TODO

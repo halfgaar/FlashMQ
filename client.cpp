@@ -16,10 +16,18 @@ Client::Client(int fd, ThreadData_p threadData) :
 
 Client::~Client()
 {
-    epoll_ctl(threadData->epollfd, EPOLL_CTL_DEL, fd, NULL); // NOTE: the last NULL can cause crash on old kernels
-    close(fd);
+    closeConnection();
     free(readbuf);
     free(writebuf);
+}
+
+void Client::closeConnection()
+{
+    if (fd < 0)
+        return;
+    epoll_ctl(threadData->epollfd, EPOLL_CTL_DEL, fd, NULL);
+    close(fd);
+    fd = -1;
 }
 
 // false means any kind of error we want to get rid of the client for.
@@ -59,11 +67,16 @@ bool Client::readFdIntoBuffer()
 
 void Client::writeMqttPacket(const MqttPacket &packet)
 {
+    if (packet.packetType == PacketType::PUBLISH && getWriteBufBytesUsed() > CLIENT_MAX_BUFFER_SIZE)
+        return;
+
     if (packet.getSize() > getWriteBufMaxWriteSize())
         growWriteBuffer(packet.getSize());
 
     std::memcpy(&writebuf[wwi], &packet.getBites()[0], packet.getSize());
     wwi += packet.getSize();
+
+    setReadyForWriting(true);
 }
 
 // Not sure if this is the method I want to use
@@ -83,10 +96,11 @@ void Client::writePingResp()
 
     writebuf[wwi++] = 0b11010000;
     writebuf[wwi++] = 0;
-    writeBufIntoFd();
+
+    setReadyForWriting(true);
 }
 
-bool Client::writeBufIntoFd() // TODO: ignore the signal BROKEN PIPE we now also get when a client disappears.
+bool Client::writeBufIntoFd()
 {
     int n;
     while ((n = write(fd, &writebuf[wri], getWriteBufBytesUsed())) != 0)
@@ -108,6 +122,8 @@ bool Client::writeBufIntoFd() // TODO: ignore the signal BROKEN PIPE we now also
     {
         wri = 0;
         wwi = 0;
+
+        setReadyForWriting(false);
     }
 
     return true;
@@ -132,6 +148,21 @@ void Client::queueMessage(const MqttPacket &packet)
 void Client::queuedMessagesToBuffer()
 {
 
+}
+
+void Client::setReadyForWriting(bool val)
+{
+    if (val == this->readyForWriting)
+        return;
+
+    readyForWriting = val;
+    struct epoll_event ev;
+    memset(&ev, 0, sizeof (struct epoll_event));
+    ev.data.fd = fd;
+    ev.events = EPOLLIN;
+    if (val)
+        ev.events |= EPOLLOUT;
+    check<std::runtime_error>(epoll_ctl(threadData->epollfd, EPOLL_CTL_MOD, fd, &ev));
 }
 
 bool Client::bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn, Client_p &sender)

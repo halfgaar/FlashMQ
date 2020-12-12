@@ -159,7 +159,6 @@ void MqttPacket::handleConnect()
         ConnAck connAck(ConnAckReturnCodes::Accepted);
         MqttPacket response(connAck);
         sender->writeMqttPacket(response);
-        sender->writeBufIntoFd();
     }
     else
     {
@@ -186,7 +185,6 @@ void MqttPacket::handleSubscribe(std::shared_ptr<SubscriptionStore> &subscriptio
     SubAck subAck(packet_id, subs);
     MqttPacket response(subAck);
     sender->writeMqttPacket(response);
-    sender->writeBufIntoFd();
 }
 
 void MqttPacket::handlePublish(std::shared_ptr<SubscriptionStore> &subscriptionStore)
