@@ -42,6 +42,7 @@ class Client
     ThreadData_p threadData;
     std::mutex writeBufMutex;
 
+    // Note: this is not the inverse of free space, because there can be non-used lead-in in the buffer!
     size_t getReadBufBytesUsed()
     {
         return wi - ri;
@@ -68,6 +69,7 @@ class Client
         return available;
     }
 
+    // Note: this is not the inverse of free space, because there can be non-used lead-in in the buffer!
     size_t getWriteBufBytesUsed()
     {
         return wwi - wri;

@@ -40,7 +40,7 @@ bool Client::readFdIntoBuffer()
         {
             wi += n;
 
-            if (getReadBufBytesUsed() >= readBufsize)
+            if (getReadBufMaxWriteSize() == 0)
             {
                 growReadBuffer();
             }
@@ -53,12 +53,16 @@ bool Client::readFdIntoBuffer()
             if (errno == EAGAIN || errno == EWOULDBLOCK)
                 break;
             else
+            {
+                std::cerr << strerror(errno) << std::endl;
                 return false;
+            }
         }
     }
 
     if (n == 0) // client disconnected.
     {
+        std::cerr << "normal disconnect" << std::endl;
         return false;
     }
 
