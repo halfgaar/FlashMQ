@@ -77,6 +77,8 @@ bool Client::readFdIntoBuffer()
 
 void Client::writeMqttPacket(const MqttPacket &packet)
 {
+    std::lock_guard<std::mutex> locker(writeBufMutex);
+
     if (packet.packetType == PacketType::PUBLISH && wwi > CLIENT_MAX_BUFFER_SIZE)
         return;
 
@@ -99,6 +101,8 @@ void Client::writeMqttPacketLocked(const MqttPacket &packet)
 // Ping responses are always the same, so hardcoding it for optimization.
 void Client::writePingResp()
 {
+    std::lock_guard<std::mutex> locker(writeBufMutex);
+
     std::cout << "Sending ping response to " << repr() << std::endl;
 
     if (2 > getWriteBufMaxWriteSize())
@@ -112,6 +116,8 @@ void Client::writePingResp()
 
 bool Client::writeBufIntoFd()
 {
+    std::lock_guard<std::mutex> locker(writeBufMutex);
+
     int n;
     while ((n = write(fd, &writebuf[wri], getWriteBufBytesUsed())) != 0)
     {

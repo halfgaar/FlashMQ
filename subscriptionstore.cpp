@@ -28,6 +28,9 @@ void SubscriptionStore::queueAtClientsTemp(std::string &topic, const MqttPacket 
 
     for(const Client_p &client : subscriptions[topic])
     {
+        client->writeMqttPacket(packet);
+
+        /*
         if (client->getThreadData()->threadnr == sender->getThreadData()->threadnr)
         {
             client->writeMqttPacket(packet); // TODO: with my current hack way, this is wrong. Not using a lock only works with my previous idea of queueing.
@@ -39,6 +42,6 @@ void SubscriptionStore::queueAtClientsTemp(std::string &topic, const MqttPacket 
             //client->writeMqttPacketLocked(packet);
             //client->getThreadData()->addToReadyForDequeuing(client);
             //client->getThreadData()->wakeUpThread();
-        }
+        }*/
     }
 }
