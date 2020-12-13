@@ -33,6 +33,12 @@ void Client::closeConnection()
 // false means any kind of error we want to get rid of the client for.
 bool Client::readFdIntoBuffer()
 {
+    if (wi > CLIENT_MAX_BUFFER_SIZE)
+    {
+        setReadyForReading(false);
+        return true;
+    }
+
     int n;
     while ((n = read(fd, &readbuf[wi], getReadBufMaxWriteSize())) != 0)
     {
@@ -71,7 +77,7 @@ bool Client::readFdIntoBuffer()
 
 void Client::writeMqttPacket(const MqttPacket &packet)
 {
-    if (packet.packetType == PacketType::PUBLISH && getWriteBufBytesUsed() > CLIENT_MAX_BUFFER_SIZE)
+    if (packet.packetType == PacketType::PUBLISH && wwi > CLIENT_MAX_BUFFER_SIZE)
         return;
 
     if (packet.getSize() > getWriteBufMaxWriteSize())
@@ -163,8 +169,25 @@ void Client::setReadyForWriting(bool val)
     struct epoll_event ev;
     memset(&ev, 0, sizeof (struct epoll_event));
     ev.data.fd = fd;
-    ev.events = EPOLLIN;
-    if (val)
+    if (readyForReading)
+        ev.events |= EPOLLIN;
+    if (readyForWriting)
+        ev.events |= EPOLLOUT;
+    check<std::runtime_error>(epoll_ctl(threadData->epollfd, EPOLL_CTL_MOD, fd, &ev));
+}
+
+void Client::setReadyForReading(bool val)
+{
+    if (val == this->readyForReading)
+        return;
+
+    readyForReading = val;
+    struct epoll_event ev;
+    memset(&ev, 0, sizeof (struct epoll_event));
+    ev.data.fd = fd;
+    if (readyForReading)
+        ev.events |= EPOLLIN;
+    if (readyForWriting)
         ev.events |= EPOLLOUT;
     check<std::runtime_error>(epoll_ctl(threadData->epollfd, EPOLL_CTL_MOD, fd, &ev));
 }
@@ -215,6 +238,7 @@ bool Client::bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn, Client_
     {
         ri = 0;
         wi = 0;
+        setReadyForReading(true);
     }
 
     return true;

@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <vector>
 #include <mutex>
+#include <iostream>
 
 #include "forward_declarations.h"
 
@@ -34,6 +35,7 @@ class Client
     bool authenticated = false;
     bool connectPacketSeen = false;
     bool readyForWriting = false;
+    bool readyForReading = true;
 
     std::string clientid;
     std::string username;
@@ -61,6 +63,8 @@ class Client
         if (readbuf == NULL)
             throw std::runtime_error("Memory allocation failure in growReadBuffer()");
         readBufsize = newBufSize;
+
+        std::cout << "New read buf size: " << readBufsize << std::endl;
     }
 
     size_t getWriteBufMaxWriteSize()
@@ -80,16 +84,20 @@ class Client
         if (add_size == 0)
             return;
 
-        const size_t newBufSize = writeBufsize + add_size;
+        const size_t grow_by = std::max<size_t>(add_size, writeBufsize*2);
+        const size_t newBufSize = writeBufsize + grow_by;
         writebuf = (char*)realloc(writebuf, newBufSize);
 
         if (writebuf == NULL)
             throw std::runtime_error("Memory allocation failure in growWriteBuffer()");
 
         writeBufsize = newBufSize;
+
+        std::cout << "New write buf size: " << writeBufsize << std::endl;
     }
 
-
+    void setReadyForWriting(bool val);
+    void setReadyForReading(bool val);
 
 public:
     Client(int fd, ThreadData_p threadData);
@@ -116,7 +124,7 @@ public:
     void queueMessage(const MqttPacket &packet);
     void queuedMessagesToBuffer();
 
-    void setReadyForWriting(bool val);
+
 };
 
 #endif // CLIENT_H
