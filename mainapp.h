@@ -17,15 +17,19 @@
 #include "mqttpacket.h"
 #include "subscriptionstore.h"
 
-
 class MainApp
 {
+    static MainApp *instance;
+
     bool running = true;
     std::vector<std::shared_ptr<ThreadData>> threads;
     std::shared_ptr<SubscriptionStore> subscriptionStore;
 
-public:
     MainApp();
+public:
+    MainApp(const MainApp &rhs) = delete;
+    MainApp(MainApp &&rhs) = delete;
+    static MainApp *getMainApp();
     void start();
     void quit();
 };

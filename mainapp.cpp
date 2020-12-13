@@ -4,6 +4,8 @@
 #define MAX_EVENTS 1024
 #define NR_OF_THREADS 4
 
+MainApp *MainApp::instance = nullptr;
+
 void do_thread_work(ThreadData *threadData)
 {
     int epoll_fd = threadData->epollfd;
@@ -84,6 +86,14 @@ MainApp::MainApp() :
     subscriptionStore(new SubscriptionStore())
 {
 
+}
+
+MainApp *MainApp::getMainApp()
+{
+    if (instance == nullptr)
+        instance = new MainApp();
+
+    return instance;
 }
 
 void MainApp::start()

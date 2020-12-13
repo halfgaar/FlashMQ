@@ -5,7 +5,7 @@
 
 #include "mainapp.h"
 
-static MainApp mainApp;
+MainApp *mainApp = MainApp::getMainApp();
 
 static void signal_handler(int signal)
 {
@@ -19,7 +19,7 @@ static void signal_handler(int signal)
     }
     else if (signal == SIGTERM || signal == SIGINT)
     {
-        mainApp.quit();
+        mainApp->quit();
     }
     else
     {
@@ -59,7 +59,7 @@ int main()
     try
     {
         check<std::runtime_error>(register_signal_handers());
-        mainApp.start();
+        mainApp->start();
     }
     catch (std::exception &ex)
     {

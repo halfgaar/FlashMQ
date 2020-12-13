@@ -4,6 +4,8 @@
 #include <string.h>
 #include <errno.h>
 #include <string>
+#include <list>
+#include <limits>
 
 template<typename T> int check(int rc)
 {
@@ -16,5 +18,7 @@ template<typename T> int check(int rc)
 
     return rc;
 }
+
+std::list<std::string> split(const std::string &input, const char sep, size_t max = std::numeric_limits<int>::max(), bool keep_empty_parts = true);
 
 #endif // UTILS_H
