@@ -5,6 +5,7 @@
 #include <unordered_set>
 #include <list>
 #include <mutex>
+#include <pthread.h>
 
 #include "forward_declarations.h"
 
@@ -20,7 +21,7 @@ public:
     SubscriptionNode(const SubscriptionNode &node) = delete;
     SubscriptionNode(SubscriptionNode &&node) = delete;
 
-    std::unordered_set<std::string> subscribers;
+    std::unordered_set<std::string> subscribers; // The idea is to store subscriptions by client id, to support persistent sessions.
     std::unordered_map<std::string, std::unique_ptr<SubscriptionNode>> children;
 
 };
@@ -29,7 +30,8 @@ public:
 class SubscriptionStore
 {
     std::unique_ptr<SubscriptionNode> subscriptions2;
-    std::mutex subscriptionsMutex;
+    pthread_rwlock_t subscriptionsRwlock = PTHREAD_RWLOCK_INITIALIZER;
+    std::unordered_map<std::string, Client_p> clients_by_id;
 public:
     SubscriptionStore();
 

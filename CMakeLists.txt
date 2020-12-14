@@ -17,6 +17,7 @@ add_executable(FlashMQ
     exceptions.cpp
     types.cpp
     subscriptionstore.cpp
+    rwlockguard.cpp
     )
 
 target_link_libraries(FlashMQ pthread)
