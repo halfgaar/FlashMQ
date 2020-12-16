@@ -36,6 +36,7 @@ public:
 
     ThreadData(int threadnr, std::shared_ptr<SubscriptionStore> &subscriptionStore);
 
+    void moveThreadHere(std::thread &&thread);
     void quit();
     void giveClient(Client_p client);
     Client_p getClient(int fd);

@@ -1,4 +1,6 @@
 #include "threaddata.h"
+#include <string>
+#include <sstream>
 
 ThreadData::ThreadData(int threadnr, std::shared_ptr<SubscriptionStore> &subscriptionStore) :
     subscriptionStore(subscriptionStore),
@@ -12,6 +14,17 @@ ThreadData::ThreadData(int threadnr, std::shared_ptr<SubscriptionStore> &subscri
     ev.data.fd = event_fd;
     ev.events = EPOLLIN;
     check<std::runtime_error>(epoll_ctl(epollfd, EPOLL_CTL_ADD, event_fd, &ev));
+}
+
+void ThreadData::moveThreadHere(std::thread &&thread)
+{
+    this->thread = std::move(thread);
+
+    pthread_t native = this->thread.native_handle();
+    std::ostringstream threadName;
+    threadName << "FlashMQ T " << threadnr;
+    threadName.flush();
+    pthread_setname_np(native, threadName.str().c_str());
 }
 
 void ThreadData::quit()

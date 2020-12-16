@@ -130,7 +130,7 @@ void MainApp::start()
     {
         std::shared_ptr<ThreadData> t(new ThreadData(i, subscriptionStore));
         std::thread thread(do_thread_work, t.get());
-        t->thread = std::move(thread);
+        t->moveThreadHere(std::move(thread));
         threads.push_back(t);
     }
 
