@@ -208,7 +208,7 @@ void MqttPacket::handlePublish(std::shared_ptr<SubscriptionStore> &subscriptionS
     size_t payload_length = remainingAfterPos();
     std::string payload(readBytes(payload_length), payload_length);
 
-    subscriptionStore->queueAtClientsTemp(topic, *this, sender);
+    subscriptionStore->queuePacketAtSubscribers(topic, *this, sender);
 }
 
 

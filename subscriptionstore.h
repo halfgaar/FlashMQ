@@ -2,7 +2,7 @@
 #define SUBSCRIPTIONSTORE_H
 
 #include <unordered_map>
-#include <unordered_set>
+#include <forward_list>
 #include <list>
 #include <mutex>
 #include <pthread.h>
@@ -21,27 +21,27 @@ public:
     SubscriptionNode(const SubscriptionNode &node) = delete;
     SubscriptionNode(SubscriptionNode &&node) = delete;
 
-    std::unordered_set<std::string> subscribers; // The idea is to store subscriptions by client id, to support persistent sessions.
+    std::forward_list<std::string> subscribers; // The idea is to store subscriptions by client id, to support persistent sessions.
     std::unordered_map<std::string, std::unique_ptr<SubscriptionNode>> children;
-
 };
 
 
 class SubscriptionStore
 {
-    std::unique_ptr<SubscriptionNode> subscriptions2;
+    std::unique_ptr<SubscriptionNode> root;
     pthread_rwlock_t subscriptionsRwlock = PTHREAD_RWLOCK_INITIALIZER;
     std::unordered_map<std::string, Client_p> clients_by_id;
+    const std::unordered_map<std::string, Client_p> &clients_by_id_const;
+
+    bool publishRecursively(std::list<std::string>::const_iterator cur_subtopic_it, std::list<std::string>::const_iterator end,
+                            std::unique_ptr<SubscriptionNode> &next, const MqttPacket &packet) const;
 public:
     SubscriptionStore();
 
     void addSubscription(Client_p &client, std::string &topic);
     void removeClient(const Client_p &client);
 
-    // work with read copies intead of mutex/lock over the central store
-    void getReadCopy(); // TODO
-
-    void queueAtClientsTemp(std::string &topic, const MqttPacket &packet, const Client_p &sender);
+    void queuePacketAtSubscribers(std::string &topic, const MqttPacket &packet, const Client_p &sender);
 };
 
 #endif // SUBSCRIPTIONSTORE_H
