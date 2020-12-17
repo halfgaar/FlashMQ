@@ -1,5 +1,6 @@
 #include "mainapp.h"
 #include "cassert"
+#include "exceptions.h"
 
 #define MAX_EVENTS 1024
 #define NR_OF_THREADS 4
@@ -32,7 +33,13 @@ void do_thread_work(ThreadData *threadData)
 
         int fdcount = epoll_wait(epoll_fd, events, MAX_EVENTS, 100);
 
-        if (fdcount > 0)
+        if (fdcount < 0)
+        {
+            if (errno == EINTR)
+                continue;
+            std::cerr << "Problem waiting for fd: " << strerror(errno) << std::endl;
+        }
+        else if (fdcount > 0)
         {
             for (int i = 0; i < fdcount; i++)
             {
@@ -50,21 +57,29 @@ void do_thread_work(ThreadData *threadData)
 
                 if (client)
                 {
-                    if (cur_ev.events & EPOLLIN)
+                    try
                     {
-                        bool readSuccess = client->readFdIntoBuffer();
-                        client->bufferToMqttPackets(packetQueueIn, client);
-
-                        if (!readSuccess)
+                        if (cur_ev.events & EPOLLIN)
                         {
-                            std::cout << "Disconnect: " << client->repr() << std::endl;
-                            threadData->removeClient(client);
+                            bool readSuccess = client->readFdIntoBuffer();
+                            client->bufferToMqttPackets(packetQueueIn, client);
+
+                            if (!readSuccess)
+                            {
+                                std::cout << "Disconnect: " << client->repr() << std::endl;
+                                threadData->removeClient(client);
+                            }
+                        }
+                        if (cur_ev.events & EPOLLOUT)
+                        {
+                            if (!client->writeBufIntoFd())
+                                threadData->removeClient(client);
                         }
                     }
-                    if (cur_ev.events & EPOLLOUT)
+                    catch(std::exception &ex)
                     {
-                        if (!client->writeBufIntoFd())
-                            threadData->removeClient(client);
+                        std::cerr << ex.what() << std::endl;
+                        threadData->removeClient(client);
                     }
                 }
                 else
@@ -76,7 +91,15 @@ void do_thread_work(ThreadData *threadData)
 
         for (MqttPacket &packet : packetQueueIn)
         {
-            packet.handle(threadData->getSubscriptionStore());
+            try
+            {
+                packet.handle(threadData->getSubscriptionStore());
+            }
+            catch (std::exception &ex)
+            {
+                std::cerr << ex.what() << std::endl;
+                threadData->removeClient(packet.getSender());
+            }
         }
         packetQueueIn.clear();
     }
@@ -142,26 +165,40 @@ void MainApp::start()
     {
         int num_fds = epoll_wait(epoll_fd_accept, events, MAX_EVENTS, 100);
 
+        if (num_fds < 0)
+        {
+            if (errno == EINTR)
+                continue;
+            std::cerr << strerror(errno) << std::endl;
+        }
+
         for (int i = 0; i < num_fds; i++)
         {
             int cur_fd = events[i].data.fd;
-            if (cur_fd == listen_fd)
+            try
             {
-                std::shared_ptr<ThreadData> thread_data = threads[next_thread_index++ % NR_OF_THREADS];
+                if (cur_fd == listen_fd)
+                {
+                    std::shared_ptr<ThreadData> thread_data = threads[next_thread_index++ % NR_OF_THREADS];
 
-                std::cout << "Accepting connection on thread " << thread_data->threadnr << std::endl;
+                    std::cout << "Accepting connection on thread " << thread_data->threadnr << std::endl;
 
-                struct sockaddr addr;
-                memset(&addr, 0, sizeof(struct sockaddr));
-                socklen_t len = sizeof(struct sockaddr);
-                int fd = check<std::runtime_error>(accept(cur_fd, &addr, &len));
+                    struct sockaddr addr;
+                    memset(&addr, 0, sizeof(struct sockaddr));
+                    socklen_t len = sizeof(struct sockaddr);
+                    int fd = check<std::runtime_error>(accept(cur_fd, &addr, &len));
 
-                Client_p client(new Client(fd, thread_data));
-                thread_data->giveClient(client);
+                    Client_p client(new Client(fd, thread_data));
+                    thread_data->giveClient(client);
+                }
+                else
+                {
+                    throw std::runtime_error("The main thread had activity on an accepted socket?");
+                }
             }
-            else
+            catch (std::exception &ex)
             {
-                throw std::runtime_error("The main thread had activity on an accepted socket?");
+                std::cerr << "Problem accepting connection: " << ex.what() << std::endl;
             }
 
         }

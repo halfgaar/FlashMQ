@@ -1,4 +1,6 @@
 #include "rwlockguard.h"
+#include "utils.h"
+#include "stdexcept"
 
 RWLockGuard::RWLockGuard(pthread_rwlock_t *rwlock) :
     rwlock(rwlock)
@@ -13,10 +15,12 @@ RWLockGuard::~RWLockGuard()
 
 void RWLockGuard::wrlock()
 {
-    pthread_rwlock_wrlock(rwlock);
+    if (pthread_rwlock_wrlock(rwlock) != 0)
+        throw std::runtime_error("wrlock failed.");
 }
 
 void RWLockGuard::rdlock()
 {
-    pthread_rwlock_wrlock(rwlock);
+    if (pthread_rwlock_wrlock(rwlock) != 0)
+        throw std::runtime_error("rdlock failed.");
 }

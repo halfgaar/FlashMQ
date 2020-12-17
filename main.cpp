@@ -38,7 +38,7 @@ int register_signal_handers()
     if (sigaction(SIGHUP, &sa, nullptr) != 0 || sigaction(SIGTERM, &sa, nullptr) != 0 || sigaction(SIGINT, &sa, nullptr) != 0)
     {
         std::cerr << "Error registering signals" << std::endl;
-        return 1;
+        return -1;
     }
 
     sigset_t set;

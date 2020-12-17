@@ -3,6 +3,7 @@
 #include <cstring>
 #include <sstream>
 #include <iostream>
+#include <cassert>
 
 Client::Client(int fd, ThreadData_p threadData) :
     fd(fd),
@@ -12,6 +13,9 @@ Client::Client(int fd, ThreadData_p threadData) :
     fcntl(fd, F_SETFL, flags | O_NONBLOCK);
     readbuf = (char*)malloc(CLIENT_BUFFER_SIZE);
     writebuf = (char*)malloc(CLIENT_BUFFER_SIZE);
+
+    if (readbuf == NULL || writebuf == NULL)
+        throw std::runtime_error("Malloc error constructing client.");
 }
 
 Client::~Client()
@@ -25,7 +29,7 @@ void Client::closeConnection()
 {
     if (fd < 0)
         return;
-    epoll_ctl(threadData->epollfd, EPOLL_CTL_DEL, fd, NULL);
+    check<std::runtime_error>(epoll_ctl(threadData->epollfd, EPOLL_CTL_DEL, fd, NULL));
     close(fd);
     fd = -1;
 }
@@ -59,10 +63,7 @@ bool Client::readFdIntoBuffer()
             if (errno == EAGAIN || errno == EWOULDBLOCK)
                 break;
             else
-            {
-                std::cerr << strerror(errno) << std::endl;
-                return false;
-            }
+                check<std::runtime_error>(n);
         }
     }
 
@@ -89,13 +90,6 @@ void Client::writeMqttPacket(const MqttPacket &packet)
     wwi += packet.getSize();
 
     setReadyForWriting(true);
-}
-
-// Not sure if this is the method I want to use
-void Client::writeMqttPacketLocked(const MqttPacket &packet)
-{
-    std::lock_guard<std::mutex> lock(writeBufMutex);
-    writeMqttPacket(packet);
 }
 
 // Ping responses are always the same, so hardcoding it for optimization.
@@ -131,7 +125,7 @@ bool Client::writeBufIntoFd()
             if (errno == EAGAIN || errno == EWOULDBLOCK)
                 break;
             else
-                return false;
+                check<std::runtime_error>(n);
         }
     }
 
@@ -147,25 +141,12 @@ bool Client::writeBufIntoFd()
     return true;
 }
 
-
-
 std::string Client::repr()
 {
     std::ostringstream a;
     a << "Client = " << clientid << ", user = " << username;
+    a.flush();
     return a.str();
-}
-
-void Client::queueMessage(const MqttPacket &packet)
-{
-
-
-    // TODO: semaphores on stl containers?
-}
-
-void Client::queuedMessagesToBuffer()
-{
-
 }
 
 void Client::setReadyForWriting(bool val)
@@ -233,9 +214,7 @@ bool Client::bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn, Client_
             packetQueueIn.push_back(std::move(packet));
 
             ri += packet_length;
-
-            if (ri > wi)
-                throw std::runtime_error("hier");
+            assert(ri <= wi);
         }
         else
             break;

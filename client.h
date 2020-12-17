@@ -116,14 +116,9 @@ public:
 
     void writePingResp();
     void writeMqttPacket(const MqttPacket &packet);
-    void writeMqttPacketLocked(const MqttPacket &packet);
     bool writeBufIntoFd();
 
     std::string repr();
-
-    void queueMessage(const MqttPacket &packet);
-    void queuedMessagesToBuffer();
-
 
 };
 
