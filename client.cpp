@@ -116,7 +116,8 @@ void Client::writePingResp()
 
 bool Client::writeBufIntoFd()
 {
-    std::lock_guard<std::mutex> locker(writeBufMutex);
+    if (!writeBufMutex.try_lock())
+        return true;
 
     int n;
     while ((n = write(fd, &writebuf[wri], getWriteBufBytesUsed())) != 0)
@@ -142,6 +143,7 @@ bool Client::writeBufIntoFd()
         setReadyForWriting(false);
     }
 
+    writeBufMutex.unlock();
     return true;
 }
 
