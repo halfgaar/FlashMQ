@@ -41,6 +41,11 @@ class Client
     std::string username;
     uint16_t keepalive = 0;
 
+    std::string will_topic;
+    std::string will_payload;
+    bool will_retain = false;
+    char will_qos = 0;
+
     ThreadData_p threadData;
     std::mutex writeBufMutex;
 
@@ -108,6 +113,7 @@ public:
     bool readFdIntoBuffer();
     bool bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn, Client_p &sender);
     void setClientProperties(const std::string &clientId, const std::string username, bool connectPacketSeen, uint16_t keepalive);
+    void setWill(const std::string &topic, const std::string &payload, bool retain, char qos);
     void setAuthenticated(bool value) { authenticated = value;}
     bool getAuthenticated() { return authenticated; }
     bool hasConnectPacketSeen() { return connectPacketSeen; }

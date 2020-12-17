@@ -241,6 +241,14 @@ void Client::setClientProperties(const std::string &clientId, const std::string 
     this->keepalive = keepalive;
 }
 
+void Client::setWill(const std::string &topic, const std::string &payload, bool retain, char qos)
+{
+    this->will_topic = topic;
+    this->will_payload = payload;
+    this->will_retain = retain;
+    this->will_qos = qos;
+}
+
 
 
 

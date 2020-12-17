@@ -133,10 +133,16 @@ void MqttPacket::handleConnect()
 
         std::string username;
         std::string password;
+        std::string will_topic;
+        std::string will_payload;
 
         if (will_flag)
         {
+            uint16_t will_topic_length = readTwoBytesToUInt16();
+            will_topic = std::string(readBytes(will_topic_length), will_topic_length);
 
+            uint16_t will_payload_length = readTwoBytesToUInt16();
+            will_payload = std::string(readBytes(will_payload_length), will_payload_length);
         }
         if (user_name_flag)
         {
@@ -152,6 +158,7 @@ void MqttPacket::handleConnect()
         // TODO: validate UTF8 encoded username/password.
 
         sender->setClientProperties(client_id, username, true, keep_alive);
+        sender->setWill(will_topic, will_payload, will_retain, will_qos);
         sender->setAuthenticated(true);
 
         std::cout << "Connect: " << sender->repr() << std::endl;
