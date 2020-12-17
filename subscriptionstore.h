@@ -25,7 +25,6 @@ public:
     std::unordered_map<std::string, std::unique_ptr<SubscriptionNode>> children;
 };
 
-
 class SubscriptionStore
 {
     std::unique_ptr<SubscriptionNode> root;
@@ -33,15 +32,16 @@ class SubscriptionStore
     std::unordered_map<std::string, Client_p> clients_by_id;
     const std::unordered_map<std::string, Client_p> &clients_by_id_const;
 
+    bool publishNonRecursively(const MqttPacket &packet, const std::forward_list<std::string> &subscribers) const;
     bool publishRecursively(std::list<std::string>::const_iterator cur_subtopic_it, std::list<std::string>::const_iterator end,
                             std::unique_ptr<SubscriptionNode> &next, const MqttPacket &packet) const;
 public:
     SubscriptionStore();
 
-    void addSubscription(Client_p &client, std::string &topic);
+    void addSubscription(Client_p &client, const std::string &topic);
     void removeClient(const Client_p &client);
 
-    void queuePacketAtSubscribers(std::string &topic, const MqttPacket &packet, const Client_p &sender);
+    void queuePacketAtSubscribers(const std::string &topic, const MqttPacket &packet, const Client_p &sender);
 };
 
 #endif // SUBSCRIPTIONSTORE_H
