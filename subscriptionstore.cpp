@@ -46,7 +46,7 @@ void SubscriptionStore::addSubscription(Client_p &client, const std::string &top
     clients_by_id[client->getClientId()] = client;
     lock_guard.unlock();
 
-    giveClientRetainedMessage(client, topic); // TODO: wildcards
+    giveClientRetainedMessages(client, topic);
 }
 
 void SubscriptionStore::removeClient(const Client_p &client)
@@ -122,22 +122,20 @@ void SubscriptionStore::queuePacketAtSubscribers(const std::string &topic, const
     publishRecursively(subtopics.begin(), subtopics.end(), root, packet);
 }
 
-void SubscriptionStore::giveClientRetainedMessage(Client_p &client, const std::string &topic)
+void SubscriptionStore::giveClientRetainedMessages(Client_p &client, const std::string &subscribe_topic)
 {
     RWLockGuard locker(&retainedMessagesRwlock);
     locker.rdlock();
 
-    auto retained_ptr = retainedMessages.find(topic);
+    for(const RetainedMessage &rm : retainedMessages)
+    {
+        Publish publish(rm.topic, rm.payload, rm.qos);
+        publish.retain = true;
+        const MqttPacket packet(publish);
 
-    if (retained_ptr == retainedMessages.end())
-        return;
-
-    const RetainedPayload &m = retained_ptr->second;
-
-    Publish publish(topic, m.payload, m.qos);
-    publish.retain = true;
-    const MqttPacket packet(publish);
-    client->writeMqttPacket(packet);
+        if (topicsMatch(subscribe_topic, rm.topic))
+            client->writeMqttPacket(packet);
+    }
 }
 
 void SubscriptionStore::setRetainedMessage(const std::string &topic, const std::string &payload, char qos)
@@ -145,7 +143,9 @@ void SubscriptionStore::setRetainedMessage(const std::string &topic, const std::
     RWLockGuard locker(&retainedMessagesRwlock);
     locker.wrlock();
 
-    auto retained_ptr = retainedMessages.find(topic);
+    RetainedMessage rm(topic, payload, qos);
+
+    auto retained_ptr = retainedMessages.find(rm);
     bool retained_found = retained_ptr != retainedMessages.end();
 
     if (!retained_found && payload.empty())
@@ -153,13 +153,11 @@ void SubscriptionStore::setRetainedMessage(const std::string &topic, const std::
 
     if (retained_found && payload.empty())
     {
-        retainedMessages.erase(topic);
+        retainedMessages.erase(rm);
         return;
     }
 
-    RetainedPayload &m = retainedMessages[topic];
-    m.payload = payload;
-    m.qos = qos;
+    retainedMessages.insert(std::move(rm));
 }
 
 

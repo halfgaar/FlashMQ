@@ -21,4 +21,6 @@ template<typename T> int check(int rc)
 
 std::list<std::string> split(const std::string &input, const char sep, size_t max = std::numeric_limits<int>::max(), bool keep_empty_parts = true);
 
+bool topicsMatch(const std::string &subscribeTopic, const std::string &publishTopic);
+
 #endif // UTILS_H
