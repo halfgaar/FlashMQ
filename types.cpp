@@ -6,13 +6,12 @@ ConnAck::ConnAck(ConnAckReturnCodes return_code) :
 
 }
 
-SubAck::SubAck(uint16_t packet_id, const std::list<std::string> &subs) :
+SubAck::SubAck(uint16_t packet_id, const std::list<char> &subs_qos_reponses) :
     packet_id(packet_id)
 {
-    // dummy
-    for(size_t i = 0; i < subs.size(); i++)
+    for (char ack_code : subs_qos_reponses)
     {
-        responses.push_back(SubAckReturnCodes::MaxQoS0);
+        responses.push_back(static_cast<SubAckReturnCodes>(ack_code));
     }
 }
 

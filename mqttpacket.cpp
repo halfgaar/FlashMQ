@@ -196,19 +196,20 @@ void MqttPacket::handleSubscribe(std::shared_ptr<SubscriptionStore> &subscriptio
 {
     uint16_t packet_id = readTwoBytesToUInt16();
 
-    std::list<std::string> subs; // TODO: list of tuples, probably
-    while (remainingAfterPos() > 1)
+    std::list<char> subs_reponse_codes;
+    while (remainingAfterPos() > 0)
     {
         uint16_t topicLength = readTwoBytesToUInt16();
         std::string topic(readBytes(topicLength), topicLength);
+        char qos = readByte();
+        if (qos > 0)
+            throw NotImplementedException("QoS not implemented");
         std::cout << sender->repr() << " Subscribed to " << topic << std::endl;
         subscriptionStore->addSubscription(sender, topic);
-        subs.push_back(std::move(topic));
+        subs_reponse_codes.push_back(qos);
     }
 
-    char flags = readByte();
-
-    SubAck subAck(packet_id, subs);
+    SubAck subAck(packet_id, subs_reponse_codes);
     MqttPacket response(subAck);
     sender->writeMqttPacket(response);
 }

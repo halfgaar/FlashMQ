@@ -64,7 +64,7 @@ class SubAck
 public:
     uint16_t packet_id;
     std::list<SubAckReturnCodes> responses;
-    SubAck(uint16_t packet_id, const std::list<std::string> &subs);
+    SubAck(uint16_t packet_id, const std::list<char> &subs_qos_reponses);
 };
 
 class Publish
