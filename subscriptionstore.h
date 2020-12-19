@@ -12,6 +12,12 @@
 #include "client.h"
 #include "utils.h"
 
+struct RetainedPayload
+{
+    std::string payload;
+    char qos;
+};
+
 class SubscriptionNode
 {
     std::string subtopic;
@@ -32,6 +38,9 @@ class SubscriptionStore
     std::unordered_map<std::string, Client_p> clients_by_id;
     const std::unordered_map<std::string, Client_p> &clients_by_id_const;
 
+    pthread_rwlock_t retainedMessagesRwlock = PTHREAD_RWLOCK_INITIALIZER;
+    std::unordered_map<std::string, RetainedPayload> retainedMessages;
+
     bool publishNonRecursively(const MqttPacket &packet, const std::forward_list<std::string> &subscribers) const;
     bool publishRecursively(std::list<std::string>::const_iterator cur_subtopic_it, std::list<std::string>::const_iterator end,
                             std::unique_ptr<SubscriptionNode> &next, const MqttPacket &packet) const;
@@ -42,6 +51,9 @@ public:
     void removeClient(const Client_p &client);
 
     void queuePacketAtSubscribers(const std::string &topic, const MqttPacket &packet, const Client_p &sender);
+    void giveClientRetainedMessage(Client_p &client, const std::string &topic);
+
+    void setRetainedMessage(const std::string &topic, const std::string &payload, char qos);
 };
 
 #endif // SUBSCRIPTIONSTORE_H

@@ -12,6 +12,7 @@ public:
     ~RWLockGuard();
     void wrlock();
     void rdlock();
+    void unlock();
 };
 
 #endif // RWLOCKGUARD_H

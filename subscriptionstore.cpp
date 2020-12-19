@@ -44,6 +44,9 @@ void SubscriptionStore::addSubscription(Client_p &client, const std::string &top
     }
 
     clients_by_id[client->getClientId()] = client;
+    lock_guard.unlock();
+
+    giveClientRetainedMessage(client, topic); // TODO: wildcards
 }
 
 void SubscriptionStore::removeClient(const Client_p &client)
@@ -117,6 +120,46 @@ void SubscriptionStore::queuePacketAtSubscribers(const std::string &topic, const
     lock_guard.rdlock();
 
     publishRecursively(subtopics.begin(), subtopics.end(), root, packet);
+}
+
+void SubscriptionStore::giveClientRetainedMessage(Client_p &client, const std::string &topic)
+{
+    RWLockGuard locker(&retainedMessagesRwlock);
+    locker.rdlock();
+
+    auto retained_ptr = retainedMessages.find(topic);
+
+    if (retained_ptr == retainedMessages.end())
+        return;
+
+    const RetainedPayload &m = retained_ptr->second;
+
+    Publish publish(topic, m.payload, m.qos);
+    publish.retain = true;
+    const MqttPacket packet(publish);
+    client->writeMqttPacket(packet);
+}
+
+void SubscriptionStore::setRetainedMessage(const std::string &topic, const std::string &payload, char qos)
+{
+    RWLockGuard locker(&retainedMessagesRwlock);
+    locker.wrlock();
+
+    auto retained_ptr = retainedMessages.find(topic);
+    bool retained_found = retained_ptr != retainedMessages.end();
+
+    if (!retained_found && payload.empty())
+        return;
+
+    if (retained_found && payload.empty())
+    {
+        retainedMessages.erase(topic);
+        return;
+    }
+
+    RetainedPayload &m = retainedMessages[topic];
+    m.payload = payload;
+    m.qos = qos;
 }
 
 

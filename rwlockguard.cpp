@@ -10,7 +10,7 @@ RWLockGuard::RWLockGuard(pthread_rwlock_t *rwlock) :
 
 RWLockGuard::~RWLockGuard()
 {
-    pthread_rwlock_unlock(rwlock);
+    unlock();
 }
 
 void RWLockGuard::wrlock()
@@ -23,4 +23,13 @@ void RWLockGuard::rdlock()
 {
     if (pthread_rwlock_wrlock(rwlock) != 0)
         throw std::runtime_error("rdlock failed.");
+}
+
+void RWLockGuard::unlock()
+{
+    if (rwlock != NULL)
+    {
+        pthread_rwlock_unlock(rwlock);
+        rwlock = NULL;
+    }
 }

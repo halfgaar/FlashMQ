@@ -83,11 +83,22 @@ void Client::writeMqttPacket(const MqttPacket &packet)
     if (packet.packetType == PacketType::PUBLISH && wwi > CLIENT_MAX_BUFFER_SIZE)
         return;
 
-    if (packet.getSize() > getWriteBufMaxWriteSize())
-        growWriteBuffer(packet.getSize());
+    if (packet.getSizeIncludingNonPresentHeader() > getWriteBufMaxWriteSize())
+        growWriteBuffer(packet.getSizeIncludingNonPresentHeader());
 
-    std::memcpy(&writebuf[wwi], &packet.getBites()[0], packet.getSize());
-    wwi += packet.getSize();
+    if (!packet.containsFixedHeader())
+    {
+        writebuf[wwi++] = packet.getFirstByte();
+        RemainingLength r = packet.getRemainingLength();
+        std::memcpy(&writebuf[wwi], r.bytes, r.len);
+        wwi += r.len;
+    }
+
+    std::memcpy(&writebuf[wwi], &packet.getBites()[0], packet.getBites().size());
+    wwi += packet.getBites().size();
+
+    assert(wwi >= static_cast<int>(packet.getSizeIncludingNonPresentHeader()));
+    assert(wwi <= static_cast<int>(writeBufsize));
 
     setReadyForWriting(true);
 }
