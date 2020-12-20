@@ -48,3 +48,61 @@ bool topicsMatch(const std::string &subscribeTopic, const std::string &publishTo
     result = subscribe_itr == subscribeParts.end() && publish_itr == publishParts.end();
     return result;
 }
+
+bool isValidUtf8(const std::string &s)
+{
+    int multibyte_remain = 0;
+    int cur_code_point = 0;
+    for(const char &x : s)
+    {
+        if (x == 0)
+            return false;
+
+        if(!multibyte_remain)
+        {
+            cur_code_point = 0;
+
+            if((x & 0b11100000) == 0b11000000) // 2 byte char
+            {
+                multibyte_remain = 1;
+                cur_code_point += ((x & 0b00011111) << 6);
+            }
+            else if((x & 0b11110000) == 0b11100000) // 3 byte char
+            {
+                multibyte_remain = 2;
+                cur_code_point += ((x & 0b00001111) << 12);
+            }
+            else if((x & 0b11111000) == 0b11110000) // 4 byte char
+            {
+                multibyte_remain = 3;
+                cur_code_point += ((x & 0b00000111) << 18);
+            }
+            else if((x & 0b10000000) != 0)
+                return false;
+            else
+                cur_code_point += (x & 0b01111111);
+        }
+        else // All remainer bytes of this code point needs to start with 10
+        {
+            if((x & 0b11000000) != 0b10000000)
+                return false;
+            multibyte_remain--;
+            cur_code_point += ((x & 0b00111111) << (6*multibyte_remain));
+        }
+
+        if (multibyte_remain == 0)
+        {
+            // Invalid range for MQTT. [MQTT-1.5.3-1]
+            if (cur_code_point >= 0xD800 && cur_code_point <= 0xDFFF) // Dec 55296-57343
+                return false;
+            if (cur_code_point >= 0x0001 && cur_code_point <= 0x001F)
+                return false;
+            if (cur_code_point >= 0x007F && cur_code_point <= 0x009F)
+                return false;
+            if (cur_code_point == 0xFFFF)
+                return false;
+            cur_code_point = 0;
+        }
+    }
+    return multibyte_remain == 0;
+}
