@@ -70,7 +70,7 @@ class Client
             throw std::runtime_error("Memory allocation failure in growReadBuffer()");
         readBufsize = newBufSize;
 
-        std::cout << "New read buf size: " << readBufsize << std::endl;
+        //std::cout << "New read buf size: " << readBufsize << std::endl;
     }
 
     size_t getWriteBufMaxWriteSize()
@@ -99,7 +99,7 @@ class Client
 
         writeBufsize = newBufSize;
 
-        std::cout << "New write buf size: " << writeBufsize << std::endl;
+        //std::cout << "New write buf size: " << writeBufsize << std::endl;
     }
 
     void setReadyForWriting(bool val);
@@ -128,6 +128,8 @@ public:
 
     // Do this before calling an action that makes this client ready for writing, so that the EPOLLOUT will handle it.
     void setReadyForDisconnect() { disconnectWhenBytesWritten = true; }
+
+    bool isDisconnected() const { return fd < 0; }
 
     std::string repr();
 

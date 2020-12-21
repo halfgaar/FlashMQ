@@ -55,7 +55,7 @@ void do_thread_work(ThreadData *threadData)
 
                 Client_p client = threadData->getClient(fd);
 
-                if (client)
+                if (client && !client->isDisconnected())
                 {
                     try
                     {
@@ -68,26 +68,29 @@ void do_thread_work(ThreadData *threadData)
                             {
                                 std::cout << "Disconnect: " << client->repr() << std::endl;
                                 threadData->removeClient(client);
+                                continue;
                             }
                         }
                         if (cur_ev.events & EPOLLOUT)
                         {
                             if (!client->writeBufIntoFd())
+                            {
                                 threadData->removeClient(client);
+                                continue;
+                            }
 
                             if (client->readyForDisconnecting())
+                            {
                                 threadData->removeClient(client);
+                                continue;
+                            }
                         }
                     }
                     catch(std::exception &ex)
                     {
-                        std::cerr << ex.what() << std::endl;
+                        std::cerr << "Packet read/write error: " << ex.what() << std::endl;
                         threadData->removeClient(client);
                     }
-                }
-                else
-                {
-                    assert(false);
                 }
             }
         }
@@ -100,7 +103,7 @@ void do_thread_work(ThreadData *threadData)
             }
             catch (std::exception &ex)
             {
-                std::cerr << ex.what() << std::endl;
+                std::cerr << "MqttPacket handling error: " << ex.what() << std::endl;
                 threadData->removeClient(packet.getSender());
             }
         }

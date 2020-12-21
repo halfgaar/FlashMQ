@@ -69,7 +69,7 @@ bool Client::readFdIntoBuffer()
 
     if (n == 0) // client disconnected.
     {
-        std::cerr << "normal disconnect" << std::endl;
+        //std::cerr << "normal disconnect" << std::endl;
         return false;
     }
 
@@ -124,8 +124,13 @@ void Client::writePingResp()
 
 bool Client::writeBufIntoFd()
 {
-    if (!writeBufMutex.try_lock())
+    std::unique_lock<std::mutex> lock(writeBufMutex, std::try_to_lock);
+    if (!lock.owns_lock())
         return true;
+
+    // We can abort the write; the client is about to be removed anyway.
+    if (isDisconnected())
+        return false;
 
     int n;
     while ((n = write(fd, &writebuf[wri], getWriteBufBytesUsed())) != 0)
@@ -151,14 +156,13 @@ bool Client::writeBufIntoFd()
         setReadyForWriting(false);
     }
 
-    writeBufMutex.unlock();
     return true;
 }
 
 std::string Client::repr()
 {
     std::ostringstream a;
-    a << "Client = " << clientid << ", user = " << username;
+    a << "[Client=" << clientid << ", user=" << username << ", fd=" << fd << "]";
     a.flush();
     return a.str();
 }
