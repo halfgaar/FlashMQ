@@ -128,7 +128,12 @@ void MqttPacket::handleConnect()
         }
         else
         {
-            throw ProtocolError("Only MQTT 3.1 and 3.1.1 supported.");
+            ConnAck connAck(ConnAckReturnCodes::UnacceptableProtocolVersion);
+            MqttPacket response(connAck);
+            sender->setReadyForDisconnect();
+            sender->writeMqttPacket(response);
+            std::cout << "Rejecting because of invalid protocol version: " << sender->repr() << std::endl;
+            return;
         }
 
         char flagByte = readByte();
@@ -174,7 +179,28 @@ void MqttPacket::handleConnect()
             password = std::string(readBytes(password_length), password_length);
         }
 
-        // TODO: validate UTF8 encoded username/password.
+        // The specs don't really say what to do when client id not UTF8, so including here.
+        if (!isValidUtf8(client_id) || !isValidUtf8(username) || !isValidUtf8(password))
+        {
+            ConnAck connAck(ConnAckReturnCodes::MalformedUsernameOrPassword);
+            MqttPacket response(connAck);
+            sender->setReadyForDisconnect();
+            sender->writeMqttPacket(response);
+            std::cout << "Client ID, username or passwords has invalid UTF8: " << sender->repr() << std::endl;
+            return;
+        }
+
+        // In case the client_id ever appears in topics.
+        // TODO: make setting?
+        if (strContains(client_id, "+") || strContains(client_id, "#"))
+        {
+            ConnAck connAck(ConnAckReturnCodes::ClientIdRejected);
+            MqttPacket response(connAck);
+            sender->setReadyForDisconnect();
+            sender->writeMqttPacket(response);
+            std::cout << "ClientID has + or # in the id: " << sender->repr() << std::endl;
+            return;
+        }
 
         sender->setClientProperties(client_id, username, true, keep_alive);
         sender->setWill(will_topic, will_payload, will_retain, will_qos);

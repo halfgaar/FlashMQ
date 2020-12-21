@@ -74,6 +74,9 @@ void do_thread_work(ThreadData *threadData)
                         {
                             if (!client->writeBufIntoFd())
                                 threadData->removeClient(client);
+
+                            if (client->readyForDisconnecting())
+                                threadData->removeClient(client);
                         }
                     }
                     catch(std::exception &ex)

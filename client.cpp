@@ -100,6 +100,9 @@ void Client::writeMqttPacket(const MqttPacket &packet)
     assert(wwi >= static_cast<int>(packet.getSizeIncludingNonPresentHeader()));
     assert(wwi <= static_cast<int>(writeBufsize));
 
+    if (packet.packetType == PacketType::DISCONNECT)
+        setReadyForDisconnect();
+
     setReadyForWriting(true);
 }
 

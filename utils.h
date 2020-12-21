@@ -25,4 +25,6 @@ bool topicsMatch(const std::string &subscribeTopic, const std::string &publishTo
 
 bool isValidUtf8(const std::string &s);
 
+bool strContains(const std::string &s, const std::string &needle);
+
 #endif // UTILS_H

@@ -106,3 +106,8 @@ bool isValidUtf8(const std::string &s)
     }
     return multibyte_remain == 0;
 }
+
+bool strContains(const std::string &s, const std::string &needle)
+{
+    return s.find(needle) != std::string::npos;
+}

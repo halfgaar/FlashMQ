@@ -36,6 +36,7 @@ class Client
     bool connectPacketSeen = false;
     bool readyForWriting = false;
     bool readyForReading = true;
+    bool disconnectWhenBytesWritten = false;
 
     std::string clientid;
     std::string username;
@@ -123,6 +124,10 @@ public:
     void writePingResp();
     void writeMqttPacket(const MqttPacket &packet);
     bool writeBufIntoFd();
+    bool readyForDisconnecting() const { return disconnectWhenBytesWritten && wwi == wri && wwi == 0; }
+
+    // Do this before calling an action that makes this client ready for writing, so that the EPOLLOUT will handle it.
+    void setReadyForDisconnect() { disconnectWhenBytesWritten = true; }
 
     std::string repr();
 
