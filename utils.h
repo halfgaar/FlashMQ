@@ -27,4 +27,6 @@ bool isValidUtf8(const std::string &s);
 
 bool strContains(const std::string &s, const std::string &needle);
 
+bool isValidPublishPath(const std::string &s);
+
 #endif // UTILS_H

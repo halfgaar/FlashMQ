@@ -111,3 +111,17 @@ bool strContains(const std::string &s, const std::string &needle)
 {
     return s.find(needle) != std::string::npos;
 }
+
+bool isValidPublishPath(const std::string &s)
+{
+    if (s.empty())
+        return false;
+
+    for (const char c : s)
+    {
+        if (c == '#' || c == '+')
+            return false;
+    }
+
+    return true;
+}

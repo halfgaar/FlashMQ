@@ -4,6 +4,8 @@
 #include <list>
 #include <cassert>
 
+#include "utils.h"
+
 RemainingLength::RemainingLength()
 {
     memset(bytes, 0, 4);
@@ -254,8 +256,13 @@ void MqttPacket::handlePublish(std::shared_ptr<SubscriptionStore> &subscriptionS
     if (qos == 3)
         throw ProtocolError("QoS 3 is a protocol violation.");
 
-    // TODO: validate UTF8.
     std::string topic(readBytes(variable_header_length), variable_header_length);
+
+    if (!isValidUtf8(topic) || !isValidPublishPath(topic))
+    {
+        std::cerr << "Client " << sender->repr() << " sent topic with wildcards or invalid UTF8. Ignoring.";
+        return;
+    }
 
     if (qos)
     {
