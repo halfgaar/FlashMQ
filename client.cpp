@@ -240,22 +240,24 @@ bool Client::bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn, Client_
     while (getReadBufBytesUsed() >= MQTT_HEADER_LENGH)
     {
         // Determine the packet length by decoding the variable length
-        size_t remaining_length_i = 1;
+        int remaining_length_i = ri + 1; // index of 'remaining length' field is one after start.
+        size_t fixed_header_length = 1;
         int multiplier = 1;
         size_t packet_length = 0;
         unsigned char encodedByte = 0;
         do
         {
-            if (remaining_length_i >= getReadBufBytesUsed())
-                break;
-            encodedByte = readbuf[ri + remaining_length_i++];
+            fixed_header_length++;
+            if (remaining_length_i >= wi)
+                return false;
+            encodedByte = readbuf[remaining_length_i++];
             packet_length += (encodedByte & 127) * multiplier;
             multiplier *= 128;
             if (multiplier > 128*128*128)
                 return false;
         }
         while ((encodedByte & 128) != 0);
-        packet_length += remaining_length_i;
+        packet_length += fixed_header_length;
 
         if (!authenticated && packet_length >= 1024*1024)
         {
@@ -264,7 +266,7 @@ bool Client::bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn, Client_
 
         if (packet_length <= getReadBufBytesUsed())
         {
-            MqttPacket packet(&readbuf[ri], packet_length, remaining_length_i, sender);
+            MqttPacket packet(&readbuf[ri], packet_length, fixed_header_length, sender);
             packetQueueIn.push_back(std::move(packet));
 
             ri += packet_length;
