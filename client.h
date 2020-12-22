@@ -65,9 +65,10 @@ class Client
     void growReadBuffer()
     {
         const size_t newBufSize = readBufsize * 2;
-        readbuf = (char*)realloc(readbuf, newBufSize);
+        char *readbuf = (char*)realloc(this->readbuf, newBufSize);
         if (readbuf == NULL)
             throw std::runtime_error("Memory allocation failure in growReadBuffer()");
+        this->readbuf = readbuf;
         readBufsize = newBufSize;
 
         //std::cout << "New read buf size: " << readBufsize << std::endl;
@@ -92,11 +93,12 @@ class Client
 
         const size_t grow_by = std::max<size_t>(add_size, writeBufsize*2);
         const size_t newBufSize = writeBufsize + grow_by;
-        writebuf = (char*)realloc(writebuf, newBufSize);
+        char *writebuf = (char*)realloc(this->writebuf, newBufSize);
 
         if (writebuf == NULL)
             throw std::runtime_error("Memory allocation failure in growWriteBuffer()");
 
+        this->writebuf = writebuf;
         writeBufsize = newBufSize;
 
         //std::cout << "New write buf size: " << writeBufsize << std::endl;

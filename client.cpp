@@ -11,11 +11,24 @@ Client::Client(int fd, ThreadData_p threadData) :
 {
     int flags = fcntl(fd, F_GETFL);
     fcntl(fd, F_SETFL, flags | O_NONBLOCK);
-    readbuf = (char*)malloc(CLIENT_BUFFER_SIZE);
-    writebuf = (char*)malloc(CLIENT_BUFFER_SIZE);
+    char *readbuf = (char*)malloc(CLIENT_BUFFER_SIZE);
+    char *writebuf = (char*)malloc(CLIENT_BUFFER_SIZE);
 
     if (readbuf == NULL || writebuf == NULL)
+    {
+        if (readbuf != NULL)
+            free(readbuf);
+        if (writebuf != NULL)
+            free(writebuf);
+
+        readbuf = NULL;
+        writebuf = NULL;
+
         throw std::runtime_error("Malloc error constructing client.");
+    }
+
+    this->readbuf = readbuf;
+    this->writebuf = writebuf;
 }
 
 Client::~Client()
