@@ -85,6 +85,10 @@ void do_thread_work(ThreadData *threadData)
                                 continue;
                             }
                         }
+                        if (cur_ev.events & (EPOLLERR | EPOLLHUP))
+                        {
+                            threadData->removeClient(client);
+                        }
                     }
                     catch(std::exception &ex)
                     {
