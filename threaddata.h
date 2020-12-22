@@ -41,6 +41,7 @@ public:
     void giveClient(Client_p client);
     Client_p getClient(int fd);
     void removeClient(Client_p client);
+    void removeClient(int fd);
     std::shared_ptr<SubscriptionStore> &getSubscriptionStore();
     void wakeUpThread();
     void addToReadyForDequeuing(Client_p &client);

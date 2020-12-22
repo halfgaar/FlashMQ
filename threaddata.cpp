@@ -55,10 +55,23 @@ Client_p ThreadData::getClient(int fd)
 
 void ThreadData::removeClient(Client_p client)
 {
+    client->markAsDisconnecting();
+
     std::lock_guard<std::mutex> lck(clients_by_fd_mutex);
     clients_by_fd.erase(client->getFd());
-    client->closeConnection();
     subscriptionStore->removeClient(client);
+}
+
+void ThreadData::removeClient(int fd)
+{
+    std::lock_guard<std::mutex> lck(clients_by_fd_mutex);
+    auto client_it = this->clients_by_fd.find(fd);
+    if (client_it != this->clients_by_fd.end())
+    {
+        client_it->second->markAsDisconnecting();
+        subscriptionStore->removeClient(client_it->second);
+        this->clients_by_fd.erase(fd);
+    }
 }
 
 std::shared_ptr<SubscriptionStore> &ThreadData::getSubscriptionStore()

@@ -33,23 +33,27 @@ Client::Client(int fd, ThreadData_p threadData) :
 
 Client::~Client()
 {
-    closeConnection();
+    close(fd);
     free(readbuf);
     free(writebuf);
 }
 
-void Client::closeConnection()
+// Do this from a place you'll know ownwership of the shared_ptr is being given up everywhere, so the close happens when the last owner gives it up.
+void Client::markAsDisconnecting()
 {
-    if (fd < 0)
+    if (disconnecting)
         return;
+
+    disconnecting = true;
     check<std::runtime_error>(epoll_ctl(threadData->epollfd, EPOLL_CTL_DEL, fd, NULL));
-    close(fd);
-    fd = -1;
 }
 
 // false means any kind of error we want to get rid of the client for.
 bool Client::readFdIntoBuffer()
 {
+    if (disconnecting)
+        return false;
+
     if (wi > CLIENT_MAX_BUFFER_SIZE)
     {
         setReadyForReading(false);
@@ -119,6 +123,19 @@ void Client::writeMqttPacket(const MqttPacket &packet)
     setReadyForWriting(true);
 }
 
+// Helper method to avoid the exception ending up at the sender of messages, which would then get disconnected.
+void Client::writeMqttPacketAndBlameThisClient(const MqttPacket &packet)
+{
+    try
+    {
+        this->writeMqttPacket(packet);
+    }
+    catch (std::exception &ex)
+    {
+        threadData->removeClient(fd);
+    }
+}
+
 // Ping responses are always the same, so hardcoding it for optimization.
 void Client::writePingResp()
 {
@@ -142,7 +159,7 @@ bool Client::writeBufIntoFd()
         return true;
 
     // We can abort the write; the client is about to be removed anyway.
-    if (isDisconnected())
+    if (disconnecting)
         return false;
 
     int n;
@@ -182,6 +199,9 @@ std::string Client::repr()
 
 void Client::setReadyForWriting(bool val)
 {
+    if (disconnecting)
+        return;
+
     if (val == this->readyForWriting)
         return;
 
@@ -198,6 +218,9 @@ void Client::setReadyForWriting(bool val)
 
 void Client::setReadyForReading(bool val)
 {
+    if (disconnecting)
+        return;
+
     if (val == this->readyForReading)
         return;
 

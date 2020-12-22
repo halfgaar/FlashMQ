@@ -66,7 +66,7 @@ bool SubscriptionStore::publishNonRecursively(const MqttPacket &packet, const st
         auto client_it = clients_by_id_const.find(client_id);
         if (client_it != clients_by_id_const.end())
         {
-            client_it->second->writeMqttPacket(packet);
+            client_it->second->writeMqttPacketAndBlameThisClient(packet);
             result = true;
         }
     }

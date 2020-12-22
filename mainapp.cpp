@@ -55,7 +55,7 @@ void do_thread_work(ThreadData *threadData)
 
                 Client_p client = threadData->getClient(fd);
 
-                if (client && !client->isDisconnected())
+                if (client)
                 {
                     try
                     {
