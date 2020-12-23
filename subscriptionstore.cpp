@@ -57,30 +57,25 @@ void SubscriptionStore::removeClient(const Client_p &client)
 }
 
 // TODO: should I implement cache, this needs to be changed to returning a list of clients.
-bool SubscriptionStore::publishNonRecursively(const MqttPacket &packet, const std::forward_list<std::string> &subscribers) const
+void SubscriptionStore::publishNonRecursively(const MqttPacket &packet, const std::forward_list<std::string> &subscribers) const
 {
-    bool result = false;
-
     for (const std::string &client_id : subscribers)
     {
         auto client_it = clients_by_id_const.find(client_id);
         if (client_it != clients_by_id_const.end())
         {
             client_it->second->writeMqttPacketAndBlameThisClient(packet);
-            result = true;
         }
     }
-
-    return result;
 }
 
-bool SubscriptionStore::publishRecursively(std::list<std::string>::const_iterator cur_subtopic_it, std::list<std::string>::const_iterator end,
+void SubscriptionStore::publishRecursively(std::list<std::string>::const_iterator cur_subtopic_it, std::list<std::string>::const_iterator end,
                                            std::unique_ptr<SubscriptionNode> &this_node, const MqttPacket &packet) const
 {
     if (cur_subtopic_it == end) // This is the end of the topic path, so look for subscribers here.
     {
         publishNonRecursively(packet, this_node->subscribers);
-        return true;
+        return;
     }
 
     std::string cur_subtop = *cur_subtopic_it;
@@ -88,26 +83,22 @@ bool SubscriptionStore::publishRecursively(std::list<std::string>::const_iterato
 
     const auto next_subtopic = ++cur_subtopic_it;
 
+    const auto pound_sign_node = this_node->children.find("#");
+    if (pound_sign_node != this_node->children.end())
+    {
+        publishNonRecursively(packet, pound_sign_node->second->subscribers);
+    }
+
     if (sub_node != this_node->children.end())
     {
         publishRecursively(next_subtopic, end, sub_node->second, packet);
     }
 
     const auto plus_sign_node = this_node->children.find("+");
-
     if (plus_sign_node != this_node->children.end())
     {
         publishRecursively(next_subtopic, end, plus_sign_node->second, packet);
     }
-
-    const auto pound_sign_node = this_node->children.find("#");
-
-    if (pound_sign_node != this_node->children.end())
-    {
-        return publishNonRecursively(packet, pound_sign_node->second->subscribers);
-    }
-
-    return false;
 }
 
 void SubscriptionStore::queuePacketAtSubscribers(const std::string &topic, const MqttPacket &packet, const Client_p &sender)
