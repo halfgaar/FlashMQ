@@ -21,7 +21,7 @@ void RWLockGuard::wrlock()
 
 void RWLockGuard::rdlock()
 {
-    if (pthread_rwlock_wrlock(rwlock) != 0)
+    if (pthread_rwlock_rdlock(rwlock) != 0)
         throw std::runtime_error("rdlock failed.");
 }
 
