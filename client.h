@@ -6,6 +6,7 @@
 #include <vector>
 #include <mutex>
 #include <iostream>
+#include
 
 #include "forward_declarations.h"
 
@@ -24,8 +25,8 @@ class Client
 
     char *readbuf = NULL; // With many clients, it may not be smart to keep a (big) buffer around.
     size_t readBufsize = CLIENT_BUFFER_SIZE;
-    int wi = 0;
-    int ri = 0;
+    uint wi = 0;
+    uint ri = 0;
 
     char *writebuf = NULL; // With many clients, it may not be smart to keep a (big) buffer around.
     size_t writeBufsize = CLIENT_BUFFER_SIZE;
@@ -51,29 +52,37 @@ class Client
     ThreadData_p threadData;
     std::mutex writeBufMutex;
 
-    // Note: this is not the inverse of free space, because there can be non-used lead-in in the buffer!
-    size_t getReadBufBytesUsed()
+    inline size_t getReadBufBytesUsed() const
     {
-        return wi - ri;
+        size_t result;
+        if (wi >= ri)
+            result = wi - ri;
+        else
+            result = (readBufsize + wi) - ri;
+        return result;
     };
 
-    size_t getReadBufMaxWriteSize()
+    inline size_t getReadBufFreeSpace() const
     {
-        size_t available = readBufsize - wi;
-        return available;
+        size_t result = readBufsize - getReadBufBytesUsed() - 1;
+        return result;
     }
 
-    void growReadBuffer()
+    inline size_t getReadBufMaxWriteSize() const
     {
-        const size_t newBufSize = readBufsize * 2;
-        char *readbuf = (char*)realloc(this->readbuf, newBufSize);
-        if (readbuf == NULL)
-            throw std::runtime_error("Memory allocation failure in growReadBuffer()");
-        this->readbuf = readbuf;
-        readBufsize = newBufSize;
+        const size_t available_space = getReadBufFreeSpace();
 
-        //std::cout << "New read buf size: " << readBufsize << std::endl;
+        size_t result = 0;
+        if (wi >= ri)
+            result = available_space - wi;
+        else
+            result = ri - wi - 1;
+
+        return result;
     }
+
+    void growReadBuffer();
+
 
     size_t getWriteBufMaxWriteSize()
     {
@@ -87,23 +96,8 @@ class Client
         return wwi - wri;
     };
 
-    void growWriteBuffer(size_t add_size)
-    {
-        if (add_size == 0)
-            return;
+    void growWriteBuffer(size_t add_size);
 
-        const size_t grow_by = std::max<size_t>(add_size, writeBufsize*2);
-        const size_t newBufSize = writeBufsize + grow_by;
-        char *writebuf = (char*)realloc(this->writebuf, newBufSize);
-
-        if (writebuf == NULL)
-            throw std::runtime_error("Memory allocation failure in growWriteBuffer()");
-
-        this->writebuf = writebuf;
-        writeBufsize = newBufSize;
-
-        //std::cout << "New write buf size: " << writeBufsize << std::endl;
-    }
 
     void setReadyForWriting(bool val);
     void setReadyForReading(bool val);
