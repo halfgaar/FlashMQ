@@ -12,12 +12,23 @@ RemainingLength::RemainingLength()
 }
 
 // constructor for parsing incoming packets
-MqttPacket::MqttPacket(char *buf, size_t len, size_t fixed_header_length, Client_p &sender) :
-    bites(len),
+MqttPacket::MqttPacket(CirBuf &buf, size_t packet_len, size_t fixed_header_length, Client_p &sender) :
+    bites(packet_len),
     fixed_header_length(fixed_header_length),
     sender(sender)
 {
-    std::memcpy(&bites[0], buf, len);
+    int i = 0;
+    ssize_t _packet_len = packet_len;
+    while (_packet_len > 0)
+    {
+        int readlen = std::min<int>(buf.maxReadSize(), _packet_len);
+        std::memcpy(&bites[i], buf.tailPtr(), readlen);
+        buf.advanceTail(readlen);
+        i += readlen;
+        _packet_len -= readlen;
+    }
+    assert(_packet_len == 0);
+
     first_byte = bites[0];
     unsigned char _packetType = (first_byte & 0xF0) >> 4;
     packetType = (PacketType)_packetType;

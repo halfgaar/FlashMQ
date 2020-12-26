@@ -7,34 +7,24 @@
 
 Client::Client(int fd, ThreadData_p threadData) :
     fd(fd),
+    readbuf(CLIENT_BUFFER_SIZE),
     threadData(threadData)
 {
     int flags = fcntl(fd, F_GETFL);
     fcntl(fd, F_SETFL, flags | O_NONBLOCK);
-    char *readbuf = (char*)malloc(CLIENT_BUFFER_SIZE);
     char *writebuf = (char*)malloc(CLIENT_BUFFER_SIZE);
 
-    if (readbuf == NULL || writebuf == NULL)
+    if (writebuf == NULL)
     {
-        if (readbuf != NULL)
-            free(readbuf);
-        if (writebuf != NULL)
-            free(writebuf);
-
-        readbuf = NULL;
-        writebuf = NULL;
-
         throw std::runtime_error("Malloc error constructing client.");
     }
 
-    this->readbuf = readbuf;
     this->writebuf = writebuf;
 }
 
 Client::~Client()
 {
     close(fd);
-    free(readbuf);
     free(writebuf);
 }
 
@@ -55,11 +45,11 @@ bool Client::readFdIntoBuffer()
         return false;
 
     int n = 0;
-    while (getReadBufFreeSpace() > 0 && (n = read(fd, &readbuf[wi], getReadBufMaxWriteSize())) != 0)
+    while (readbuf.freeSpace() > 0 && (n = read(fd, readbuf.headPtr(), readbuf.maxWriteSize())) != 0)
     {
         if (n > 0)
         {
-            wi = (wi + n) % readBufsize;
+            readbuf.advanceHead(n);
         }
 
         if (n < 0)
@@ -73,11 +63,11 @@ bool Client::readFdIntoBuffer()
         }
 
         // Make sure we either always have enough space for a next call of this method, or stop reading the fd.
-        if (getReadBufFreeSpace() == 0)
+        if (readbuf.freeSpace() == 0)
         {
-            if (readBufsize * 2 < CLIENT_MAX_BUFFER_SIZE)
+            if (readbuf.getSize() * 2 < CLIENT_MAX_BUFFER_SIZE)
             {
-                growReadBuffer();
+                readbuf.doubleSize();
             }
             else
             {
@@ -199,18 +189,6 @@ std::string Client::repr()
     return a.str();
 }
 
-void Client::growReadBuffer() // TODO: refactor
-{
-    const size_t newBufSize = readBufsize * 2;
-    char *readbuf = (char*)realloc(this->readbuf, newBufSize);
-    if (readbuf == NULL)
-        throw std::runtime_error("Memory allocation failure in growReadBuffer()");
-    this->readbuf = readbuf;
-    readBufsize = newBufSize;
-
-    std::cout << "New read buf size: " << readBufsize << std::endl;
-}
-
 void Client::growWriteBuffer(size_t add_size)
 {
     if (add_size == 0)
@@ -269,20 +247,23 @@ void Client::setReadyForReading(bool val)
 
 bool Client::bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn, Client_p &sender)
 {
-    while (getReadBufBytesUsed() >= MQTT_HEADER_LENGH)
+    while (readbuf.usedBytes() >= MQTT_HEADER_LENGH)
     {
         // Determine the packet length by decoding the variable length
-        int remaining_length_i = ri + 1; // index of 'remaining length' field is one after start.
-        size_t fixed_header_length = 1;
+        int remaining_length_i = 1; // index of 'remaining length' field is one after start.
+        int fixed_header_length = 1;
         int multiplier = 1;
-        size_t packet_length = 0;
+        int packet_length = 0;
         unsigned char encodedByte = 0;
         do
         {
             fixed_header_length++;
-            if (remaining_length_i >= wi)
+
+            // This happens when you only don't have all the bytes that specify the remaining length.
+            if (fixed_header_length > readbuf.usedBytes())
                 return false;
-            encodedByte = readbuf[remaining_length_i++ % readBufsize];
+
+            encodedByte = readbuf.peakAhead(remaining_length_i++);
             packet_length += (encodedByte & 127) * multiplier;
             multiplier *= 128;
             if (multiplier > 128*128*128)
@@ -296,25 +277,18 @@ bool Client::bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn, Client_
             throw ProtocolError("An unauthenticated client sends a packet of 1 MB or bigger? Probably it's just random bytes.");
         }
 
-        if (packet_length <= getReadBufBytesUsed())
+        if (packet_length <= readbuf.usedBytes())
         {
-            // TODO: deal with circularness here, or in the packet?
-            MqttPacket packet(&readbuf[ri], packet_length, fixed_header_length, sender);
+            MqttPacket packet(readbuf, packet_length, fixed_header_length, sender);
             packetQueueIn.push_back(std::move(packet));
-
-            ri = (ri + packet_length) % readBufsize;
         }
         else
             break;
-
     }
 
-    if (getReadBufMaxWriteSize() > 0)
-    {
-        setReadyForReading(true);
-    }
+    setReadyForReading(readbuf.freeSpace() > 0);
 
-    if (getReadBufBytesUsed() == 0)
+    if (readbuf.usedBytes() == 0)
     {
         // TODO: reset buffer to normal size after a while of not needing it, or not needing the extra space.
     }

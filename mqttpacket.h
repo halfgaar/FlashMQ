@@ -12,6 +12,7 @@
 #include "exceptions.h"
 #include "types.h"
 #include "subscriptionstore.h"
+#include "cirbuf.h"
 
 struct RemainingLength
 {
@@ -42,7 +43,7 @@ class MqttPacket
 
 public:
     PacketType packetType = PacketType::Reserved;
-    MqttPacket(char *buf, size_t len, size_t fixed_header_length, Client_p &sender); // Constructor for parsing incoming packets.
+    MqttPacket(CirBuf &buf, size_t packet_len, size_t fixed_header_length, Client_p &sender); // Constructor for parsing incoming packets.
 
     // Constructor for outgoing packets. These may not allocate room for the fixed header, because we don't (always) know the length in advance.
     MqttPacket(const ConnAck &connAck);

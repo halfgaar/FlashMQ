@@ -19,6 +19,7 @@ add_executable(FlashMQ
     subscriptionstore.cpp
     rwlockguard.cpp
     retainedmessage.cpp
+    cirbuf.cpp
     )
 
 target_link_libraries(FlashMQ pthread)

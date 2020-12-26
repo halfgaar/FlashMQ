@@ -6,27 +6,24 @@
 #include <vector>
 #include <mutex>
 #include <iostream>
-#include
 
 #include "forward_declarations.h"
 
 #include "threaddata.h"
 #include "mqttpacket.h"
 #include "exceptions.h"
+#include "cirbuf.h"
 
 
-#define CLIENT_BUFFER_SIZE 1024
-#define CLIENT_MAX_BUFFER_SIZE 1048576
+#define CLIENT_BUFFER_SIZE 1024 // Must be power of 2
+#define CLIENT_MAX_BUFFER_SIZE 65536
 #define MQTT_HEADER_LENGH 2
 
 class Client
 {
     int fd;
 
-    char *readbuf = NULL; // With many clients, it may not be smart to keep a (big) buffer around.
-    size_t readBufsize = CLIENT_BUFFER_SIZE;
-    uint wi = 0;
-    uint ri = 0;
+    CirBuf readbuf;
 
     char *writebuf = NULL; // With many clients, it may not be smart to keep a (big) buffer around.
     size_t writeBufsize = CLIENT_BUFFER_SIZE;
@@ -51,37 +48,6 @@ class Client
 
     ThreadData_p threadData;
     std::mutex writeBufMutex;
-
-    inline size_t getReadBufBytesUsed() const
-    {
-        size_t result;
-        if (wi >= ri)
-            result = wi - ri;
-        else
-            result = (readBufsize + wi) - ri;
-        return result;
-    };
-
-    inline size_t getReadBufFreeSpace() const
-    {
-        size_t result = readBufsize - getReadBufBytesUsed() - 1;
-        return result;
-    }
-
-    inline size_t getReadBufMaxWriteSize() const
-    {
-        const size_t available_space = getReadBufFreeSpace();
-
-        size_t result = 0;
-        if (wi >= ri)
-            result = available_space - wi;
-        else
-            result = ri - wi - 1;
-
-        return result;
-    }
-
-    void growReadBuffer();
 
 
     size_t getWriteBufMaxWriteSize()
