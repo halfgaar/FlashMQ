@@ -25,13 +25,13 @@ CirBuf::~CirBuf()
         free(buf);
 }
 
-int CirBuf::usedBytes() const
+uint CirBuf::usedBytes() const
 {
     int result = (head - tail) & (size-1);
     return result;
 }
 
-int CirBuf::freeSpace() const
+uint CirBuf::freeSpace() const
 {
     int result = (tail - (head + 1)) & (size-1);
     return result;
@@ -99,7 +99,7 @@ void CirBuf::doubleSize()
     head = tail + usedBytes();
     size = newSize;
 
-    std::cout << "New read buf size: " << size << std::endl;
+    std::cout << "New buf size: " << size << std::endl;
 
 #ifdef TESTING
     memset(&buf[head], 5, maxWriteSize() + 2);

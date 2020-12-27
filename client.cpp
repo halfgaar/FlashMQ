@@ -8,24 +8,16 @@
 Client::Client(int fd, ThreadData_p threadData) :
     fd(fd),
     readbuf(CLIENT_BUFFER_SIZE),
+    writebuf(CLIENT_BUFFER_SIZE),
     threadData(threadData)
 {
     int flags = fcntl(fd, F_GETFL);
     fcntl(fd, F_SETFL, flags | O_NONBLOCK);
-    char *writebuf = (char*)malloc(CLIENT_BUFFER_SIZE);
-
-    if (writebuf == NULL)
-    {
-        throw std::runtime_error("Malloc error constructing client.");
-    }
-
-    this->writebuf = writebuf;
 }
 
 Client::~Client()
 {
     close(fd);
-    free(writebuf);
 }
 
 // Do this from a place you'll know ownwership of the shared_ptr is being given up everywhere, so the close happens when the last owner gives it up.
@@ -89,25 +81,44 @@ void Client::writeMqttPacket(const MqttPacket &packet)
 {
     std::lock_guard<std::mutex> locker(writeBufMutex);
 
-    if (packet.packetType == PacketType::PUBLISH && wwi > CLIENT_MAX_BUFFER_SIZE)
-        return;
-
-    if (packet.getSizeIncludingNonPresentHeader() > getWriteBufMaxWriteSize())
-        growWriteBuffer(packet.getSizeIncludingNonPresentHeader());
+    if (packet.getSizeIncludingNonPresentHeader() > writebuf.freeSpace())
+    {
+        if (packet.packetType == PacketType::PUBLISH && writebuf.getSize() >= CLIENT_MAX_BUFFER_SIZE)
+            return;
+        writebuf.doubleSize();
+    }
 
     if (!packet.containsFixedHeader())
     {
-        writebuf[wwi++] = packet.getFirstByte();
+        writebuf.headPtr()[0] = packet.getFirstByte();
+        writebuf.advanceHead(1);
         RemainingLength r = packet.getRemainingLength();
-        std::memcpy(&writebuf[wwi], r.bytes, r.len);
-        wwi += r.len;
+
+        ssize_t len_left = r.len;
+        int src_i = 0;
+        while (len_left > 0)
+        {
+            const size_t len = std::min<int>(len_left, writebuf.maxWriteSize());
+            std::memcpy(writebuf.headPtr(), &r.bytes[src_i], len);
+            writebuf.advanceHead(len);
+            src_i += len;
+            len_left -= len;
+        }
+        assert(len_left == 0);
+        assert(src_i == r.len);
     }
 
-    std::memcpy(&writebuf[wwi], &packet.getBites()[0], packet.getBites().size());
-    wwi += packet.getBites().size();
-
-    assert(wwi >= static_cast<int>(packet.getSizeIncludingNonPresentHeader()));
-    assert(wwi <= static_cast<int>(writeBufsize));
+    ssize_t len_left = packet.getBites().size();
+    int src_i = 0;
+    while (len_left > 0)
+    {
+        const size_t len = std::min<int>(len_left, writebuf.maxWriteSize());
+        std::memcpy(writebuf.headPtr(), &packet.getBites()[src_i], len);
+        writebuf.advanceHead(len);
+        src_i += len;
+        len_left -= len;
+    }
+    assert(len_left == 0);
 
     if (packet.packetType == PacketType::DISCONNECT)
         setReadyForDisconnect();
@@ -135,11 +146,13 @@ void Client::writePingResp()
 
     std::cout << "Sending ping response to " << repr() << std::endl;
 
-    if (2 > getWriteBufMaxWriteSize())
-        growWriteBuffer(CLIENT_BUFFER_SIZE);
+    if (2 > writebuf.freeSpace())
+        writebuf.doubleSize();
 
-    writebuf[wwi++] = 0b11010000;
-    writebuf[wwi++] = 0;
+    writebuf.headPtr()[0] = 0b11010000;
+    writebuf.advanceHead(1);
+    writebuf.headPtr()[0] = 0;
+    writebuf.advanceHead(1);
 
     setReadyForWriting(true);
 }
@@ -155,10 +168,10 @@ bool Client::writeBufIntoFd()
         return false;
 
     int n;
-    while ((n = write(fd, &writebuf[wri], getWriteBufBytesUsed())) != 0)
+    while ((n = write(fd, writebuf.tailPtr(), writebuf.maxReadSize())) != 0)
     {
         if (n > 0)
-            wri += n;
+            writebuf.advanceTail(n);
         if (n < 0)
         {
             if (errno == EINTR)
@@ -170,13 +183,7 @@ bool Client::writeBufIntoFd()
         }
     }
 
-    if (wri == wwi)
-    {
-        wri = 0;
-        wwi = 0;
-
-        setReadyForWriting(false);
-    }
+    setReadyForWriting(writebuf.usedBytes() > 0);
 
     return true;
 }
@@ -187,24 +194,6 @@ std::string Client::repr()
     a << "[Client=" << clientid << ", user=" << username << ", fd=" << fd << "]";
     a.flush();
     return a.str();
-}
-
-void Client::growWriteBuffer(size_t add_size)
-{
-    if (add_size == 0)
-        return;
-
-    const size_t grow_by = std::max<size_t>(add_size, writeBufsize*2);
-    const size_t newBufSize = writeBufsize + grow_by;
-    char *writebuf = (char*)realloc(this->writebuf, newBufSize);
-
-    if (writebuf == NULL)
-        throw std::runtime_error("Memory allocation failure in growWriteBuffer()");
-
-    this->writebuf = writebuf;
-    writeBufsize = newBufSize;
-
-    std::cout << "New write buf size: " << writeBufsize << std::endl;
 }
 
 void Client::setReadyForWriting(bool val)

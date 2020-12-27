@@ -25,10 +25,7 @@ class Client
 
     CirBuf readbuf;
 
-    char *writebuf = NULL; // With many clients, it may not be smart to keep a (big) buffer around.
-    size_t writeBufsize = CLIENT_BUFFER_SIZE;
-    int wwi = 0;
-    int wri = 0;
+    CirBuf writebuf;
 
     bool authenticated = false;
     bool connectPacketSeen = false;
@@ -48,21 +45,6 @@ class Client
 
     ThreadData_p threadData;
     std::mutex writeBufMutex;
-
-
-    size_t getWriteBufMaxWriteSize()
-    {
-        size_t available = writeBufsize - wwi;
-        return available;
-    }
-
-    // Note: this is not the inverse of free space, because there can be non-used lead-in in the buffer!
-    size_t getWriteBufBytesUsed()
-    {
-        return wwi - wri;
-    };
-
-    void growWriteBuffer(size_t add_size);
 
 
     void setReadyForWriting(bool val);
@@ -90,7 +72,7 @@ public:
     void writeMqttPacket(const MqttPacket &packet);
     void writeMqttPacketAndBlameThisClient(const MqttPacket &packet);
     bool writeBufIntoFd();
-    bool readyForDisconnecting() const { return disconnectWhenBytesWritten && wwi == wri && wwi == 0; }
+    bool readyForDisconnecting() const { return disconnectWhenBytesWritten && writebuf.usedBytes() == 0; }
 
     // Do this before calling an action that makes this client ready for writing, so that the EPOLLOUT will handle it.
     void setReadyForDisconnect() { disconnectWhenBytesWritten = true; }

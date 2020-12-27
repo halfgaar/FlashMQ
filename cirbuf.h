@@ -20,8 +20,8 @@ public:
     CirBuf(size_t size);
     ~CirBuf();
 
-    int usedBytes() const;
-    int freeSpace() const;
+    uint usedBytes() const;
+    uint freeSpace() const;
     int maxWriteSize() const;
     int maxReadSize() const;
     char *headPtr();
