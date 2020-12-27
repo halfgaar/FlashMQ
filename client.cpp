@@ -81,7 +81,7 @@ void Client::writeMqttPacket(const MqttPacket &packet)
 {
     std::lock_guard<std::mutex> locker(writeBufMutex);
 
-    if (packet.getSizeIncludingNonPresentHeader() > writebuf.freeSpace())
+    while (packet.getSizeIncludingNonPresentHeader() > writebuf.freeSpace())
     {
         if (packet.packetType == PacketType::PUBLISH && writebuf.getSize() >= CLIENT_MAX_BUFFER_SIZE)
             return;
@@ -99,6 +99,7 @@ void Client::writeMqttPacket(const MqttPacket &packet)
         while (len_left > 0)
         {
             const size_t len = std::min<int>(len_left, writebuf.maxWriteSize());
+            assert(len > 0);
             std::memcpy(writebuf.headPtr(), &r.bytes[src_i], len);
             writebuf.advanceHead(len);
             src_i += len;
@@ -113,6 +114,7 @@ void Client::writeMqttPacket(const MqttPacket &packet)
     while (len_left > 0)
     {
         const size_t len = std::min<int>(len_left, writebuf.maxWriteSize());
+        assert(len > 0);
         std::memcpy(writebuf.headPtr(), &packet.getBites()[src_i], len);
         writebuf.advanceHead(len);
         src_i += len;

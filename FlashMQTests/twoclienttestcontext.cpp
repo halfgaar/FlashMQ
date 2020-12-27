@@ -11,11 +11,11 @@ TwoClientTestContext::TwoClientTestContext(QObject *parent) : QObject(parent)
     receiver.reset(new QMQTT::Client(targetHost));
 }
 
-void TwoClientTestContext::publishRetained(const QString &topic, const QByteArray &payload)
+void TwoClientTestContext::publish(const QString &topic, const QByteArray &payload, bool retain)
 {
     QMQTT::Message msg;
     msg.setTopic(topic);
-    msg.setRetain(true);
+    msg.setRetain(retain);
     msg.setQos(0);
     msg.setPayload(payload);
     sender->publish(msg);

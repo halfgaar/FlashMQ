@@ -32,6 +32,9 @@ private slots:
     void test_retained_changed();
     void test_retained_removed();
 
+    void test_packet_bigger_than_one_doubling();
+    void test_very_big_packet();
+
 };
 
 MainTests::MainTests()
@@ -267,8 +270,8 @@ void MainTests::test_retained()
     QString topic = "retaintopic";
 
     testContext.connectSender();
-    testContext.publishRetained(topic, payload);
-    testContext.publishRetained("dummy2", "Nobody sees this");
+    testContext.publish(topic, payload, true);
+    testContext.publish("dummy2", "Nobody sees this", true);
 
     testContext.connectReceiver();
     testContext.subscribeReceiver("dummy");
@@ -283,7 +286,7 @@ void MainTests::test_retained()
 
     testContext.receivedMessages.clear();
 
-    testContext.publishRetained(topic, payload);
+    testContext.publish(topic, payload, true);
     testContext.waitReceiverReceived();
 
     QVERIFY2(testContext.receivedMessages.count() == 1, "There must be one message in the received list");
@@ -300,11 +303,11 @@ void MainTests::test_retained_changed()
     QString topic = "retaintopic";
 
     testContext.connectSender();
-    testContext.publishRetained(topic, payload);
+    testContext.publish(topic, payload, true);
 
     payload = "Changed payload";
 
-    testContext.publishRetained(topic, payload);
+    testContext.publish(topic, payload, true);
 
     testContext.connectReceiver();
     testContext.subscribeReceiver(topic);
@@ -325,17 +328,60 @@ void MainTests::test_retained_removed()
     QString topic = "retaintopic";
 
     testContext.connectSender();
-    testContext.publishRetained(topic, payload);
+    testContext.publish(topic, payload, true);
 
     payload = "";
 
-    testContext.publishRetained(topic, payload);
+    testContext.publish(topic, payload, true);
 
     testContext.connectReceiver();
     testContext.subscribeReceiver(topic);
     testContext.waitReceiverReceived();
 
     QVERIFY2(testContext.receivedMessages.empty(), "We erased the retained message. We shouldn't have received any.");
+}
+
+void MainTests::test_packet_bigger_than_one_doubling()
+{
+    TwoClientTestContext testContext;
+
+    QByteArray payload(8000, 3);
+    QString topic = "hugepacket";
+
+    testContext.connectSender();
+    testContext.connectReceiver();
+    testContext.subscribeReceiver(topic);
+
+    testContext.publish(topic, payload);
+    testContext.waitReceiverReceived();
+
+    QVERIFY2(testContext.receivedMessages.count() == 1, "There must be one message in the received list");
+
+    QMQTT::Message msg = testContext.receivedMessages.first();
+    QCOMPARE(msg.payload(), payload);
+    QVERIFY(!msg.retain());
+}
+
+// This tests our write buffer, and that it's emptied during writing already.
+void MainTests::test_very_big_packet()
+{
+    TwoClientTestContext testContext;
+
+    QByteArray payload(10*1024*1024, 3);
+    QString topic = "hugepacket";
+
+    testContext.connectSender();
+    testContext.connectReceiver();
+    testContext.subscribeReceiver(topic);
+
+    testContext.publish(topic, payload);
+    testContext.waitReceiverReceived();
+
+    QVERIFY2(testContext.receivedMessages.count() == 1, "There must be one message in the received list");
+
+    QMQTT::Message msg = testContext.receivedMessages.first();
+    QCOMPARE(msg.payload(), payload);
+    QVERIFY(!msg.retain());
 }
 
 QTEST_GUILESS_MAIN(MainTests)

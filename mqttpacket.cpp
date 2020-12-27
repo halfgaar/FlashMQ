@@ -22,6 +22,7 @@ MqttPacket::MqttPacket(CirBuf &buf, size_t packet_len, size_t fixed_header_lengt
     while (_packet_len > 0)
     {
         int readlen = std::min<int>(buf.maxReadSize(), _packet_len);
+        assert(readlen > 0);
         std::memcpy(&bites[i], buf.tailPtr(), readlen);
         buf.advanceTail(readlen);
         i += readlen;

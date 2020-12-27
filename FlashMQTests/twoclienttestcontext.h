@@ -17,7 +17,7 @@ private slots:
 
 public:
     explicit TwoClientTestContext(QObject *parent = nullptr);
-    void publishRetained(const QString &topic, const QByteArray &payload);
+    void publish(const QString &topic, const QByteArray &payload, bool retain = false);
     void connectSender();
     void connectReceiver();
     void disconnectReceiver();
