@@ -148,6 +148,9 @@ void SubscriptionStore::setRetainedMessage(const std::string &topic, const std::
         return;
     }
 
+    if (retained_found)
+        retainedMessages.erase(rm);
+
     retainedMessages.insert(std::move(rm));
 }
 

@@ -1,27 +1,43 @@
 #include <QtTest>
 
+
+#include <QtQmqtt/qmqtt.h>
+#include <QScopedPointer>
+#include <QHostInfo>
+
 #include "cirbuf.h"
+#include "mainapp.h"
+#include "mainappthread.h"
+#include "twoclienttestcontext.h"
 
 class MainTests : public QObject
 {
     Q_OBJECT
+
+    MainAppThread mainApp;
 
 public:
     MainTests();
     ~MainTests();
 
 private slots:
-    void test_case1();
+    void cleanupTestCase();
+
     void test_circbuf();
     void test_circbuf_unwrapped_doubling();
     void test_circbuf_wrapped_doubling();
     void test_circbuf_full_wrapped_buffer_doubling();
 
+    void test_retained();
+    void test_retained_changed();
+    void test_retained_removed();
+
 };
 
 MainTests::MainTests()
 {
-
+    mainApp.start();
+    mainApp.waitForStarted();
 }
 
 MainTests::~MainTests()
@@ -29,9 +45,9 @@ MainTests::~MainTests()
 
 }
 
-void MainTests::test_case1()
+void MainTests::cleanupTestCase()
 {
-
+    mainApp.stopApp();
 }
 
 void MainTests::test_circbuf()
@@ -243,6 +259,85 @@ void MainTests::test_circbuf_full_wrapped_buffer_doubling()
     QVERIFY(true);
 }
 
-QTEST_APPLESS_MAIN(MainTests)
+void MainTests::test_retained()
+{
+    TwoClientTestContext testContext;
+
+    QByteArray payload = "We are testing";
+    QString topic = "retaintopic";
+
+    testContext.connectSender();
+    testContext.publishRetained(topic, payload);
+    testContext.publishRetained("dummy2", "Nobody sees this");
+
+    testContext.connectReceiver();
+    testContext.subscribeReceiver("dummy");
+    testContext.subscribeReceiver(topic);
+    testContext.waitReceiverReceived();
+
+    QVERIFY2(testContext.receivedMessages.count() == 1, "There must be one message in the received list");
+
+    QMQTT::Message msg = testContext.receivedMessages.first();
+    QCOMPARE(msg.payload(), payload);
+    QVERIFY(msg.retain());
+
+    testContext.receivedMessages.clear();
+
+    testContext.publishRetained(topic, payload);
+    testContext.waitReceiverReceived();
+
+    QVERIFY2(testContext.receivedMessages.count() == 1, "There must be one message in the received list");
+    QMQTT::Message msg2 = testContext.receivedMessages.first();
+    QCOMPARE(msg2.payload(), payload);
+    QVERIFY2(!msg2.retain(), "Getting a retained message while already being subscribed must be marked as normal, not retain.");
+}
+
+void MainTests::test_retained_changed()
+{
+    TwoClientTestContext testContext;
+
+    QByteArray payload = "We are testing";
+    QString topic = "retaintopic";
+
+    testContext.connectSender();
+    testContext.publishRetained(topic, payload);
+
+    payload = "Changed payload";
+
+    testContext.publishRetained(topic, payload);
+
+    testContext.connectReceiver();
+    testContext.subscribeReceiver(topic);
+    testContext.waitReceiverReceived();
+
+    QVERIFY2(testContext.receivedMessages.count() == 1, "There must be one message in the received list");
+
+    QMQTT::Message msg = testContext.receivedMessages.first();
+    QCOMPARE(msg.payload(), payload);
+    QVERIFY(msg.retain());
+}
+
+void MainTests::test_retained_removed()
+{
+    TwoClientTestContext testContext;
+
+    QByteArray payload = "We are testing";
+    QString topic = "retaintopic";
+
+    testContext.connectSender();
+    testContext.publishRetained(topic, payload);
+
+    payload = "";
+
+    testContext.publishRetained(topic, payload);
+
+    testContext.connectReceiver();
+    testContext.subscribeReceiver(topic);
+    testContext.waitReceiverReceived();
+
+    QVERIFY2(testContext.receivedMessages.empty(), "We erased the retained message. We shouldn't have received any.");
+}
+
+QTEST_GUILESS_MAIN(MainTests)
 
 #include "tst_maintests.moc"

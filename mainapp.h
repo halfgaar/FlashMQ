@@ -21,6 +21,7 @@ class MainApp
 {
     static MainApp *instance;
 
+    bool started = false;
     bool running = true;
     std::vector<std::shared_ptr<ThreadData>> threads;
     std::shared_ptr<SubscriptionStore> subscriptionStore;
@@ -32,6 +33,7 @@ public:
     static MainApp *getMainApp();
     void start();
     void quit();
+    bool getStarted() const {return started;}
 };
 
 #endif // MAINAPP_H

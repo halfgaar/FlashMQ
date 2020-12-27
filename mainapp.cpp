@@ -171,6 +171,7 @@ void MainApp::start()
 
     uint next_thread_index = 0;
 
+    started = true;
     while (running)
     {
         int num_fds = epoll_wait(epoll_fd_accept, events, MAX_EVENTS, 100);
