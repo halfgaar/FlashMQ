@@ -57,7 +57,7 @@ bool Client::readFdIntoBuffer()
         // Make sure we either always have enough space for a next call of this method, or stop reading the fd.
         if (readbuf.freeSpace() == 0)
         {
-            if (readbuf.getSize() * 2 < CLIENT_MAX_BUFFER_SIZE)
+            if (readbuf.getSize() * 2 < MAX_PACKET_SIZE)
             {
                 readbuf.doubleSize();
             }
@@ -81,11 +81,17 @@ void Client::writeMqttPacket(const MqttPacket &packet)
 {
     std::lock_guard<std::mutex> locker(writeBufMutex);
 
-    while (packet.getSizeIncludingNonPresentHeader() > writebuf.freeSpace())
+    // Grow as far as we can. We have to make room for one MQTT packet.
+    while (packet.getSizeIncludingNonPresentHeader() > writebuf.freeSpace() && writebuf.getSize() < MAX_PACKET_SIZE)
     {
-        if (packet.packetType == PacketType::PUBLISH && writebuf.getSize() >= CLIENT_MAX_BUFFER_SIZE)
-            return;
         writebuf.doubleSize();
+    }
+
+    // And drop a publish when it doesn't fit, even after resizing. This means we do allow pings.
+    // TODO: when QoS is implemented, different filtering may be required.
+    if (packet.packetType == PacketType::PUBLISH && packet.getSizeIncludingNonPresentHeader() > writebuf.freeSpace())
+    {
+        return;
     }
 
     if (!packet.containsFixedHeader())
@@ -257,8 +263,8 @@ bool Client::bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn, Client_
             encodedByte = readbuf.peakAhead(remaining_length_i++);
             packet_length += (encodedByte & 127) * multiplier;
             multiplier *= 128;
-            if (multiplier > 128*128*128)
-                return false;
+            if (multiplier > 128*128*128*128)
+                throw ProtocolError("Malformed Remaining Length.");
         }
         while ((encodedByte & 128) != 0);
         packet_length += fixed_header_length;

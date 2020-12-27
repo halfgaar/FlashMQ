@@ -377,7 +377,7 @@ void MainTests::test_very_big_packet()
     testContext.publish(topic, payload);
     testContext.waitReceiverReceived();
 
-    QVERIFY2(testContext.receivedMessages.count() == 1, "There must be one message in the received list");
+    QCOMPARE(testContext.receivedMessages.count(), 1);
 
     QMQTT::Message msg = testContext.receivedMessages.first();
     QCOMPARE(msg.payload(), payload);

@@ -16,7 +16,7 @@
 
 
 #define CLIENT_BUFFER_SIZE 1024 // Must be power of 2
-#define CLIENT_MAX_BUFFER_SIZE 65536
+#define MAX_PACKET_SIZE 268435461 // 256 MB + 5
 #define MQTT_HEADER_LENGH 2
 
 class Client
