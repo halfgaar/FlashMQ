@@ -3,6 +3,7 @@
 
 #include <stddef.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 // Optimized circular buffer, works only with sizes power of two.
 class CirBuf
@@ -12,25 +13,30 @@ class CirBuf
 #endif
 
     char *buf = NULL;
-    uint head = 0;
-    uint tail = 0;
-    uint size = 0;
+    uint32_t head = 0;
+    uint32_t tail = 0;
+    uint32_t size = 0;
+
+    time_t resizedAt = 0;
 public:
 
     CirBuf(size_t size);
     ~CirBuf();
 
-    uint usedBytes() const;
-    uint freeSpace() const;
-    int maxWriteSize() const;
-    int maxReadSize() const;
+    uint32_t usedBytes() const;
+    uint32_t freeSpace() const;
+    uint32_t maxWriteSize() const;
+    uint32_t maxReadSize() const;
     char *headPtr();
     char *tailPtr();
-    void advanceHead(int n);
-    void advanceTail(int n);
-    int peakAhead(int offset) const;
+    void advanceHead(uint32_t n);
+    void advanceTail(uint32_t n);
+    char peakAhead(uint32_t offset) const;
     void doubleSize();
-    uint getSize() const;
+    uint32_t getSize() const;
+
+    time_t bufferLastResizedSecondsAgo() const;
+    void resetSize(size_t size);
 };
 
 #endif // CIRBUF_H

@@ -1,5 +1,7 @@
 #include "cirbuf.h"
 
+#include <time.h>
+
 #include <iostream>
 #include <exception>
 #include <stdexcept>
@@ -12,7 +14,7 @@ CirBuf::CirBuf(size_t size) :
     buf = (char*)malloc(size);
 
     if (buf == NULL)
-        throw std::runtime_error("Malloc error constructing client.");
+        throw std::runtime_error("Malloc error constructing buffer.");
 
 #ifndef NDEBUG
     memset(buf, 0, size);
@@ -25,19 +27,19 @@ CirBuf::~CirBuf()
         free(buf);
 }
 
-uint CirBuf::usedBytes() const
+uint32_t CirBuf::usedBytes() const
 {
     int result = (head - tail) & (size-1);
     return result;
 }
 
-uint CirBuf::freeSpace() const
+uint32_t CirBuf::freeSpace() const
 {
     int result = (tail - (head + 1)) & (size-1);
     return result;
 }
 
-int CirBuf::maxWriteSize() const
+uint32_t CirBuf::maxWriteSize() const
 {
     int end = size - 1 - head;
     int n = (end + tail) & (size-1);
@@ -45,7 +47,7 @@ int CirBuf::maxWriteSize() const
     return result;
 }
 
-int CirBuf::maxReadSize() const
+uint32_t CirBuf::maxReadSize() const
 {
     int end = size - tail;
     int n = (head + end) & (size-1);
@@ -63,18 +65,18 @@ char *CirBuf::tailPtr()
     return &buf[tail];
 }
 
-void CirBuf::advanceHead(int n)
+void CirBuf::advanceHead(uint32_t n)
 {
     head = (head + n) & (size -1);
     assert(tail != head); // Putting things in the buffer must never end on tail, because tail == head == empty.
 }
 
-void CirBuf::advanceTail(int n)
+void CirBuf::advanceTail(uint32_t n)
 {
     tail = (tail + n) & (size -1);
 }
 
-int CirBuf::peakAhead(int offset) const
+char CirBuf::peakAhead(uint32_t offset) const
 {
     int b = buf[(tail + offset) & (size - 1)];
     return b;
@@ -99,14 +101,43 @@ void CirBuf::doubleSize()
     head = tail + usedBytes();
     size = newSize;
 
+#ifndef NDEBUG
     std::cout << "New buf size: " << size << std::endl;
+#endif
 
 #ifdef TESTING
     memset(&buf[head], 5, maxWriteSize() + 2);
 #endif
+
+    resizedAt = time(NULL);
 }
 
-uint CirBuf::getSize() const
+uint32_t CirBuf::getSize() const
 {
     return size;
+}
+
+time_t CirBuf::bufferLastResizedSecondsAgo() const
+{
+    return time(NULL) - resizedAt;
+}
+
+void CirBuf::resetSize(size_t newSize)
+{
+    assert(usedBytes() == 0);
+    if (this->size == newSize)
+        return;
+    char *newBuf = (char*)malloc(newSize);
+    if (newBuf == NULL)
+        throw std::runtime_error("Malloc error resizing buffer.");
+    free(buf);
+    buf = newBuf;
+    this->size = newSize;
+    head = 0;
+    tail = 0;
+    resizedAt = time(NULL);
+#ifndef NDEBUG
+    std::cout << "Reset buf size: " << size << std::endl;
+    memset(buf, 0, newSize);
+#endif
 }

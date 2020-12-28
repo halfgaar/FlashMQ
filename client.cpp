@@ -191,7 +191,21 @@ bool Client::writeBufIntoFd()
         }
     }
 
-    setReadyForWriting(writebuf.usedBytes() > 0);
+    const bool bufferHasData = writebuf.usedBytes() > 0;
+    setReadyForWriting(bufferHasData);
+
+    if (!bufferHasData)
+    {
+        writeBufIsZeroCount++;
+        bool doReset = (writeBufIsZeroCount >= 10 && writebuf.getSize() > (MAX_PACKET_SIZE / 10) && writebuf.bufferLastResizedSecondsAgo() > 30);
+        doReset |= (writeBufIsZeroCount >= 100 && writebuf.bufferLastResizedSecondsAgo() > 300);
+
+        if (doReset)
+        {
+            writeBufIsZeroCount = 0;
+            writebuf.resetSize(CLIENT_BUFFER_SIZE);
+        }
+    }
 
     return true;
 }
@@ -248,9 +262,9 @@ bool Client::bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn, Client_
     {
         // Determine the packet length by decoding the variable length
         int remaining_length_i = 1; // index of 'remaining length' field is one after start.
-        int fixed_header_length = 1;
+        uint fixed_header_length = 1;
         int multiplier = 1;
-        int packet_length = 0;
+        uint packet_length = 0;
         unsigned char encodedByte = 0;
         do
         {
@@ -287,7 +301,15 @@ bool Client::bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn, Client_
 
     if (readbuf.usedBytes() == 0)
     {
-        // TODO: reset buffer to normal size after a while of not needing it, or not needing the extra space.
+        readBufIsZeroCount++;
+        bool doReset = (readBufIsZeroCount >= 10 && readbuf.getSize() > (MAX_PACKET_SIZE / 10) && readbuf.bufferLastResizedSecondsAgo() > 30);
+        doReset |= (readBufIsZeroCount >= 100 && readbuf.bufferLastResizedSecondsAgo() > 300);
+
+        if (doReset)
+        {
+            readBufIsZeroCount = 0;
+            readbuf.resetSize(CLIENT_BUFFER_SIZE);
+        }
     }
 
     return true;

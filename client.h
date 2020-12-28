@@ -24,8 +24,10 @@ class Client
     int fd;
 
     CirBuf readbuf;
+    uint8_t readBufIsZeroCount = 0;
 
     CirBuf writebuf;
+    uint8_t writeBufIsZeroCount = 0;
 
     bool authenticated = false;
     bool connectPacketSeen = false;
