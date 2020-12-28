@@ -72,5 +72,28 @@ std::shared_ptr<SubscriptionStore> &ThreadData::getSubscriptionStore()
     return subscriptionStore;
 }
 
+// TODO: profile how fast hash iteration is. Perhaps having a second list/vector is beneficial?
+bool ThreadData::doKeepAliveCheck()
+{
+    std::unique_lock<std::mutex> lock(clients_by_fd_mutex, std::try_to_lock);
+    if (!lock.owns_lock())
+        return false;
+
+    auto it = clients_by_fd.begin();
+    while (it != clients_by_fd.end())
+    {
+        Client_p &client = it->second;
+        if (client->keepAliveExpired())
+        {
+            subscriptionStore->removeClient(client);
+            it = clients_by_fd.erase(it);
+        }
+        else
+            it++;
+    }
+
+    return true;
+}
+
 
 

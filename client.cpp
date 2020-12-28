@@ -17,6 +17,7 @@ Client::Client(int fd, ThreadData_p threadData) :
 
 Client::~Client()
 {
+    std::cout << "Removing client: " << repr() << std::endl;
     close(fd);
 }
 
@@ -73,6 +74,8 @@ bool Client::readFdIntoBuffer()
     {
         return false;
     }
+
+    lastActivity = time(NULL);
 
     return true;
 }
@@ -216,6 +219,15 @@ std::string Client::repr()
     a << "[Client=" << clientid << ", user=" << username << ", fd=" << fd << "]";
     a.flush();
     return a.str();
+}
+
+bool Client::keepAliveExpired()
+{
+    if (!authenticated)
+        return lastActivity + 20 < time(NULL);
+
+    bool result = (lastActivity + (keepalive*10/5)) < time(NULL);
+    return result;
 }
 
 void Client::setReadyForWriting(bool val)

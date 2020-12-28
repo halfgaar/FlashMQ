@@ -6,6 +6,7 @@
 #include <vector>
 #include <mutex>
 #include <iostream>
+#include <time.h>
 
 #include "forward_declarations.h"
 
@@ -35,6 +36,7 @@ class Client
     bool readyForReading = true;
     bool disconnectWhenBytesWritten = false;
     bool disconnecting = false;
+    time_t lastActivity = time(NULL);
 
     std::string clientid;
     std::string username;
@@ -80,6 +82,7 @@ public:
     void setReadyForDisconnect() { disconnectWhenBytesWritten = true; }
 
     std::string repr();
+    bool keepAliveExpired();
 
 };
 

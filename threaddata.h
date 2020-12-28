@@ -40,6 +40,8 @@ public:
     void removeClient(Client_p client);
     void removeClient(int fd);
     std::shared_ptr<SubscriptionStore> &getSubscriptionStore();
+
+    bool doKeepAliveCheck();
 };
 
 #endif // THREADDATA_H

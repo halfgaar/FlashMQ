@@ -15,6 +15,7 @@ void do_thread_work(ThreadData *threadData)
     memset(&events, 0, sizeof (struct epoll_event)*MAX_EVENTS);
 
     std::vector<MqttPacket> packetQueueIn;
+    time_t lastKeepAliveCheck = time(NULL);
 
     while (threadData->running)
     {
@@ -46,7 +47,6 @@ void do_thread_work(ThreadData *threadData)
 
                             if (!readSuccess)
                             {
-                                std::cout << "Disconnect: " << client->repr() << std::endl;
                                 threadData->removeClient(client);
                                 continue;
                             }
@@ -92,6 +92,19 @@ void do_thread_work(ThreadData *threadData)
             }
         }
         packetQueueIn.clear();
+
+        try
+        {
+            if (lastKeepAliveCheck + 30 < time(NULL))
+            {
+                if (threadData->doKeepAliveCheck())
+                    lastKeepAliveCheck = time(NULL);
+            }
+        }
+        catch (std::exception &ex)
+        {
+            std::cerr << "Error handling keep-alives: " << ex.what() << std::endl;
+        }
     }
 }
 
