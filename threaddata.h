@@ -24,15 +24,12 @@ class ThreadData
     std::unordered_map<int, Client_p> clients_by_fd;
     std::mutex clients_by_fd_mutex;
     std::shared_ptr<SubscriptionStore> subscriptionStore;
-    std::unordered_set<Client_p> readyForDequeueing;
-    std::mutex readForDequeuingMutex;
 
 public:
     bool running = true;
     std::thread thread;
     int threadnr = 0;
     int epollfd = 0;
-    int event_fd = 0;
 
     ThreadData(int threadnr, std::shared_ptr<SubscriptionStore> &subscriptionStore);
 
@@ -43,10 +40,6 @@ public:
     void removeClient(Client_p client);
     void removeClient(int fd);
     std::shared_ptr<SubscriptionStore> &getSubscriptionStore();
-    void wakeUpThread();
-    void addToReadyForDequeuing(Client_p &client);
-    std::unordered_set<Client_p> &getReadyForDequeueing() { return readyForDequeueing; }
-    void clearReadyForDequeueing();
 };
 
 #endif // THREADDATA_H

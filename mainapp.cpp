@@ -16,21 +16,8 @@ void do_thread_work(ThreadData *threadData)
 
     std::vector<MqttPacket> packetQueueIn;
 
-    uint64_t eventfd_value = 0;
-
     while (threadData->running)
     {
-        if (eventfd_value > 0)
-        {
-            for (Client_p client : threadData->getReadyForDequeueing())
-            {
-                //client->queuedMessagesToBuffer();
-                client->writeBufIntoFd();
-            }
-            threadData->clearReadyForDequeueing();
-            eventfd_value = 0;
-        }
-
         int fdcount = epoll_wait(epoll_fd, events, MAX_EVENTS, 100);
 
         if (fdcount < 0)
@@ -45,13 +32,6 @@ void do_thread_work(ThreadData *threadData)
             {
                 struct epoll_event cur_ev = events[i];
                 int fd = cur_ev.data.fd;
-
-                // If this thread was actively woken up.
-                if (fd == threadData->event_fd)
-                {
-                    read(fd, &eventfd_value, sizeof(uint64_t));
-                    continue;
-                }
 
                 Client_p client = threadData->getClient(fd);
 
