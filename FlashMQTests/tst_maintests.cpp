@@ -10,6 +10,22 @@
 #include "mainappthread.h"
 #include "twoclienttestcontext.h"
 
+// Dumb Qt version gives warnings when comparing uint with number literal.
+template <typename T1, typename T2>
+inline bool myCastCompare(const T1 &t1, const T2 &t2, const char *actual, const char *expected,
+                      const char *file, int line)
+{
+    T1 t2_ = static_cast<T1>(t2);
+    return QTest::compare_helper(t1 == t2_, "Compared values are not the same",
+                                 QTest::toString(t1), QTest::toString(t2), actual, expected, file, line);
+}
+
+#define MYCASTCOMPARE(actual, expected) \
+do {\
+    if (!myCastCompare(actual, expected, #actual, #expected, __FILE__, __LINE__))\
+        return;\
+} while (false)
+
 class MainTests : public QObject
 {
     Q_OBJECT
@@ -57,12 +73,12 @@ void MainTests::test_circbuf()
 {
     CirBuf buf(64);
 
-    QCOMPARE(buf.freeSpace(), 63);
+    MYCASTCOMPARE(buf.freeSpace(), 63);
 
-    int write_n = 40;
+    uint write_n = 40;
 
     char *head = buf.headPtr();
-    for (int i = 0; i < write_n; i++)
+    for (uint i = 0; i < write_n; i++)
     {
         head[i] = i+1;
     }
@@ -70,40 +86,40 @@ void MainTests::test_circbuf()
     buf.advanceHead(write_n);
 
     QCOMPARE(buf.head, write_n);
-    QCOMPARE(buf.tail, 0);
+    MYCASTCOMPARE(buf.tail, 0);
     QCOMPARE(buf.maxReadSize(), write_n);
     QCOMPARE(buf.maxWriteSize(), (64 - write_n - 1));
     QCOMPARE(buf.freeSpace(), 64 - write_n - 1);
 
-    for (int i = 0; i < write_n; i++)
+    for (uint i = 0; i < write_n; i++)
     {
-        QCOMPARE(buf.tailPtr()[i], i+1);
+        MYCASTCOMPARE(buf.tailPtr()[i], i+1);
     }
 
     buf.advanceTail(write_n);
     QVERIFY(buf.tail == buf.head);
     QCOMPARE(buf.tail, write_n);
-    QCOMPARE(buf.maxReadSize(), 0);
+    MYCASTCOMPARE(buf.maxReadSize(), 0);
     QCOMPARE(buf.maxWriteSize(), (64 - write_n)); // no longer -1, because the head can point to 0 afterwards
-    QCOMPARE(buf.freeSpace(), 63);
+    MYCASTCOMPARE(buf.freeSpace(), 63);
 
     write_n = buf.maxWriteSize();
 
     head = buf.headPtr();
-    for (int i = 0; i < write_n; i++)
+    for (uint i = 0; i < write_n; i++)
     {
         head[i] = i+1;
     }
     buf.advanceHead(write_n);
 
-    QCOMPARE(buf.head, 0);
+    MYCASTCOMPARE(buf.head, 0);
 
     // Now write more, starting at the beginning.
 
     write_n = buf.maxWriteSize();
 
     head = buf.headPtr();
-    for (int i = 0; i < write_n; i++)
+    for (uint i = 0; i < write_n; i++)
     {
         head[i] = i+100; // Offset by 100 so we can see if we overwrite the tail
     }
@@ -136,7 +152,7 @@ void MainTests::test_circbuf_unwrapped_doubling()
     }
     QCOMPARE(buf.buf[64], 0); // Vacant place, because of the circulerness.
 
-    QCOMPARE(buf.head, 63);
+    MYCASTCOMPARE(buf.head, 63);
 
     buf.doubleSize();
     tail = buf.tailPtr();
@@ -151,10 +167,10 @@ void MainTests::test_circbuf_unwrapped_doubling()
         QCOMPARE(tail[i], 5);
     }
 
-    QCOMPARE(buf.tail, 0);
-    QCOMPARE(buf.head, 63);
-    QCOMPARE(buf.maxWriteSize(), 64);
-    QCOMPARE(buf.maxReadSize(), 63);
+    MYCASTCOMPARE(buf.tail, 0);
+    MYCASTCOMPARE(buf.head, 63);
+    MYCASTCOMPARE(buf.maxWriteSize(), 64);
+    MYCASTCOMPARE(buf.maxReadSize(), 63);
 }
 
 void MainTests::test_circbuf_wrapped_doubling()
@@ -170,14 +186,14 @@ void MainTests::test_circbuf_wrapped_doubling()
     }
     buf.advanceHead(w);
 
-    QCOMPARE(buf.tail, 0);
-    QCOMPARE(buf.head, w);
-    QCOMPARE(buf.maxReadSize(), 40);
-    QCOMPARE(buf.maxWriteSize(), 23);
+    MYCASTCOMPARE(buf.tail, 0);
+    MYCASTCOMPARE(buf.head, w);
+    MYCASTCOMPARE(buf.maxReadSize(), 40);
+    MYCASTCOMPARE(buf.maxWriteSize(), 23);
 
     buf.advanceTail(40);
 
-    QCOMPARE(buf.maxWriteSize(), 24);
+    MYCASTCOMPARE(buf.maxWriteSize(), 24);
 
     head = buf.headPtr();
     for (int i = 0; i < 24; i++)
@@ -186,10 +202,10 @@ void MainTests::test_circbuf_wrapped_doubling()
     }
     buf.advanceHead(24);
 
-    QCOMPARE(buf.tail, 40);
-    QCOMPARE(buf.head, 0);
-    QCOMPARE(buf.maxReadSize(), 24);
-    QCOMPARE(buf.maxWriteSize(), 39);
+    MYCASTCOMPARE(buf.tail, 40);
+    MYCASTCOMPARE(buf.head, 0);
+    MYCASTCOMPARE(buf.maxReadSize(), 24);
+    MYCASTCOMPARE(buf.maxWriteSize(), 39);
 
     // Now write a little more, which starts at the start
 
@@ -199,18 +215,18 @@ void MainTests::test_circbuf_wrapped_doubling()
         head[i] = 88;
     }
     buf.advanceHead(10);
-    QCOMPARE(buf.head, 10);
+    MYCASTCOMPARE(buf.head, 10);
 
     buf.doubleSize();
 
     // The 88's that were appended at the start, should now appear at the end;
     for (int i = 64; i < 74; i++)
     {
-        QCOMPARE(buf.buf[i], 88);
+        MYCASTCOMPARE(buf.buf[i], 88);
     }
 
-    QCOMPARE(buf.tail, 40);
-    QCOMPARE(buf.head, 74);
+    MYCASTCOMPARE(buf.tail, 40);
+    MYCASTCOMPARE(buf.head, 74);
 }
 
 void MainTests::test_circbuf_full_wrapped_buffer_doubling()
