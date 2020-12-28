@@ -75,8 +75,10 @@ void SubscriptionStore::publishRecursively(std::list<std::string>::const_iterato
         return;
     }
 
+    if (this_node->children.empty())
+        return;
+
     std::string cur_subtop = *cur_subtopic_it;
-    auto sub_node = this_node->children.find(cur_subtop);
 
     const auto next_subtopic = ++cur_subtopic_it;
 
@@ -86,6 +88,7 @@ void SubscriptionStore::publishRecursively(std::list<std::string>::const_iterato
         publishNonRecursively(packet, pound_sign_node->second->subscribers);
     }
 
+    auto sub_node = this_node->children.find(cur_subtop);
     if (sub_node != this_node->children.end())
     {
         publishRecursively(next_subtopic, end, sub_node->second, packet);
