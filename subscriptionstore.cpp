@@ -49,13 +49,6 @@ void SubscriptionStore::addSubscription(Client_p &client, const std::string &top
     giveClientRetainedMessages(client, topic);
 }
 
-void SubscriptionStore::removeClient(const Client_p &client)
-{
-    RWLockGuard lock_guard(&subscriptionsRwlock);
-    lock_guard.wrlock();
-    clients_by_id.erase(client->getClientId());
-}
-
 // TODO: should I implement cache, this needs to be changed to returning a list of clients.
 void SubscriptionStore::publishNonRecursively(const MqttPacket &packet, const std::forward_list<std::string> &subscribers) const
 {
@@ -64,7 +57,11 @@ void SubscriptionStore::publishNonRecursively(const MqttPacket &packet, const st
         auto client_it = clients_by_id_const.find(client_id);
         if (client_it != clients_by_id_const.end())
         {
-            client_it->second->writeMqttPacketAndBlameThisClient(packet);
+            if (!client_it->second.expired())
+            {
+                Client_p c = client_it->second.lock();
+                c->writeMqttPacketAndBlameThisClient(packet);
+            }
         }
     }
 }

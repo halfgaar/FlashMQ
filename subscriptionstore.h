@@ -36,8 +36,8 @@ class SubscriptionStore
 {
     std::unique_ptr<SubscriptionNode> root;
     pthread_rwlock_t subscriptionsRwlock = PTHREAD_RWLOCK_INITIALIZER;
-    std::unordered_map<std::string, Client_p> clients_by_id;
-    const std::unordered_map<std::string, Client_p> &clients_by_id_const;
+    std::unordered_map<std::string, std::weak_ptr<Client>> clients_by_id;
+    const std::unordered_map<std::string, std::weak_ptr<Client>> &clients_by_id_const;
 
     pthread_rwlock_t retainedMessagesRwlock = PTHREAD_RWLOCK_INITIALIZER;
     std::unordered_set<RetainedMessage> retainedMessages;
@@ -49,7 +49,6 @@ public:
     SubscriptionStore();
 
     void addSubscription(Client_p &client, const std::string &topic);
-    void removeClient(const Client_p &client);
 
     void queuePacketAtSubscribers(const std::string &topic, const MqttPacket &packet, const Client_p &sender);
     void giveClientRetainedMessages(Client_p &client, const std::string &subscribe_topic);

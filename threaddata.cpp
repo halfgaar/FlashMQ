@@ -52,7 +52,6 @@ void ThreadData::removeClient(Client_p client)
 
     std::lock_guard<std::mutex> lck(clients_by_fd_mutex);
     clients_by_fd.erase(client->getFd());
-    subscriptionStore->removeClient(client);
 }
 
 void ThreadData::removeClient(int fd)
@@ -62,7 +61,6 @@ void ThreadData::removeClient(int fd)
     if (client_it != this->clients_by_fd.end())
     {
         client_it->second->markAsDisconnecting();
-        subscriptionStore->removeClient(client_it->second);
         this->clients_by_fd.erase(fd);
     }
 }
@@ -85,7 +83,6 @@ bool ThreadData::doKeepAliveCheck()
         Client_p &client = it->second;
         if (client->keepAliveExpired())
         {
-            subscriptionStore->removeClient(client);
             it = clients_by_fd.erase(it);
         }
         else
