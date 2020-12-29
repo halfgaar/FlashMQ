@@ -30,6 +30,8 @@ public:
 
     std::forward_list<std::string> subscribers; // The idea is to store subscriptions by client id, to support persistent sessions.
     std::unordered_map<std::string, std::unique_ptr<SubscriptionNode>> children;
+    std::unique_ptr<SubscriptionNode> childrenPlus;
+    std::unique_ptr<SubscriptionNode> childrenPound;
 };
 
 class SubscriptionStore

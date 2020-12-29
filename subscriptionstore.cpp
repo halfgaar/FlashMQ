@@ -28,8 +28,16 @@ void SubscriptionStore::addSubscription(Client_p &client, const std::string &top
     SubscriptionNode *deepestNode = root.get();
     for(const std::string &subtopic : subtopics)
     {
-        SubscriptionNode &nodeRef = *deepestNode;
-        std::unique_ptr<SubscriptionNode> &node = nodeRef.children[subtopic];
+        std::unique_ptr<SubscriptionNode> *selectedChildren = nullptr;
+
+        if (subtopic == "#")
+            selectedChildren = &deepestNode->childrenPound;
+        else if (subtopic == "+")
+            selectedChildren = &deepestNode->childrenPlus;
+        else
+            selectedChildren = &deepestNode->children[subtopic];
+
+        std::unique_ptr<SubscriptionNode> &node = *selectedChildren;
 
         if (!node)
         {
@@ -75,17 +83,16 @@ void SubscriptionStore::publishRecursively(std::vector<std::string>::const_itera
         return;
     }
 
-    if (this_node->children.empty())
+    if (this_node->children.empty() && !this_node->childrenPlus && !this_node->childrenPound)
         return;
 
     std::string cur_subtop = *cur_subtopic_it;
 
     const auto next_subtopic = ++cur_subtopic_it;
 
-    const auto pound_sign_node = this_node->children.find("#");
-    if (pound_sign_node != this_node->children.end())
+    if (this_node->childrenPound)
     {
-        publishNonRecursively(packet, pound_sign_node->second->subscribers);
+        publishNonRecursively(packet, this_node->childrenPound->subscribers);
     }
 
     auto sub_node = this_node->children.find(cur_subtop);
@@ -94,10 +101,9 @@ void SubscriptionStore::publishRecursively(std::vector<std::string>::const_itera
         publishRecursively(next_subtopic, end, sub_node->second, packet);
     }
 
-    const auto plus_sign_node = this_node->children.find("+");
-    if (plus_sign_node != this_node->children.end())
+    if (this_node->childrenPlus)
     {
-        publishRecursively(next_subtopic, end, plus_sign_node->second, packet);
+        publishRecursively(next_subtopic, end, this_node->childrenPlus, packet);
     }
 }
 
