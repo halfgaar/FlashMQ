@@ -81,7 +81,7 @@ bool ThreadData::doKeepAliveCheck()
     while (it != clients_by_fd.end())
     {
         Client_p &client = it->second;
-        if (client->keepAliveExpired())
+        if (client && client->keepAliveExpired())
         {
             it = clients_by_fd.erase(it);
         }
