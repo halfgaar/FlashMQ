@@ -66,7 +66,7 @@ void SubscriptionStore::publishNonRecursively(const MqttPacket &packet, const st
     }
 }
 
-void SubscriptionStore::publishRecursively(std::list<std::string>::const_iterator cur_subtopic_it, std::list<std::string>::const_iterator end,
+void SubscriptionStore::publishRecursively(std::vector<std::string>::const_iterator cur_subtopic_it, std::vector<std::string>::const_iterator end,
                                            std::unique_ptr<SubscriptionNode> &this_node, const MqttPacket &packet) const
 {
     if (cur_subtopic_it == end) // This is the end of the topic path, so look for subscribers here.
@@ -105,7 +105,7 @@ void SubscriptionStore::queuePacketAtSubscribers(const std::string &topic, const
 {
     // TODO: keep a cache of topics vs clients
 
-    const std::list<std::string> subtopics = split(topic, '/');
+    const std::vector<std::string> subtopics = splitToVector(topic, '/');
 
     RWLockGuard lock_guard(&subscriptionsRwlock);
     lock_guard.rdlock();

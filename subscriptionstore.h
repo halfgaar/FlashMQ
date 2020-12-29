@@ -43,7 +43,7 @@ class SubscriptionStore
     std::unordered_set<RetainedMessage> retainedMessages;
 
     void publishNonRecursively(const MqttPacket &packet, const std::forward_list<std::string> &subscribers) const;
-    void publishRecursively(std::list<std::string>::const_iterator cur_subtopic_it, std::list<std::string>::const_iterator end,
+    void publishRecursively(std::vector<std::string>::const_iterator cur_subtopic_it, std::vector<std::string>::const_iterator end,
                             std::unique_ptr<SubscriptionNode> &next, const MqttPacket &packet) const;
 public:
     SubscriptionStore();
