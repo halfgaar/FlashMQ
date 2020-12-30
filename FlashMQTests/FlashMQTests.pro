@@ -26,6 +26,7 @@ SOURCES +=  tst_maintests.cpp \
     ../types.cpp \
     ../utils.cpp \
     ../logger.cpp \
+    ../authplugin.cpp \
     mainappthread.cpp \
     twoclienttestcontext.cpp
 
@@ -44,5 +45,10 @@ HEADERS += \
     ../types.h \
     ../utils.h \
     ../logger.h \
+    ../authplugin.h \
     mainappthread.h \
     twoclienttestcontext.h
+
+LIBS += -ldl
+
+QMAKE_LFLAGS += -rdynamic

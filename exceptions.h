@@ -16,5 +16,10 @@ public:
     NotImplementedException(const std::string &msg) : std::runtime_error(msg) {}
 };
 
+class FatalError : public std::runtime_error
+{
+public:
+    FatalError(const std::string &msg) : std::runtime_error(msg) {}
+};
 
 #endif // EXCEPTIONS_H
