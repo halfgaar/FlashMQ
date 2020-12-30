@@ -20,6 +20,7 @@ add_executable(FlashMQ
     rwlockguard.cpp
     retainedmessage.cpp
     cirbuf.cpp
+    logger.cpp
     )
 
 target_link_libraries(FlashMQ pthread)

@@ -25,6 +25,7 @@ SOURCES +=  tst_maintests.cpp \
     ../threaddata.cpp \
     ../types.cpp \
     ../utils.cpp \
+    ../logger.cpp \
     mainappthread.cpp \
     twoclienttestcontext.cpp
 
@@ -42,5 +43,6 @@ HEADERS += \
     ../threaddata.h \
     ../types.h \
     ../utils.h \
+    ../logger.h \
     mainappthread.h \
     twoclienttestcontext.h
