@@ -16,6 +16,7 @@
 #include "client.h"
 #include "mqttpacket.h"
 #include "subscriptionstore.h"
+#include "configfileparser.h"
 
 class MainApp
 {
@@ -25,6 +26,7 @@ class MainApp
     bool running = true;
     std::vector<std::shared_ptr<ThreadData>> threads;
     std::shared_ptr<SubscriptionStore> subscriptionStore;
+    std::unique_ptr<ConfigFileParser> confFileParser;
 
     MainApp();
 public:

@@ -6,7 +6,7 @@
 
 #include "mainapp.h"
 
-MainApp *mainApp = MainApp::getMainApp();
+MainApp *mainApp = nullptr;
 
 static void signal_handler(int signal)
 {
@@ -65,6 +65,7 @@ int main()
 {
     try
     {
+        mainApp = MainApp::getMainApp();
         check<std::runtime_error>(register_signal_handers());
         mainApp->start();
     }

@@ -16,14 +16,18 @@
 #include "client.h"
 #include "subscriptionstore.h"
 #include "utils.h"
-
-
+#include "configfileparser.h"
+#include "authplugin.h"
+#include "logger.h"
 
 class ThreadData
 {
     std::unordered_map<int, Client_p> clients_by_fd;
     std::mutex clients_by_fd_mutex;
     std::shared_ptr<SubscriptionStore> subscriptionStore;
+    ConfigFileParser &confFileParser;
+    AuthPlugin authPlugin;
+    Logger *logger;
 
 public:
     bool running = true;
@@ -31,7 +35,9 @@ public:
     int threadnr = 0;
     int epollfd = 0;
 
-    ThreadData(int threadnr, std::shared_ptr<SubscriptionStore> &subscriptionStore);
+    ThreadData(int threadnr, std::shared_ptr<SubscriptionStore> &subscriptionStore, ConfigFileParser &confFileParser);
+    ThreadData(const ThreadData &other) = delete;
+    ThreadData(ThreadData &&other) = delete;
 
     void moveThreadHere(std::thread &&thread);
     void quit();
@@ -42,6 +48,7 @@ public:
     std::shared_ptr<SubscriptionStore> &getSubscriptionStore();
 
     bool doKeepAliveCheck();
+    void reload();
 };
 
 #endif // THREADDATA_H

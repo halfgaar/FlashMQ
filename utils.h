@@ -7,6 +7,7 @@
 #include <list>
 #include <limits>
 #include <vector>
+#include <algorithm>
 
 template<typename T> int check(int rc)
 {
@@ -30,5 +31,11 @@ bool isValidUtf8(const std::string &s);
 bool strContains(const std::string &s, const std::string &needle);
 
 bool isValidPublishPath(const std::string &s);
+
+void ltrim(std::string &s);
+void rtrim(std::string &s);
+void trim(std::string &s);
+bool startsWith(const std::string &s, const std::string &needle);
+
 
 #endif // UTILS_H

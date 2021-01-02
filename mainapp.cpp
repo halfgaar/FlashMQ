@@ -111,7 +111,8 @@ void do_thread_work(ThreadData *threadData)
 MainApp::MainApp() :
     subscriptionStore(new SubscriptionStore())
 {
-
+    confFileParser.reset(new ConfigFileParser("/home/halfgaar/Projects/FlashMQThings/config.txt")); // TODO: from argv
+    confFileParser->loadFile();
 }
 
 MainApp *MainApp::getMainApp()
@@ -154,7 +155,7 @@ void MainApp::start()
 
     for (int i = 0; i < NR_OF_THREADS; i++)
     {
-        std::shared_ptr<ThreadData> t(new ThreadData(i, subscriptionStore));
+        std::shared_ptr<ThreadData> t(new ThreadData(i, subscriptionStore, *confFileParser.get()));
         std::thread thread(do_thread_work, t.get());
         t->moveThreadHere(std::move(thread));
         threads.push_back(t);

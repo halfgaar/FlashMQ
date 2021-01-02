@@ -23,6 +23,7 @@ add_executable(FlashMQ
     cirbuf.cpp
     logger.cpp
     authplugin.cpp
+    configfileparser.cpp
     )
 
 target_link_libraries(FlashMQ pthread dl)

@@ -2,11 +2,19 @@
 #include <string>
 #include <sstream>
 
-ThreadData::ThreadData(int threadnr, std::shared_ptr<SubscriptionStore> &subscriptionStore) :
+ThreadData::ThreadData(int threadnr, std::shared_ptr<SubscriptionStore> &subscriptionStore, ConfigFileParser &confFileParser) :
     subscriptionStore(subscriptionStore),
+    confFileParser(confFileParser),
+    authPlugin(confFileParser),
     threadnr(threadnr)
 {
+    logger = Logger::getInstance();
+
     epollfd = check<std::runtime_error>(epoll_create(999));
+
+    authPlugin.loadPlugin(confFileParser.getAuthPluginPath());
+    authPlugin.init();
+    authPlugin.securityInit(false);
 }
 
 void ThreadData::moveThreadHere(std::thread &&thread)
@@ -90,6 +98,19 @@ bool ThreadData::doKeepAliveCheck()
     }
 
     return true;
+}
+
+void ThreadData::reload()
+{
+    try
+    {
+        authPlugin.securityCleanup(true);
+        authPlugin.securityInit(true);
+    }
+    catch (AuthPluginException &ex)
+    {
+        logger->logf(LOG_ERR, "Error reloading auth plugin: %s. Security checks will now fail, because we don't know the status of the plugin anymore.", ex.what());
+    }
 }
 
 

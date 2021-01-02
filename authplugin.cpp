@@ -7,10 +7,6 @@
 
 #include "exceptions.h"
 
-// TODO: error handling on all the calls to the plugin. Exceptions? Passing to the caller?
-// TODO: where to do the conditionals about whether the plugin is loaded, what to do on error, etc?
-//       -> Perhaps merely log the error (and return 'denied'?)?
-
 void mosquitto_log_printf(int level, const char *fmt, ...)
 {
     Logger *logger = Logger::getInstance();
@@ -21,12 +17,18 @@ void mosquitto_log_printf(int level, const char *fmt, ...)
 }
 
 
-AuthPlugin::AuthPlugin() // our configuration object as param
+AuthPlugin::AuthPlugin(ConfigFileParser &confFileParser) :
+    confFileParser(confFileParser)
 {
     logger = Logger::getInstance();
 }
 
-void *AuthPlugin::loadSymbol(void *handle, const char *symbol)
+AuthPlugin::~AuthPlugin()
+{
+    cleanup();
+}
+
+void *AuthPlugin::loadSymbol(void *handle, const char *symbol) const
 {
     void *r = dlsym(handle, symbol);
 
@@ -41,7 +43,13 @@ void *AuthPlugin::loadSymbol(void *handle, const char *symbol)
 
 void AuthPlugin::loadPlugin(const std::string &pathToSoFile)
 {
+    if (pathToSoFile.empty())
+        return;
+
     logger->logf(LOG_INFO, "Loading auth plugin %s", pathToSoFile.c_str());
+
+    initialized = false;
+    wanted = true;
 
     if (access(pathToSoFile.c_str(), R_OK) != 0)
     {
@@ -72,47 +80,105 @@ void AuthPlugin::loadPlugin(const std::string &pathToSoFile)
     acl_check_v2 = (F_auth_plugin_acl_check_v2)loadSymbol(r, "mosquitto_auth_acl_check");
     unpwd_check_v2 = (F_auth_plugin_unpwd_check_v2)loadSymbol(r, "mosquitto_auth_unpwd_check");
     psk_key_get_v2 = (F_auth_plugin_psk_key_get_v2)loadSymbol(r, "mosquitto_auth_psk_key_get");
+
+    initialized = true;
 }
 
-int AuthPlugin::init()
+void AuthPlugin::init()
 {
-    struct mosquitto_auth_opt auth_opts[2]; // TODO: get auth opts from central config object
-    std::memset(&auth_opts, 0, sizeof(struct mosquitto_auth_opt) * 2);
-    int result = init_v2(&pluginData, auth_opts, 2);
-    return result;
+    if (!wanted)
+        return;
+
+    AuthOptCompatWrap &authOpts = confFileParser.getAuthOptsCompat();
+    int result = init_v2(&pluginData, authOpts.head(), authOpts.size());
+    if (result != 0)
+        throw FatalError("Error initialising auth plugin.");
 }
 
-int AuthPlugin::cleanup()
+void AuthPlugin::cleanup()
 {
-    struct mosquitto_auth_opt auth_opts[2]; // TODO: get auth opts from central config object
-    std::memset(&auth_opts, 0, sizeof(struct mosquitto_auth_opt) * 2);
-    return cleanup_v2(pluginData, auth_opts, 2);
+    if (!cleanup_v2)
+        return;
+
+    securityCleanup(false);
+
+    AuthOptCompatWrap &authOpts = confFileParser.getAuthOptsCompat();
+    int result = cleanup_v2(pluginData, authOpts.head(), authOpts.size());
+    if (result != 0)
+        logger->logf(LOG_ERR, "Error cleaning up auth plugin"); // Not doing exception, because we're shutting down anyway.
 }
 
-int AuthPlugin::securityInit(bool reloading)
+void AuthPlugin::securityInit(bool reloading)
 {
-    struct mosquitto_auth_opt auth_opts[2]; // TODO: get auth opts from central config object
-    std::memset(&auth_opts, 0, sizeof(struct mosquitto_auth_opt) * 2);
-    return security_init_v2(pluginData, auth_opts, 2, reloading);
+    if (!wanted)
+        return;
+
+    AuthOptCompatWrap &authOpts = confFileParser.getAuthOptsCompat();
+    int result = security_init_v2(pluginData, authOpts.head(), authOpts.size(), reloading);
+    if (result != 0)
+    {
+        throw AuthPluginException("Plugin function mosquitto_auth_security_init returned an error. If it didn't log anything, we don't know what it was.");
+    }
+    initialized = true;
 }
 
-int AuthPlugin::securityCleanup(bool reloading)
+void AuthPlugin::securityCleanup(bool reloading)
 {
-    struct mosquitto_auth_opt auth_opts[2]; // TODO: get auth opts from central config object
-    std::memset(&auth_opts, 0, sizeof(struct mosquitto_auth_opt) * 2);
-    return security_cleanup_v2(pluginData, auth_opts, 2, reloading);
+    if (!wanted)
+        return;
+
+    initialized = false;
+    AuthOptCompatWrap &authOpts = confFileParser.getAuthOptsCompat();
+    int result = security_cleanup_v2(pluginData, authOpts.head(), authOpts.size(), reloading);
+
+    if (result != 0)
+    {
+        throw AuthPluginException("Plugin function mosquitto_auth_security_cleanup returned an error. If it didn't log anything, we don't know what it was.");
+    }
 }
 
 AuthResult AuthPlugin::aclCheck(const std::string &clientid, const std::string &username, const std::string &topic, AclAccess access)
 {
+    if (!wanted)
+        return AuthResult::success;
+
+    if (!initialized)
+    {
+        logger->logf(LOG_ERR, "ACL check wanted, but initialization failed.  Can't perform check.");
+        return AuthResult::error;
+    }
+
     int result = acl_check_v2(pluginData, clientid.c_str(), username.c_str(), topic.c_str(), static_cast<int>(access));
-    return static_cast<AuthResult>(result);
+    AuthResult result_ = static_cast<AuthResult>(result);
+
+    if (result_ == AuthResult::error)
+    {
+        logger->logf(LOG_ERR, "ACL check by plugin returned error for topic '%s'. If it didn't log anything, we don't know what it was.", topic.c_str());
+    }
+
+    return result_;
 }
 
 AuthResult AuthPlugin::unPwdCheck(const std::string &username, const std::string &password)
 {
+    if (!wanted)
+        return AuthResult::success;
+
+    if (!initialized)
+    {
+        logger->logf(LOG_ERR, "Username+password check wanted, but initialization failed. Can't perform check.");
+        return AuthResult::error;
+    }
+
     int result = unpwd_check_v2(pluginData, username.c_str(), password.c_str());
-    return static_cast<AuthResult>(result);
+    AuthResult r = static_cast<AuthResult>(result);
+
+    if (r == AuthResult::error)
+    {
+        logger->logf(LOG_ERR, "Username+password check by plugin returned error for user '%s'. If it didn't log anything, we don't know what it was.", username.c_str());
+    }
+
+    return r;
 }
 
 

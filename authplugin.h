@@ -5,6 +5,7 @@
 #include <cstring>
 
 #include "logger.h"
+#include "configfileparser.h"
 
 // Compatible with Mosquitto
 enum class AclAccess
@@ -21,11 +22,6 @@ enum class AuthResult
     acl_denied = 12,
     login_denied = 11,
     error = 13
-};
-
-struct mosquitto_auth_opt {
-    char *key;
-    char *value;
 };
 
 typedef int (*F_auth_plugin_version)(void);
@@ -55,18 +51,25 @@ class AuthPlugin
     F_auth_plugin_unpwd_check_v2 unpwd_check_v2 = nullptr;
     F_auth_plugin_psk_key_get_v2 psk_key_get_v2 = nullptr;
 
+    ConfigFileParser &confFileParser;
+
     void *pluginData = nullptr;
     Logger *logger = nullptr;
+    bool initialized = false;
+    bool wanted = false;
 
-    void *loadSymbol(void *handle, const char *symbol);
+    void *loadSymbol(void *handle, const char *symbol) const;
 public:
-    AuthPlugin();
+    AuthPlugin(ConfigFileParser &confFileParser);
+    AuthPlugin(const AuthPlugin &other) = delete;
+    AuthPlugin(AuthPlugin &&other) = delete;
+    ~AuthPlugin();
 
     void loadPlugin(const std::string &pathToSoFile);
-    int init();
-    int cleanup();
-    int securityInit(bool reloading);
-    int securityCleanup(bool reloading);
+    void init();
+    void cleanup();
+    void securityInit(bool reloading);
+    void securityCleanup(bool reloading);
     AuthResult aclCheck(const std::string &clientid, const std::string &username, const std::string &topic, AclAccess access);
     AuthResult unPwdCheck(const std::string &username, const std::string &password);
 

@@ -1,6 +1,6 @@
 #include "utils.h"
 
-
+#include <algorithm>
 
 std::list<std::__cxx11::string> split(const std::string &input, const char sep, size_t max, bool keep_empty_parts)
 {
@@ -142,4 +142,29 @@ std::vector<std::string> splitToVector(const std::string &input, const char sep,
     if (start != input.size() || keep_empty_parts)
         list.push_back(input.substr(start, std::string::npos));
     return list;
+}
+
+void ltrim(std::string &s)
+{
+    s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch) {
+        return !std::isspace(ch);
+    }));
+}
+
+void rtrim(std::string &s)
+{
+    s.erase(std::find_if(s.rbegin(), s.rend(), [](unsigned char ch) {
+        return !std::isspace(ch);
+    }).base(), s.end());
+}
+
+void trim(std::string &s)
+{
+    ltrim(s);
+    rtrim(s);
+}
+
+bool startsWith(const std::string &s, const std::string &needle)
+{
+    return s.find(needle) == 0;
 }
