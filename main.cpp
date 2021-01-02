@@ -65,6 +65,9 @@ int main()
 {
     try
     {
+        Logger *logger = Logger::getInstance();
+        logger->logf(LOG_NOTICE, "Starting FlashMQ");
+
         mainApp = MainApp::getMainApp();
         check<std::runtime_error>(register_signal_handers());
         mainApp->start();

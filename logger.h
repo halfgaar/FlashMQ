@@ -25,6 +25,7 @@ class Logger
 
 public:
     static Logger *getInstance();
+    void logf(int level, const char *str, va_list args);
     void logf(int level, const char *str, ...);
 
 };

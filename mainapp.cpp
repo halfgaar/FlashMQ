@@ -17,6 +17,21 @@ void do_thread_work(ThreadData *threadData)
     std::vector<MqttPacket> packetQueueIn;
     time_t lastKeepAliveCheck = time(NULL);
 
+    Logger *logger = Logger::getInstance();
+
+    try
+    {
+        logger->logf(LOG_NOTICE, "Thread %d doing auth init.", threadData->threadnr);
+        threadData->initAuthPlugin();
+    }
+    catch(std::exception &ex)
+    {
+        logger->logf(LOG_ERR, "Error initializing auth back-end: %s", ex.what());
+        threadData->running = false;
+        MainApp *instance = MainApp::getMainApp();
+        instance->quit();
+    }
+
     while (threadData->running)
     {
         int fdcount = epoll_wait(epoll_fd, events, MAX_EVENTS, 100);
@@ -83,7 +98,7 @@ void do_thread_work(ThreadData *threadData)
         {
             try
             {
-                packet.handle(threadData->getSubscriptionStore());
+                packet.handle();
             }
             catch (std::exception &ex)
             {
@@ -209,17 +224,16 @@ void MainApp::start()
         }
     }
 
+    for(std::shared_ptr<ThreadData> &thread : threads)
+    {
+        thread->quit();
+    }
+
     close(listen_fd);
 }
 
 void MainApp::quit()
 {
     std::cout << "Quitting FlashMQ" << std::endl;
-
     running = false;
-
-    for(std::shared_ptr<ThreadData> &thread : threads)
-    {
-        thread->quit();
-    }
 }

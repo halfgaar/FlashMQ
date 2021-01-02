@@ -40,7 +40,15 @@ Logger *Logger::getInstance()
 
 void Logger::logf(int level, const char *str, ...)
 {
-    if (level > curLogLevel)
+    va_list valist;
+    va_start(valist, str);
+    this->logf(level, str, valist);
+    va_end(valist);
+}
+
+void Logger::logf(int level, const char *str, va_list valist)
+{
+    if (level > curLogLevel) // TODO: wrong: bitmap based
         return;
 
     std::lock_guard<std::mutex> locker(logMutex);
@@ -55,8 +63,6 @@ void Logger::logf(int level, const char *str, ...)
     const std::string s = oss.str();
     const char *logfmtstring = s.c_str();
 
-    va_list valist;
-    va_start(valist, str);
     if (this->file)
     {
         vfprintf(this->file, logfmtstring, valist);
@@ -75,5 +81,4 @@ void Logger::logf(int level, const char *str, ...)
         fflush(stdout);
 #endif
     }
-    va_end(valist);
 }

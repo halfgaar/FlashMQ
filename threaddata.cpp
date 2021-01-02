@@ -11,10 +11,6 @@ ThreadData::ThreadData(int threadnr, std::shared_ptr<SubscriptionStore> &subscri
     logger = Logger::getInstance();
 
     epollfd = check<std::runtime_error>(epoll_create(999));
-
-    authPlugin.loadPlugin(confFileParser.getAuthPluginPath());
-    authPlugin.init();
-    authPlugin.securityInit(false);
 }
 
 void ThreadData::moveThreadHere(std::thread &&thread)
@@ -98,6 +94,13 @@ bool ThreadData::doKeepAliveCheck()
     }
 
     return true;
+}
+
+void ThreadData::initAuthPlugin()
+{
+    authPlugin.loadPlugin(confFileParser.getAuthPluginPath());
+    authPlugin.init();
+    authPlugin.securityInit(false);
 }
 
 void ThreadData::reload()

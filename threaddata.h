@@ -26,10 +26,10 @@ class ThreadData
     std::mutex clients_by_fd_mutex;
     std::shared_ptr<SubscriptionStore> subscriptionStore;
     ConfigFileParser &confFileParser;
-    AuthPlugin authPlugin;
     Logger *logger;
 
 public:
+    AuthPlugin authPlugin;
     bool running = true;
     std::thread thread;
     int threadnr = 0;
@@ -48,6 +48,7 @@ public:
     std::shared_ptr<SubscriptionStore> &getSubscriptionStore();
 
     bool doKeepAliveCheck();
+    void initAuthPlugin();
     void reload();
 };
 

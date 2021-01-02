@@ -98,7 +98,7 @@ MqttPacket::MqttPacket(const Publish &publish) :
     calculateRemainingLength();
 }
 
-void MqttPacket::handle(std::shared_ptr<SubscriptionStore> &subscriptionStore)
+void MqttPacket::handle()
 {
     if (packetType != PacketType::CONNECT)
     {
@@ -113,9 +113,9 @@ void MqttPacket::handle(std::shared_ptr<SubscriptionStore> &subscriptionStore)
     else if (packetType == PacketType::PINGREQ)
         sender->writePingResp();
     else if (packetType == PacketType::SUBSCRIBE)
-        handleSubscribe(subscriptionStore);
+        handleSubscribe();
     else if (packetType == PacketType::PUBLISH)
-        handlePublish(subscriptionStore);
+        handlePublish();
 }
 
 void MqttPacket::handleConnect()
@@ -146,7 +146,7 @@ void MqttPacket::handleConnect()
             MqttPacket response(connAck);
             sender->setReadyForDisconnect();
             sender->writeMqttPacket(response);
-            std::cout << "Rejecting because of invalid protocol version: " << sender->repr() << std::endl;
+            logger->logf(LOG_ERR, "Rejecting because of invalid protocol version: %s", sender->repr().c_str());
             return;
         }
 
@@ -200,7 +200,7 @@ void MqttPacket::handleConnect()
             MqttPacket response(connAck);
             sender->setReadyForDisconnect();
             sender->writeMqttPacket(response);
-            std::cout << "Client ID, username or passwords has invalid UTF8: " << sender->repr() << std::endl;
+            logger->logf(LOG_ERR, "Client ID, username or passwords has invalid UTF8: ", client_id.c_str());
             return;
         }
 
@@ -212,19 +212,29 @@ void MqttPacket::handleConnect()
             MqttPacket response(connAck);
             sender->setReadyForDisconnect();
             sender->writeMqttPacket(response);
-            std::cout << "ClientID has + or # in the id: " << sender->repr() << std::endl;
+            logger->logf(LOG_ERR, "ClientID '%s' has + or # in the id:", client_id.c_str());
             return;
         }
 
         sender->setClientProperties(client_id, username, true, keep_alive);
         sender->setWill(will_topic, will_payload, will_retain, will_qos);
-        sender->setAuthenticated(true);
 
-        std::cout << "Connect: " << sender->repr() << std::endl;
-
-        ConnAck connAck(ConnAckReturnCodes::Accepted);
-        MqttPacket response(connAck);
-        sender->writeMqttPacket(response);
+        if (sender->getThreadData()->authPlugin.unPwdCheck(username, password) == AuthResult::success)
+        {
+            sender->setAuthenticated(true);
+            ConnAck connAck(ConnAckReturnCodes::Accepted);
+            MqttPacket response(connAck);
+            sender->writeMqttPacket(response);
+            logger->logf(LOG_NOTICE, "User %s logged in successfully", username.c_str());
+        }
+        else
+        {
+            ConnAck connDeny(ConnAckReturnCodes::NotAuthorized);
+            MqttPacket response(connDeny);
+            sender->setReadyForDisconnect();
+            sender->writeMqttPacket(response);
+            logger->logf(LOG_NOTICE, "User %s access denied", username.c_str());
+        }
     }
     else
     {
@@ -232,7 +242,7 @@ void MqttPacket::handleConnect()
     }
 }
 
-void MqttPacket::handleSubscribe(std::shared_ptr<SubscriptionStore> &subscriptionStore)
+void MqttPacket::handleSubscribe()
 {
     uint16_t packet_id = readTwoBytesToUInt16();
 
@@ -245,7 +255,7 @@ void MqttPacket::handleSubscribe(std::shared_ptr<SubscriptionStore> &subscriptio
         if (qos > 0)
             throw NotImplementedException("QoS not implemented");
         std::cout << sender->repr() << " Subscribed to " << topic << std::endl;
-        subscriptionStore->addSubscription(sender, topic);
+        sender->getThreadData()->getSubscriptionStore()->addSubscription(sender, topic);
         subs_reponse_codes.push_back(qos);
     }
 
@@ -254,7 +264,7 @@ void MqttPacket::handleSubscribe(std::shared_ptr<SubscriptionStore> &subscriptio
     sender->writeMqttPacket(response);
 }
 
-void MqttPacket::handlePublish(std::shared_ptr<SubscriptionStore> &subscriptionStore)
+void MqttPacket::handlePublish()
 {
     uint16_t variable_header_length = readTwoBytesToUInt16();
 
@@ -287,7 +297,7 @@ void MqttPacket::handlePublish(std::shared_ptr<SubscriptionStore> &subscriptionS
         size_t payload_length = remainingAfterPos();
         std::string payload(readBytes(payload_length), payload_length);
 
-        subscriptionStore->setRetainedMessage(topic, payload, qos);
+        sender->getThreadData()->getSubscriptionStore()->setRetainedMessage(topic, payload, qos);
     }
 
     // Set dup flag to 0, because that must not be propagated [MQTT-3.3.1-3].
@@ -295,7 +305,7 @@ void MqttPacket::handlePublish(std::shared_ptr<SubscriptionStore> &subscriptionS
     bites[0] &= 0b11110110;
 
     // For the existing clients, we can just write the same packet back out, with our small alterations.
-    subscriptionStore->queuePacketAtSubscribers(topic, *this, sender);
+    sender->getThreadData()->getSubscriptionStore()->queuePacketAtSubscribers(topic, *this, sender);
 }
 
 void MqttPacket::calculateRemainingLength()

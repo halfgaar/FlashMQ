@@ -13,6 +13,7 @@
 #include "types.h"
 #include "subscriptionstore.h"
 #include "cirbuf.h"
+#include "logger.h"
 
 struct RemainingLength
 {
@@ -31,6 +32,7 @@ class MqttPacket
     char first_byte = 0;
     size_t pos = 0;
     ProtocolVersion protocolVersion = ProtocolVersion::None;
+    Logger *logger = Logger::getInstance();
 
     char *readBytes(size_t length);
     char readByte();
@@ -50,11 +52,11 @@ public:
     MqttPacket(const SubAck &subAck);
     MqttPacket(const Publish &publish);
 
-    void handle(std::shared_ptr<SubscriptionStore> &subscriptionStore);
+    void handle();
     void handleConnect();
-    void handleSubscribe(std::shared_ptr<SubscriptionStore> &subscriptionStore);
+    void handleSubscribe();
     void handlePing();
-    void handlePublish(std::shared_ptr<SubscriptionStore> &subscriptionStore);
+    void handlePublish();
 
     size_t getSizeIncludingNonPresentHeader() const;
     const std::vector<char> &getBites() const { return bites; }
