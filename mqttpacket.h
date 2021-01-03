@@ -47,6 +47,9 @@ public:
     PacketType packetType = PacketType::Reserved;
     MqttPacket(CirBuf &buf, size_t packet_len, size_t fixed_header_length, Client_p &sender); // Constructor for parsing incoming packets.
 
+    MqttPacket(MqttPacket &&other) = default;
+    MqttPacket(const MqttPacket &other) = delete;
+
     // Constructor for outgoing packets. These may not allocate room for the fixed header, because we don't (always) know the length in advance.
     MqttPacket(const ConnAck &connAck);
     MqttPacket(const SubAck &subAck);
