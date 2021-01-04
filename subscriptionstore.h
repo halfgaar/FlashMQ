@@ -10,6 +10,7 @@
 #include "forward_declarations.h"
 
 #include "client.h"
+#include "session.h"
 #include "utils.h"
 #include "retainedmessage.h"
 #include "logger.h"
@@ -39,8 +40,8 @@ class SubscriptionStore
 {
     std::unique_ptr<SubscriptionNode> root;
     pthread_rwlock_t subscriptionsRwlock = PTHREAD_RWLOCK_INITIALIZER;
-    std::unordered_map<std::string, std::weak_ptr<Client>> clients_by_id;
-    const std::unordered_map<std::string, std::weak_ptr<Client>> &clients_by_id_const;
+    std::unordered_map<std::string, Session> sessionsById;
+    const std::unordered_map<std::string, Session> &sessionsByIdConst;
 
     pthread_rwlock_t retainedMessagesRwlock = PTHREAD_RWLOCK_INITIALIZER;
     std::unordered_set<RetainedMessage> retainedMessages;

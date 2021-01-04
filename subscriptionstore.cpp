@@ -13,7 +13,7 @@ SubscriptionNode::SubscriptionNode(const std::string &subtopic) :
 
 SubscriptionStore::SubscriptionStore() :
     root(new SubscriptionNode("root")),
-    clients_by_id_const(clients_by_id)
+    sessionsByIdConst(sessionsById)
 {
 
 }
@@ -65,19 +65,21 @@ void SubscriptionStore::registerClientAndKickExistingOne(Client_p &client)
     if (client->getClientId().empty())
         throw ProtocolError("Trying to store client without an ID.");
 
-    std::weak_ptr<Client> existingClient = clients_by_id[client->getClientId()];
-    auto it = clients_by_id.find(client->getClientId());
-
-    if (it != clients_by_id.end() && !it->second.expired())
+    auto session_it = sessionsById.find(client->getClientId());
+    if (session_it != sessionsById.end())
     {
-        std::shared_ptr<Client> cl = it->second.lock();
-        logger->logf(LOG_NOTICE, "Disconnecting existing client with id '%s'", cl->getClientId().c_str());
-        cl->setReadyForDisconnect();
-        cl->getThreadData()->removeClient(cl);
-        cl->markAsDisconnecting();
-    }
+        Session &session = session_it->second;
 
-    clients_by_id[client->getClientId()] = client;
+        if (!session.clientDisconnected())
+        {
+            std::shared_ptr<Client> cl = session.makeSharedClient();
+            logger->logf(LOG_NOTICE, "Disconnecting existing client with id '%s'", cl->getClientId().c_str());
+            cl->setReadyForDisconnect();
+            cl->getThreadData()->removeClient(cl);
+            cl->markAsDisconnecting();
+        }
+    }
+    sessionsById[client->getClientId()] = client;
 }
 
 // TODO: should I implement cache, this needs to be changed to returning a list of clients.
@@ -85,12 +87,13 @@ void SubscriptionStore::publishNonRecursively(const MqttPacket &packet, const st
 {
     for (const std::string &client_id : subscribers)
     {
-        auto client_it = clients_by_id_const.find(client_id);
-        if (client_it != clients_by_id_const.end())
+        auto session_it = sessionsByIdConst.find(client_id);
+        if (session_it != sessionsByIdConst.end())
         {
-            if (!client_it->second.expired())
+            const Session &session = session_it->second;
+            if (!session.clientDisconnected())
             {
-                Client_p c = client_it->second.lock();
+                Client_p c = session.makeSharedClient();
                 c->writeMqttPacketAndBlameThisClient(packet);
             }
         }
