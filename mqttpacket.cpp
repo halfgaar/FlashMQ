@@ -221,6 +221,8 @@ void MqttPacket::handleConnect()
 
         if (sender->getThreadData()->authPlugin.unPwdCheck(username, password) == AuthResult::success)
         {
+            sender->getThreadData()->getSubscriptionStore()->registerClientAndKickExistingOne(sender);
+
             sender->setAuthenticated(true);
             ConnAck connAck(ConnAckReturnCodes::Accepted);
             MqttPacket response(connAck);

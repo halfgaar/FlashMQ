@@ -12,6 +12,7 @@
 #include "client.h"
 #include "utils.h"
 #include "retainedmessage.h"
+#include "logger.h"
 
 struct RetainedPayload
 {
@@ -44,6 +45,8 @@ class SubscriptionStore
     pthread_rwlock_t retainedMessagesRwlock = PTHREAD_RWLOCK_INITIALIZER;
     std::unordered_set<RetainedMessage> retainedMessages;
 
+    Logger *logger = Logger::getInstance();
+
     void publishNonRecursively(const MqttPacket &packet, const std::forward_list<std::string> &subscribers) const;
     void publishRecursively(std::vector<std::string>::const_iterator cur_subtopic_it, std::vector<std::string>::const_iterator end,
                             std::unique_ptr<SubscriptionNode> &next, const MqttPacket &packet) const;
@@ -51,6 +54,7 @@ public:
     SubscriptionStore();
 
     void addSubscription(Client_p &client, const std::string &topic);
+    void registerClientAndKickExistingOne(Client_p &client);
 
     void queuePacketAtSubscribers(const std::string &topic, const MqttPacket &packet, const Client_p &sender);
     void giveClientRetainedMessages(Client_p &client, const std::string &subscribe_topic);

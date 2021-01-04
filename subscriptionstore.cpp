@@ -51,10 +51,33 @@ void SubscriptionStore::addSubscription(Client_p &client, const std::string &top
         deepestNode->subscribers.push_front(client->getClientId());
     }
 
-    clients_by_id[client->getClientId()] = client;
     lock_guard.unlock();
 
     giveClientRetainedMessages(client, topic);
+}
+
+// Removes an existing client when it already exists [MQTT-3.1.4-2].
+void SubscriptionStore::registerClientAndKickExistingOne(Client_p &client)
+{
+    RWLockGuard lock_guard(&subscriptionsRwlock);
+    lock_guard.wrlock();
+
+    if (client->getClientId().empty())
+        throw ProtocolError("Trying to store client without an ID.");
+
+    std::weak_ptr<Client> existingClient = clients_by_id[client->getClientId()];
+    auto it = clients_by_id.find(client->getClientId());
+
+    if (it != clients_by_id.end() && !it->second.expired())
+    {
+        std::shared_ptr<Client> cl = it->second.lock();
+        logger->logf(LOG_NOTICE, "Disconnecting existing client with id '%s'", cl->getClientId().c_str());
+        cl->setReadyForDisconnect();
+        cl->getThreadData()->removeClient(cl);
+        cl->markAsDisconnecting();
+    }
+
+    clients_by_id[client->getClientId()] = client;
 }
 
 // TODO: should I implement cache, this needs to be changed to returning a list of clients.
