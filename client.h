@@ -41,6 +41,7 @@ class Client
     std::string clientid;
     std::string username;
     uint16_t keepalive = 0;
+    bool cleanSession = false;
 
     std::string will_topic;
     std::string will_payload;
@@ -64,13 +65,14 @@ public:
     void markAsDisconnecting();
     bool readFdIntoBuffer();
     bool bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn, Client_p &sender);
-    void setClientProperties(const std::string &clientId, const std::string username, bool connectPacketSeen, uint16_t keepalive);
+    void setClientProperties(const std::string &clientId, const std::string username, bool connectPacketSeen, uint16_t keepalive, bool cleanSession);
     void setWill(const std::string &topic, const std::string &payload, bool retain, char qos);
     void setAuthenticated(bool value) { authenticated = value;}
     bool getAuthenticated() { return authenticated; }
     bool hasConnectPacketSeen() { return connectPacketSeen; }
     ThreadData_p getThreadData() { return threadData; }
     std::string &getClientId() { return this->clientid; }
+    bool getCleanSession() { return cleanSession; }
 
     void writePingResp();
     void writeMqttPacket(const MqttPacket &packet);

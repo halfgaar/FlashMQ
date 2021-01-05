@@ -11,10 +11,12 @@ class Session
     // TODO: qos message queue, as some kind of movable pointer.
 public:
     Session();
-    Session(std::shared_ptr<Client> &client);
+    Session(const Session &other) = delete;
+    Session(Session &&other) = delete;
 
     bool clientDisconnected() const;
     std::shared_ptr<Client> makeSharedClient() const;
+    void assignActiveConnection(std::shared_ptr<Client> &client);
 };
 
 #endif // SESSION_H

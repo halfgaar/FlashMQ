@@ -327,12 +327,13 @@ bool Client::bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn, Client_
     return true;
 }
 
-void Client::setClientProperties(const std::string &clientId, const std::string username, bool connectPacketSeen, uint16_t keepalive)
+void Client::setClientProperties(const std::string &clientId, const std::string username, bool connectPacketSeen, uint16_t keepalive, bool cleanSession)
 {
     this->clientid = clientId;
     this->username = username;
     this->connectPacketSeen = connectPacketSeen;
     this->keepalive = keepalive;
+    this->cleanSession = cleanSession;
 }
 
 void Client::setWill(const std::string &topic, const std::string &payload, bool retain, char qos)

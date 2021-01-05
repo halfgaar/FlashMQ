@@ -48,7 +48,12 @@ void SubscriptionStore::addSubscription(Client_p &client, const std::string &top
 
     if (deepestNode)
     {
-        deepestNode->subscribers.push_front(client->getClientId());
+        auto session_it = sessionsByIdConst.find(client->getClientId());
+        if (session_it != sessionsByIdConst.end())
+        {
+            std::weak_ptr<Session> b = session_it->second;
+            deepestNode->subscribers.push_front(b);
+        }
     }
 
     lock_guard.unlock();
@@ -65,35 +70,43 @@ void SubscriptionStore::registerClientAndKickExistingOne(Client_p &client)
     if (client->getClientId().empty())
         throw ProtocolError("Trying to store client without an ID.");
 
+    std::shared_ptr<Session> session;
     auto session_it = sessionsById.find(client->getClientId());
     if (session_it != sessionsById.end())
     {
-        Session &session = session_it->second;
+        session = session_it->second;
 
-        if (!session.clientDisconnected())
+        if (session && !session->clientDisconnected())
         {
-            std::shared_ptr<Client> cl = session.makeSharedClient();
+            std::shared_ptr<Client> cl = session->makeSharedClient();
             logger->logf(LOG_NOTICE, "Disconnecting existing client with id '%s'", cl->getClientId().c_str());
             cl->setReadyForDisconnect();
             cl->getThreadData()->removeClient(cl);
             cl->markAsDisconnecting();
         }
     }
-    sessionsById[client->getClientId()] = client;
+
+    if (!session || client->getCleanSession())
+    {
+        session.reset(new Session());
+        sessionsById[client->getClientId()] = session;
+    }
+
+    session->assignActiveConnection(client);
 }
 
 // TODO: should I implement cache, this needs to be changed to returning a list of clients.
-void SubscriptionStore::publishNonRecursively(const MqttPacket &packet, const std::forward_list<std::string> &subscribers) const
+void SubscriptionStore::publishNonRecursively(const MqttPacket &packet, const std::forward_list<std::weak_ptr<Session>> &subscribers) const
 {
-    for (const std::string &client_id : subscribers)
+    for (const std::weak_ptr<Session> session_weak : subscribers)
     {
-        auto session_it = sessionsByIdConst.find(client_id);
-        if (session_it != sessionsByIdConst.end())
+        if (!session_weak.expired()) // Shared pointer expires when session has been cleaned by 'clean session' connect.
         {
-            const Session &session = session_it->second;
-            if (!session.clientDisconnected())
+            const std::shared_ptr<Session> session = session_weak.lock();
+
+            if (!session->clientDisconnected())
             {
-                Client_p c = session.makeSharedClient();
+                Client_p c = session->makeSharedClient();
                 c->writeMqttPacketAndBlameThisClient(packet);
             }
         }

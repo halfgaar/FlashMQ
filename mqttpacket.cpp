@@ -216,7 +216,7 @@ void MqttPacket::handleConnect()
             return;
         }
 
-        sender->setClientProperties(client_id, username, true, keep_alive);
+        sender->setClientProperties(client_id, username, true, keep_alive, clean_session);
         sender->setWill(will_topic, will_payload, will_retain, will_qos);
 
         if (sender->getThreadData()->authPlugin.unPwdCheck(username, password) == AuthResult::success)

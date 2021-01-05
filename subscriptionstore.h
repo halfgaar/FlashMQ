@@ -30,7 +30,7 @@ public:
     SubscriptionNode(const SubscriptionNode &node) = delete;
     SubscriptionNode(SubscriptionNode &&node) = delete;
 
-    std::forward_list<std::string> subscribers; // The idea is to store subscriptions by client id, to support persistent sessions.
+    std::forward_list<std::weak_ptr<Session>> subscribers; // The idea is to store subscriptions by client id, to support persistent sessions.
     std::unordered_map<std::string, std::unique_ptr<SubscriptionNode>> children;
     std::unique_ptr<SubscriptionNode> childrenPlus;
     std::unique_ptr<SubscriptionNode> childrenPound;
@@ -40,15 +40,15 @@ class SubscriptionStore
 {
     std::unique_ptr<SubscriptionNode> root;
     pthread_rwlock_t subscriptionsRwlock = PTHREAD_RWLOCK_INITIALIZER;
-    std::unordered_map<std::string, Session> sessionsById;
-    const std::unordered_map<std::string, Session> &sessionsByIdConst;
+    std::unordered_map<std::string, std::shared_ptr<Session>> sessionsById;
+    const std::unordered_map<std::string, std::shared_ptr<Session>> &sessionsByIdConst;
 
     pthread_rwlock_t retainedMessagesRwlock = PTHREAD_RWLOCK_INITIALIZER;
     std::unordered_set<RetainedMessage> retainedMessages;
 
     Logger *logger = Logger::getInstance();
 
-    void publishNonRecursively(const MqttPacket &packet, const std::forward_list<std::string> &subscribers) const;
+    void publishNonRecursively(const MqttPacket &packet, const std::forward_list<std::weak_ptr<Session>> &subscribers) const;
     void publishRecursively(std::vector<std::string>::const_iterator cur_subtopic_it, std::vector<std::string>::const_iterator end,
                             std::unique_ptr<SubscriptionNode> &next, const MqttPacket &packet) const;
 public:

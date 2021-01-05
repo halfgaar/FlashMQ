@@ -5,11 +5,6 @@ Session::Session()
 
 }
 
-Session::Session(std::shared_ptr<Client> &client)
-{
-    this->client = client;
-}
-
 bool Session::clientDisconnected() const
 {
     return client.expired();
@@ -17,5 +12,10 @@ bool Session::clientDisconnected() const
 
 std::shared_ptr<Client> Session::makeSharedClient() const
 {
-     return client.lock();
+    return client.lock();
+}
+
+void Session::assignActiveConnection(std::shared_ptr<Client> &client)
+{
+    this->client = client;
 }
