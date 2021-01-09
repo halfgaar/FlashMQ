@@ -21,17 +21,18 @@ Client::~Client()
 {
     Logger *logger = Logger::getInstance();
     logger->logf(LOG_NOTICE, "Removing client '%s'", repr().c_str());
+    if (epoll_ctl(threadData->epollfd, EPOLL_CTL_DEL, fd, NULL) != 0)
+        logger->logf(LOG_ERR, "Removing fd %d of client '%s' from epoll produced error: %s", fd, repr().c_str(), strerror(errno));
     close(fd);
 }
 
-// Do this from a place you'll know ownwership of the shared_ptr is being given up everywhere, so the close happens when the last owner gives it up.
+// Causes future activity on the client to cause a disconnect.
 void Client::markAsDisconnecting()
 {
     if (disconnecting)
         return;
 
     disconnecting = true;
-    check<std::runtime_error>(epoll_ctl(threadData->epollfd, EPOLL_CTL_DEL, fd, NULL));
 }
 
 // false means any kind of error we want to get rid of the client for.

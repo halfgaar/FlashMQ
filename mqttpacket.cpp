@@ -110,6 +110,8 @@ void MqttPacket::handle()
 
     if (packetType == PacketType::CONNECT)
         handleConnect();
+    else if (packetType == PacketType::DISCONNECT)
+        handleDisconnect();
     else if (packetType == PacketType::PINGREQ)
         sender->writePingResp();
     else if (packetType == PacketType::SUBSCRIBE)
@@ -245,6 +247,15 @@ void MqttPacket::handleConnect()
     {
         throw ProtocolError("Invalid variable header length. Garbage?");
     }
+}
+
+void MqttPacket::handleDisconnect()
+{
+    logger->logf(LOG_NOTICE, "Client '%s' cleanly disconnecting", sender->repr().c_str());
+    sender->markAsDisconnecting();
+    sender->getThreadData()->removeClient(sender);
+
+    // TODO: clear will
 }
 
 void MqttPacket::handleSubscribe()

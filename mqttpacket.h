@@ -57,6 +57,7 @@ public:
 
     void handle();
     void handleConnect();
+    void handleDisconnect();
     void handleSubscribe();
     void handlePing();
     void handlePublish();
