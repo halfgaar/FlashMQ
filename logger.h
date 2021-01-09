@@ -16,9 +16,11 @@
 class Logger
 {
     static Logger *instance;
+    static std::string logPath;
     int curLogLevel = LOG_DEBUG;
     std::mutex logMutex;
     FILE *file = nullptr;
+    bool alsoLogToStd = true;
 
     Logger();
     std::string getLogLevelString(int level) const;
@@ -27,6 +29,10 @@ public:
     static Logger *getInstance();
     void logf(int level, const char *str, va_list args);
     void logf(int level, const char *str, ...);
+    void reOpen();
+    void noLongerLogToStd();
+
+    void setLogPath(const std::string &path);
 
 };
 

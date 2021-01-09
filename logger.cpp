@@ -2,8 +2,12 @@
 #include <ctime>
 #include <sstream>
 #include <iomanip>
+#include <string.h>
+
+#include "exceptions.h"
 
 Logger *Logger::instance = nullptr;
+std::string Logger::logPath = "";
 
 Logger::Logger()
 {
@@ -46,6 +50,37 @@ void Logger::logf(int level, const char *str, ...)
     va_end(valist);
 }
 
+void Logger::reOpen()
+{
+    std::lock_guard<std::mutex> locker(logMutex);
+
+    if (file)
+    {
+        fclose(file);
+        file = nullptr;
+    }
+
+    if (logPath.empty())
+        return;
+
+    if ((file = fopen(logPath.c_str(), "a")) == nullptr)
+    {
+        std::string msg(strerror(errno));
+        throw ConfigFileException("Error opening logfile: " + msg);
+    }
+}
+
+// I want all messages logged during app startup to also show on stdout/err, otherwise failure can look so silent. So, call this when the app started.
+void Logger::noLongerLogToStd()
+{
+    alsoLogToStd = false;
+}
+
+void Logger::setLogPath(const std::string &path)
+{
+    Logger::logPath = path;
+}
+
 void Logger::logf(int level, const char *str, va_list valist)
 {
     if (level > curLogLevel) // TODO: wrong: bitmap based
@@ -65,11 +100,15 @@ void Logger::logf(int level, const char *str, va_list valist)
 
     if (this->file)
     {
-        vfprintf(this->file, logfmtstring, valist);
+        va_list valist2;
+        va_copy(valist2, valist);
+        vfprintf(this->file, logfmtstring, valist2);
         fprintf(this->file, "\n");
         fflush(this->file);
+        va_end(valist2);
     }
-    else
+
+    if (!this->file || alsoLogToStd)
     {
 #ifdef TESTING
         vfprintf(stderr, logfmtstring, valist); // the stdout interfers with Qt test XML output, so using stderr.

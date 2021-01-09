@@ -1,9 +1,14 @@
 #include "mainapp.h"
 #include "cassert"
 #include "exceptions.h"
+#include "getopt.h"
+#include <unistd.h>
+#include <stdio.h>
 
 #define MAX_EVENTS 1024
 #define NR_OF_THREADS 4
+
+#define VERSION "0.1"
 
 MainApp *MainApp::instance = nullptr;
 
@@ -40,7 +45,7 @@ void do_thread_work(ThreadData *threadData)
         {
             if (errno == EINTR)
                 continue;
-            std::cerr << "Problem waiting for fd: " << strerror(errno) << std::endl;
+            logger->logf(LOG_ERR, "Problem waiting for fd: %s", strerror(errno));
         }
         else if (fdcount > 0)
         {
@@ -87,7 +92,7 @@ void do_thread_work(ThreadData *threadData)
                     }
                     catch(std::exception &ex)
                     {
-                        std::cerr << "Packet read/write error: " << ex.what() << std::endl;
+                        logger->logf(LOG_ERR, "Packet read/write error: %s. Removing client.", ex.what());
                         threadData->removeClient(client);
                     }
                 }
@@ -102,7 +107,7 @@ void do_thread_work(ThreadData *threadData)
             }
             catch (std::exception &ex)
             {
-                std::cerr << "MqttPacket handling error: " << ex.what() << std::endl;
+                logger->logf(LOG_ERR, "MqttPacket handling error: %s. Removing client.", ex.what());
                 threadData->removeClient(packet.getSender());
             }
         }
@@ -118,28 +123,99 @@ void do_thread_work(ThreadData *threadData)
         }
         catch (std::exception &ex)
         {
-            std::cerr << "Error handling keep-alives: " << ex.what() << std::endl;
+            logger->logf(LOG_ERR, "Error handling keep-alives: %s.", ex.what());
         }
     }
 }
 
-MainApp::MainApp() :
+
+
+MainApp::MainApp(const std::string &configFilePath) :
     subscriptionStore(new SubscriptionStore())
 {
-    confFileParser.reset(new ConfigFileParser("/home/halfgaar/Projects/FlashMQThings/config.txt")); // TODO: from argv
-    confFileParser->loadFile();
+    taskEventFd = eventfd(0, EFD_NONBLOCK);
+
+    confFileParser.reset(new ConfigFileParser(configFilePath));
+    loadConfig();
 }
+
+void MainApp::doHelp(const char *arg)
+{
+    puts("FlashMQ - the scalable light-weight MQTT broker");
+    puts("");
+    printf("Usage: %s [options]\n", arg);
+    puts("");
+    puts(" -h, --help                           Print help");
+    puts(" -c, --config-file <flashmq.conf>     Configuration file.");
+    puts(" -V, --version                        Show version");
+    puts(" -l, --license                        Show license");
+}
+
+void MainApp::showLicense()
+{
+    printf("FlashMQ Version %s\n", VERSION);
+    puts("Copyright (C) 2021 Wiebe Cazemier.");
+    puts("");
+    puts("License to be decided");
+    puts("");
+    puts("Author: Wiebe Cazemier <wiebe@halfgaar.net>");
+}
+
+void MainApp::initMainApp(int argc, char *argv[])
+{
+    if (instance != nullptr)
+        throw std::runtime_error("App was already initialized.");
+
+    static struct option long_options[] =
+    {
+        {"help", no_argument, nullptr, 'h'},
+        {"config-file", required_argument, nullptr, 'c'},
+        {"version", no_argument, nullptr, 'V'},
+        {"license", no_argument, nullptr, 'l'},
+        {nullptr, 0, nullptr, 0}
+    };
+
+    std::string configFile;
+
+    int option_index = 0;
+    int opt;
+    while((opt = getopt_long(argc, argv, "hc:Vl", long_options, &option_index)) != -1)
+    {
+        switch(opt)
+        {
+        case 'c':
+            configFile = optarg;
+            break;
+        case 'l':
+            MainApp::showLicense();
+            exit(0);
+        case 'V':
+            MainApp::showLicense();
+            exit(0);
+        case 'h':
+            MainApp::doHelp(argv[0]);
+            exit(16);
+        case '?':
+            MainApp::doHelp(argv[0]);
+            exit(16);
+        }
+    }
+
+    instance = new MainApp(configFile);
+}
+
 
 MainApp *MainApp::getMainApp()
 {
-    if (instance == nullptr)
-        instance = new MainApp();
-
+    if (!instance)
+        throw std::runtime_error("You haven't initialized the app yet.");
     return instance;
 }
 
 void MainApp::start()
 {
+    Logger *logger = Logger::getInstance();
+
     int listen_fd = check<std::runtime_error>(socket(AF_INET, SOCK_STREAM, 0));
 
     // Not needed for now. Maybe I will make multiple accept threads later, with SO_REUSEPORT.
@@ -168,6 +244,11 @@ void MainApp::start()
     ev.events = EPOLLIN;
     check<std::runtime_error>(epoll_ctl(epoll_fd_accept, EPOLL_CTL_ADD, listen_fd, &ev));
 
+    memset(&ev, 0, sizeof (struct epoll_event));
+    ev.data.fd = taskEventFd;
+    ev.events = EPOLLIN;
+    check<std::runtime_error>(epoll_ctl(epoll_fd_accept, EPOLL_CTL_ADD, taskEventFd, &ev));
+
     for (int i = 0; i < NR_OF_THREADS; i++)
     {
         std::shared_ptr<ThreadData> t(new ThreadData(i, subscriptionStore, *confFileParser.get()));
@@ -176,7 +257,7 @@ void MainApp::start()
         threads.push_back(t);
     }
 
-    std::cout << "Listening..." << std::endl;
+    logger->logf(LOG_NOTICE, "Listening on port 1883");
 
     uint next_thread_index = 0;
 
@@ -189,7 +270,7 @@ void MainApp::start()
         {
             if (errno == EINTR)
                 continue;
-            std::cerr << strerror(errno) << std::endl;
+            logger->logf(LOG_ERR, "Waiting for listening socket error: %s", strerror(errno));
         }
 
         for (int i = 0; i < num_fds; i++)
@@ -201,7 +282,7 @@ void MainApp::start()
                 {
                     std::shared_ptr<ThreadData> thread_data = threads[next_thread_index++ % NR_OF_THREADS];
 
-                    std::cout << "Accepting connection on thread " << thread_data->threadnr << std::endl;
+                    logger->logf(LOG_INFO, "Accepting connection on thread %d", thread_data->threadnr);
 
                     struct sockaddr addr;
                     memset(&addr, 0, sizeof(struct sockaddr));
@@ -211,14 +292,25 @@ void MainApp::start()
                     Client_p client(new Client(fd, thread_data));
                     thread_data->giveClient(client);
                 }
+                else if (cur_fd == taskEventFd)
+                {
+                    uint64_t eventfd_value = 0;
+                    check<std::runtime_error>(read(cur_fd, &eventfd_value, sizeof(uint64_t)));
+
+                    for(auto &f : taskQueue)
+                    {
+                        f();
+                    }
+                    taskQueue.clear();
+                }
                 else
                 {
-                    throw std::runtime_error("The main thread had activity on an accepted socket?");
+                    throw std::runtime_error("Bug: the main thread had activity on an fd it's not supposed to monitor.");
                 }
             }
             catch (std::exception &ex)
             {
-                std::cerr << "Problem accepting connection: " << ex.what() << std::endl;
+                logger->logf(LOG_ERR, "Problem in main thread: %s", ex.what());
             }
 
         }
@@ -234,6 +326,42 @@ void MainApp::start()
 
 void MainApp::quit()
 {
-    std::cout << "Quitting FlashMQ" << std::endl;
+    Logger *logger = Logger::getInstance();
+    logger->logf(LOG_NOTICE, "Quitting FlashMQ");
     running = false;
+}
+
+void MainApp::loadConfig()
+{
+    Logger *logger = Logger::getInstance();
+    confFileParser->loadFile();
+    logger->setLogPath(confFileParser->logPath);
+    logger->reOpen();
+}
+
+void MainApp::reloadConfig()
+{
+    Logger *logger = Logger::getInstance();
+    logger->logf(LOG_NOTICE, "Reloading config");
+
+    try
+    {
+        loadConfig();
+    }
+    catch (std::exception &ex)
+    {
+        logger->logf(LOG_ERR, "Error reloading config: %s", ex.what());
+    }
+
+}
+
+void MainApp::queueConfigReload()
+{
+    std::lock_guard<std::mutex> locker(eventMutex);
+
+    auto f = std::bind(&MainApp::reloadConfig, this);
+    taskQueue.push_front(f);
+
+    uint64_t one = 1;
+    write(taskEventFd, &one, sizeof(uint64_t));
 }

@@ -98,7 +98,7 @@ bool ThreadData::doKeepAliveCheck()
 
 void ThreadData::initAuthPlugin()
 {
-    authPlugin.loadPlugin(confFileParser.getAuthPluginPath());
+    authPlugin.loadPlugin(confFileParser.authPluginPath);
     authPlugin.init();
     authPlugin.securityInit(false);
 }

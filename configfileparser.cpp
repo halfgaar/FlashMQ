@@ -45,10 +45,14 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     path(path)
 {
     validKeys.insert("auth_plugin");
+    validKeys.insert("log_file");
 }
 
 void ConfigFileParser::loadFile()
 {
+    if (path.empty())
+        return;
+
     if (access(path.c_str(), R_OK) != 0)
     {
         std::ostringstream oss;
@@ -127,6 +131,11 @@ void ConfigFileParser::loadFile()
             if (key == "auth_plugin")
             {
                 this->authPluginPath = value;
+            }
+
+            if (key == "log_file")
+            {
+                this->logPath = value;
             }
         }
     }

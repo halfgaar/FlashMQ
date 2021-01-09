@@ -36,14 +36,17 @@ class ConfigFileParser
     std::set<std::string> validKeys;
     std::unordered_map<std::string, std::string> authOpts;
     std::unique_ptr<AuthOptCompatWrap> authOptCompatWrap;
-    std::string authPluginPath;
+
+
 
 public:
     ConfigFileParser(const std::string &path);
     void loadFile();
     AuthOptCompatWrap &getAuthOptsCompat();
 
-    std::string getAuthPluginPath() { return authPluginPath; }
+    // Actual config options with their defaults. Just making them public, I can retrain myself misuing them.
+    std::string authPluginPath;
+    std::string logPath;
 };
 
 #endif // CONFIGFILEPARSER_H

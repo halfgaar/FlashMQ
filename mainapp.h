@@ -8,6 +8,8 @@
 #include <fcntl.h>
 #include <thread>
 #include <vector>
+#include <functional>
+#include <forward_list>
 
 #include "forward_declarations.h"
 
@@ -27,15 +29,27 @@ class MainApp
     std::vector<std::shared_ptr<ThreadData>> threads;
     std::shared_ptr<SubscriptionStore> subscriptionStore;
     std::unique_ptr<ConfigFileParser> confFileParser;
+    std::forward_list<std::function<void()>> taskQueue;
+    int taskEventFd = -1;
+    std::mutex eventMutex;
 
-    MainApp();
+    void loadConfig();
+    void reloadConfig();
+    static void doHelp(const char *arg);
+    static void showLicense();
+
+    MainApp(const std::string &configFilePath);
 public:
     MainApp(const MainApp &rhs) = delete;
     MainApp(MainApp &&rhs) = delete;
     static MainApp *getMainApp();
+    static void initMainApp(int argc, char *argv[]);
     void start();
     void quit();
     bool getStarted() const {return started;}
+
+
+    void queueConfigReload();
 };
 
 #endif // MAINAPP_H

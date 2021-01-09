@@ -8,6 +8,8 @@
 #include <cassert>
 #include <cstring>
 
+#include "logger.h"
+
 CirBuf::CirBuf(size_t size) :
     size(size)
 {
@@ -102,7 +104,8 @@ void CirBuf::doubleSize()
     size = newSize;
 
 #ifndef NDEBUG
-    std::cout << "New buf size: " << size << std::endl;
+    Logger *logger = Logger::getInstance();
+    logger->logf(LOG_DEBUG, "New buf size: %d", size);
 #endif
 
 #ifdef TESTING
@@ -137,7 +140,8 @@ void CirBuf::resetSize(size_t newSize)
     tail = 0;
     resizedAt = time(NULL);
 #ifndef NDEBUG
-    std::cout << "Reset buf size: " << size << std::endl;
+    Logger *logger = Logger::getInstance();
+    logger->logf(LOG_DEBUG, "Reset buf size: %d", size);
     memset(buf, 0, newSize);
 #endif
 }

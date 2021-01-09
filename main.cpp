@@ -16,7 +16,7 @@ static void signal_handler(int signal)
     }
     if (signal == SIGHUP)
     {
-
+        mainApp->queueConfigReload();
     }
     else if (signal == SIGTERM || signal == SIGINT)
     {
@@ -24,7 +24,8 @@ static void signal_handler(int signal)
     }
     else
     {
-        std::cerr << "Received signal " << signal << std::endl;
+        Logger *logger = Logger::getInstance();
+        logger->logf(LOG_INFO, "Received unhandled signal %d", signal);
     }
 }
 
@@ -44,7 +45,8 @@ int register_signal_handers()
 
     if (sigaction(SIGHUP, &sa, nullptr) != 0 || sigaction(SIGTERM, &sa, nullptr) != 0 || sigaction(SIGINT, &sa, nullptr) != 0)
     {
-        std::cerr << "Error registering signals" << std::endl;
+        Logger *logger = Logger::getInstance();
+        logger->logf(LOG_INFO, "Error registering signal handlers");
         return -1;
     }
 
@@ -61,19 +63,21 @@ int register_signal_handers()
     return 0;
 }
 
-int main()
+int main(int argc, char *argv[])
 {
     try
     {
+        MainApp::initMainApp(argc, argv);
         Logger *logger = Logger::getInstance();
-        logger->logf(LOG_NOTICE, "Starting FlashMQ");
-
         mainApp = MainApp::getMainApp();
         check<std::runtime_error>(register_signal_handers());
+        logger->logf(LOG_NOTICE, "Starting FlashMQ");
         mainApp->start();
+        logger->noLongerLogToStd();
     }
     catch (std::exception &ex)
     {
+        // Not using the logger here, because we may have had all sorts of init errors while setting it up.
         std::cerr << ex.what() << std::endl;
         return 1;
     }

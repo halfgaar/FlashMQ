@@ -256,7 +256,7 @@ void MqttPacket::handleSubscribe()
         char qos = readByte();
         if (qos > 0)
             throw NotImplementedException("QoS not implemented");
-        std::cout << sender->repr() << " Subscribed to " << topic << std::endl;
+        logger->logf(LOG_INFO, "Client '%s' subscribed to '%s'", sender->repr().c_str(), topic.c_str());
         sender->getThreadData()->getSubscriptionStore()->addSubscription(sender, topic);
         subs_reponse_codes.push_back(qos);
     }
@@ -282,9 +282,15 @@ void MqttPacket::handlePublish()
 
     std::string topic(readBytes(variable_header_length), variable_header_length);
 
-    if (!isValidUtf8(topic) || !isValidPublishPath(topic))
+    if (!isValidUtf8(topic))
     {
-        std::cerr << "Client " << sender->repr() << " sent topic with wildcards or invalid UTF8. Ignoring.";
+        logger->logf(LOG_WARNING, "Client '%s' published a message with invalid UTF8. Dropping.", sender->repr().c_str());
+        return;
+    }
+
+    if (!isValidPublishPath(topic))
+    {
+        logger->logf(LOG_WARNING, "Client '%s' published a message with invalid publish path '%s'. Dropping.", sender->repr().c_str(), topic.c_str());
         return;
     }
 

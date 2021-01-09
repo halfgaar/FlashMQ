@@ -5,6 +5,8 @@
 #include <iostream>
 #include <cassert>
 
+#include "logger.h"
+
 Client::Client(int fd, ThreadData_p threadData) :
     fd(fd),
     readbuf(CLIENT_BUFFER_SIZE),
@@ -17,7 +19,8 @@ Client::Client(int fd, ThreadData_p threadData) :
 
 Client::~Client()
 {
-    std::cout << "Removing client: " << repr() << std::endl;
+    Logger *logger = Logger::getInstance();
+    logger->logf(LOG_NOTICE, "Removing client '%s'", repr().c_str());
     close(fd);
 }
 
@@ -158,8 +161,6 @@ void Client::writeMqttPacketAndBlameThisClient(const MqttPacket &packet)
 void Client::writePingResp()
 {
     std::lock_guard<std::mutex> locker(writeBufMutex);
-
-    std::cout << "Sending ping response to " << repr() << std::endl;
 
     if (2 > writebuf.freeSpace())
         writebuf.doubleSize();
