@@ -169,7 +169,7 @@ void MqttPacket::handleConnect()
         uint16_t client_id_length = readTwoBytesToUInt16();
         std::string client_id(readBytes(client_id_length), client_id_length);
 
-        std::string username;
+        std::string username = "anonymous";
         std::string password;
         std::string will_topic;
         std::string will_payload;
@@ -186,6 +186,9 @@ void MqttPacket::handleConnect()
         {
             uint16_t user_name_length = readTwoBytesToUInt16();
             username = std::string(readBytes(user_name_length), user_name_length);
+
+            if (username.empty())
+                username = "anonymous";
         }
         if (password_flag)
         {
@@ -227,7 +230,7 @@ void MqttPacket::handleConnect()
             ConnAck connAck(ConnAckReturnCodes::Accepted);
             MqttPacket response(connAck);
             sender->writeMqttPacket(response);
-            logger->logf(LOG_NOTICE, "User %s logged in successfully", username.c_str());
+            logger->logf(LOG_NOTICE, "User '%s' logged in successfully", username.c_str());
         }
         else
         {
@@ -235,7 +238,7 @@ void MqttPacket::handleConnect()
             MqttPacket response(connDeny);
             sender->setReadyForDisconnect();
             sender->writeMqttPacket(response);
-            logger->logf(LOG_NOTICE, "User %s access denied", username.c_str());
+            logger->logf(LOG_NOTICE, "User '%s' access denied", username.c_str());
         }
     }
     else
