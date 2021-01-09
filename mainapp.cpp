@@ -252,8 +252,7 @@ void MainApp::start()
     for (int i = 0; i < NR_OF_THREADS; i++)
     {
         std::shared_ptr<ThreadData> t(new ThreadData(i, subscriptionStore, *confFileParser.get()));
-        std::thread thread(do_thread_work, t.get());
-        t->moveThreadHere(std::move(thread));
+        t->start(&do_thread_work);
         threads.push_back(t);
     }
 

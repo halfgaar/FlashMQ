@@ -13,9 +13,9 @@ ThreadData::ThreadData(int threadnr, std::shared_ptr<SubscriptionStore> &subscri
     epollfd = check<std::runtime_error>(epoll_create(999));
 }
 
-void ThreadData::moveThreadHere(std::thread &&thread)
+void ThreadData::start(thread_f f)
 {
-    this->thread = std::move(thread);
+    this->thread = std::thread(f, this);
 
     pthread_t native = this->thread.native_handle();
     std::ostringstream threadName;

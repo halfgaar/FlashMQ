@@ -20,6 +20,8 @@
 #include "authplugin.h"
 #include "logger.h"
 
+typedef void (*thread_f)(ThreadData *);
+
 class ThreadData
 {
     std::unordered_map<int, Client_p> clients_by_fd;
@@ -39,7 +41,7 @@ public:
     ThreadData(const ThreadData &other) = delete;
     ThreadData(ThreadData &&other) = delete;
 
-    void moveThreadHere(std::thread &&thread);
+    void start(thread_f f);
     void quit();
     void giveClient(Client_p client);
     Client_p getClient(int fd);
