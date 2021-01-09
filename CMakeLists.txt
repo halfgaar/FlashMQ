@@ -14,7 +14,6 @@ add_executable(FlashMQ
     threaddata.cpp
     client.cpp
     session.cpp
-    bytestopacketparser.cpp
     mqttpacket.cpp
     exceptions.cpp
     types.cpp
