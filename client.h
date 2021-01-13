@@ -51,6 +51,8 @@ class Client
     ThreadData_p threadData;
     std::mutex writeBufMutex;
 
+    std::shared_ptr<Session> session;
+
 
     void setReadyForWriting(bool val);
     void setReadyForReading(bool val);
@@ -73,6 +75,8 @@ public:
     ThreadData_p getThreadData() { return threadData; }
     std::string &getClientId() { return this->clientid; }
     bool getCleanSession() { return cleanSession; }
+    void assignSession(std::shared_ptr<Session> &session);
+    std::shared_ptr<Session> getSession();
 
     void writePingResp();
     void writeMqttPacket(const MqttPacket &packet);

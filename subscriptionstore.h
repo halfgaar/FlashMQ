@@ -30,7 +30,7 @@ public:
     SubscriptionNode(const SubscriptionNode &node) = delete;
     SubscriptionNode(SubscriptionNode &&node) = delete;
 
-    std::forward_list<std::weak_ptr<Session>> subscribers; // The idea is to store subscriptions by client id, to support persistent sessions.
+    std::forward_list<std::weak_ptr<Session>> subscribers; // TODO: a subscription class, with qos
     std::unordered_map<std::string, std::unique_ptr<SubscriptionNode>> children;
     std::unique_ptr<SubscriptionNode> childrenPlus;
     std::unique_ptr<SubscriptionNode> childrenPound;
@@ -54,7 +54,7 @@ class SubscriptionStore
 public:
     SubscriptionStore();
 
-    void addSubscription(Client_p &client, const std::string &topic);
+    void addSubscription(Client_p &client, const std::string &topic, char qos);
     void registerClientAndKickExistingOne(Client_p &client);
 
     void queuePacketAtSubscribers(const std::string &topic, const MqttPacket &packet, const Client_p &sender);

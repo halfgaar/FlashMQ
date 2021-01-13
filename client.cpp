@@ -98,9 +98,9 @@ void Client::writeMqttPacket(const MqttPacket &packet)
         writebuf.doubleSize();
     }
 
-    // And drop a publish when it doesn't fit, even after resizing. This means we do allow pings.
-    // TODO: when QoS is implemented, different filtering may be required.
-    if (packet.packetType == PacketType::PUBLISH && packet.getSizeIncludingNonPresentHeader() > writebuf.freeSpace())
+    // And drop a publish when it doesn't fit, even after resizing. This means we do allow pings. And
+    // QoS packet are queued and limited elsewhere.
+    if (packet.packetType == PacketType::PUBLISH && packet.getQos() == 0 && packet.getSizeIncludingNonPresentHeader() > writebuf.freeSpace())
     {
         return;
     }
@@ -348,6 +348,16 @@ void Client::setWill(const std::string &topic, const std::string &payload, bool 
     this->will_payload = payload;
     this->will_retain = retain;
     this->will_qos = qos;
+}
+
+void Client::assignSession(std::shared_ptr<Session> &session)
+{
+    this->session = session;
+}
+
+std::shared_ptr<Session> Client::getSession()
+{
+    return this->session;
 }
 
 

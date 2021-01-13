@@ -18,7 +18,7 @@ SubscriptionStore::SubscriptionStore() :
 
 }
 
-void SubscriptionStore::addSubscription(Client_p &client, const std::string &topic)
+void SubscriptionStore::addSubscription(Client_p &client, const std::string &topic, char qos)
 {
     const std::list<std::string> subtopics = split(topic, '/');
 
@@ -89,10 +89,13 @@ void SubscriptionStore::registerClientAndKickExistingOne(Client_p &client)
     if (!session || client->getCleanSession())
     {
         session.reset(new Session());
+
         sessionsById[client->getClientId()] = session;
     }
 
     session->assignActiveConnection(client);
+    client->assignSession(session);
+    session->sendPendingQosMessages();
 }
 
 // TODO: should I implement cache, this needs to be changed to returning a list of clients.
@@ -103,12 +106,7 @@ void SubscriptionStore::publishNonRecursively(const MqttPacket &packet, const st
         if (!session_weak.expired()) // Shared pointer expires when session has been cleaned by 'clean session' connect.
         {
             const std::shared_ptr<Session> session = session_weak.lock();
-
-            if (!session->clientDisconnected())
-            {
-                Client_p c = session->makeSharedClient();
-                c->writeMqttPacketAndBlameThisClient(packet);
-            }
+            session->writePacket(packet);
         }
     }
 }
@@ -170,7 +168,7 @@ void SubscriptionStore::giveClientRetainedMessages(Client_p &client, const std::
         const MqttPacket packet(publish);
 
         if (topicsMatch(subscribe_topic, rm.topic))
-            client->writeMqttPacket(packet);
+            client->writeMqttPacket(packet); // TODO: I think this needs to be session, not client, and then I can store it if it's QoS? I need to research how retain+qos works
     }
 }
 

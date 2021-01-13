@@ -48,7 +48,7 @@ class ConnAck
 public:
     ConnAck(ConnAckReturnCodes return_code);
     ConnAckReturnCodes return_code;
-    size_t getLength() const { return 2;} // size of connack is always the same
+    size_t getLengthWithoutFixedHeader() const { return 2;} // size of connack is always the same
 };
 
 enum class SubAckReturnCodes
@@ -65,6 +65,7 @@ public:
     uint16_t packet_id;
     std::list<SubAckReturnCodes> responses;
     SubAck(uint16_t packet_id, const std::list<char> &subs_qos_reponses);
+    size_t getLengthWithoutFixedHeader() const;
 };
 
 class Publish
@@ -75,7 +76,15 @@ public:
     char qos = 0;
     bool retain = false; // Note: existing subscribers don't get publishes of retained messages with retain=1. [MQTT-3.3.1-9]
     Publish(const std::string &topic, const std::string payload, char qos);
-    size_t getLength() const;
+    size_t getLengthWithoutFixedHeader() const;
+};
+
+class PubAck
+{
+public:
+    PubAck(uint16_t packet_id);
+    uint16_t packet_id;
+    size_t getLengthWithoutFixedHeader() const;
 };
 
 #endif // TYPES_H

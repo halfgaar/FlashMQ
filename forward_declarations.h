@@ -9,6 +9,7 @@ class ThreadData;
 typedef std::shared_ptr<ThreadData> ThreadData_p;
 class MqttPacket;
 class SubscriptionStore;
+class Session;
 
 
 #endif // FORWARD_DECLARATIONS_H

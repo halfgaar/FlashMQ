@@ -36,29 +36,36 @@ MqttPacket::MqttPacket(CirBuf &buf, size_t packet_len, size_t fixed_header_lengt
     pos += fixed_header_length;
 }
 
+// This is easier than using the copy constructor publically, because then I have to keep maintaining a functioning copy constructor.
+// Returning shared pointer because that's typically how we need it; we only need to copy it if we pass it around as shared resource.
+std::shared_ptr<MqttPacket> MqttPacket::getCopy() const
+{
+    std::shared_ptr<MqttPacket> copyPacket(new MqttPacket(*this));
+    copyPacket->sender.reset();
+    return copyPacket;
+}
+
 // This constructor cheats and doesn't use calculateRemainingLength, because it's always the same. It allocates enough space in the vector.
 MqttPacket::MqttPacket(const ConnAck &connAck) :
-    bites(connAck.getLength() + 2)
+    bites(connAck.getLengthWithoutFixedHeader() + 2)
 {
     fixed_header_length = 2;
     packetType = PacketType::CONNACK;
     char first_byte = static_cast<char>(packetType) << 4;
     writeByte(first_byte);
     writeByte(2); // length is always 2.
-    writeByte(0); // all connect-ack flags are 0, except session-present, but we don't have that yet.
+    writeByte(0); // all connect-ack flags are 0, except session-present, but we don't have that yet. TODO: make that
     writeByte(static_cast<char>(connAck.return_code));
 
 }
 
 MqttPacket::MqttPacket(const SubAck &subAck) :
-    bites(3)
+    bites(subAck.getLengthWithoutFixedHeader())
 {
-    fixed_header_length = 2; // TODO: this is wrong, pending implementation of the new method in SubAck
     packetType = PacketType::SUBACK;
-    char first_byte = static_cast<char>(packetType) << 4;
-    writeByte(first_byte);
-    writeByte((subAck.packet_id & 0xF0) >> 8);
-    writeByte(subAck.packet_id & 0x0F);
+    first_byte = static_cast<char>(packetType) << 4;
+    writeByte((subAck.packet_id & 0xFF00) >> 8);
+    writeByte(subAck.packet_id & 0x00FF);
 
     std::vector<char> returnList;
     for (SubAckReturnCodes code : subAck.responses)
@@ -66,12 +73,12 @@ MqttPacket::MqttPacket(const SubAck &subAck) :
         returnList.push_back(static_cast<char>(code));
     }
 
-    bites.insert(bites.end(), returnList.begin(), returnList.end());
-    bites[1] = returnList.size() + 1; // TODO: make some generic way of calculating the header and use the multi-byte length
+    writeBytes(&returnList[0], returnList.size());
+    calculateRemainingLength();
 }
 
 MqttPacket::MqttPacket(const Publish &publish) :
-    bites(publish.getLength())
+    bites(publish.getLengthWithoutFixedHeader())
 {
     if (publish.topic.length() > 0xFFFF)
     {
@@ -83,8 +90,8 @@ MqttPacket::MqttPacket(const Publish &publish) :
     first_byte |= (publish.qos << 1);
     first_byte |= (static_cast<char>(publish.retain) & 0b00000001);
 
-    char topicLenMSB = (publish.topic.length() & 0xF0) >> 8;
-    char topicLenLSB = publish.topic.length() & 0x0F;
+    char topicLenMSB = (publish.topic.length() & 0xFF00) >> 8;
+    char topicLenLSB = publish.topic.length() & 0x00FF;
     writeByte(topicLenMSB);
     writeByte(topicLenLSB);
     writeBytes(publish.topic.c_str(), publish.topic.length());
@@ -96,6 +103,21 @@ MqttPacket::MqttPacket(const Publish &publish) :
 
     writeBytes(publish.payload.c_str(), publish.payload.length());
     calculateRemainingLength();
+}
+
+// This constructor cheats and doesn't use calculateRemainingLength, because it's always the same. It allocates enough space in the vector.
+MqttPacket::MqttPacket(const PubAck &pubAck) :
+    bites(pubAck.getLengthWithoutFixedHeader() + 2)
+{
+    fixed_header_length = 2; // This is the cheat part mentioned above. We're not calculating it dynamically.
+    packetType = PacketType::PUBACK;
+    first_byte = static_cast<char>(packetType) << 4;
+    writeByte(first_byte);
+    writeByte(2); // length is always 2.
+    char topicLenMSB = (pubAck.packet_id & 0xFF00) >> 8;
+    char topicLenLSB = (pubAck.packet_id & 0x00FF);
+    writeByte(topicLenMSB);
+    writeByte(topicLenLSB);
 }
 
 void MqttPacket::handle()
@@ -118,6 +140,8 @@ void MqttPacket::handle()
         handleSubscribe();
     else if (packetType == PacketType::PUBLISH)
         handlePublish();
+    else if (packetType == PacketType::PUBACK)
+        handlePubAck();
 }
 
 void MqttPacket::handleConnect()
@@ -268,10 +292,8 @@ void MqttPacket::handleSubscribe()
         uint16_t topicLength = readTwoBytesToUInt16();
         std::string topic(readBytes(topicLength), topicLength);
         char qos = readByte();
-        if (qos > 0)
-            throw NotImplementedException("QoS not implemented");
         logger->logf(LOG_INFO, "Client '%s' subscribed to '%s'", sender->repr().c_str(), topic.c_str());
-        sender->getThreadData()->getSubscriptionStore()->addSubscription(sender, topic);
+        sender->getThreadData()->getSubscriptionStore()->addSubscription(sender, topic, qos);
         subs_reponse_codes.push_back(qos);
     }
 
@@ -293,6 +315,7 @@ void MqttPacket::handlePublish()
 
     if (qos == 3)
         throw ProtocolError("QoS 3 is a protocol violation.");
+    this->qos = qos;
 
     std::string topic(readBytes(variable_header_length), variable_header_length);
 
@@ -310,8 +333,19 @@ void MqttPacket::handlePublish()
 
     if (qos)
     {
-        throw ProtocolError("Qos not implemented.");
+        if (qos > 1)
+            throw ProtocolError("Qos > 1 not implemented.");
+        packet_id_pos = pos;
         uint16_t packet_id = readTwoBytesToUInt16();
+
+        // Clear the packet ID from this packet, because each new publish must get a new one. It's more of a debug precaution.
+        pos -= 2;
+        char zero[2]; zero[0] = 0; zero[1] = 0;
+        writeBytes(zero, 2);
+
+        PubAck pubAck(packet_id);
+        MqttPacket response(pubAck);
+        sender->writeMqttPacket(response);
     }
 
     if (retain)
@@ -328,6 +362,12 @@ void MqttPacket::handlePublish()
 
     // For the existing clients, we can just write the same packet back out, with our small alterations.
     sender->getThreadData()->getSubscriptionStore()->queuePacketAtSubscribers(topic, *this, sender);
+}
+
+void MqttPacket::handlePubAck()
+{
+    uint16_t packet_id = readTwoBytesToUInt16();
+    sender->getSession()->clearQosMessage(packet_id);
 }
 
 void MqttPacket::calculateRemainingLength()
@@ -354,6 +394,40 @@ RemainingLength MqttPacket::getRemainingLength() const
 {
     assert(remainingLength.len > 0);
     return remainingLength;
+}
+
+void MqttPacket::setPacketId(uint16_t packet_id)
+{
+    // In other words, we assume that this code can only be called on packets of which we have all the bytes, including fixed header.
+    assert(fixed_header_length > 0);
+    assert(packetType == PacketType::PUBLISH);
+    assert(qos > 0);
+
+    pos = packet_id_pos;
+
+    char topicLenMSB = (packet_id & 0xFF00) >> 8;
+    char topicLenLSB = (packet_id & 0x00FF);
+    writeByte(topicLenMSB);
+    writeByte(topicLenLSB);
+}
+
+// If I read the specs correctly, the DUP flag is merely for show. It doesn't control anything?
+void MqttPacket::setDuplicate()
+{
+    // In other words, we assume that this code can only be called on packets of which we have all the bytes, including fixed header.
+    assert(fixed_header_length > 0);
+    assert(packetType == PacketType::PUBLISH);
+    assert(qos > 0);
+
+    char byte1 = bites[0];
+    byte1 |= 0b00001000;
+    pos = 0;
+    writeByte(byte1);
+}
+
+size_t MqttPacket::getTotalMemoryFootprint()
+{
+    return bites.size() + sizeof(MqttPacket);
 }
 
 size_t MqttPacket::getSizeIncludingNonPresentHeader() const
