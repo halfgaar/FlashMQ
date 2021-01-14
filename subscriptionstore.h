@@ -21,19 +21,30 @@ struct RetainedPayload
     char qos;
 };
 
+struct Subscription
+{
+    std::weak_ptr<Session> session; // Weak pointer expires when session has been cleaned by 'clean session' connect.
+    char qos;
+    bool operator==(const Subscription &rhs) const;
+    void reset();
+};
+
 class SubscriptionNode
 {
     std::string subtopic;
+    std::vector<Subscription> subscribers;
 
 public:
     SubscriptionNode(const std::string &subtopic);
     SubscriptionNode(const SubscriptionNode &node) = delete;
     SubscriptionNode(SubscriptionNode &&node) = delete;
 
-    std::forward_list<std::weak_ptr<Session>> subscribers; // TODO: a subscription class, with qos
+    std::vector<Subscription> &getSubscribers();
+    void addSubscriber(const std::shared_ptr<Session> &subscriber, char qos);
     std::unordered_map<std::string, std::unique_ptr<SubscriptionNode>> children;
     std::unique_ptr<SubscriptionNode> childrenPlus;
     std::unique_ptr<SubscriptionNode> childrenPound;
+
 };
 
 class SubscriptionStore
@@ -48,7 +59,7 @@ class SubscriptionStore
 
     Logger *logger = Logger::getInstance();
 
-    void publishNonRecursively(const MqttPacket &packet, const std::forward_list<std::weak_ptr<Session>> &subscribers) const;
+    void publishNonRecursively(const MqttPacket &packet, const std::vector<Subscription> &subscribers) const;
     void publishRecursively(std::vector<std::string>::const_iterator cur_subtopic_it, std::vector<std::string>::const_iterator end,
                             std::unique_ptr<SubscriptionNode> &next, const MqttPacket &packet) const;
 public:

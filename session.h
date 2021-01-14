@@ -15,6 +15,7 @@
 class Session
 {
     std::weak_ptr<Client> client;
+    std::string client_id;
     std::unordered_map<uint16_t, std::shared_ptr<MqttPacket>> qosPacketQueue; // TODO: because the max queue length should remain low-ish, perhaps a vector is better here.
     std::mutex qosQueueMutex;
     uint16_t nextPacketId = 0;
@@ -25,10 +26,11 @@ public:
     Session(const Session &other) = delete;
     Session(Session &&other) = delete;
 
+    const std::string &getClientId() const { return client_id; }
     bool clientDisconnected() const;
     std::shared_ptr<Client> makeSharedClient() const;
     void assignActiveConnection(std::shared_ptr<Client> &client);
-    void writePacket(const MqttPacket &packet);
+    void writePacket(const MqttPacket &packet, char qos_arg);
     void clearQosMessage(uint16_t packet_id);
     void sendPendingQosMessages();
 };

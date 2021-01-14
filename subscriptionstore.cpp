@@ -11,6 +11,25 @@ SubscriptionNode::SubscriptionNode(const std::string &subtopic) :
 
 }
 
+std::vector<Subscription> &SubscriptionNode::getSubscribers()
+{
+    return subscribers;
+}
+
+void SubscriptionNode::addSubscriber(const std::shared_ptr<Session> &subscriber, char qos)
+{
+    Subscription sub;
+    sub.session = subscriber;
+    sub.qos = qos;
+
+    // I'll have to decide whether to keep the subscriber as a vector. Vectors are
+    // fast, and relatively, you don't often add subscribers.
+    if (std::find(subscribers.begin(), subscribers.end(), sub) == subscribers.end())
+    {
+        subscribers.push_back(sub);
+    }
+}
+
 SubscriptionStore::SubscriptionStore() :
     root(new SubscriptionNode("root")),
     sessionsByIdConst(sessionsById)
@@ -52,7 +71,7 @@ void SubscriptionStore::addSubscription(Client_p &client, const std::string &top
         if (session_it != sessionsByIdConst.end())
         {
             std::weak_ptr<Session> b = session_it->second;
-            deepestNode->subscribers.push_front(b);
+            deepestNode->addSubscriber(session_it->second, qos);
         }
     }
 
@@ -99,14 +118,15 @@ void SubscriptionStore::registerClientAndKickExistingOne(Client_p &client)
 }
 
 // TODO: should I implement cache, this needs to be changed to returning a list of clients.
-void SubscriptionStore::publishNonRecursively(const MqttPacket &packet, const std::forward_list<std::weak_ptr<Session>> &subscribers) const
+void SubscriptionStore::publishNonRecursively(const MqttPacket &packet, const std::vector<Subscription> &subscribers) const
 {
-    for (const std::weak_ptr<Session> session_weak : subscribers)
+    for (const Subscription &sub : subscribers)
     {
+        std::weak_ptr<Session> session_weak = sub.session;
         if (!session_weak.expired()) // Shared pointer expires when session has been cleaned by 'clean session' connect.
         {
             const std::shared_ptr<Session> session = session_weak.lock();
-            session->writePacket(packet);
+            session->writePacket(packet, sub.qos);
         }
     }
 }
@@ -116,7 +136,7 @@ void SubscriptionStore::publishRecursively(std::vector<std::string>::const_itera
 {
     if (cur_subtopic_it == end) // This is the end of the topic path, so look for subscribers here.
     {
-        publishNonRecursively(packet, this_node->subscribers);
+        publishNonRecursively(packet, this_node->getSubscribers());
         return;
     }
 
@@ -129,7 +149,7 @@ void SubscriptionStore::publishRecursively(std::vector<std::string>::const_itera
 
     if (this_node->childrenPound)
     {
-        publishNonRecursively(packet, this_node->childrenPound->subscribers);
+        publishNonRecursively(packet, this_node->childrenPound->getSubscribers());
     }
 
     auto sub_node = this_node->children.find(cur_subtop);
@@ -197,4 +217,23 @@ void SubscriptionStore::setRetainedMessage(const std::string &topic, const std::
     retainedMessages.insert(std::move(rm));
 }
 
+// QoS is not used in the comparision. This means you upgrade your QoS by subscribing again. The
+// specs don't specify what to do there.
+bool Subscription::operator==(const Subscription &rhs) const
+{
+    if (session.expired() && rhs.session.expired())
+        return true;
+    if (session.expired() || rhs.session.expired())
+        return false;
 
+    const std::shared_ptr<Session> lhs_ses = session.lock();
+    const std::shared_ptr<Session> rhs_ses = rhs.session.lock();
+
+    return lhs_ses->getClientId() == rhs_ses->getClientId();
+}
+
+void Subscription::reset()
+{
+    session.reset();
+    qos = 0;
+}

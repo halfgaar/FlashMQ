@@ -21,11 +21,12 @@ std::shared_ptr<Client> Session::makeSharedClient() const
 void Session::assignActiveConnection(std::shared_ptr<Client> &client)
 {
     this->client = client;
+    this->client_id = client->getClientId();
 }
 
-void Session::writePacket(const MqttPacket &packet)
+void Session::writePacket(const MqttPacket &packet, char qos_arg)
 {
-    const char qos = packet.getQos();
+    const char qos = std::min<char>(packet.getQos(), qos_arg);
 
     if (qos == 0)
     {
@@ -41,7 +42,7 @@ void Session::writePacket(const MqttPacket &packet)
         std::unique_lock<std::mutex> locker(qosQueueMutex);
         if (qosPacketQueue.size() >= MAX_QOS_MSG_PENDING_PER_CLIENT || (qosQueueBytes >= MAX_QOS_BYTES_PENDING_PER_CLIENT && qosPacketQueue.size() > 0))
         {
-            logger->logf(LOG_WARNING, "Dropping QoS message for client 'TODO', because its QoS buffers were full.");
+            logger->logf(LOG_WARNING, "Dropping QoS message for client '%s', because its QoS buffers were full.", client_id.c_str());
             return;
         }
         const uint16_t pid = nextPacketId++;
