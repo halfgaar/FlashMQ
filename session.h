@@ -2,21 +2,27 @@
 #define SESSION_H
 
 #include <memory>
-#include <unordered_map>
+#include <list>
 #include <mutex>
 
 #include "forward_declarations.h"
 #include "logger.h"
 
-// TODO make settings
+// TODO make settings. But, num of packets can't exceed 65536, because the counter is 16 bit.
 #define MAX_QOS_MSG_PENDING_PER_CLIENT 32
 #define MAX_QOS_BYTES_PENDING_PER_CLIENT 4096
+
+struct QueuedQosPacket
+{
+    uint16_t id;
+    std::shared_ptr<MqttPacket> packet;
+};
 
 class Session
 {
     std::weak_ptr<Client> client;
     std::string client_id;
-    std::unordered_map<uint16_t, std::shared_ptr<MqttPacket>> qosPacketQueue; // TODO: because the max queue length should remain low-ish, perhaps a vector is better here.
+    std::list<QueuedQosPacket> qosPacketQueue; // Using list because it's easiest to maintain order [MQTT-4.6.0-6]
     std::mutex qosQueueMutex;
     uint16_t nextPacketId = 0;
     ssize_t qosQueueBytes = 0;

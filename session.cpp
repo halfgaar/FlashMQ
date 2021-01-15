@@ -47,7 +47,10 @@ void Session::writePacket(const MqttPacket &packet, char qos_arg)
         }
         const uint16_t pid = nextPacketId++;
         copyPacket->setPacketId(pid);
-        qosPacketQueue[pid] = copyPacket;
+        QueuedQosPacket p;
+        p.packet = copyPacket;
+        p.id = pid;
+        qosPacketQueue.push_back(p);
         qosQueueBytes += copyPacket->getTotalMemoryFootprint();
         locker.unlock();
 
@@ -60,18 +63,31 @@ void Session::writePacket(const MqttPacket &packet, char qos_arg)
     }
 }
 
+// Normatively, this while loop will break on the first element, because all messages are sent out in order and
+// should be acked in order.
 void Session::clearQosMessage(uint16_t packet_id)
 {
     std::lock_guard<std::mutex> locker(qosQueueMutex);
-    auto it = qosPacketQueue.find(packet_id);
-    if (it != qosPacketQueue.end())
+
+    auto it = qosPacketQueue.begin();
+    auto end = qosPacketQueue.end();
+    while (it != end)
     {
-        std::shared_ptr<MqttPacket> packet = it->second;
-        qosPacketQueue.erase(it);
-        qosQueueBytes -= packet->getTotalMemoryFootprint();
-        assert(qosQueueBytes >= 0);
-        if (qosQueueBytes < 0) // Should not happen, but correcting a hypothetical bug is fine for this purpose.
-            qosQueueBytes = 0;
+        QueuedQosPacket &p = *it;
+        if (p.id == packet_id)
+        {
+            size_t mem = p.packet->getTotalMemoryFootprint();
+            qosQueueBytes -= mem;
+            assert(qosQueueBytes >= 0);
+            if (qosQueueBytes < 0) // Should not happen, but correcting a hypothetical bug is fine for this purpose.
+                qosQueueBytes = 0;
+
+            qosPacketQueue.erase(it);
+
+            break;
+        }
+
+        it++;
     }
 }
 
@@ -87,10 +103,10 @@ void Session::sendPendingQosMessages()
     {
         Client_p c = makeSharedClient();
         std::lock_guard<std::mutex> locker(qosQueueMutex);
-        for (auto &qosMessage : qosPacketQueue) // TODO: wrong: the order must be maintained. Combine the fix with that vector idea
+        for (QueuedQosPacket &qosMessage : qosPacketQueue)
         {
-            c->writeMqttPacketAndBlameThisClient(*qosMessage.second.get());
-            qosMessage.second->setDuplicate(); // Any dealings with this packet from here will be a duplicate.
+            c->writeMqttPacketAndBlameThisClient(*qosMessage.packet.get());
+            qosMessage.packet->setDuplicate(); // Any dealings with this packet from here will be a duplicate.
         }
     }
 }
