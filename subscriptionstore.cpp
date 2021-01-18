@@ -65,19 +65,22 @@ void SubscriptionStore::addSubscription(Client_p &client, const std::string &top
         deepestNode = node.get();
     }
 
+    assert(deepestNode);
+
     if (deepestNode)
     {
         auto session_it = sessionsByIdConst.find(client->getClientId());
         if (session_it != sessionsByIdConst.end())
         {
-            std::weak_ptr<Session> b = session_it->second;
-            deepestNode->addSubscriber(session_it->second, qos);
+            const std::shared_ptr<Session> &ses = session_it->second;
+            deepestNode->addSubscriber(ses, qos);
+            giveClientRetainedMessages(ses, topic, qos);
         }
     }
 
     lock_guard.unlock();
 
-    giveClientRetainedMessages(client, topic);
+
 }
 
 // Removes an existing client when it already exists [MQTT-3.1.4-2].
@@ -176,7 +179,7 @@ void SubscriptionStore::queuePacketAtSubscribers(const std::string &topic, const
     publishRecursively(subtopics.begin(), subtopics.end(), root, packet);
 }
 
-void SubscriptionStore::giveClientRetainedMessages(Client_p &client, const std::string &subscribe_topic)
+void SubscriptionStore::giveClientRetainedMessages(const std::shared_ptr<Session> &ses, const std::string &subscribe_topic, char max_qos)
 {
     RWLockGuard locker(&retainedMessagesRwlock);
     locker.rdlock();
@@ -188,7 +191,7 @@ void SubscriptionStore::giveClientRetainedMessages(Client_p &client, const std::
         const MqttPacket packet(publish);
 
         if (topicsMatch(subscribe_topic, rm.topic))
-            client->writeMqttPacket(packet); // TODO: I think this needs to be session, not client, and then I can store it if it's QoS? I need to research how retain+qos works
+            ses->writePacket(packet, max_qos);
     }
 }
 

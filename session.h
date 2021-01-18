@@ -36,7 +36,7 @@ public:
     bool clientDisconnected() const;
     std::shared_ptr<Client> makeSharedClient() const;
     void assignActiveConnection(std::shared_ptr<Client> &client);
-    void writePacket(const MqttPacket &packet, char qos_arg);
+    void writePacket(const MqttPacket &packet, char max_qos);
     void clearQosMessage(uint16_t packet_id);
     void sendPendingQosMessages();
 };

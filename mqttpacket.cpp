@@ -86,6 +86,7 @@ MqttPacket::MqttPacket(const Publish &publish) :
     }
 
     packetType = PacketType::PUBLISH;
+    this->qos = publish.qos;
     first_byte = static_cast<char>(packetType) << 4;
     first_byte |= (publish.qos << 1);
     first_byte |= (static_cast<char>(publish.retain) & 0b00000001);
@@ -98,7 +99,10 @@ MqttPacket::MqttPacket(const Publish &publish) :
 
     if (publish.qos)
     {
-        throw NotImplementedException("I would write two bytes containing the packet id here, but QoS is not done yet.");
+        // Reserve the space for the packet id, which will be assigned later.
+        packet_id_pos = pos;
+        char zero[2];
+        writeBytes(zero, 2);
     }
 
     writeBytes(publish.payload.c_str(), publish.payload.length());
@@ -398,8 +402,8 @@ RemainingLength MqttPacket::getRemainingLength() const
 
 void MqttPacket::setPacketId(uint16_t packet_id)
 {
-    // In other words, we assume that this code can only be called on packets of which we have all the bytes, including fixed header.
-    assert(fixed_header_length > 0);
+    assert(fixed_header_length == 0 || first_byte == bites[0]);
+    assert(packet_id_pos > 0);
     assert(packetType == PacketType::PUBLISH);
     assert(qos > 0);
 
@@ -414,15 +418,17 @@ void MqttPacket::setPacketId(uint16_t packet_id)
 // If I read the specs correctly, the DUP flag is merely for show. It doesn't control anything?
 void MqttPacket::setDuplicate()
 {
-    // In other words, we assume that this code can only be called on packets of which we have all the bytes, including fixed header.
-    assert(fixed_header_length > 0);
     assert(packetType == PacketType::PUBLISH);
     assert(qos > 0);
+    assert(fixed_header_length == 0 || first_byte == bites[0]);
 
-    char byte1 = bites[0];
-    byte1 |= 0b00001000;
-    pos = 0;
-    writeByte(byte1);
+    first_byte |= 0b00001000;
+
+    if (fixed_header_length > 0)
+    {
+        pos = 0;
+        writeByte(first_byte);
+    }
 }
 
 size_t MqttPacket::getTotalMemoryFootprint()

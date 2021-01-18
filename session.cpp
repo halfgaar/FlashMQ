@@ -24,9 +24,9 @@ void Session::assignActiveConnection(std::shared_ptr<Client> &client)
     this->client_id = client->getClientId();
 }
 
-void Session::writePacket(const MqttPacket &packet, char qos_arg)
+void Session::writePacket(const MqttPacket &packet, char max_qos)
 {
-    const char qos = std::min<char>(packet.getQos(), qos_arg);
+    const char qos = std::min<char>(packet.getQos(), max_qos);
 
     if (qos == 0)
     {
