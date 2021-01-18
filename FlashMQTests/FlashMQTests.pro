@@ -13,7 +13,6 @@ CONFIG -= app_bundle
 TEMPLATE = app
 
 SOURCES +=  tst_maintests.cpp \
-    ../MqttPacket.cpp \
     ../cirbuf.cpp \
     ../client.cpp \
     ../exceptions.cpp \
@@ -27,6 +26,8 @@ SOURCES +=  tst_maintests.cpp \
     ../utils.cpp \
     ../logger.cpp \
     ../authplugin.cpp \
+    ../session.cpp \
+    ../configfileparser.cpp \
     mainappthread.cpp \
     twoclienttestcontext.cpp
 
@@ -46,6 +47,8 @@ HEADERS += \
     ../utils.h \
     ../logger.h \
     ../authplugin.h \
+    ../session.h \
+    ../configfileparser.h \
     mainappthread.h \
     twoclienttestcontext.h
 

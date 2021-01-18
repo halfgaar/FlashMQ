@@ -2,6 +2,7 @@
 
 MainAppThread::MainAppThread(QObject *parent) : QThread(parent)
 {
+    MainApp::initMainApp(1, nullptr);
     appInstance = MainApp::getMainApp();
 }
 
@@ -13,6 +14,7 @@ void MainAppThread::run()
 void MainAppThread::stopApp()
 {
     appInstance->quit();
+    wait();
 }
 
 void MainAppThread::waitForStarted()
