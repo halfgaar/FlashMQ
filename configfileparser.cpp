@@ -5,9 +5,14 @@
 #include <sstream>
 #include "fstream"
 
+#include "openssl/ssl.h"
+#include "openssl/err.h"
+
 #include "exceptions.h"
 #include "utils.h"
 #include <regex>
+
+#include "logger.h"
 
 
 mosquitto_auth_opt::mosquitto_auth_opt(const std::string &key, const std::string &value)
@@ -41,24 +46,66 @@ AuthOptCompatWrap::AuthOptCompatWrap(const std::unordered_map<std::string, std::
     }
 }
 
+void ConfigFileParser::checkFileAccess(const std::string &key, const std::string &pathToCheck) const
+{
+    if (access(pathToCheck.c_str(), R_OK) != 0)
+    {
+        std::ostringstream oss;
+        oss << "Error for '" << key << "': " << pathToCheck << " is not there or not readable";
+        throw ConfigFileException(oss.str());
+    }
+}
+
+// Using a separate ssl context to test, because it's the easiest way to load certs and key atomitcally.
+void ConfigFileParser::testSsl(const std::string &fullchain, const std::string &privkey, uint portNr) const
+{
+    if (portNr == 0)
+        return;
+
+    if (fullchain.empty() && privkey.empty())
+        throw ConfigFileException("No privkey and fullchain specified.");
+
+    if (fullchain.empty())
+        throw ConfigFileException("No private key specified for fullchain");
+
+    if (privkey.empty())
+        throw ConfigFileException("No fullchain specified for private key");
+
+    SslCtxManager sslCtx;
+    if (SSL_CTX_use_certificate_file(sslCtx.get(), fullchain.c_str(), SSL_FILETYPE_PEM) != 1)
+    {
+        ERR_print_errors_cb(logSslError, NULL);
+        throw ConfigFileException("Error loading full chain " + fullchain);
+    }
+    if (SSL_CTX_use_PrivateKey_file(sslCtx.get(), privkey.c_str(), SSL_FILETYPE_PEM) != 1)
+    {
+        ERR_print_errors_cb(logSslError, NULL);
+        throw ConfigFileException("Error loading private key " + privkey);
+    }
+    if (SSL_CTX_check_private_key(sslCtx.get()) != 1)
+    {
+        ERR_print_errors_cb(logSslError, NULL);
+        throw ConfigFileException("Private key and certificate don't match.");
+    }
+}
+
 ConfigFileParser::ConfigFileParser(const std::string &path) :
     path(path)
 {
     validKeys.insert("auth_plugin");
     validKeys.insert("log_file");
+    validKeys.insert("listen_port");
+    validKeys.insert("ssl_listen_port");
+    validKeys.insert("fullchain");
+    validKeys.insert("privkey");
 }
 
-void ConfigFileParser::loadFile()
+void ConfigFileParser::loadFile(bool test)
 {
     if (path.empty())
         return;
 
-    if (access(path.c_str(), R_OK) != 0)
-    {
-        std::ostringstream oss;
-        oss << "Error: " << path << " is not there or not readable";
-        throw ConfigFileException(oss.str());
-    }
+    checkFileAccess("application config file", path);
 
     std::ifstream infile(path, std::ios::in);
 
@@ -99,6 +146,9 @@ void ConfigFileParser::loadFile()
     authOpts.clear();
     authOptCompatWrap.reset();
 
+    std::string sslFullChainTmp;
+    std::string sslPrivkeyTmp;
+
     // Then once we know the config file is valid, process it.
     for (std::string &line : lines)
     {
@@ -124,21 +174,67 @@ void ConfigFileParser::loadFile()
             if (valid_key_it == validKeys.end())
             {
                 std::ostringstream oss;
-                oss << "Config key '" << key << "' is not valid";
+                oss << "Config key '" << key << "' is not valid. This error should have been cought before. Bug?";
                 throw ConfigFileException(oss.str());
             }
 
             if (key == "auth_plugin")
             {
-                this->authPluginPath = value;
+                checkFileAccess(key, value);
+                if (!test)
+                    this->authPluginPath = value;
             }
 
             if (key == "log_file")
             {
-                this->logPath = value;
+                checkFileAccess(key, value);
+                if (!test)
+                    this->logPath = value;
+            }
+
+            if (key == "fullchain")
+            {
+                checkFileAccess(key, value);
+                sslFullChainTmp = value;
+            }
+
+            if (key == "privkey")
+            {
+                checkFileAccess(key, value);
+                sslPrivkeyTmp = value;
+            }
+
+            try
+            {
+                // TODO: make this possible. There are many error cases to deal with, like bind failures, etc. You don't want to end up without listeners.
+                if (key == "listen_port")
+                {
+                    uint listenportNew = std::stoi(value);
+                    if (listenPort > 0 && listenPort != listenportNew)
+                        throw ConfigFileException("Changing (ssl_)listen_port is not supported at this time.");
+                    listenPort = listenportNew;
+                }
+
+                // TODO: make this possible. There are many error cases to deal with, like bind failures, etc. You don't want to end up without listeners.
+                if (key == "ssl_listen_port")
+                {
+                    uint sslListenPortNew = std::stoi(value);
+                    if (sslListenPort > 0 && sslListenPort != sslListenPortNew)
+                        throw ConfigFileException("Changing (ssl_)listen_port is not supported at this time.");
+                    sslListenPort = sslListenPortNew;
+                }
+
+            }
+            catch (std::invalid_argument &ex)
+            {
+                throw ConfigFileException(ex.what());
             }
         }
     }
+
+    testSsl(sslFullChainTmp, sslPrivkeyTmp, sslListenPort);
+    this->sslFullchain = sslFullChainTmp;
+    this->sslPrivkey = sslPrivkeyTmp;
 
     authOptCompatWrap.reset(new AuthOptCompatWrap(authOpts));
 }

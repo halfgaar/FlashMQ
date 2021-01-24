@@ -5,6 +5,11 @@
 #include <unistd.h>
 #include <stdio.h>
 
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+
+#include "logger.h"
+
 #define MAX_EVENTS 1024
 #define NR_OF_THREADS 4
 
@@ -60,18 +65,30 @@ void do_thread_work(ThreadData *threadData)
                 {
                     try
                     {
-                        if (cur_ev.events & EPOLLIN)
+                        if (cur_ev.events & (EPOLLERR | EPOLLHUP))
+                        {
+                            client->setDisconnectReason("epoll says socket is in ERR or HUP state.");
+                            threadData->removeClient(client);
+                            continue;
+                        }
+                        if (client->isSsl() && !client->isSslAccepted())
+                        {
+                            client->startOrContinueSslAccept();
+                            continue;
+                        }
+                        if ((cur_ev.events & EPOLLIN) || ((cur_ev.events & EPOLLOUT) && client->getSslReadWantsWrite()))
                         {
                             bool readSuccess = client->readFdIntoBuffer();
                             client->bufferToMqttPackets(packetQueueIn, client);
 
                             if (!readSuccess)
                             {
+                                client->setDisconnectReason("socket disconnect detected");
                                 threadData->removeClient(client);
                                 continue;
                             }
                         }
-                        if (cur_ev.events & EPOLLOUT)
+                        if ((cur_ev.events & EPOLLOUT) || ((cur_ev.events & EPOLLIN) && client->getSslWriteWantsRead()))
                         {
                             if (!client->writeBufIntoFd())
                             {
@@ -85,13 +102,10 @@ void do_thread_work(ThreadData *threadData)
                                 continue;
                             }
                         }
-                        if (cur_ev.events & (EPOLLERR | EPOLLHUP))
-                        {
-                            threadData->removeClient(client);
-                        }
                     }
                     catch(std::exception &ex)
                     {
+                        client->setDisconnectReason(ex.what());
                         logger->logf(LOG_ERR, "Packet read/write error: %s. Removing client.", ex.what());
                         threadData->removeClient(client);
                     }
@@ -107,6 +121,7 @@ void do_thread_work(ThreadData *threadData)
             }
             catch (std::exception &ex)
             {
+                packet.getSender()->setDisconnectReason(ex.what());
                 logger->logf(LOG_ERR, "MqttPacket handling error: %s. Removing client.", ex.what());
                 threadData->removeClient(packet.getSender());
             }
@@ -133,10 +148,20 @@ void do_thread_work(ThreadData *threadData)
 MainApp::MainApp(const std::string &configFilePath) :
     subscriptionStore(new SubscriptionStore())
 {
+    epollFdAccept = check<std::runtime_error>(epoll_create(999));
     taskEventFd = eventfd(0, EFD_NONBLOCK);
 
     confFileParser.reset(new ConfigFileParser(configFilePath));
     loadConfig();
+}
+
+MainApp::~MainApp()
+{
+    if (sslctx)
+        SSL_CTX_free(sslctx);
+
+    if (epollFdAccept > 0)
+        close(epollFdAccept);
 }
 
 void MainApp::doHelp(const char *arg)
@@ -147,6 +172,7 @@ void MainApp::doHelp(const char *arg)
     puts("");
     puts(" -h, --help                           Print help");
     puts(" -c, --config-file <flashmq.conf>     Configuration file.");
+    puts(" -t, --test-config                    Test configuration file.");
     puts(" -V, --version                        Show version");
     puts(" -l, --license                        Show license");
 }
@@ -161,6 +187,56 @@ void MainApp::showLicense()
     puts("Author: Wiebe Cazemier <wiebe@halfgaar.net>");
 }
 
+void MainApp::setCertAndKeyFromConfig()
+{
+    if (sslctx == nullptr)
+        return;
+
+    if (SSL_CTX_use_certificate_file(sslctx, confFileParser->sslFullchain.c_str(), SSL_FILETYPE_PEM) != 1)
+        throw std::runtime_error("Loading cert failed. This was after test loading the certificate, so is very unexpected.");
+    if (SSL_CTX_use_PrivateKey_file(sslctx, confFileParser->sslPrivkey.c_str(), SSL_FILETYPE_PEM) != 1)
+        throw std::runtime_error("Loading key failed. This was after test loading the certificate, so is very unexpected.");
+}
+
+int MainApp::createListenSocket(int portNr, bool ssl)
+{
+    if (portNr <= 0)
+        return -2;
+
+    int listen_fd = check<std::runtime_error>(socket(AF_INET, SOCK_STREAM, 0));
+
+    // Not needed for now. Maybe I will make multiple accept threads later, with SO_REUSEPORT.
+    int optval = 1;
+    check<std::runtime_error>(setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &optval, sizeof(optval)));
+
+    int flags = fcntl(listen_fd, F_GETFL);
+    check<std::runtime_error>(fcntl(listen_fd, F_SETFL, flags | O_NONBLOCK ));
+
+    struct sockaddr_in in_addr_plain;
+    in_addr_plain.sin_family = AF_INET;
+    in_addr_plain.sin_addr.s_addr = INADDR_ANY;
+    in_addr_plain.sin_port = htons(portNr);
+
+    check<std::runtime_error>(bind(listen_fd, (struct sockaddr *)(&in_addr_plain), sizeof(struct sockaddr_in)));
+    check<std::runtime_error>(listen(listen_fd, 1024));
+
+    struct epoll_event ev;
+    memset(&ev, 0, sizeof (struct epoll_event));
+
+    ev.data.fd = listen_fd;
+    ev.events = EPOLLIN;
+    check<std::runtime_error>(epoll_ctl(this->epollFdAccept, EPOLL_CTL_ADD, listen_fd, &ev));
+
+    std::string socketType = "plain";
+
+    if (ssl)
+        socketType = "SSL";
+
+    logger->logf(LOG_NOTICE, "Listening on %s port %d", socketType.c_str(), portNr);
+
+    return listen_fd;
+}
+
 void MainApp::initMainApp(int argc, char *argv[])
 {
     if (instance != nullptr)
@@ -170,6 +246,7 @@ void MainApp::initMainApp(int argc, char *argv[])
     {
         {"help", no_argument, nullptr, 'h'},
         {"config-file", required_argument, nullptr, 'c'},
+        {"test-config", no_argument, nullptr, 't'},
         {"version", no_argument, nullptr, 'V'},
         {"license", no_argument, nullptr, 'l'},
         {nullptr, 0, nullptr, 0}
@@ -179,7 +256,8 @@ void MainApp::initMainApp(int argc, char *argv[])
 
     int option_index = 0;
     int opt;
-    while((opt = getopt_long(argc, argv, "hc:Vl", long_options, &option_index)) != -1)
+    bool testConfig = false;
+    while((opt = getopt_long(argc, argv, "hc:Vlt", long_options, &option_index)) != -1)
     {
         switch(opt)
         {
@@ -195,9 +273,35 @@ void MainApp::initMainApp(int argc, char *argv[])
         case 'h':
             MainApp::doHelp(argv[0]);
             exit(16);
+        case 't':
+            testConfig = true;
+            break;
         case '?':
             MainApp::doHelp(argv[0]);
             exit(16);
+        }
+    }
+
+    if (testConfig)
+    {
+        try
+        {
+            if (configFile.empty())
+            {
+                std::cerr << "No config specified." << std::endl;
+                MainApp::doHelp(argv[0]);
+                exit(1);
+            }
+
+            ConfigFileParser c(configFile);
+            c.loadFile(true);
+            puts("Config OK");
+            exit(0);
+        }
+        catch (ConfigFileException &ex)
+        {
+            std::cerr << ex.what() << std::endl;
+            exit(1);
         }
     }
 
@@ -214,40 +318,14 @@ MainApp *MainApp::getMainApp()
 
 void MainApp::start()
 {
-    Logger *logger = Logger::getInstance();
+    int listen_fd_plain = createListenSocket(this->listenPort, false);
+    int listen_fd_ssl = createListenSocket(this->sslListenPort, true);
 
-    int listen_fd = check<std::runtime_error>(socket(AF_INET, SOCK_STREAM, 0));
-
-    // Not needed for now. Maybe I will make multiple accept threads later, with SO_REUSEPORT.
-    int optval = 1;
-    check<std::runtime_error>(setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &optval, sizeof(optval)));
-
-    int flags = fcntl(listen_fd, F_GETFL);
-    check<std::runtime_error>(fcntl(listen_fd, F_SETFL, flags | O_NONBLOCK ));
-
-    struct sockaddr_in in_addr;
-    in_addr.sin_family = AF_INET;
-    in_addr.sin_addr.s_addr = INADDR_ANY;
-    in_addr.sin_port = htons(1883);
-
-    check<std::runtime_error>(bind(listen_fd, (struct sockaddr *)(&in_addr), sizeof(struct sockaddr_in)));
-    check<std::runtime_error>(listen(listen_fd, 1024));
-
-    int epoll_fd_accept = check<std::runtime_error>(epoll_create(999));
-
-    struct epoll_event events[MAX_EVENTS];
     struct epoll_event ev;
-    memset(&ev, 0, sizeof (struct epoll_event));
-    memset(&events, 0, sizeof (struct epoll_event)*MAX_EVENTS);
-
-    ev.data.fd = listen_fd;
-    ev.events = EPOLLIN;
-    check<std::runtime_error>(epoll_ctl(epoll_fd_accept, EPOLL_CTL_ADD, listen_fd, &ev));
-
     memset(&ev, 0, sizeof (struct epoll_event));
     ev.data.fd = taskEventFd;
     ev.events = EPOLLIN;
-    check<std::runtime_error>(epoll_ctl(epoll_fd_accept, EPOLL_CTL_ADD, taskEventFd, &ev));
+    check<std::runtime_error>(epoll_ctl(this->epollFdAccept, EPOLL_CTL_ADD, taskEventFd, &ev));
 
     for (int i = 0; i < NR_OF_THREADS; i++)
     {
@@ -256,14 +334,15 @@ void MainApp::start()
         threads.push_back(t);
     }
 
-    logger->logf(LOG_NOTICE, "Listening on port 1883");
-
     uint next_thread_index = 0;
+
+    struct epoll_event events[MAX_EVENTS];
+    memset(&events, 0, sizeof (struct epoll_event)*MAX_EVENTS);
 
     started = true;
     while (running)
     {
-        int num_fds = epoll_wait(epoll_fd_accept, events, MAX_EVENTS, 100);
+        int num_fds = epoll_wait(this->epollFdAccept, events, MAX_EVENTS, 100);
 
         if (num_fds < 0)
         {
@@ -277,7 +356,7 @@ void MainApp::start()
             int cur_fd = events[i].data.fd;
             try
             {
-                if (cur_fd == listen_fd)
+                if (cur_fd == listen_fd_plain || cur_fd == listen_fd_ssl)
                 {
                     std::shared_ptr<ThreadData> thread_data = threads[next_thread_index++ % NR_OF_THREADS];
 
@@ -288,7 +367,22 @@ void MainApp::start()
                     socklen_t len = sizeof(struct sockaddr);
                     int fd = check<std::runtime_error>(accept(cur_fd, &addr, &len));
 
-                    Client_p client(new Client(fd, thread_data));
+                    SSL *clientSSL = nullptr;
+                    if (cur_fd == listen_fd_ssl)
+                    {
+                        clientSSL = SSL_new(sslctx);
+
+                        if (clientSSL == NULL)
+                        {
+                            logger->logf(LOG_ERR, "Problem creating SSL object. Closing client.");
+                            close(fd);
+                            continue;
+                        }
+
+                        SSL_set_fd(clientSSL, fd);
+                    }
+
+                    Client_p client(new Client(fd, thread_data, clientSSL));
                     thread_data->giveClient(client);
                 }
                 else if (cur_fd == taskEventFd)
@@ -320,7 +414,8 @@ void MainApp::start()
         thread->quit();
     }
 
-    close(listen_fd);
+    close(listen_fd_plain);
+    close(listen_fd_ssl);
 }
 
 void MainApp::quit()
@@ -330,12 +425,29 @@ void MainApp::quit()
     running = false;
 }
 
+// Loaded on app start where you want it to crash, loaded from within try/catch on reload, to allow the program to continue.
 void MainApp::loadConfig()
 {
     Logger *logger = Logger::getInstance();
-    confFileParser->loadFile();
+
+    // Atomic loading, first test.
+    confFileParser->loadFile(true);
+    confFileParser->loadFile(false);
+
     logger->setLogPath(confFileParser->logPath);
     logger->reOpen();
+
+    listenPort = confFileParser->listenPort;
+    sslListenPort = confFileParser->sslListenPort;
+
+    if (sslctx == nullptr && sslListenPort > 0)
+    {
+        sslctx = SSL_CTX_new(TLS_server_method());
+        SSL_CTX_set_options(sslctx, SSL_OP_NO_SSLv3); // TODO: config option
+        SSL_CTX_set_options(sslctx, SSL_OP_NO_TLSv1); // TODO: config option
+    }
+
+    setCertAndKeyFromConfig();
 }
 
 void MainApp::reloadConfig()

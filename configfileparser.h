@@ -7,6 +7,8 @@
 #include <vector>
 #include <memory>
 
+#include "sslctxmanager.h"
+
 struct mosquitto_auth_opt
 {
     char *key = nullptr;
@@ -38,15 +40,20 @@ class ConfigFileParser
     std::unique_ptr<AuthOptCompatWrap> authOptCompatWrap;
 
 
-
+    void checkFileAccess(const std::string &key, const std::string &pathToCheck) const;
+    void testSsl(const std::string &fullchain, const std::string &privkey, uint portNr) const;
 public:
     ConfigFileParser(const std::string &path);
-    void loadFile();
+    void loadFile(bool test);
     AuthOptCompatWrap &getAuthOptsCompat();
 
     // Actual config options with their defaults. Just making them public, I can retrain myself misuing them.
     std::string authPluginPath;
     std::string logPath;
+    std::string sslFullchain;
+    std::string sslPrivkey;
+    uint listenPort = 1883;
+    uint sslListenPort = 0;
 };
 
 #endif // CONFIGFILEPARSER_H

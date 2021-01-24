@@ -3,6 +3,7 @@
 #include <memory>
 #include <string.h>
 #include <sys/resource.h>
+#include <openssl/ssl.h>
 
 #include "mainapp.h"
 

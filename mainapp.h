@@ -30,23 +30,34 @@ class MainApp
     std::shared_ptr<SubscriptionStore> subscriptionStore;
     std::unique_ptr<ConfigFileParser> confFileParser;
     std::forward_list<std::function<void()>> taskQueue;
+    int epollFdAccept = -1;
     int taskEventFd = -1;
     std::mutex eventMutex;
+
+    uint listenPort = 0;
+    uint sslListenPort = 0;
+    SSL_CTX *sslctx = nullptr;
+
+    Logger *logger = Logger::getInstance();
 
     void loadConfig();
     void reloadConfig();
     static void doHelp(const char *arg);
     static void showLicense();
+    void setCertAndKeyFromConfig();
+    int createListenSocket(int portNr, bool ssl);
 
     MainApp(const std::string &configFilePath);
 public:
     MainApp(const MainApp &rhs) = delete;
     MainApp(MainApp &&rhs) = delete;
+    ~MainApp();
     static MainApp *getMainApp();
     static void initMainApp(int argc, char *argv[]);
     void start();
     void quit();
     bool getStarted() const {return started;}
+    static void testConfig();
 
 
     void queueConfigReload();

@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.5)
 
 project(FlashMQ LANGUAGES CXX)
 
+add_definitions(-DOPENSSL_API_COMPAT=0x10100000L)
+
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -24,6 +26,7 @@ add_executable(FlashMQ
     logger.cpp
     authplugin.cpp
     configfileparser.cpp
+    sslctxmanager.cpp
     )
 
-target_link_libraries(FlashMQ pthread dl)
+target_link_libraries(FlashMQ pthread dl ssl crypto)

@@ -13,6 +13,8 @@
 #define LOG_ERR 0x08
 #define LOG_DEBUG 0x10
 
+int logSslError(const char *str, size_t len, void *u);
+
 class Logger
 {
     static Logger *instance;

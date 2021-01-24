@@ -281,6 +281,7 @@ void MqttPacket::handleDisconnect()
 {
     logger->logf(LOG_NOTICE, "Client '%s' cleanly disconnecting", sender->repr().c_str());
     sender->markAsDisconnecting();
+    sender->setDisconnectReason("MQTT Disconnect received.");
     sender->getThreadData()->removeClient(sender);
 
     // TODO: clear will

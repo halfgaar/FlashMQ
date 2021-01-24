@@ -87,6 +87,7 @@ bool ThreadData::doKeepAliveCheck()
         Client_p &client = it->second;
         if (client && client->keepAliveExpired())
         {
+            client->setDisconnectReason("Keep-alive expired: " + client->getKeepAliveInfoString());
             it = clients_by_fd.erase(it);
         }
         else
