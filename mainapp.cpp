@@ -332,6 +332,10 @@ void MainApp::start()
     int listen_fd_plain = createListenSocket(this->listenPort, false);
     int listen_fd_ssl = createListenSocket(this->sslListenPort, true);
 
+#ifdef NDEBUG
+    logger->noLongerLogToStd();
+#endif
+
     struct epoll_event ev;
     memset(&ev, 0, sizeof (struct epoll_event));
     ev.data.fd = taskEventFd;

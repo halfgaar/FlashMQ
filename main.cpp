@@ -74,7 +74,6 @@ int main(int argc, char *argv[])
         check<std::runtime_error>(register_signal_handers());
         logger->logf(LOG_NOTICE, "Starting FlashMQ");
         mainApp->start();
-        logger->noLongerLogToStd();
     }
     catch (std::exception &ex)
     {
