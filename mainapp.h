@@ -19,6 +19,7 @@
 #include "mqttpacket.h"
 #include "subscriptionstore.h"
 #include "configfileparser.h"
+#include "timer.h"
 
 class MainApp
 {
@@ -33,6 +34,7 @@ class MainApp
     int epollFdAccept = -1;
     int taskEventFd = -1;
     std::mutex eventMutex;
+    Timer timer;
 
     uint listenPort = 0;
     uint sslListenPort = 0;
@@ -46,6 +48,7 @@ class MainApp
     static void showLicense();
     void setCertAndKeyFromConfig();
     int createListenSocket(int portNr, bool ssl);
+    void wakeUpThread();
 
     MainApp(const std::string &configFilePath);
 public:
@@ -61,6 +64,7 @@ public:
 
 
     void queueConfigReload();
+    void queueCleanup();
 };
 
 #endif // MAINAPP_H

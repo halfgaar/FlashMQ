@@ -8,6 +8,11 @@ Session::Session()
 
 }
 
+Session::~Session()
+{
+    logger->logf(LOG_DEBUG, "Session %s is being destroyed.", getClientId().c_str());
+}
+
 bool Session::clientDisconnected() const
 {
     return client.expired();
@@ -109,4 +114,15 @@ void Session::sendPendingQosMessages()
             qosMessage.packet->setDuplicate(); // Any dealings with this packet from here will be a duplicate.
         }
     }
+}
+
+void Session::touch(time_t val)
+{
+    time_t newval = val > 0 ? val : time(NULL);
+    lastTouched = newval;
+}
+
+bool Session::hasExpired()
+{
+    return clientDisconnected() && (lastTouched + EXPIRE_SESSION_AFTER) < time(NULL);
 }

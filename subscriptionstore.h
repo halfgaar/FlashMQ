@@ -23,10 +23,11 @@ struct RetainedPayload
 
 struct Subscription
 {
-    std::weak_ptr<Session> session; // Weak pointer expires when session has been cleaned by 'clean session' connect.
+    std::weak_ptr<Session> session; // Weak pointer expires when session has been cleaned by 'clean session' connect or when it was remove because it expired
     char qos;
     bool operator==(const Subscription &rhs) const;
     void reset();
+    bool sessionGone() const;
 };
 
 class SubscriptionNode
@@ -45,6 +46,7 @@ public:
     std::unique_ptr<SubscriptionNode> childrenPlus;
     std::unique_ptr<SubscriptionNode> childrenPound;
 
+    int cleanSubscriptions();
 };
 
 class SubscriptionStore
@@ -62,6 +64,7 @@ class SubscriptionStore
     void publishNonRecursively(const MqttPacket &packet, const std::vector<Subscription> &subscribers) const;
     void publishRecursively(std::vector<std::string>::const_iterator cur_subtopic_it, std::vector<std::string>::const_iterator end,
                             std::unique_ptr<SubscriptionNode> &next, const MqttPacket &packet) const;
+
 public:
     SubscriptionStore();
 
@@ -72,6 +75,8 @@ public:
     void giveClientRetainedMessages(const std::shared_ptr<Session> &ses, const std::string &subscribe_topic, char max_qos);
 
     void setRetainedMessage(const std::string &topic, const std::string &payload, char qos);
+
+    void removeExpiredSessionsClients();
 };
 
 #endif // SUBSCRIPTIONSTORE_H

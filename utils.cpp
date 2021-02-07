@@ -1,5 +1,7 @@
 #include "utils.h"
 
+#include "sys/time.h"
+
 #include <algorithm>
 
 std::list<std::__cxx11::string> split(const std::string &input, const char sep, size_t max, bool keep_empty_parts)
@@ -167,4 +169,12 @@ void trim(std::string &s)
 bool startsWith(const std::string &s, const std::string &needle)
 {
     return s.find(needle) == 0;
+}
+
+int64_t currentMSecsSinceEpoch()
+{
+    struct timeval te;
+    gettimeofday(&te, NULL);
+    int64_t milliseconds = te.tv_sec*1000LL + te.tv_usec/1000;
+    return milliseconds;
 }

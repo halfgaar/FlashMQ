@@ -12,6 +12,9 @@
 #define MAX_QOS_MSG_PENDING_PER_CLIENT 32
 #define MAX_QOS_BYTES_PENDING_PER_CLIENT 4096
 
+// TODO make setting
+#define EXPIRE_SESSION_AFTER 1209600
+
 struct QueuedQosPacket
 {
     uint16_t id;
@@ -26,11 +29,14 @@ class Session
     std::mutex qosQueueMutex;
     uint16_t nextPacketId = 0;
     ssize_t qosQueueBytes = 0;
+    time_t lastTouched = time(NULL);
     Logger *logger = Logger::getInstance();
+
 public:
     Session();
     Session(const Session &other) = delete;
     Session(Session &&other) = delete;
+    ~Session();
 
     const std::string &getClientId() const { return client_id; }
     bool clientDisconnected() const;
@@ -39,6 +45,8 @@ public:
     void writePacket(const MqttPacket &packet, char max_qos);
     void clearQosMessage(uint16_t packet_id);
     void sendPendingQosMessages();
+    void touch(time_t val = 0);
+    bool hasExpired();
 };
 
 #endif // SESSION_H

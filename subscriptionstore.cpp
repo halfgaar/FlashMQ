@@ -30,6 +30,7 @@ void SubscriptionNode::addSubscriber(const std::shared_ptr<Session> &subscriber,
     }
 }
 
+
 SubscriptionStore::SubscriptionStore() :
     root(new SubscriptionNode("root")),
     sessionsByIdConst(sessionsById)
@@ -220,6 +221,89 @@ void SubscriptionStore::setRetainedMessage(const std::string &topic, const std::
     retainedMessages.insert(std::move(rm));
 }
 
+// Clean up the weak pointers to sessions and remove nodes that are empty.
+int SubscriptionNode::cleanSubscriptions()
+{
+    int subscribersLeftInChildren = 0;
+    auto childrenIt = children.begin();
+    while(childrenIt != children.end())
+    {
+        subscribersLeftInChildren += childrenIt->second->cleanSubscriptions();
+
+        if (subscribersLeftInChildren > 0)
+            childrenIt++;
+        else
+        {
+            Logger::getInstance()->logf(LOG_DEBUG, "Removing orphaned subscriber node from %s", childrenIt->first.c_str());
+            childrenIt = children.erase(childrenIt);
+        }
+    }
+
+    std::list<std::unique_ptr<SubscriptionNode>*> wildcardChildren;
+    wildcardChildren.push_back(&childrenPlus);
+    wildcardChildren.push_back(&childrenPound);
+
+    for (std::unique_ptr<SubscriptionNode> *node : wildcardChildren)
+    {
+        std::unique_ptr<SubscriptionNode> &node_ = *node;
+
+        if (!node_)
+            continue;
+        int n = node_->cleanSubscriptions();
+        subscribersLeftInChildren += n;
+
+        if (n == 0)
+        {
+            Logger::getInstance()->logf(LOG_DEBUG, "Resetting wildcard children");
+            node_.reset();
+        }
+    }
+
+    // This is not particularlly fast when it's many items. But we don't do it often, so is probably okay.
+    auto it = subscribers.begin();
+    while (it != subscribers.end())
+    {
+        if (it->sessionGone())
+        {
+            Logger::getInstance()->logf(LOG_DEBUG, "Removing empty spot in subscribers vector");
+            it = subscribers.erase(it);
+        }
+        else
+            it++;
+    }
+
+    return subscribers.size() + subscribersLeftInChildren;
+}
+
+// This is not MQTT compliant, but the standard doesn't keep real world constraints into account.
+void SubscriptionStore::removeExpiredSessionsClients()
+{
+    RWLockGuard lock_guard(&subscriptionsRwlock);
+    lock_guard.wrlock();
+
+    logger->logf(LOG_NOTICE, "Cleaning out old sessions");
+
+    auto session_it = sessionsById.begin();
+    while (session_it != sessionsById.end())
+    {
+        std::shared_ptr<Session> &session = session_it->second;
+
+        if (session->hasExpired())
+        {
+#ifndef NDEBUG
+            logger->logf(LOG_DEBUG, "Removing expired session from store %s", session->getClientId().c_str());
+#endif
+            session_it = sessionsById.erase(session_it);
+        }
+        else
+            session_it++;
+    }
+
+    logger->logf(LOG_NOTICE, "Rebuilding subscription tree");
+
+    root->cleanSubscriptions();
+}
+
 // QoS is not used in the comparision. This means you upgrade your QoS by subscribing again. The
 // specs don't specify what to do there.
 bool Subscription::operator==(const Subscription &rhs) const
@@ -239,4 +323,9 @@ void Subscription::reset()
 {
     session.reset();
     qos = 0;
+}
+
+bool Subscription::sessionGone() const
+{
+    return session.expired();
 }

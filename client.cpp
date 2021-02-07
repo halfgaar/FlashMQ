@@ -212,6 +212,8 @@ bool Client::readFdIntoBuffer()
     }
 
     lastActivity = time(NULL);
+    if (session)
+        session->touch(lastActivity);
 
     return true;
 }

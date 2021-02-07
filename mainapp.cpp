@@ -153,6 +153,9 @@ MainApp::MainApp(const std::string &configFilePath) :
 
     confFileParser.reset(new ConfigFileParser(configFilePath));
     loadConfig();
+
+    auto f = std::bind(&MainApp::queueCleanup, this);
+    timer.addCallback(f, 86400000, "session expiration");
 }
 
 MainApp::~MainApp()
@@ -237,6 +240,12 @@ int MainApp::createListenSocket(int portNr, bool ssl)
     return listen_fd;
 }
 
+void MainApp::wakeUpThread()
+{
+    uint64_t one = 1;
+    write(taskEventFd, &one, sizeof(uint64_t));
+}
+
 void MainApp::initMainApp(int argc, char *argv[])
 {
     if (instance != nullptr)
@@ -318,6 +327,8 @@ MainApp *MainApp::getMainApp()
 
 void MainApp::start()
 {
+    timer.start();
+
     int listen_fd_plain = createListenSocket(this->listenPort, false);
     int listen_fd_ssl = createListenSocket(this->sslListenPort, true);
 
@@ -422,6 +433,7 @@ void MainApp::quit()
 {
     Logger *logger = Logger::getInstance();
     logger->logf(LOG_NOTICE, "Quitting FlashMQ");
+    timer.stop();
     running = false;
 }
 
@@ -473,6 +485,15 @@ void MainApp::queueConfigReload()
     auto f = std::bind(&MainApp::reloadConfig, this);
     taskQueue.push_front(f);
 
-    uint64_t one = 1;
-    write(taskEventFd, &one, sizeof(uint64_t));
+    wakeUpThread();
+}
+
+void MainApp::queueCleanup()
+{
+    std::lock_guard<std::mutex> locker(eventMutex);
+
+    auto f = std::bind(&SubscriptionStore::removeExpiredSessionsClients, subscriptionStore.get());
+    taskQueue.push_front(f);
+
+    wakeUpThread();
 }
