@@ -60,7 +60,7 @@ void Timer::stop()
 {
     running = false;
     uint64_t one = 1;
-    write(fd, &one, sizeof(uint64_t));
+    check<std::runtime_error>(write(fd, &one, sizeof(uint64_t)));
     t.join();
 }
 
@@ -131,6 +131,6 @@ void Timer::wakeUpPoll()
         return;
 
     uint64_t one = 1;
-    write(fd, &one, sizeof(uint64_t));
+    check<std::runtime_error>(write(fd, &one, sizeof(uint64_t)));
 }
 

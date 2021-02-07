@@ -243,7 +243,7 @@ int MainApp::createListenSocket(int portNr, bool ssl)
 void MainApp::wakeUpThread()
 {
     uint64_t one = 1;
-    write(taskEventFd, &one, sizeof(uint64_t));
+    check<std::runtime_error>(write(taskEventFd, &one, sizeof(uint64_t)));
 }
 
 void MainApp::initMainApp(int argc, char *argv[])
