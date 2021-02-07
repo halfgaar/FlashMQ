@@ -24,6 +24,7 @@
 class MainApp
 {
     static MainApp *instance;
+    int num_threads = 0;
 
     bool started = false;
     bool running = true;

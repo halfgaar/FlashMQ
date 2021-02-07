@@ -4,6 +4,7 @@
 #include "getopt.h"
 #include <unistd.h>
 #include <stdio.h>
+#include <sys/sysinfo.h>
 
 #include <openssl/ssl.h>
 #include <openssl/err.h>
@@ -11,7 +12,6 @@
 #include "logger.h"
 
 #define MAX_EVENTS 1024
-#define NR_OF_THREADS 4
 
 #define VERSION "0.1"
 
@@ -148,11 +148,19 @@ void do_thread_work(ThreadData *threadData)
 MainApp::MainApp(const std::string &configFilePath) :
     subscriptionStore(new SubscriptionStore())
 {
+    this->num_threads = get_nprocs();
+
+    if (num_threads <= 0)
+        throw std::runtime_error("Invalid number of CPUs: " + std::to_string(num_threads));
+
     epollFdAccept = check<std::runtime_error>(epoll_create(999));
     taskEventFd = eventfd(0, EFD_NONBLOCK);
 
     confFileParser.reset(new ConfigFileParser(configFilePath));
     loadConfig();
+
+    // TODO: override in conf possibility.
+    logger->logf(LOG_NOTICE, "%d CPUs are detected, making as many threads.", num_threads);
 
     auto f = std::bind(&MainApp::queueCleanup, this);
     timer.addCallback(f, 86400000, "session expiration");
@@ -342,7 +350,7 @@ void MainApp::start()
     ev.events = EPOLLIN;
     check<std::runtime_error>(epoll_ctl(this->epollFdAccept, EPOLL_CTL_ADD, taskEventFd, &ev));
 
-    for (int i = 0; i < NR_OF_THREADS; i++)
+    for (int i = 0; i < num_threads; i++)
     {
         std::shared_ptr<ThreadData> t(new ThreadData(i, subscriptionStore, *confFileParser.get()));
         t->start(&do_thread_work);
@@ -373,7 +381,7 @@ void MainApp::start()
             {
                 if (cur_fd == listen_fd_plain || cur_fd == listen_fd_ssl)
                 {
-                    std::shared_ptr<ThreadData> thread_data = threads[next_thread_index++ % NR_OF_THREADS];
+                    std::shared_ptr<ThreadData> thread_data = threads[next_thread_index++ % num_threads];
 
                     logger->logf(LOG_INFO, "Accepting connection on thread %d", thread_data->threadnr);
 

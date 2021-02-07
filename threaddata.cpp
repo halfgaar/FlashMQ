@@ -21,7 +21,22 @@ void ThreadData::start(thread_f f)
     std::ostringstream threadName;
     threadName << "FlashMQ T " << threadnr;
     threadName.flush();
-    pthread_setname_np(native, threadName.str().c_str());
+    const char *c_str = threadName.str().c_str();
+    pthread_setname_np(native, c_str);
+
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);
+    CPU_SET(threadnr, &cpuset);
+    check<std::runtime_error>(pthread_setaffinity_np(native, sizeof(cpuset), &cpuset));
+
+    // It's not really necessary to get affinity again, but now I'm logging truth instead assumption.
+    check<std::runtime_error>(pthread_getaffinity_np(native, sizeof(cpuset), &cpuset));
+    int pinned_cpu = -1;
+    for (int j = 0; j < CPU_SETSIZE; j++)
+        if (CPU_ISSET(j, &cpuset))
+            pinned_cpu = j;
+
+    logger->logf(LOG_NOTICE, "Thread '%s' pinned to CPU %d", c_str, pinned_cpu);
 }
 
 void ThreadData::quit()
