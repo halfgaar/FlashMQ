@@ -16,6 +16,7 @@
 #include "mqttpacket.h"
 #include "exceptions.h"
 #include "cirbuf.h"
+#include "types.h"
 
 #include <openssl/ssl.h>
 #include <openssl/err.h>
@@ -61,6 +62,7 @@ class Client
     IncompleteSslWrite incompleteSslWrite;
     bool sslReadWantsWrite = false;
     bool sslWriteWantsRead = false;
+    ProtocolVersion protocolVersion = ProtocolVersion::None;
 
     CirBuf readbuf;
     uint8_t readBufIsZeroCount = 0;
@@ -115,7 +117,7 @@ public:
     ssize_t readWrap(int fd, void *buf, size_t nbytes, IoWrapResult *error);
     bool readFdIntoBuffer();
     bool bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn, Client_p &sender);
-    void setClientProperties(const std::string &clientId, const std::string username, bool connectPacketSeen, uint16_t keepalive, bool cleanSession);
+    void setClientProperties(ProtocolVersion protocolVersion, const std::string &clientId, const std::string username, bool connectPacketSeen, uint16_t keepalive, bool cleanSession);
     void setWill(const std::string &topic, const std::string &payload, bool retain, char qos);
     void setAuthenticated(bool value) { authenticated = value;}
     bool getAuthenticated() { return authenticated; }

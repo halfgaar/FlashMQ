@@ -38,5 +38,6 @@ void trim(std::string &s);
 bool startsWith(const std::string &s, const std::string &needle);
 
 int64_t currentMSecsSinceEpoch();
+std::string getSecureRandomString(const size_t len);
 
 #endif // UTILS_H

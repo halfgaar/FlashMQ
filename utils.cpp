@@ -1,8 +1,10 @@
 #include "utils.h"
 
 #include "sys/time.h"
-
+#include "sys/random.h"
 #include <algorithm>
+
+#include "exceptions.h"
 
 std::list<std::__cxx11::string> split(const std::string &input, const char sep, size_t max, bool keep_empty_parts)
 {
@@ -177,4 +179,27 @@ int64_t currentMSecsSinceEpoch()
     gettimeofday(&te, NULL);
     int64_t milliseconds = te.tv_sec*1000LL + te.tv_usec/1000;
     return milliseconds;
+}
+
+std::string getSecureRandomString(const size_t len)
+{
+    std::vector<char> buf(len);
+    size_t actual_len = getrandom(buf.data(), len, 0);
+
+    if (actual_len < 0 || actual_len != len)
+    {
+        throw std::runtime_error("Error requesting random data");
+    }
+
+    const std::string possibleCharacters("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrtsuvwxyz1234567890");
+    const int possibleCharactersCount = possibleCharacters.length();
+
+    std::string randomString;
+    for(const unsigned char &c : buf)
+    {
+        unsigned int index = c % possibleCharactersCount;
+        char nextChar = possibleCharacters.at(index);
+        randomString.push_back(nextChar);
+    }
+    return randomString;
 }

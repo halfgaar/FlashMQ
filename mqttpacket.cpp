@@ -237,19 +237,41 @@ void MqttPacket::handleConnect()
             return;
         }
 
-        // In case the client_id ever appears in topics.
+        bool validClientId = true;
+
+        // Check for wildcard chars in case the client_id ever appears in topics.
         // TODO: make setting?
         if (strContains(client_id, "+") || strContains(client_id, "#"))
+        {
+            logger->logf(LOG_ERR, "ClientID '%s' has + or # in the id:", client_id.c_str());
+            validClientId = false;
+        }
+        else if (!clean_session && client_id.empty())
+        {
+            logger->logf(LOG_ERR, "ClientID empty and clean session 0, which is incompatible");
+            validClientId = false;
+        }
+        else if (protocolVersion < ProtocolVersion::Mqtt311 && client_id.empty())
+        {
+            logger->logf(LOG_ERR, "Empty clientID. Connect with protocol 3.1.1 or higher to have one generated securely.");
+            validClientId = false;
+        }
+
+        if (!validClientId)
         {
             ConnAck connAck(ConnAckReturnCodes::ClientIdRejected);
             MqttPacket response(connAck);
             sender->setReadyForDisconnect();
             sender->writeMqttPacket(response);
-            logger->logf(LOG_ERR, "ClientID '%s' has + or # in the id:", client_id.c_str());
             return;
         }
 
-        sender->setClientProperties(client_id, username, true, keep_alive, clean_session);
+        if (client_id.empty())
+        {
+            client_id = getSecureRandomString(23);
+        }
+
+        sender->setClientProperties(protocolVersion, client_id, username, true, keep_alive, clean_session);
         sender->setWill(will_topic, will_payload, will_retain, will_qos);
 
         if (sender->getThreadData()->authPlugin.unPwdCheck(username, password) == AuthResult::success)

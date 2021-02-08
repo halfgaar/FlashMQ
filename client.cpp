@@ -565,8 +565,9 @@ bool Client::bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn, Client_
     return true;
 }
 
-void Client::setClientProperties(const std::string &clientId, const std::string username, bool connectPacketSeen, uint16_t keepalive, bool cleanSession)
+void Client::setClientProperties(ProtocolVersion protocolVersion, const std::string &clientId, const std::string username, bool connectPacketSeen, uint16_t keepalive, bool cleanSession)
 {
+    this->protocolVersion = protocolVersion;
     this->clientid = clientId;
     this->username = username;
     this->connectPacketSeen = connectPacketSeen;
