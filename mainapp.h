@@ -20,6 +20,7 @@
 #include "subscriptionstore.h"
 #include "configfileparser.h"
 #include "timer.h"
+#include "globalsettings.h"
 
 class MainApp
 {
@@ -63,7 +64,7 @@ public:
     bool getStarted() const {return started;}
     static void testConfig();
 
-
+    GlobalSettings &getGlobalSettings();
     void queueConfigReload();
     void queueCleanup();
 };

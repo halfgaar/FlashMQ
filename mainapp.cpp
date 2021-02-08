@@ -453,6 +453,7 @@ void MainApp::quit()
 void MainApp::loadConfig()
 {
     Logger *logger = Logger::getInstance();
+    GlobalSettings *setting = GlobalSettings::getInstance();
 
     // Atomic loading, first test.
     confFileParser->loadFile(true);
@@ -470,6 +471,8 @@ void MainApp::loadConfig()
         SSL_CTX_set_options(sslctx, SSL_OP_NO_SSLv3); // TODO: config option
         SSL_CTX_set_options(sslctx, SSL_OP_NO_TLSv1); // TODO: config option
     }
+
+    setting->allow_unsafe_clientid_chars = confFileParser->allowUnsafeClientidChars;
 
     setCertAndKeyFromConfig();
 }

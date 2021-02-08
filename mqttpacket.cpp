@@ -153,6 +153,8 @@ void MqttPacket::handleConnect()
     if (sender->hasConnectPacketSeen())
         throw ProtocolError("Client already sent a CONNECT.");
 
+    GlobalSettings *settings = GlobalSettings::getInstance();
+
     uint16_t variable_header_length = readTwoBytesToUInt16();
 
     if (variable_header_length == 4 || variable_header_length == 6)
@@ -240,10 +242,9 @@ void MqttPacket::handleConnect()
         bool validClientId = true;
 
         // Check for wildcard chars in case the client_id ever appears in topics.
-        // TODO: make setting?
-        if (strContains(client_id, "+") || strContains(client_id, "#"))
+        if (!settings->allow_unsafe_clientid_chars && (strContains(client_id, "+") || strContains(client_id, "#")))
         {
-            logger->logf(LOG_ERR, "ClientID '%s' has + or # in the id:", client_id.c_str());
+            logger->logf(LOG_ERR, "ClientID '%s' has + or # in the id and 'allow_unsafe_clientid_chars' is false:", client_id.c_str());
             validClientId = false;
         }
         else if (!clean_session && client_id.empty())
@@ -261,6 +262,7 @@ void MqttPacket::handleConnect()
         {
             ConnAck connAck(ConnAckReturnCodes::ClientIdRejected);
             MqttPacket response(connAck);
+            sender->setDisconnectReason("Invalid clientID");
             sender->setReadyForDisconnect();
             sender->writeMqttPacket(response);
             return;
@@ -288,6 +290,7 @@ void MqttPacket::handleConnect()
         {
             ConnAck connDeny(ConnAckReturnCodes::NotAuthorized);
             MqttPacket response(connDeny);
+            sender->setDisconnectReason("Access denied");
             sender->setReadyForDisconnect();
             sender->writeMqttPacket(response);
             logger->logf(LOG_NOTICE, "User '%s' access denied", username.c_str());

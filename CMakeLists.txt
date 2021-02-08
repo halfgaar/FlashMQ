@@ -28,6 +28,7 @@ add_executable(FlashMQ
     configfileparser.cpp
     sslctxmanager.cpp
     timer.cpp
+    globalsettings.cpp
     )
 
 target_link_libraries(FlashMQ pthread dl ssl crypto)

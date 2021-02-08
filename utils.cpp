@@ -203,3 +203,21 @@ std::string getSecureRandomString(const size_t len)
     }
     return randomString;
 }
+
+std::string str_tolower(std::string s)
+{
+    std::transform(s.begin(), s.end(), s.begin(),
+                   [](unsigned char c){ return std::tolower(c); });
+    return s;
+}
+
+bool stringTruthiness(const std::string &val)
+{
+    std::string val_ = str_tolower(val);
+    trim(val_);
+    if (val_ == "yes" || val_ == "true" || val_ == "on")
+        return  true;
+    if (val_ == "no" || val_ == "false" || val_ == "off")
+        return false;
+    throw ConfigFileException("Value '" + val + "' can't be converted to boolean");
+}

@@ -54,6 +54,7 @@ public:
     std::string sslPrivkey;
     uint listenPort = 1883;
     uint sslListenPort = 0;
+    bool allowUnsafeClientidChars = false;
 };
 
 #endif // CONFIGFILEPARSER_H

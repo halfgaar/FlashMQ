@@ -98,6 +98,7 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validKeys.insert("ssl_listen_port");
     validKeys.insert("fullchain");
     validKeys.insert("privkey");
+    validKeys.insert("allow_unsafe_clientid_chars");
 }
 
 void ConfigFileParser::loadFile(bool test)
@@ -190,6 +191,13 @@ void ConfigFileParser::loadFile(bool test)
                 checkFileAccess(key, value);
                 if (!test)
                     this->logPath = value;
+            }
+
+            if (key == "allow_unsafe_clientid_chars")
+            {
+                bool tmp = stringTruthiness(value);
+                if (!test)
+                    this->allowUnsafeClientidChars = tmp;
             }
 
             if (key == "fullchain")
