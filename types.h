@@ -46,8 +46,9 @@ enum class ConnAckReturnCodes
 class ConnAck
 {
 public:
-    ConnAck(ConnAckReturnCodes return_code);
+    ConnAck(ConnAckReturnCodes return_code, bool session_present=false);
     ConnAckReturnCodes return_code;
+    bool session_present = false;
     size_t getLengthWithoutFixedHeader() const { return 2;} // size of connack is always the same
 };
 

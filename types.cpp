@@ -1,9 +1,12 @@
 #include "types.h"
 
-ConnAck::ConnAck(ConnAckReturnCodes return_code) :
-    return_code(return_code)
+ConnAck::ConnAck(ConnAckReturnCodes return_code, bool session_present) :
+    return_code(return_code),
+    session_present(session_present)
 {
-
+    // [MQTT-3.2.2-4]
+    if (return_code > ConnAckReturnCodes::Accepted)
+        session_present = false;
 }
 
 SubAck::SubAck(uint16_t packet_id, const std::list<char> &subs_qos_reponses) :

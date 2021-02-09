@@ -70,6 +70,7 @@ public:
 
     void addSubscription(Client_p &client, const std::string &topic, char qos);
     void registerClientAndKickExistingOne(Client_p &client);
+    bool sessionPresent(const std::string &clientid);
 
     void queuePacketAtSubscribers(const std::string &topic, const MqttPacket &packet, const Client_p &sender);
     void giveClientRetainedMessages(const std::shared_ptr<Session> &ses, const std::string &subscribe_topic, char max_qos);

@@ -121,6 +121,22 @@ void SubscriptionStore::registerClientAndKickExistingOne(Client_p &client)
     session->sendPendingQosMessages();
 }
 
+bool SubscriptionStore::sessionPresent(const std::string &clientid)
+{
+    RWLockGuard lock_guard(&subscriptionsRwlock);
+    lock_guard.rdlock();
+
+    bool result = false;
+
+    auto it = sessionsByIdConst.find(clientid);
+    if (it != sessionsByIdConst.end())
+    {
+        it->second->touch(); // Touching to avoid a race condition between using the session after this, and it expiring.
+        result = true;
+    }
+    return result;
+}
+
 // TODO: should I implement cache, this needs to be changed to returning a list of clients.
 void SubscriptionStore::publishNonRecursively(const MqttPacket &packet, const std::vector<Subscription> &subscribers) const
 {

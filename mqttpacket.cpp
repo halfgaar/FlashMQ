@@ -54,9 +54,8 @@ MqttPacket::MqttPacket(const ConnAck &connAck) :
     char first_byte = static_cast<char>(packetType) << 4;
     writeByte(first_byte);
     writeByte(2); // length is always 2.
-    writeByte(0); // all connect-ack flags are 0, except session-present, but we don't have that yet. TODO: make that
+    writeByte(connAck.session_present & 0b00000001); // all connect-ack flags are 0, except session-present. [MQTT-3.2.2.1]
     writeByte(static_cast<char>(connAck.return_code));
-
 }
 
 MqttPacket::MqttPacket(const SubAck &subAck) :
@@ -154,6 +153,8 @@ void MqttPacket::handleConnect()
         throw ProtocolError("Client already sent a CONNECT.");
 
     GlobalSettings *settings = GlobalSettings::getInstance();
+
+    std::shared_ptr<SubscriptionStore> subscriptionStore = sender->getThreadData()->getSubscriptionStore();
 
     uint16_t variable_header_length = readTwoBytesToUInt16();
 
@@ -278,17 +279,18 @@ void MqttPacket::handleConnect()
 
         if (sender->getThreadData()->authPlugin.unPwdCheck(username, password) == AuthResult::success)
         {
-            sender->getThreadData()->getSubscriptionStore()->registerClientAndKickExistingOne(sender);
+            bool sessionPresent = protocolVersion >= ProtocolVersion::Mqtt311 && !clean_session && subscriptionStore->sessionPresent(client_id);
+            subscriptionStore->registerClientAndKickExistingOne(sender);
 
             sender->setAuthenticated(true);
-            ConnAck connAck(ConnAckReturnCodes::Accepted);
+            ConnAck connAck(ConnAckReturnCodes::Accepted, sessionPresent);
             MqttPacket response(connAck);
             sender->writeMqttPacket(response);
             logger->logf(LOG_NOTICE, "User '%s' logged in successfully", username.c_str());
         }
         else
         {
-            ConnAck connDeny(ConnAckReturnCodes::NotAuthorized);
+            ConnAck connDeny(ConnAckReturnCodes::NotAuthorized, false);
             MqttPacket response(connDeny);
             sender->setDisconnectReason("Access denied");
             sender->setReadyForDisconnect();
