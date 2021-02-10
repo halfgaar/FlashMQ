@@ -2,15 +2,26 @@
 #include <string>
 #include <sstream>
 
-ThreadData::ThreadData(int threadnr, std::shared_ptr<SubscriptionStore> &subscriptionStore, ConfigFileParser &confFileParser) :
+ThreadData::ThreadData(int threadnr, std::shared_ptr<SubscriptionStore> &subscriptionStore, ConfigFileParser &confFileParser, const GlobalSettings &settings) :
     subscriptionStore(subscriptionStore),
     confFileParser(confFileParser),
     authPlugin(confFileParser),
-    threadnr(threadnr)
+    threadnr(threadnr),
+    settingsLocalCopy(settings)
 {
     logger = Logger::getInstance();
 
     epollfd = check<std::runtime_error>(epoll_create(999));
+
+    taskEventFd = eventfd(0, EFD_NONBLOCK);
+    if (taskEventFd < 0)
+        throw std::runtime_error("Can't create eventfd.");
+
+    struct epoll_event ev;
+    memset(&ev, 0, sizeof (struct epoll_event));
+    ev.data.fd = taskEventFd;
+    ev.events = EPOLLIN;
+    check<std::runtime_error>(epoll_ctl(this->epollfd, EPOLL_CTL_ADD, taskEventFd, &ev));
 }
 
 void ThreadData::start(thread_f f)
@@ -89,27 +100,45 @@ std::shared_ptr<SubscriptionStore> &ThreadData::getSubscriptionStore()
     return subscriptionStore;
 }
 
-// TODO: profile how fast hash iteration is. Perhaps having a second list/vector is beneficial?
-bool ThreadData::doKeepAliveCheck()
+void ThreadData::queueDoKeepAliveCheck()
 {
+    std::lock_guard<std::mutex> locker(taskQueueMutex);
+
+    auto f = std::bind(&ThreadData::doKeepAliveCheck, this);
+    taskQueue.push_front(f);
+
+    wakeUpThread();
+}
+
+// TODO: profile how fast hash iteration is. Perhaps having a second list/vector is beneficial?
+void ThreadData::doKeepAliveCheck()
+{
+    // We don't need to stall normal connects and disconnects for keep-alive checking. We can do it later.
     std::unique_lock<std::mutex> lock(clients_by_fd_mutex, std::try_to_lock);
     if (!lock.owns_lock())
-        return false;
+        return;
 
-    auto it = clients_by_fd.begin();
-    while (it != clients_by_fd.end())
+    logger->logf(LOG_DEBUG, "Doing keep-alive check in thread %d", threadnr);
+
+    try
     {
-        Client_p &client = it->second;
-        if (client && client->keepAliveExpired())
+        auto it = clients_by_fd.begin();
+        while (it != clients_by_fd.end())
         {
-            client->setDisconnectReason("Keep-alive expired: " + client->getKeepAliveInfoString());
-            it = clients_by_fd.erase(it);
+            Client_p &client = it->second;
+            if (client && client->keepAliveExpired())
+            {
+                client->setDisconnectReason("Keep-alive expired: " + client->getKeepAliveInfoString());
+                it = clients_by_fd.erase(it);
+            }
+            else
+                it++;
         }
-        else
-            it++;
     }
-
-    return true;
+    catch (std::exception &ex)
+    {
+        logger->logf(LOG_ERR, "Error handling keep-alives: %s.", ex.what());
+    }
 }
 
 void ThreadData::initAuthPlugin()
@@ -119,10 +148,14 @@ void ThreadData::initAuthPlugin()
     authPlugin.securityInit(false);
 }
 
-void ThreadData::reload()
+void ThreadData::reload(GlobalSettings settings)
 {
+    logger->logf(LOG_DEBUG, "Doing reload in thread %d", threadnr);
+
     try
     {
+        settingsLocalCopy = settings;
+
         authPlugin.securityCleanup(true);
         authPlugin.securityInit(true);
     }
@@ -130,7 +163,29 @@ void ThreadData::reload()
     {
         logger->logf(LOG_ERR, "Error reloading auth plugin: %s. Security checks will now fail, because we don't know the status of the plugin anymore.", ex.what());
     }
+    catch (std::exception &ex)
+    {
+        logger->logf(LOG_ERR, "Error reloading: %s.", ex.what());
+    }
 }
+
+void ThreadData::queueReload(GlobalSettings settings)
+{
+    std::lock_guard<std::mutex> locker(taskQueueMutex);
+
+    auto f = std::bind(&ThreadData::reload, this, settings);
+    taskQueue.push_front(f);
+
+    wakeUpThread();
+}
+
+void ThreadData::wakeUpThread()
+{
+    uint64_t one = 1;
+    check<std::runtime_error>(write(taskEventFd, &one, sizeof(uint64_t)));
+}
+
+
 
 
 

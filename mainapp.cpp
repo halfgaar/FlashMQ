@@ -25,7 +25,6 @@ void do_thread_work(ThreadData *threadData)
     memset(&events, 0, sizeof (struct epoll_event)*MAX_EVENTS);
 
     std::vector<MqttPacket> packetQueueIn;
-    time_t lastKeepAliveCheck = time(NULL);
 
     Logger *logger = Logger::getInstance();
 
@@ -58,6 +57,21 @@ void do_thread_work(ThreadData *threadData)
             {
                 struct epoll_event cur_ev = events[i];
                 int fd = cur_ev.data.fd;
+
+                if (fd == threadData->taskEventFd)
+                {
+                    uint64_t eventfd_value = 0;
+                    check<std::runtime_error>(read(fd, &eventfd_value, sizeof(uint64_t)));
+
+                    std::lock_guard<std::mutex> locker(threadData->taskQueueMutex);
+                    for(auto &f : threadData->taskQueue)
+                    {
+                        f();
+                    }
+                    threadData->taskQueue.clear();
+
+                    continue;
+                }
 
                 Client_p client = threadData->getClient(fd);
 
@@ -127,19 +141,6 @@ void do_thread_work(ThreadData *threadData)
             }
         }
         packetQueueIn.clear();
-
-        try
-        {
-            if (lastKeepAliveCheck + 30 < time(NULL))
-            {
-                if (threadData->doKeepAliveCheck())
-                    lastKeepAliveCheck = time(NULL);
-            }
-        }
-        catch (std::exception &ex)
-        {
-            logger->logf(LOG_ERR, "Error handling keep-alives: %s.", ex.what());
-        }
     }
 }
 
@@ -164,6 +165,9 @@ MainApp::MainApp(const std::string &configFilePath) :
 
     auto f = std::bind(&MainApp::queueCleanup, this);
     timer.addCallback(f, 86400000, "session expiration");
+
+    auto fKeepAlive = std::bind(&MainApp::queueKeepAliveCheckAtAllThreads, this);
+    timer.addCallback(fKeepAlive, 30000, "keep-alive check");
 }
 
 MainApp::~MainApp()
@@ -252,6 +256,14 @@ void MainApp::wakeUpThread()
 {
     uint64_t one = 1;
     check<std::runtime_error>(write(taskEventFd, &one, sizeof(uint64_t)));
+}
+
+void MainApp::queueKeepAliveCheckAtAllThreads()
+{
+    for (std::shared_ptr<ThreadData> &thread : threads)
+    {
+        thread->queueDoKeepAliveCheck();
+    }
 }
 
 void MainApp::initMainApp(int argc, char *argv[])
@@ -352,7 +364,7 @@ void MainApp::start()
 
     for (int i = 0; i < num_threads; i++)
     {
-        std::shared_ptr<ThreadData> t(new ThreadData(i, subscriptionStore, *confFileParser.get()));
+        std::shared_ptr<ThreadData> t(new ThreadData(i, subscriptionStore, *confFileParser.get(), settings));
         t->start(&do_thread_work);
         threads.push_back(t);
     }
@@ -413,6 +425,7 @@ void MainApp::start()
                     uint64_t eventfd_value = 0;
                     check<std::runtime_error>(read(cur_fd, &eventfd_value, sizeof(uint64_t)));
 
+                    std::lock_guard<std::mutex> locker(eventMutex);
                     for(auto &f : taskQueue)
                     {
                         f();
@@ -453,7 +466,6 @@ void MainApp::quit()
 void MainApp::loadConfig()
 {
     Logger *logger = Logger::getInstance();
-    GlobalSettings *setting = GlobalSettings::getInstance();
 
     // Atomic loading, first test.
     confFileParser->loadFile(true);
@@ -472,9 +484,14 @@ void MainApp::loadConfig()
         SSL_CTX_set_options(sslctx, SSL_OP_NO_TLSv1); // TODO: config option
     }
 
-    setting->allow_unsafe_clientid_chars = confFileParser->allowUnsafeClientidChars;
+    settings.allow_unsafe_clientid_chars = confFileParser->allowUnsafeClientidChars;
 
     setCertAndKeyFromConfig();
+
+    for (std::shared_ptr<ThreadData> &thread : threads)
+    {
+        thread->queueReload(settings);
+    }
 }
 
 void MainApp::reloadConfig()

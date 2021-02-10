@@ -37,6 +37,7 @@ class MainApp
     int taskEventFd = -1;
     std::mutex eventMutex;
     Timer timer;
+    GlobalSettings settings;
 
     uint listenPort = 0;
     uint sslListenPort = 0;
@@ -51,6 +52,7 @@ class MainApp
     void setCertAndKeyFromConfig();
     int createListenSocket(int portNr, bool ssl);
     void wakeUpThread();
+    void queueKeepAliveCheckAtAllThreads();
 
     MainApp(const std::string &configFilePath);
 public:

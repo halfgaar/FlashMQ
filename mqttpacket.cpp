@@ -152,11 +152,11 @@ void MqttPacket::handleConnect()
     if (sender->hasConnectPacketSeen())
         throw ProtocolError("Client already sent a CONNECT.");
 
-    GlobalSettings *settings = GlobalSettings::getInstance();
-
     std::shared_ptr<SubscriptionStore> subscriptionStore = sender->getThreadData()->getSubscriptionStore();
 
     uint16_t variable_header_length = readTwoBytesToUInt16();
+
+    const GlobalSettings &settings = sender->getThreadData()->settingsLocalCopy;
 
     if (variable_header_length == 4 || variable_header_length == 6)
     {
@@ -243,7 +243,7 @@ void MqttPacket::handleConnect()
         bool validClientId = true;
 
         // Check for wildcard chars in case the client_id ever appears in topics.
-        if (!settings->allow_unsafe_clientid_chars && (strContains(client_id, "+") || strContains(client_id, "#")))
+        if (!settings.allow_unsafe_clientid_chars && (strContains(client_id, "+") || strContains(client_id, "#")))
         {
             logger->logf(LOG_ERR, "ClientID '%s' has + or # in the id and 'allow_unsafe_clientid_chars' is false:", client_id.c_str());
             validClientId = false;

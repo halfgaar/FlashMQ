@@ -10,6 +10,7 @@
 #include <unordered_map>
 #include <mutex>
 #include <shared_mutex>
+#include <functional>
 
 #include "forward_declarations.h"
 
@@ -19,6 +20,7 @@
 #include "configfileparser.h"
 #include "authplugin.h"
 #include "logger.h"
+#include "globalsettings.h"
 
 typedef void (*thread_f)(ThreadData *);
 
@@ -30,14 +32,22 @@ class ThreadData
     ConfigFileParser &confFileParser;
     Logger *logger;
 
+    void reload(GlobalSettings settings);
+    void wakeUpThread();
+    void doKeepAliveCheck();
+
 public:
     AuthPlugin authPlugin;
     bool running = true;
     std::thread thread;
     int threadnr = 0;
     int epollfd = 0;
+    int taskEventFd = 0;
+    std::mutex taskQueueMutex;
+    std::forward_list<std::function<void()>> taskQueue;
+    GlobalSettings settingsLocalCopy; // Is updated on reload, within the thread loop.
 
-    ThreadData(int threadnr, std::shared_ptr<SubscriptionStore> &subscriptionStore, ConfigFileParser &confFileParser);
+    ThreadData(int threadnr, std::shared_ptr<SubscriptionStore> &subscriptionStore, ConfigFileParser &confFileParser, const GlobalSettings &settings);
     ThreadData(const ThreadData &other) = delete;
     ThreadData(ThreadData &&other) = delete;
 
@@ -49,9 +59,10 @@ public:
     void removeClient(int fd);
     std::shared_ptr<SubscriptionStore> &getSubscriptionStore();
 
-    bool doKeepAliveCheck();
     void initAuthPlugin();
-    void reload();
+    void queueReload(GlobalSettings settings);
+    void queueDoKeepAliveCheck();
+
 };
 
 #endif // THREADDATA_H
