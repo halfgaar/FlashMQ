@@ -20,10 +20,22 @@ Client::Client(int fd, ThreadData_p threadData, SSL *ssl) :
 
 Client::~Client()
 {
+    // Will payload can be empty, apparently.
+    if (!will_topic.empty())
+    {
+        std::shared_ptr<SubscriptionStore> &store = getThreadData()->getSubscriptionStore();
+
+        Publish will(will_topic, will_payload, will_qos);
+        will.retain = will_retain;
+        const MqttPacket willPacket(will);
+
+        store->queuePacketAtSubscribers(will_topic, willPacket);
+    }
+
     if (disconnectReason.empty())
         disconnectReason = "not specified";
 
-    logger->logf(LOG_NOTICE, "Removing client '%s'. Reason: %s", repr().c_str(), disconnectReason.c_str());
+    logger->logf(LOG_NOTICE, "Removing client '%s'. Reason(s): %s", repr().c_str(), disconnectReason.c_str());
     if (epoll_ctl(threadData->epollfd, EPOLL_CTL_DEL, fd, NULL) != 0)
         logger->logf(LOG_ERR, "Removing fd %d of client '%s' from epoll produced error: %s", fd, repr().c_str(), strerror(errno));
     if (ssl)
@@ -595,11 +607,17 @@ std::shared_ptr<Session> Client::getSession()
 
 void Client::setDisconnectReason(const std::string &reason)
 {
-    // If we have a chain of errors causing this to be set, probably the first one is the most interesting.
-    if (!disconnectReason.empty())
-        return;
+    if (!this->disconnectReason.empty())
+        this->disconnectReason += ", ";
+    this->disconnectReason.append(reason);
+}
 
-    this->disconnectReason = reason;
+void Client::clearWill()
+{
+    will_topic.clear();
+    will_payload.clear();
+    will_retain = false;
+    will_qos = 0;
 }
 
 IncompleteSslWrite::IncompleteSslWrite(const void *buf, size_t nbytes) :

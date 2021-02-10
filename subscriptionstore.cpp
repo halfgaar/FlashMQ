@@ -184,7 +184,7 @@ void SubscriptionStore::publishRecursively(std::vector<std::string>::const_itera
     }
 }
 
-void SubscriptionStore::queuePacketAtSubscribers(const std::string &topic, const MqttPacket &packet, const Client_p &sender)
+void SubscriptionStore::queuePacketAtSubscribers(const std::string &topic, const MqttPacket &packet)
 {
     // TODO: keep a cache of topics vs clients
 

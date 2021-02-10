@@ -119,6 +119,7 @@ public:
     bool bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn, Client_p &sender);
     void setClientProperties(ProtocolVersion protocolVersion, const std::string &clientId, const std::string username, bool connectPacketSeen, uint16_t keepalive, bool cleanSession);
     void setWill(const std::string &topic, const std::string &payload, bool retain, char qos);
+    void clearWill();
     void setAuthenticated(bool value) { authenticated = value;}
     bool getAuthenticated() { return authenticated; }
     bool hasConnectPacketSeen() { return connectPacketSeen; }

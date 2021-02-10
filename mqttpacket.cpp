@@ -307,11 +307,10 @@ void MqttPacket::handleConnect()
 void MqttPacket::handleDisconnect()
 {
     logger->logf(LOG_NOTICE, "Client '%s' cleanly disconnecting", sender->repr().c_str());
-    sender->markAsDisconnecting();
     sender->setDisconnectReason("MQTT Disconnect received.");
+    sender->markAsDisconnecting();
+    sender->clearWill();
     sender->getThreadData()->removeClient(sender);
-
-    // TODO: clear will
 }
 
 void MqttPacket::handleSubscribe()
@@ -393,7 +392,7 @@ void MqttPacket::handlePublish()
     bites[0] &= 0b11110110;
 
     // For the existing clients, we can just write the same packet back out, with our small alterations.
-    sender->getThreadData()->getSubscriptionStore()->queuePacketAtSubscribers(topic, *this, sender);
+    sender->getThreadData()->getSubscriptionStore()->queuePacketAtSubscribers(topic, *this);
 }
 
 void MqttPacket::handlePubAck()
