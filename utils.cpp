@@ -221,3 +221,8 @@ bool stringTruthiness(const std::string &val)
         return false;
     throw ConfigFileException("Value '" + val + "' can't be converted to boolean");
 }
+
+bool isPowerOfTwo(int n)
+{
+    return (n != 0) && (n & (n - 1)) == 0;
+}

@@ -417,7 +417,7 @@ void MainApp::start()
                         SSL_set_fd(clientSSL, fd);
                     }
 
-                    Client_p client(new Client(fd, thread_data, clientSSL));
+                    Client_p client(new Client(fd, thread_data, clientSSL, settings));
                     thread_data->giveClient(client);
                 }
                 else if (cur_fd == taskEventFd)
@@ -485,6 +485,8 @@ void MainApp::loadConfig()
     }
 
     settings.allow_unsafe_clientid_chars = confFileParser->allowUnsafeClientidChars;
+    settings.clientInitialBufferSize = confFileParser->clientInitialBufferSize;
+    settings.maxPacketSize = confFileParser->maxPacketSize;
 
     setCertAndKeyFromConfig();
 

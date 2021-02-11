@@ -5,5 +5,7 @@
 struct GlobalSettings
 {
     bool allow_unsafe_clientid_chars = false;
+    int clientInitialBufferSize = 0;
+    int maxPacketSize = 0;
 };
 #endif // GLOBALSETTINGS_H

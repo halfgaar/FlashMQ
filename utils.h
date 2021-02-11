@@ -41,5 +41,6 @@ int64_t currentMSecsSinceEpoch();
 std::string getSecureRandomString(const size_t len);
 std::string str_tolower(std::string s);
 bool stringTruthiness(const std::string &val);
+bool isPowerOfTwo(int val);
 
 #endif // UTILS_H

@@ -9,6 +9,8 @@
 
 #include "sslctxmanager.h"
 
+#define ABSOLUTE_MAX_PACKET_SIZE 268435461 // 256 MB + 5
+
 struct mosquitto_auth_opt
 {
     char *key = nullptr;
@@ -55,6 +57,8 @@ public:
     uint listenPort = 1883;
     uint sslListenPort = 0;
     bool allowUnsafeClientidChars = false;
+    int clientInitialBufferSize = 1024; // Must be power of 2
+    int maxPacketSize = 268435461; // 256 MB + 5
 };
 
 #endif // CONFIGFILEPARSER_H

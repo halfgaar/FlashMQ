@@ -99,6 +99,8 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validKeys.insert("fullchain");
     validKeys.insert("privkey");
     validKeys.insert("allow_unsafe_clientid_chars");
+    validKeys.insert("client_initial_buffer_size");
+    validKeys.insert("max_packet_size");
 }
 
 void ConfigFileParser::loadFile(bool test)
@@ -232,8 +234,30 @@ void ConfigFileParser::loadFile(bool test)
                     sslListenPort = sslListenPortNew;
                 }
 
+                if (key == "client_initial_buffer_size")
+                {
+                    int newVal = std::stoi(value);
+                    if (!isPowerOfTwo(newVal))
+                        throw ConfigFileException("client_initial_buffer_size value " + value + " is not a power of two.");
+                    if (!test)
+                        clientInitialBufferSize = newVal;
+                }
+
+                if (key == "max_packet_size")
+                {
+                    int newVal = std::stoi(value);
+                    if (newVal > ABSOLUTE_MAX_PACKET_SIZE)
+                    {
+                        std::ostringstream oss;
+                        oss << "Value for max_packet_size " << newVal << "is higher than absolute maximum " << ABSOLUTE_MAX_PACKET_SIZE;
+                        throw ConfigFileException(oss.str());
+                    }
+                    if (!test)
+                        maxPacketSize = newVal;
+                }
+
             }
-            catch (std::invalid_argument &ex)
+            catch (std::invalid_argument &ex) // catch for the stoi()
             {
                 throw ConfigFileException(ex.what());
             }

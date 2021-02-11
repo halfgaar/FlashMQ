@@ -7,11 +7,13 @@
 
 #include "logger.h"
 
-Client::Client(int fd, ThreadData_p threadData, SSL *ssl) :
+Client::Client(int fd, ThreadData_p threadData, SSL *ssl, const GlobalSettings &settings) :
     fd(fd),
     ssl(ssl),
-    readbuf(CLIENT_BUFFER_SIZE),
-    writebuf(CLIENT_BUFFER_SIZE),
+    initialBufferSize(settings.clientInitialBufferSize), // The client is constructed in the main thread, so we need to use its settings copy
+    maxPacketSize(settings.maxPacketSize), // Same as initialBufferSize comment.
+    readbuf(initialBufferSize),
+    writebuf(initialBufferSize),
     threadData(threadData)
 {
     int flags = fcntl(fd, F_GETFL);
@@ -206,7 +208,7 @@ bool Client::readFdIntoBuffer()
         // Make sure we either always have enough space for a next call of this method, or stop reading the fd.
         if (readbuf.freeSpace() == 0)
         {
-            if (readbuf.getSize() * 2 < MAX_PACKET_SIZE)
+            if (readbuf.getSize() * 2 < maxPacketSize)
             {
                 readbuf.doubleSize();
             }
@@ -236,7 +238,7 @@ void Client::writeMqttPacket(const MqttPacket &packet)
 
     // We have to allow big packets, yet don't allow a slow loris subscriber to grow huge write buffers. This
     // could be enhanced a lot, but it's a start.
-    const uint32_t growBufMaxTo = std::min<int>(packet.getSizeIncludingNonPresentHeader() * 1000, MAX_PACKET_SIZE);
+    const uint32_t growBufMaxTo = std::min<int>(packet.getSizeIncludingNonPresentHeader() * 1000, maxPacketSize);
 
     // Grow as far as we can. We have to make room for one MQTT packet.
     while (packet.getSizeIncludingNonPresentHeader() > writebuf.freeSpace() && writebuf.getSize() < growBufMaxTo)
@@ -439,13 +441,13 @@ bool Client::writeBufIntoFd()
     if (!bufferHasData)
     {
         writeBufIsZeroCount++;
-        bool doReset = (writeBufIsZeroCount >= 10 && writebuf.getSize() > (MAX_PACKET_SIZE / 10) && writebuf.bufferLastResizedSecondsAgo() > 30);
+        bool doReset = (writeBufIsZeroCount >= 10 && writebuf.getSize() > (maxPacketSize / 10) && writebuf.bufferLastResizedSecondsAgo() > 30);
         doReset |= (writeBufIsZeroCount >= 100 && writebuf.bufferLastResizedSecondsAgo() > 300);
 
         if (doReset)
         {
             writeBufIsZeroCount = 0;
-            writebuf.resetSize(CLIENT_BUFFER_SIZE);
+            writebuf.resetSize(initialBufferSize);
         }
     }
 
@@ -564,13 +566,13 @@ bool Client::bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn, Client_
     if (readbuf.usedBytes() == 0)
     {
         readBufIsZeroCount++;
-        bool doReset = (readBufIsZeroCount >= 10 && readbuf.getSize() > (MAX_PACKET_SIZE / 10) && readbuf.bufferLastResizedSecondsAgo() > 30);
+        bool doReset = (readBufIsZeroCount >= 10 && readbuf.getSize() > (maxPacketSize / 10) && readbuf.bufferLastResizedSecondsAgo() > 30);
         doReset |= (readBufIsZeroCount >= 100 && readbuf.bufferLastResizedSecondsAgo() > 300);
 
         if (doReset)
         {
             readBufIsZeroCount = 0;
-            readbuf.resetSize(CLIENT_BUFFER_SIZE);
+            readbuf.resetSize(initialBufferSize);
         }
     }
 

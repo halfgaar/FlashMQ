@@ -21,8 +21,6 @@
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 
-#define CLIENT_BUFFER_SIZE 1024 // Must be power of 2
-#define MAX_PACKET_SIZE 268435461 // 256 MB + 5
 #define MQTT_HEADER_LENGH 2
 
 #define OPENSSL_ERROR_STRING_SIZE 256 // OpenSSL requires at least 256.
@@ -64,6 +62,9 @@ class Client
     bool sslWriteWantsRead = false;
     ProtocolVersion protocolVersion = ProtocolVersion::None;
 
+    const size_t initialBufferSize = 0;
+    const size_t maxPacketSize = 0;
+
     CirBuf readbuf;
     uint8_t readBufIsZeroCount = 0;
 
@@ -101,7 +102,7 @@ class Client
     void setReadyForReading(bool val);
 
 public:
-    Client(int fd, ThreadData_p threadData, SSL *ssl);
+    Client(int fd, ThreadData_p threadData, SSL *ssl, const GlobalSettings &settings);
     Client(const Client &other) = delete;
     Client(Client &&other) = delete;
     ~Client();
