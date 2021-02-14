@@ -34,4 +34,16 @@ public:
     AuthPluginException(const std::string &msg) : std::runtime_error(msg) {}
 };
 
+class BadWebsocketVersionException : public std::runtime_error
+{
+public:
+    BadWebsocketVersionException(const std::string &msg) : std::runtime_error(msg) {}
+};
+
+class BadHttpRequest : public std::runtime_error
+{
+public:
+    BadHttpRequest(const std::string &msg) : std::runtime_error(msg) {}
+};
+
 #endif // EXCEPTIONS_H

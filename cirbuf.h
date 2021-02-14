@@ -32,11 +32,16 @@ public:
     void advanceHead(uint32_t n);
     void advanceTail(uint32_t n);
     char peakAhead(uint32_t offset) const;
-    void doubleSize();
+    void ensureFreeSpace(size_t n);
+    void doubleSize(uint factor = 2);
     uint32_t getSize() const;
 
     time_t bufferLastResizedSecondsAgo() const;
     void resetSize(size_t size);
+    void reset();
+
+    void write(const void *buf, size_t count);
+    void read(void *buf, const size_t count);
 };
 
 #endif // CIRBUF_H

@@ -351,6 +351,7 @@ void MainApp::start()
 
     int listen_fd_plain = createListenSocket(this->listenPort, false);
     int listen_fd_ssl = createListenSocket(this->sslListenPort, true);
+    int listen_fd_websocket_plain = createListenSocket(1443, true);
 
 #ifdef NDEBUG
     logger->noLongerLogToStd();
@@ -391,7 +392,7 @@ void MainApp::start()
             int cur_fd = events[i].data.fd;
             try
             {
-                if (cur_fd == listen_fd_plain || cur_fd == listen_fd_ssl)
+                if (cur_fd == listen_fd_plain || cur_fd == listen_fd_ssl || listen_fd_websocket_plain)
                 {
                     std::shared_ptr<ThreadData> thread_data = threads[next_thread_index++ % num_threads];
 
@@ -402,6 +403,7 @@ void MainApp::start()
                     socklen_t len = sizeof(struct sockaddr);
                     int fd = check<std::runtime_error>(accept(cur_fd, &addr, &len));
 
+                    bool websocket = cur_fd == listen_fd_websocket_plain;
                     SSL *clientSSL = nullptr;
                     if (cur_fd == listen_fd_ssl)
                     {
@@ -417,7 +419,7 @@ void MainApp::start()
                         SSL_set_fd(clientSSL, fd);
                     }
 
-                    Client_p client(new Client(fd, thread_data, clientSSL, settings));
+                    Client_p client(new Client(fd, thread_data, clientSSL, websocket, settings));
                     thread_data->giveClient(client);
                 }
                 else if (cur_fd == taskEventFd)

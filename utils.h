@@ -8,6 +8,9 @@
 #include <limits>
 #include <vector>
 #include <algorithm>
+#include <openssl/evp.h>
+
+#include "cirbuf.h"
 
 template<typename T> int check(int rc)
 {
@@ -42,5 +45,14 @@ std::string getSecureRandomString(const size_t len);
 std::string str_tolower(std::string s);
 bool stringTruthiness(const std::string &val);
 bool isPowerOfTwo(int val);
+
+bool parseHttpHeader(CirBuf &buf, std::string &websocket_key, int &websocket_version);
+
+std::string base64Encode(const unsigned char *input, const int length);
+std::string generateWebsocketAcceptString(const std::string &websocketKey);
+
+std::string generateInvalidWebsocketVersionHttpHeaders(const int wantedVersion);
+std::string generateBadHttpRequestReponse(const std::string &msg);
+std::string generateWebsocketAnswer(const std::string &acceptString);
 
 #endif // UTILS_H

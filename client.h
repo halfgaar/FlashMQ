@@ -9,6 +9,7 @@
 #include <time.h>
 
 #include <openssl/ssl.h>
+#include <openssl/err.h>
 
 #include "forward_declarations.h"
 
@@ -17,53 +18,24 @@
 #include "exceptions.h"
 #include "cirbuf.h"
 #include "types.h"
-
-#include <openssl/ssl.h>
-#include <openssl/err.h>
+#include "iowrapper.h"
 
 #define MQTT_HEADER_LENGH 2
 
-#define OPENSSL_ERROR_STRING_SIZE 256 // OpenSSL requires at least 256.
-#define OPENSSL_WRONG_VERSION_NUMBER 336130315
-
-enum class IoWrapResult
-{
-    Success = 0,
-    Interrupted = 1,
-    Wouldblock = 2,
-    Disconnected = 3,
-    Error = 4
-};
-
-/*
- * OpenSSL doc: "When a write function call has to be repeated because SSL_get_error(3) returned
- * SSL_ERROR_WANT_READ or SSL_ERROR_WANT_WRITE, it must be repeated with the same arguments"
- */
-struct IncompleteSslWrite
-{
-    const void *buf = nullptr;
-    size_t nbytes = 0;
-
-    IncompleteSslWrite() = default;
-    IncompleteSslWrite(const void *buf, size_t nbytes);
-    bool hasPendingWrite();
-
-    void reset();
-};
 
 // TODO: give accepted addr, for showing in logs
 class Client
 {
+    friend class IoWrapper;
+
     int fd;
-    SSL *ssl = nullptr;
-    bool sslAccepted = false;
-    IncompleteSslWrite incompleteSslWrite;
-    bool sslReadWantsWrite = false;
-    bool sslWriteWantsRead = false;
+
     ProtocolVersion protocolVersion = ProtocolVersion::None;
 
     const size_t initialBufferSize = 0;
     const size_t maxPacketSize = 0;
+
+    IoWrapper ioWrapper;
 
     CirBuf readbuf;
     uint8_t readBufIsZeroCount = 0;
@@ -97,12 +69,11 @@ class Client
 
     Logger *logger = Logger::getInstance();
 
-
     void setReadyForWriting(bool val);
     void setReadyForReading(bool val);
 
 public:
-    Client(int fd, ThreadData_p threadData, SSL *ssl, const GlobalSettings &settings);
+    Client(int fd, ThreadData_p threadData, SSL *ssl, bool websocket, const GlobalSettings &settings);
     Client(const Client &other) = delete;
     Client(Client &&other) = delete;
     ~Client();
@@ -115,7 +86,6 @@ public:
 
     void startOrContinueSslAccept();
     void markAsDisconnecting();
-    ssize_t readWrap(int fd, void *buf, size_t nbytes, IoWrapResult *error);
     bool readFdIntoBuffer();
     bool bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn, Client_p &sender);
     void setClientProperties(ProtocolVersion protocolVersion, const std::string &clientId, const std::string username, bool connectPacketSeen, uint16_t keepalive, bool cleanSession);
@@ -131,10 +101,10 @@ public:
     std::shared_ptr<Session> getSession();
     void setDisconnectReason(const std::string &reason);
 
+    void writeText(const std::string &text);
     void writePingResp();
     void writeMqttPacket(const MqttPacket &packet);
     void writeMqttPacketAndBlameThisClient(const MqttPacket &packet);
-    ssize_t writeWrap(int fd, const void *buf, size_t nbytes, IoWrapResult *error);
     bool writeBufIntoFd();
     bool readyForDisconnecting() const { return disconnectWhenBytesWritten && writebuf.usedBytes() == 0; }
 
