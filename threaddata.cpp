@@ -132,7 +132,10 @@ void ThreadData::doKeepAliveCheck()
                 it = clients_by_fd.erase(it);
             }
             else
+            {
+                client->resetBuffersIfEligible();
                 it++;
+            }
         }
     }
     catch (std::exception &ex)

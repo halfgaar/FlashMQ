@@ -38,10 +38,7 @@ class Client
     IoWrapper ioWrapper;
 
     CirBuf readbuf;
-    uint8_t readBufIsZeroCount = 0;
-
     CirBuf writebuf;
-    uint8_t writeBufIsZeroCount = 0;
 
     bool authenticated = false;
     bool connectPacketSeen = false;
@@ -114,6 +111,7 @@ public:
     std::string repr();
     bool keepAliveExpired();
     std::string getKeepAliveInfoString() const;
+    void resetBuffersIfEligible();
 
 };
 

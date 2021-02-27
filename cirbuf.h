@@ -18,7 +18,7 @@ class CirBuf
     uint32_t tail = 0;
     uint32_t size = 0;
 
-    time_t resizedAt = 0;
+    bool primedForSizeReset = false;
 public:
 
     CirBuf(size_t size);
@@ -37,7 +37,7 @@ public:
     void doubleSize(uint factor = 2);
     uint32_t getSize() const;
 
-    time_t bufferLastResizedSecondsAgo() const;
+    void resetSizeIfEligable(size_t size);
     void resetSize(size_t size);
     void reset();
 

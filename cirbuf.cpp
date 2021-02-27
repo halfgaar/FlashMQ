@@ -1,7 +1,5 @@
 #include "cirbuf.h"
 
-#include <time.h>
-
 #include <iostream>
 #include <exception>
 #include <stdexcept>
@@ -140,7 +138,7 @@ void CirBuf::doubleSize(uint factor)
     memset(&buf[head], 5, maxWriteSize() + 2);
 #endif
 
-    resizedAt = time(NULL);
+    primedForSizeReset = false;
 }
 
 uint32_t CirBuf::getSize() const
@@ -148,14 +146,25 @@ uint32_t CirBuf::getSize() const
     return size;
 }
 
-time_t CirBuf::bufferLastResizedSecondsAgo() const
+void CirBuf::resetSizeIfEligable(size_t size)
 {
-    return time(NULL) - resizedAt;
+    // Ensuring the reset will only happen the second time the timer event hits.
+    if (!primedForSizeReset)
+    {
+        primedForSizeReset = true;
+        return;
+    }
+
+    if (usedBytes() > 0)
+        return;
+
+    resetSize(size);
 }
 
 void CirBuf::resetSize(size_t newSize)
 {
     assert(usedBytes() == 0);
+    primedForSizeReset = false;
     if (this->size == newSize)
         return;
     char *newBuf = (char*)malloc(newSize);
@@ -166,7 +175,6 @@ void CirBuf::resetSize(size_t newSize)
     this->size = newSize;
     head = 0;
     tail = 0;
-    resizedAt = time(NULL);
 #ifndef NDEBUG
     Logger *logger = Logger::getInstance();
     logger->logf(LOG_DEBUG, "Reset buf size: %d", size);

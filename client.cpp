@@ -228,19 +228,6 @@ bool Client::writeBufIntoFd()
     const bool bufferHasData = writebuf.usedBytes() > 0;
     setReadyForWriting(bufferHasData || error == IoWrapResult::Wouldblock);
 
-    if (!bufferHasData)
-    {
-        writeBufIsZeroCount++;
-        bool doReset = (writeBufIsZeroCount >= 10 && writebuf.getSize() > (maxPacketSize / 10) && writebuf.bufferLastResizedSecondsAgo() > 30);
-        doReset |= (writeBufIsZeroCount >= 100 && writebuf.bufferLastResizedSecondsAgo() > 300);
-
-        if (doReset)
-        {
-            writeBufIsZeroCount = 0;
-            writebuf.resetSize(initialBufferSize);
-        }
-    }
-
     return true;
 }
 
@@ -266,6 +253,12 @@ std::string Client::getKeepAliveInfoString() const
     std::string s = "authenticated: " + std::to_string(authenticated) + ", keep-alive: " + std::to_string(keepalive) + "s, last activity "
             + std::to_string(time(NULL) - lastActivity) + " seconds ago.";
     return s;
+}
+
+void Client::resetBuffersIfEligible()
+{
+    readbuf.resetSizeIfEligable(initialBufferSize);
+    writebuf.resetSizeIfEligable(initialBufferSize);
 }
 
 // Call this from a place you know the writeBufMutex is locked, or we're still only doing SSL accept.
@@ -352,19 +345,6 @@ bool Client::bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn, Client_
     }
 
     setReadyForReading(readbuf.freeSpace() > 0);
-
-    if (readbuf.usedBytes() == 0)
-    {
-        readBufIsZeroCount++;
-        bool doReset = (readBufIsZeroCount >= 10 && readbuf.getSize() > (maxPacketSize / 10) && readbuf.bufferLastResizedSecondsAgo() > 30);
-        doReset |= (readBufIsZeroCount >= 100 && readbuf.bufferLastResizedSecondsAgo() > 300);
-
-        if (doReset)
-        {
-            readBufIsZeroCount = 0;
-            readbuf.resetSize(initialBufferSize);
-        }
-    }
 
     return true;
 }
