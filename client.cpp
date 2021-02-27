@@ -147,10 +147,7 @@ void Client::writeMqttPacket(const MqttPacket &packet)
     const uint32_t growBufMaxTo = std::min<int>(packet.getSizeIncludingNonPresentHeader() * 1000, maxPacketSize);
 
     // Grow as far as we can. We have to make room for one MQTT packet.
-    while (packet.getSizeIncludingNonPresentHeader() > writebuf.freeSpace() && writebuf.getSize() < growBufMaxTo)
-    {
-        writebuf.doubleSize();
-    }
+    writebuf.ensureFreeSpace(packet.getSizeIncludingNonPresentHeader(), growBufMaxTo);
 
     // And drop a publish when it doesn't fit, even after resizing. This means we do allow pings. And
     // QoS packet are queued and limited elsewhere.
@@ -164,34 +161,10 @@ void Client::writeMqttPacket(const MqttPacket &packet)
         writebuf.headPtr()[0] = packet.getFirstByte();
         writebuf.advanceHead(1);
         RemainingLength r = packet.getRemainingLength();
-
-        ssize_t len_left = r.len;
-        int src_i = 0;
-        while (len_left > 0)
-        {
-            const size_t len = std::min<int>(len_left, writebuf.maxWriteSize());
-            assert(len > 0);
-            std::memcpy(writebuf.headPtr(), &r.bytes[src_i], len);
-            writebuf.advanceHead(len);
-            src_i += len;
-            len_left -= len;
-        }
-        assert(len_left == 0);
-        assert(src_i == r.len);
+        writebuf.write(r.bytes, r.len);
     }
 
-    ssize_t len_left = packet.getBites().size();
-    int src_i = 0;
-    while (len_left > 0)
-    {
-        const size_t len = std::min<int>(len_left, writebuf.maxWriteSize());
-        assert(len > 0);
-        std::memcpy(writebuf.headPtr(), &packet.getBites()[src_i], len);
-        writebuf.advanceHead(len);
-        src_i += len;
-        len_left -= len;
-    }
-    assert(len_left == 0);
+    writebuf.write(packet.getBites().data(), packet.getBites().size());
 
     if (packet.packetType == PacketType::DISCONNECT)
         setReadyForDisconnect();
@@ -217,8 +190,7 @@ void Client::writePingResp()
 {
     std::lock_guard<std::mutex> locker(writeBufMutex);
 
-    if (2 > writebuf.freeSpace())
-        writebuf.doubleSize();
+    writebuf.ensureFreeSpace(2);
 
     writebuf.headPtr()[0] = 0b11010000;
     writebuf.advanceHead(1);

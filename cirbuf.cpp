@@ -90,19 +90,19 @@ char CirBuf::peakAhead(uint32_t offset) const
     return b;
 }
 
-void CirBuf::ensureFreeSpace(size_t n)
+void CirBuf::ensureFreeSpace(size_t n, const size_t max)
 {
+    if (n <= freeSpace())
+        return;
+
     const size_t _usedBytes = usedBytes();
 
     int mul = 1;
 
-    while((mul * size - _usedBytes - 1) < n)
+    while((mul * size - _usedBytes - 1) < n && (mul*size) < max)
     {
         mul = mul << 1;
     }
-
-    if (mul == 1)
-        return;
 
     doubleSize(mul);
 }
@@ -223,5 +223,5 @@ void CirBuf::read(void *buf, const size_t count)
         _packet_len -= readlen;
     }
     assert(_packet_len == 0);
-    assert(i == _packet_len);
+    assert(i == static_cast<int>(count));
 }

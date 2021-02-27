@@ -4,6 +4,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <limits.h>
 
 // Optimized circular buffer, works only with sizes power of two.
 class CirBuf
@@ -32,7 +33,7 @@ public:
     void advanceHead(uint32_t n);
     void advanceTail(uint32_t n);
     char peakAhead(uint32_t offset) const;
-    void ensureFreeSpace(size_t n);
+    void ensureFreeSpace(size_t n, const size_t max = UINT_MAX);
     void doubleSize(uint factor = 2);
     uint32_t getSize() const;
 

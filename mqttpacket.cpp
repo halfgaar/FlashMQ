@@ -17,18 +17,7 @@ MqttPacket::MqttPacket(CirBuf &buf, size_t packet_len, size_t fixed_header_lengt
     fixed_header_length(fixed_header_length),
     sender(sender)
 {
-    int i = 0;
-    ssize_t _packet_len = packet_len;
-    while (_packet_len > 0)
-    {
-        int readlen = std::min<int>(buf.maxReadSize(), _packet_len);
-        assert(readlen > 0);
-        std::memcpy(&bites[i], buf.tailPtr(), readlen);
-        buf.advanceTail(readlen);
-        i += readlen;
-        _packet_len -= readlen;
-    }
-    assert(_packet_len == 0);
+    buf.read(bites.data(), packet_len);
 
     first_byte = bites[0];
     unsigned char _packetType = (first_byte & 0xF0) >> 4;
