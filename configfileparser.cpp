@@ -4,45 +4,24 @@
 #include <unistd.h>
 #include <sstream>
 #include "fstream"
+#include <regex>
 
 #include "openssl/ssl.h"
 #include "openssl/err.h"
 
 #include "exceptions.h"
 #include "utils.h"
-#include <regex>
-
 #include "logger.h"
 
 
-mosquitto_auth_opt::mosquitto_auth_opt(const std::string &key, const std::string &value)
+void ConfigFileParser::testKeyValidity(const std::string &key, const std::set<std::string> &validKeys) const
 {
-    this->key = strdup(key.c_str());
-    this->value = strdup(value.c_str());
-}
-
-mosquitto_auth_opt::mosquitto_auth_opt(mosquitto_auth_opt &&other)
-{
-    this->key = other.key;
-    this->value = other.value;
-    other.key = nullptr;
-    other.value = nullptr;
-}
-
-mosquitto_auth_opt::~mosquitto_auth_opt()
-{
-    if (key)
-        delete key;
-    if (value)
-        delete value;
-}
-
-AuthOptCompatWrap::AuthOptCompatWrap(const std::unordered_map<std::string, std::string> &authOpts)
-{
-    for(auto &pair : authOpts)
+    auto valid_key_it = validKeys.find(key);
+    if (valid_key_it == validKeys.end())
     {
-        mosquitto_auth_opt opt(pair.first, pair.second);
-        optArray.push_back(std::move(opt));
+        std::ostringstream oss;
+        oss << "Config key '" << key << "' is not valid here.";
+        throw ConfigFileException(oss.str());
     }
 }
 
@@ -56,51 +35,21 @@ void ConfigFileParser::checkFileAccess(const std::string &key, const std::string
     }
 }
 
-// Using a separate ssl context to test, because it's the easiest way to load certs and key atomitcally.
-void ConfigFileParser::testSsl(const std::string &fullchain, const std::string &privkey, uint portNr) const
-{
-    if (portNr == 0)
-        return;
-
-    if (fullchain.empty() && privkey.empty())
-        throw ConfigFileException("No privkey and fullchain specified.");
-
-    if (fullchain.empty())
-        throw ConfigFileException("No private key specified for fullchain");
-
-    if (privkey.empty())
-        throw ConfigFileException("No fullchain specified for private key");
-
-    SslCtxManager sslCtx;
-    if (SSL_CTX_use_certificate_file(sslCtx.get(), fullchain.c_str(), SSL_FILETYPE_PEM) != 1)
-    {
-        ERR_print_errors_cb(logSslError, NULL);
-        throw ConfigFileException("Error loading full chain " + fullchain);
-    }
-    if (SSL_CTX_use_PrivateKey_file(sslCtx.get(), privkey.c_str(), SSL_FILETYPE_PEM) != 1)
-    {
-        ERR_print_errors_cb(logSslError, NULL);
-        throw ConfigFileException("Error loading private key " + privkey);
-    }
-    if (SSL_CTX_check_private_key(sslCtx.get()) != 1)
-    {
-        ERR_print_errors_cb(logSslError, NULL);
-        throw ConfigFileException("Private key and certificate don't match.");
-    }
-}
-
 ConfigFileParser::ConfigFileParser(const std::string &path) :
     path(path)
 {
     validKeys.insert("auth_plugin");
     validKeys.insert("log_file");
-    validKeys.insert("listen_port");
-    validKeys.insert("ssl_listen_port");
-    validKeys.insert("fullchain");
-    validKeys.insert("privkey");
     validKeys.insert("allow_unsafe_clientid_chars");
     validKeys.insert("client_initial_buffer_size");
     validKeys.insert("max_packet_size");
+
+    validListenKeys.insert("port");
+    validListenKeys.insert("protocol");
+    validListenKeys.insert("fullchain");
+    validListenKeys.insert("privkey");
+
+    settings.reset(new Settings());
 }
 
 void ConfigFileParser::loadFile(bool test)
@@ -121,12 +70,19 @@ void ConfigFileParser::loadFile(bool test)
 
     std::list<std::string> lines;
 
-    const std::regex r("^([a-zA-Z0-9_\\-]+) +([a-zA-Z0-9_\\-/\\.]+)$");
+    const std::regex key_value_regex("^([a-zA-Z0-9_\\-]+) +([a-zA-Z0-9_\\-/\\.]+)$");
+    const std::regex block_regex_start("^([a-zA-Z0-9_\\-]+) *\\{$");
+    const std::regex block_regex_end("^\\}$");
+
+    bool inBlock = false;
+    std::ostringstream oss;
+    int linenr = 0;
 
     // First parse the file and keep the valid lines.
     for(std::string line; getline(infile, line ); )
     {
         trim(line);
+        linenr++;
 
         if (startsWith(line, "#"))
             continue;
@@ -136,102 +92,133 @@ void ConfigFileParser::loadFile(bool test)
 
         std::smatch matches;
 
-        if (!std::regex_search(line, matches, r) || matches.size() != 3)
+        const bool blockStartMatch = std::regex_search(line, matches, block_regex_start);
+        const bool blockEndMatch = std::regex_search(line, matches, block_regex_end);
+
+        if ((blockStartMatch && inBlock) || (blockEndMatch && !inBlock))
         {
-            std::ostringstream oss;
-            oss << "Line '" << line << "' not in 'key value' format";
+            oss << "Unexpected block start or end at line " << linenr << ": " << line;
             throw ConfigFileException(oss.str());
         }
+
+        if (!std::regex_search(line, matches, key_value_regex) && !blockStartMatch && !blockEndMatch)
+        {
+            oss << "Line '" << line << "' invalid";
+            throw ConfigFileException(oss.str());
+        }
+
+        if (blockStartMatch)
+            inBlock = true;
+        if (blockEndMatch)
+            inBlock = false;
 
         lines.push_back(line);
     }
 
-    authOpts.clear();
-    authOptCompatWrap.reset();
+    if (inBlock)
+    {
+        throw ConfigFileException("Unclosed config block. Expecting }");
+    }
 
-    std::string sslFullChainTmp;
-    std::string sslPrivkeyTmp;
+    std::unordered_map<std::string, std::string> authOpts;
+
+    ConfigParseLevel curParseLevel = ConfigParseLevel::Root;
+    std::shared_ptr<Listener> curListener;
+    std::unique_ptr<Settings> tmpSettings(new Settings);
 
     // Then once we know the config file is valid, process it.
     for (std::string &line : lines)
     {
         std::smatch matches;
 
-        if (!std::regex_search(line, matches, r) || matches.size() != 3)
+        if (std::regex_match(line, matches, block_regex_start))
         {
-            throw ConfigFileException("Config parse error at a point that should not be possible.");
+            std::string key = matches[1].str();
+            if (matches[1].str() == "listen")
+            {
+                curParseLevel = ConfigParseLevel::Listen;
+                curListener.reset(new Listener);
+            }
+            else
+            {
+                throw ConfigFileException(formatString("'%s' is not a valid block.", key.c_str()));
+            }
+
+            continue;
         }
+        else if (std::regex_match(line, matches, block_regex_end))
+        {
+            if (curParseLevel == ConfigParseLevel::Listen)
+            {
+                curListener->isValid();
+                tmpSettings->listeners.push_back(curListener);
+                curListener.reset();
+            }
+
+            curParseLevel = ConfigParseLevel::Root;
+            continue;
+        }
+
+        std::regex_match(line, matches, key_value_regex);
 
         std::string key = matches[1].str();
         const std::string value = matches[2].str();
 
-        const std::string auth_opt_ = "auth_opt_";
-        if (startsWith(key, auth_opt_))
+        try
         {
-            key.replace(0, auth_opt_.length(), "");
-            authOpts[key] = value;
-        }
-        else
-        {
-            auto valid_key_it = validKeys.find(key);
-            if (valid_key_it == validKeys.end())
+            if (curParseLevel == ConfigParseLevel::Listen)
             {
-                std::ostringstream oss;
-                oss << "Config key '" << key << "' is not valid. This error should have been cought before. Bug?";
-                throw ConfigFileException(oss.str());
-            }
+                testKeyValidity(key, validListenKeys);
 
-            if (key == "auth_plugin")
-            {
-                checkFileAccess(key, value);
-                if (!test)
-                    this->authPluginPath = value;
-            }
-
-            if (key == "log_file")
-            {
-                checkFileAccess(key, value);
-                if (!test)
-                    this->logPath = value;
-            }
-
-            if (key == "allow_unsafe_clientid_chars")
-            {
-                bool tmp = stringTruthiness(value);
-                if (!test)
-                    this->allowUnsafeClientidChars = tmp;
-            }
-
-            if (key == "fullchain")
-            {
-                checkFileAccess(key, value);
-                sslFullChainTmp = value;
-            }
-
-            if (key == "privkey")
-            {
-                checkFileAccess(key, value);
-                sslPrivkeyTmp = value;
-            }
-
-            try
-            {
-                // TODO: make this possible. There are many error cases to deal with, like bind failures, etc. You don't want to end up without listeners.
-                if (key == "listen_port")
+                if (key == "protocol")
                 {
-                    uint listenportNew = std::stoi(value);
-                    if (listenPort > 0 && listenPort != listenportNew)
-                        throw ConfigFileException("Changing (ssl_)listen_port is not supported at this time.");
-                    listenPort = listenportNew;
+                    if (value != "mqtt" && value != "websockets")
+                        throw ConfigFileException(formatString("Protocol '%s' is not a valid listener protocol", value.c_str()));
+                    curListener->websocket = value == "websockets";
+                }
+                else if (key == "port")
+                {
+                    curListener->port = std::stoi(value);
+                }
+                else if (key == "fullchain")
+                {
+                    curListener->sslFullchain = value;
+                }
+                if (key == "privkey")
+                {
+                    curListener->sslPrivkey = value;
                 }
 
-                // TODO: make this possible. There are many error cases to deal with, like bind failures, etc. You don't want to end up without listeners.
-                if (key == "ssl_listen_port")
+                continue;
+            }
+
+
+            const std::string auth_opt_ = "auth_opt_";
+            if (startsWith(key, auth_opt_))
+            {
+                key.replace(0, auth_opt_.length(), "");
+                authOpts[key] = value;
+            }
+            else
+            {
+                testKeyValidity(key, validKeys);
+
+                if (key == "auth_plugin")
                 {
-                    uint sslListenPortNew = std::stoi(value);
-                    if (sslListenPort > 0 && sslListenPort != sslListenPortNew)
-                        throw ConfigFileException("Changing (ssl_)listen_port is not supported at this time.");
-                    sslListenPort = sslListenPortNew;
+                    checkFileAccess(key, value);
+                    tmpSettings->authPluginPath = value;
+                }
+
+                if (key == "log_file")
+                {
+                    checkFileAccess(key, value);
+                    tmpSettings->logPath = value;
+                }
+
+                if (key == "allow_unsafe_clientid_chars")
+                {
+                    bool tmp = stringTruthiness(value);
+                    tmpSettings->allowUnsafeClientidChars = tmp;
                 }
 
                 if (key == "client_initial_buffer_size")
@@ -239,8 +226,7 @@ void ConfigFileParser::loadFile(bool test)
                     int newVal = std::stoi(value);
                     if (!isPowerOfTwo(newVal))
                         throw ConfigFileException("client_initial_buffer_size value " + value + " is not a power of two.");
-                    if (!test)
-                        clientInitialBufferSize = newVal;
+                    tmpSettings->clientInitialBufferSize = newVal;
                 }
 
                 if (key == "max_packet_size")
@@ -252,29 +238,33 @@ void ConfigFileParser::loadFile(bool test)
                         oss << "Value for max_packet_size " << newVal << "is higher than absolute maximum " << ABSOLUTE_MAX_PACKET_SIZE;
                         throw ConfigFileException(oss.str());
                     }
-                    if (!test)
-                        maxPacketSize = newVal;
+                    tmpSettings->maxPacketSize = newVal;
                 }
-
             }
-            catch (std::invalid_argument &ex) // catch for the stoi()
-            {
-                throw ConfigFileException(ex.what());
-            }
+        }
+        catch (std::invalid_argument &ex) // catch for the stoi()
+        {
+            throw ConfigFileException(ex.what());
         }
     }
 
-    testSsl(sslFullChainTmp, sslPrivkeyTmp, sslListenPort);
-    this->sslFullchain = sslFullChainTmp;
-    this->sslPrivkey = sslPrivkeyTmp;
+    if (tmpSettings->listeners.empty())
+    {
+        std::shared_ptr<Listener> defaultListener(new Listener());
+        tmpSettings->listeners.push_back(defaultListener);
+    }
 
-    authOptCompatWrap.reset(new AuthOptCompatWrap(authOpts));
+    tmpSettings->authOptCompatWrap = AuthOptCompatWrap(authOpts);
+
+    if (!test)
+    {
+        this->settings = std::move(tmpSettings);
+    }
 }
 
-AuthOptCompatWrap &ConfigFileParser::getAuthOptsCompat()
+AuthOptCompatWrap &Settings::getAuthOptsCompat()
 {
-    return *authOptCompatWrap.get();
+    return authOptCompatWrap;
 }
-
 
 

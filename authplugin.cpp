@@ -17,8 +17,8 @@ void mosquitto_log_printf(int level, const char *fmt, ...)
 }
 
 
-AuthPlugin::AuthPlugin(ConfigFileParser &confFileParser) :
-    confFileParser(confFileParser)
+AuthPlugin::AuthPlugin(Settings &settings) :
+    settings(settings)
 {
     logger = Logger::getInstance();
 }
@@ -89,7 +89,7 @@ void AuthPlugin::init()
     if (!wanted)
         return;
 
-    AuthOptCompatWrap &authOpts = confFileParser.getAuthOptsCompat();
+    AuthOptCompatWrap &authOpts = settings.getAuthOptsCompat();
     int result = init_v2(&pluginData, authOpts.head(), authOpts.size());
     if (result != 0)
         throw FatalError("Error initialising auth plugin.");
@@ -102,7 +102,7 @@ void AuthPlugin::cleanup()
 
     securityCleanup(false);
 
-    AuthOptCompatWrap &authOpts = confFileParser.getAuthOptsCompat();
+    AuthOptCompatWrap &authOpts = settings.getAuthOptsCompat();
     int result = cleanup_v2(pluginData, authOpts.head(), authOpts.size());
     if (result != 0)
         logger->logf(LOG_ERR, "Error cleaning up auth plugin"); // Not doing exception, because we're shutting down anyway.
@@ -113,7 +113,7 @@ void AuthPlugin::securityInit(bool reloading)
     if (!wanted)
         return;
 
-    AuthOptCompatWrap &authOpts = confFileParser.getAuthOptsCompat();
+    AuthOptCompatWrap &authOpts = settings.getAuthOptsCompat();
     int result = security_init_v2(pluginData, authOpts.head(), authOpts.size(), reloading);
     if (result != 0)
     {
@@ -128,7 +128,7 @@ void AuthPlugin::securityCleanup(bool reloading)
         return;
 
     initialized = false;
-    AuthOptCompatWrap &authOpts = confFileParser.getAuthOptsCompat();
+    AuthOptCompatWrap &authOpts = settings.getAuthOptsCompat();
     int result = security_cleanup_v2(pluginData, authOpts.head(), authOpts.size(), reloading);
 
     if (result != 0)

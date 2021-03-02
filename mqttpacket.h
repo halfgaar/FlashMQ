@@ -15,7 +15,6 @@
 #include "cirbuf.h"
 #include "logger.h"
 #include "mainapp.h"
-#include "globalsettings.h"
 
 struct RemainingLength
 {

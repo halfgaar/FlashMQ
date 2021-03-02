@@ -20,7 +20,6 @@
 #include "configfileparser.h"
 #include "authplugin.h"
 #include "logger.h"
-#include "globalsettings.h"
 
 typedef void (*thread_f)(ThreadData *);
 
@@ -29,14 +28,14 @@ class ThreadData
     std::unordered_map<int, Client_p> clients_by_fd;
     std::mutex clients_by_fd_mutex;
     std::shared_ptr<SubscriptionStore> subscriptionStore;
-    ConfigFileParser &confFileParser;
     Logger *logger;
 
-    void reload(GlobalSettings settings);
+    void reload(std::shared_ptr<Settings> settings);
     void wakeUpThread();
     void doKeepAliveCheck();
 
 public:
+    Settings settingsLocalCopy; // Is updated on reload, within the thread loop.
     AuthPlugin authPlugin;
     bool running = true;
     std::thread thread;
@@ -45,9 +44,8 @@ public:
     int taskEventFd = 0;
     std::mutex taskQueueMutex;
     std::forward_list<std::function<void()>> taskQueue;
-    GlobalSettings settingsLocalCopy; // Is updated on reload, within the thread loop.
 
-    ThreadData(int threadnr, std::shared_ptr<SubscriptionStore> &subscriptionStore, ConfigFileParser &confFileParser, const GlobalSettings &settings);
+    ThreadData(int threadnr, std::shared_ptr<SubscriptionStore> &subscriptionStore, std::shared_ptr<Settings> settings);
     ThreadData(const ThreadData &other) = delete;
     ThreadData(ThreadData &&other) = delete;
 
@@ -60,7 +58,7 @@ public:
     std::shared_ptr<SubscriptionStore> &getSubscriptionStore();
 
     void initAuthPlugin();
-    void queueReload(GlobalSettings settings);
+    void queueReload(std::shared_ptr<Settings> settings);
     void queueDoKeepAliveCheck();
 
 };

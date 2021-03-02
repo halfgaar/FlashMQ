@@ -70,7 +70,7 @@ class Client
     void setReadyForReading(bool val);
 
 public:
-    Client(int fd, ThreadData_p threadData, SSL *ssl, bool websocket, const GlobalSettings &settings);
+    Client(int fd, ThreadData_p threadData, SSL *ssl, bool websocket, std::shared_ptr<Settings> settings);
     Client(const Client &other) = delete;
     Client(Client &&other) = delete;
     ~Client();

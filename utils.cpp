@@ -3,10 +3,15 @@
 #include "sys/time.h"
 #include "sys/random.h"
 #include <algorithm>
-#include <sstream>
+#include <cstdio>
+
+#include "openssl/ssl.h"
+#include "openssl/err.h"
 
 #include "exceptions.h"
 #include "cirbuf.h"
+#include "sslctxmanager.h"
+#include "logger.h"
 
 std::list<std::__cxx11::string> split(const std::string &input, const char sep, size_t max, bool keep_empty_parts)
 {
@@ -345,4 +350,48 @@ std::string generateWebsocketAnswer(const std::string &acceptString)
     oss << "\r\n";
     oss.flush();
     return oss.str();
+}
+
+// Using a separate ssl context to test, because it's the easiest way to load certs and key atomitcally.
+void testSsl(const std::string &fullchain, const std::string &privkey)
+{
+    if (fullchain.empty() && privkey.empty())
+        throw ConfigFileException("No privkey and fullchain specified.");
+
+    if (fullchain.empty())
+        throw ConfigFileException("No private key specified for fullchain");
+
+    if (privkey.empty())
+        throw ConfigFileException("No fullchain specified for private key");
+
+    SslCtxManager sslCtx;
+    if (SSL_CTX_use_certificate_file(sslCtx.get(), fullchain.c_str(), SSL_FILETYPE_PEM) != 1)
+    {
+        ERR_print_errors_cb(logSslError, NULL);
+        throw ConfigFileException("Error loading full chain " + fullchain);
+    }
+    if (SSL_CTX_use_PrivateKey_file(sslCtx.get(), privkey.c_str(), SSL_FILETYPE_PEM) != 1)
+    {
+        ERR_print_errors_cb(logSslError, NULL);
+        throw ConfigFileException("Error loading private key " + privkey);
+    }
+    if (SSL_CTX_check_private_key(sslCtx.get()) != 1)
+    {
+        ERR_print_errors_cb(logSslError, NULL);
+        throw ConfigFileException("Private key and certificate don't match.");
+    }
+}
+
+std::string formatString(const std::string str, ...)
+{
+    char buf[512];
+
+    va_list valist;
+    va_start(valist, str);
+    vsnprintf(buf, 512, str.c_str(), valist);
+    va_end(valist);
+
+    std::string result(buf, 512);
+
+    return result;
 }

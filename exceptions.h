@@ -3,6 +3,7 @@
 
 #include <exception>
 #include <stdexcept>
+#include <sstream>
 
 class ProtocolError : public std::runtime_error
 {
@@ -26,6 +27,7 @@ class ConfigFileException : public std::runtime_error
 {
 public:
     ConfigFileException(const std::string &msg) : std::runtime_error(msg) {}
+    ConfigFileException(std::ostringstream oss) : std::runtime_error(oss.str()) {}
 };
 
 class AuthPluginException : public std::runtime_error

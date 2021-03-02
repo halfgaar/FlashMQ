@@ -20,7 +20,6 @@
 #include "subscriptionstore.h"
 #include "configfileparser.h"
 #include "timer.h"
-#include "globalsettings.h"
 
 class MainApp
 {
@@ -37,11 +36,9 @@ class MainApp
     int taskEventFd = -1;
     std::mutex eventMutex;
     Timer timer;
-    GlobalSettings settings;
-
-    uint listenPort = 0;
-    uint sslListenPort = 0;
-    SSL_CTX *sslctx = nullptr;
+    std::shared_ptr<Settings> settings;
+    std::list<std::shared_ptr<Listener>> listeners;
+    std::mutex quitMutex;
 
     Logger *logger = Logger::getInstance();
 
@@ -49,8 +46,7 @@ class MainApp
     void reloadConfig();
     static void doHelp(const char *arg);
     static void showLicense();
-    void setCertAndKeyFromConfig();
-    int createListenSocket(int portNr, bool ssl);
+    int createListenSocket(const std::shared_ptr<Listener> &listener);
     void wakeUpThread();
     void queueKeepAliveCheckAtAllThreads();
 
@@ -66,7 +62,6 @@ public:
     bool getStarted() const {return started;}
     static void testConfig();
 
-    GlobalSettings &getGlobalSettings();
     void queueConfigReload();
     void queueCleanup();
 };

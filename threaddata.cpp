@@ -2,12 +2,11 @@
 #include <string>
 #include <sstream>
 
-ThreadData::ThreadData(int threadnr, std::shared_ptr<SubscriptionStore> &subscriptionStore, ConfigFileParser &confFileParser, const GlobalSettings &settings) :
+ThreadData::ThreadData(int threadnr, std::shared_ptr<SubscriptionStore> &subscriptionStore, std::shared_ptr<Settings> settings) :
     subscriptionStore(subscriptionStore),
-    confFileParser(confFileParser),
-    authPlugin(confFileParser),
-    threadnr(threadnr),
-    settingsLocalCopy(settings)
+    settingsLocalCopy(*settings.get()),
+    authPlugin(settingsLocalCopy),
+    threadnr(threadnr)
 {
     logger = Logger::getInstance();
 
@@ -146,18 +145,19 @@ void ThreadData::doKeepAliveCheck()
 
 void ThreadData::initAuthPlugin()
 {
-    authPlugin.loadPlugin(confFileParser.authPluginPath);
+    authPlugin.loadPlugin(settingsLocalCopy.authPluginPath);
     authPlugin.init();
     authPlugin.securityInit(false);
 }
 
-void ThreadData::reload(GlobalSettings settings)
+void ThreadData::reload(std::shared_ptr<Settings> settings)
 {
     logger->logf(LOG_DEBUG, "Doing reload in thread %d", threadnr);
 
     try
     {
-        settingsLocalCopy = settings;
+        // Because the auth plugin has a reference to it, it will also be updated.
+        settingsLocalCopy = *settings.get();
 
         authPlugin.securityCleanup(true);
         authPlugin.securityInit(true);
@@ -172,7 +172,7 @@ void ThreadData::reload(GlobalSettings settings)
     }
 }
 
-void ThreadData::queueReload(GlobalSettings settings)
+void ThreadData::queueReload(std::shared_ptr<Settings> settings)
 {
     std::lock_guard<std::mutex> locker(taskQueueMutex);
 

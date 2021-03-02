@@ -11,6 +11,7 @@ public:
     ~SslCtxManager();
 
     SSL_CTX *get() const;
+    operator bool() const;
 };
 
 #endif // SSLCTXMANAGER_H

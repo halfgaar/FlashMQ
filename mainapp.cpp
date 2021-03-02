@@ -172,9 +172,6 @@ MainApp::MainApp(const std::string &configFilePath) :
 
 MainApp::~MainApp()
 {
-    if (sslctx)
-        SSL_CTX_free(sslctx);
-
     if (epollFdAccept > 0)
         close(epollFdAccept);
 }
@@ -202,54 +199,47 @@ void MainApp::showLicense()
     puts("Author: Wiebe Cazemier <wiebe@halfgaar.net>");
 }
 
-void MainApp::setCertAndKeyFromConfig()
+int MainApp::createListenSocket(const std::shared_ptr<Listener> &listener)
 {
-    if (sslctx == nullptr)
-        return;
-
-    if (SSL_CTX_use_certificate_file(sslctx, confFileParser->sslFullchain.c_str(), SSL_FILETYPE_PEM) != 1)
-        throw std::runtime_error("Loading cert failed. This was after test loading the certificate, so is very unexpected.");
-    if (SSL_CTX_use_PrivateKey_file(sslctx, confFileParser->sslPrivkey.c_str(), SSL_FILETYPE_PEM) != 1)
-        throw std::runtime_error("Loading key failed. This was after test loading the certificate, so is very unexpected.");
-}
-
-int MainApp::createListenSocket(int portNr, bool ssl)
-{
-    if (portNr <= 0)
+    if (listener->port <= 0)
         return -2;
 
-    int listen_fd = check<std::runtime_error>(socket(AF_INET, SOCK_STREAM, 0));
+    logger->logf(LOG_NOTICE, "Creating %s listener on port %d", listener->getProtocolName().c_str(), listener->port);
 
-    // Not needed for now. Maybe I will make multiple accept threads later, with SO_REUSEPORT.
-    int optval = 1;
-    check<std::runtime_error>(setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &optval, sizeof(optval)));
+    try
+    {
+        int listen_fd = check<std::runtime_error>(socket(AF_INET, SOCK_STREAM, 0));
 
-    int flags = fcntl(listen_fd, F_GETFL);
-    check<std::runtime_error>(fcntl(listen_fd, F_SETFL, flags | O_NONBLOCK ));
+        // Not needed for now. Maybe I will make multiple accept threads later, with SO_REUSEPORT.
+        int optval = 1;
+        check<std::runtime_error>(setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &optval, sizeof(optval)));
 
-    struct sockaddr_in in_addr_plain;
-    in_addr_plain.sin_family = AF_INET;
-    in_addr_plain.sin_addr.s_addr = INADDR_ANY;
-    in_addr_plain.sin_port = htons(portNr);
+        int flags = fcntl(listen_fd, F_GETFL);
+        check<std::runtime_error>(fcntl(listen_fd, F_SETFL, flags | O_NONBLOCK ));
 
-    check<std::runtime_error>(bind(listen_fd, (struct sockaddr *)(&in_addr_plain), sizeof(struct sockaddr_in)));
-    check<std::runtime_error>(listen(listen_fd, 1024));
+        struct sockaddr_in in_addr_plain;
+        in_addr_plain.sin_family = AF_INET;
+        in_addr_plain.sin_addr.s_addr = INADDR_ANY;
+        in_addr_plain.sin_port = htons(listener->port);
 
-    struct epoll_event ev;
-    memset(&ev, 0, sizeof (struct epoll_event));
+        check<std::runtime_error>(bind(listen_fd, (struct sockaddr *)(&in_addr_plain), sizeof(struct sockaddr_in)));
+        check<std::runtime_error>(listen(listen_fd, 1024));
 
-    ev.data.fd = listen_fd;
-    ev.events = EPOLLIN;
-    check<std::runtime_error>(epoll_ctl(this->epollFdAccept, EPOLL_CTL_ADD, listen_fd, &ev));
+        struct epoll_event ev;
+        memset(&ev, 0, sizeof (struct epoll_event));
 
-    std::string socketType = "plain";
+        ev.data.fd = listen_fd;
+        ev.events = EPOLLIN;
+        check<std::runtime_error>(epoll_ctl(this->epollFdAccept, EPOLL_CTL_ADD, listen_fd, &ev));
 
-    if (ssl)
-        socketType = "SSL";
-
-    logger->logf(LOG_NOTICE, "Listening on %s port %d", socketType.c_str(), portNr);
-
-    return listen_fd;
+        return listen_fd;
+    }
+    catch (std::exception &ex)
+    {
+        logger->logf(LOG_NOTICE, "Creating %s listener on port %d failed: %s", listener->getProtocolName().c_str(), listener->port, ex.what());
+        return -1;
+    }
+    return -1;
 }
 
 void MainApp::wakeUpThread()
@@ -349,9 +339,14 @@ void MainApp::start()
 {
     timer.start();
 
-    int listen_fd_plain = createListenSocket(this->listenPort, false);
-    int listen_fd_ssl = createListenSocket(this->sslListenPort, true);
-    int listen_fd_websocket_plain = createListenSocket(1443, true);
+    std::map<int, std::shared_ptr<Listener>> listenerMap;
+
+    for(std::shared_ptr<Listener> &listener : this->listeners)
+    {
+        int fd = createListenSocket(listener);
+        if (fd > 0)
+            listenerMap[fd] = listener;
+    }
 
 #ifdef NDEBUG
     logger->noLongerLogToStd();
@@ -365,7 +360,7 @@ void MainApp::start()
 
     for (int i = 0; i < num_threads; i++)
     {
-        std::shared_ptr<ThreadData> t(new ThreadData(i, subscriptionStore, *confFileParser.get(), settings));
+        std::shared_ptr<ThreadData> t(new ThreadData(i, subscriptionStore, settings));
         t->start(&do_thread_work);
         threads.push_back(t);
     }
@@ -392,22 +387,22 @@ void MainApp::start()
             int cur_fd = events[i].data.fd;
             try
             {
-                if (cur_fd == listen_fd_plain || cur_fd == listen_fd_ssl || listen_fd_websocket_plain)
+                if (cur_fd != taskEventFd)
                 {
+                    std::shared_ptr<Listener> listener = listenerMap[cur_fd];
                     std::shared_ptr<ThreadData> thread_data = threads[next_thread_index++ % num_threads];
 
-                    logger->logf(LOG_INFO, "Accepting connection on thread %d", thread_data->threadnr);
+                    logger->logf(LOG_INFO, "Accepting connection on thread %d on %s", thread_data->threadnr, listener->getProtocolName().c_str());
 
                     struct sockaddr addr;
                     memset(&addr, 0, sizeof(struct sockaddr));
                     socklen_t len = sizeof(struct sockaddr);
                     int fd = check<std::runtime_error>(accept(cur_fd, &addr, &len));
 
-                    bool websocket = cur_fd == listen_fd_websocket_plain;
                     SSL *clientSSL = nullptr;
-                    if (cur_fd == listen_fd_ssl)
+                    if (listener->isSsl())
                     {
-                        clientSSL = SSL_new(sslctx);
+                        clientSSL = SSL_new(listener->sslctx->get());
 
                         if (clientSSL == NULL)
                         {
@@ -419,10 +414,10 @@ void MainApp::start()
                         SSL_set_fd(clientSSL, fd);
                     }
 
-                    Client_p client(new Client(fd, thread_data, clientSSL, websocket, settings));
+                    Client_p client(new Client(fd, thread_data, clientSSL, listener->websocket, settings));
                     thread_data->giveClient(client);
                 }
-                else if (cur_fd == taskEventFd)
+                else
                 {
                     uint64_t eventfd_value = 0;
                     check<std::runtime_error>(read(cur_fd, &eventfd_value, sizeof(uint64_t)));
@@ -433,10 +428,6 @@ void MainApp::start()
                         f();
                     }
                     taskQueue.clear();
-                }
-                else
-                {
-                    throw std::runtime_error("Bug: the main thread had activity on an fd it's not supposed to monitor.");
                 }
             }
             catch (std::exception &ex)
@@ -452,12 +443,18 @@ void MainApp::start()
         thread->quit();
     }
 
-    close(listen_fd_plain);
-    close(listen_fd_ssl);
+    for(auto pair : listenerMap)
+    {
+        close(pair.first);
+    }
 }
 
 void MainApp::quit()
 {
+    std::lock_guard<std::mutex> guard(quitMutex);
+    if (!running)
+        return;
+
     Logger *logger = Logger::getInstance();
     logger->logf(LOG_NOTICE, "Quitting FlashMQ");
     timer.stop();
@@ -472,25 +469,20 @@ void MainApp::loadConfig()
     // Atomic loading, first test.
     confFileParser->loadFile(true);
     confFileParser->loadFile(false);
+    settings = std::move(confFileParser->settings);
 
-    logger->setLogPath(confFileParser->logPath);
+    // For now, it's too much work to be able to reload new listeners, with all the shared resource stuff going on. So, I'm
+    // loading them to a local var which is never updated.
+    if (listeners.empty())
+        listeners = settings->listeners;
+
+    logger->setLogPath(settings->logPath);
     logger->reOpen();
 
-    listenPort = confFileParser->listenPort;
-    sslListenPort = confFileParser->sslListenPort;
-
-    if (sslctx == nullptr && sslListenPort > 0)
+    for (std::shared_ptr<Listener> &l : this->listeners)
     {
-        sslctx = SSL_CTX_new(TLS_server_method());
-        SSL_CTX_set_options(sslctx, SSL_OP_NO_SSLv3); // TODO: config option
-        SSL_CTX_set_options(sslctx, SSL_OP_NO_TLSv1); // TODO: config option
+        l->loadCertAndKeyFromConfig();
     }
-
-    settings.allow_unsafe_clientid_chars = confFileParser->allowUnsafeClientidChars;
-    settings.clientInitialBufferSize = confFileParser->clientInitialBufferSize;
-    settings.maxPacketSize = confFileParser->maxPacketSize;
-
-    setCertAndKeyFromConfig();
 
     for (std::shared_ptr<ThreadData> &thread : threads)
     {

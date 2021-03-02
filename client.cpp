@@ -7,10 +7,10 @@
 
 #include "logger.h"
 
-Client::Client(int fd, ThreadData_p threadData, SSL *ssl, bool websocket, const GlobalSettings &settings) :
+Client::Client(int fd, ThreadData_p threadData, SSL *ssl, bool websocket, std::shared_ptr<Settings> settings) :
     fd(fd),
-    initialBufferSize(settings.clientInitialBufferSize), // The client is constructed in the main thread, so we need to use its settings copy
-    maxPacketSize(settings.maxPacketSize), // Same as initialBufferSize comment.
+    initialBufferSize(settings->clientInitialBufferSize), // The client is constructed in the main thread, so we need to use its settings copy
+    maxPacketSize(settings->maxPacketSize), // Same as initialBufferSize comment.
     ioWrapper(ssl, websocket, initialBufferSize, this),
     readbuf(initialBufferSize),
     writebuf(initialBufferSize),

@@ -16,3 +16,8 @@ SSL_CTX *SslCtxManager::get() const
 {
     return ssl_ctx;
 }
+
+SslCtxManager::operator bool() const
+{
+    return ssl_ctx == nullptr;
+}

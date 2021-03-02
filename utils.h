@@ -55,4 +55,8 @@ std::string generateInvalidWebsocketVersionHttpHeaders(const int wantedVersion);
 std::string generateBadHttpRequestReponse(const std::string &msg);
 std::string generateWebsocketAnswer(const std::string &acceptString);
 
+void testSsl(const std::string &fullchain, const std::string &privkey);
+
+std::string formatString(const std::string str, ...);
+
 #endif // UTILS_H

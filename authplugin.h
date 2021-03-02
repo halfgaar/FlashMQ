@@ -51,7 +51,7 @@ class AuthPlugin
     F_auth_plugin_unpwd_check_v2 unpwd_check_v2 = nullptr;
     F_auth_plugin_psk_key_get_v2 psk_key_get_v2 = nullptr;
 
-    ConfigFileParser &confFileParser;
+    Settings &settings; // A ref because I want it to always be the same as the thread's settings
 
     void *pluginData = nullptr;
     Logger *logger = nullptr;
@@ -60,7 +60,7 @@ class AuthPlugin
 
     void *loadSymbol(void *handle, const char *symbol) const;
 public:
-    AuthPlugin(ConfigFileParser &confFileParser);
+    AuthPlugin(Settings &settings);
     AuthPlugin(const AuthPlugin &other) = delete;
     AuthPlugin(AuthPlugin &&other) = delete;
     ~AuthPlugin();

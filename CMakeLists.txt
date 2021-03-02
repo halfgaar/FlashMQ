@@ -28,8 +28,10 @@ add_executable(FlashMQ
     configfileparser.cpp
     sslctxmanager.cpp
     timer.cpp
-    globalsettings.cpp
     iowrapper.cpp
+    mosquittoauthoptcompatwrap.cpp
+    settings.cpp
+    listener.cpp
     )
 
 target_link_libraries(FlashMQ pthread dl ssl crypto)
