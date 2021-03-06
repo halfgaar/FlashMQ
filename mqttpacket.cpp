@@ -232,9 +232,9 @@ void MqttPacket::handleConnect()
         bool validClientId = true;
 
         // Check for wildcard chars in case the client_id ever appears in topics.
-        if (!settings.allowUnsafeClientidChars && (strContains(client_id, "+") || strContains(client_id, "#")))
+        if (!settings.allowUnsafeClientidChars && containsDangerousCharacters(client_id))
         {
-            logger->logf(LOG_ERR, "ClientID '%s' has + or # in the id and 'allow_unsafe_clientid_chars' is false:", client_id.c_str());
+            logger->logf(LOG_ERR, "ClientID '%s' has + or # in the id and 'allow_unsafe_clientid_chars' is false.", client_id.c_str());
             validClientId = false;
         }
         else if (!clean_session && client_id.empty())
@@ -266,7 +266,21 @@ void MqttPacket::handleConnect()
         sender->setClientProperties(protocolVersion, client_id, username, true, keep_alive, clean_session);
         sender->setWill(will_topic, will_payload, will_retain, will_qos);
 
-        if (sender->getThreadData()->authPlugin.unPwdCheck(username, password) == AuthResult::success)
+        bool accessGranted = false;
+        std::string denyLogMsg;
+
+        if (!settings.allowUnsafeUsernameChars && containsDangerousCharacters(username))
+        {
+            denyLogMsg = formatString("Username '%s' has + or # in the id and 'allow_unsafe_username_chars' is false.", username.c_str());
+            sender->setDisconnectReason("Invalid username character");
+            accessGranted = false;
+        }
+        else if (sender->getThreadData()->authPlugin.unPwdCheck(username, password) == AuthResult::success)
+        {
+            accessGranted = true;
+        }
+
+        if (accessGranted)
         {
             bool sessionPresent = protocolVersion >= ProtocolVersion::Mqtt311 && !clean_session && subscriptionStore->sessionPresent(client_id);
             subscriptionStore->registerClientAndKickExistingOne(sender);
@@ -284,7 +298,10 @@ void MqttPacket::handleConnect()
             sender->setDisconnectReason("Access denied");
             sender->setReadyForDisconnect();
             sender->writeMqttPacket(response);
-            logger->logf(LOG_NOTICE, "User '%s' access denied", username.c_str());
+            if (!denyLogMsg.empty())
+                logger->logf(LOG_NOTICE, denyLogMsg.c_str());
+            else
+                logger->logf(LOG_NOTICE, "User '%s' access denied", username.c_str());
         }
     }
     else

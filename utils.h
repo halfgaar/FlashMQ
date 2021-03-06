@@ -34,6 +34,7 @@ bool isValidUtf8(const std::string &s);
 bool strContains(const std::string &s, const std::string &needle);
 
 bool isValidPublishPath(const std::string &s);
+bool containsDangerousCharacters(const std::string &s);
 
 void ltrim(std::string &s);
 void rtrim(std::string &s);

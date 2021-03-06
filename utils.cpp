@@ -137,6 +137,25 @@ bool isValidPublishPath(const std::string &s)
     return true;
 }
 
+bool containsDangerousCharacters(const std::string &s)
+{
+    if (s.empty())
+        return false;
+
+    for (const char c : s)
+    {
+        switch(c)
+        {
+        case '#':
+            return  true;
+        case '+':
+            return  true;
+        }
+    }
+
+    return false;
+}
+
 std::vector<std::string> splitToVector(const std::string &input, const char sep, size_t max, bool keep_empty_parts)
 {
     std::vector<std::string> list;

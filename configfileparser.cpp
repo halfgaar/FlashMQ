@@ -41,6 +41,7 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validKeys.insert("auth_plugin");
     validKeys.insert("log_file");
     validKeys.insert("allow_unsafe_clientid_chars");
+    validKeys.insert("allow_unsafe_username_chars");
     validKeys.insert("client_initial_buffer_size");
     validKeys.insert("max_packet_size");
 
@@ -219,6 +220,12 @@ void ConfigFileParser::loadFile(bool test)
                 {
                     bool tmp = stringTruthiness(value);
                     tmpSettings->allowUnsafeClientidChars = tmp;
+                }
+
+                if (key == "allow_unsafe_username_chars")
+                {
+                    bool tmp = stringTruthiness(value);
+                    tmpSettings->allowUnsafeUsernameChars = tmp;
                 }
 
                 if (key == "client_initial_buffer_size")
