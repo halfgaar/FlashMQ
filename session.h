@@ -24,7 +24,9 @@ struct QueuedQosPacket
 class Session
 {
     std::weak_ptr<Client> client;
+    ThreadData_p thread;
     std::string client_id;
+    std::string username;
     std::list<QueuedQosPacket> qosPacketQueue; // Using list because it's easiest to maintain order [MQTT-4.6.0-6]
     std::mutex qosQueueMutex;
     uint16_t nextPacketId = 0;

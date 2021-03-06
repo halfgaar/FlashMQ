@@ -27,43 +27,48 @@ void Session::assignActiveConnection(std::shared_ptr<Client> &client)
 {
     this->client = client;
     this->client_id = client->getClientId();
+    this->username = client->getUsername();
+    this->thread = client->getThreadData();
 }
 
 void Session::writePacket(const MqttPacket &packet, char max_qos)
 {
-    const char qos = std::min<char>(packet.getQos(), max_qos);
-
-    if (qos == 0)
+    if (thread->authPlugin.aclCheck(client_id, username, packet.getTopic(), AclAccess::read) == AuthResult::success)
     {
-        if (!clientDisconnected())
-        {
-            Client_p c = makeSharedClient();
-            c->writeMqttPacketAndBlameThisClient(packet);
-        }
-    }
-    else if (qos == 1)
-    {
-        std::shared_ptr<MqttPacket> copyPacket = packet.getCopy();
-        std::unique_lock<std::mutex> locker(qosQueueMutex);
-        if (qosPacketQueue.size() >= MAX_QOS_MSG_PENDING_PER_CLIENT || (qosQueueBytes >= MAX_QOS_BYTES_PENDING_PER_CLIENT && qosPacketQueue.size() > 0))
-        {
-            logger->logf(LOG_WARNING, "Dropping QoS message for client '%s', because its QoS buffers were full.", client_id.c_str());
-            return;
-        }
-        const uint16_t pid = nextPacketId++;
-        copyPacket->setPacketId(pid);
-        QueuedQosPacket p;
-        p.packet = copyPacket;
-        p.id = pid;
-        qosPacketQueue.push_back(p);
-        qosQueueBytes += copyPacket->getTotalMemoryFootprint();
-        locker.unlock();
+        const char qos = std::min<char>(packet.getQos(), max_qos);
 
-        if (!clientDisconnected())
+        if (qos == 0)
         {
-            Client_p c = makeSharedClient();
-            c->writeMqttPacketAndBlameThisClient(*copyPacket.get());
-            copyPacket->setDuplicate(); // Any dealings with this packet from here will be a duplicate.
+            if (!clientDisconnected())
+            {
+                Client_p c = makeSharedClient();
+                c->writeMqttPacketAndBlameThisClient(packet);
+            }
+        }
+        else if (qos == 1)
+        {
+            std::shared_ptr<MqttPacket> copyPacket = packet.getCopy();
+            std::unique_lock<std::mutex> locker(qosQueueMutex);
+            if (qosPacketQueue.size() >= MAX_QOS_MSG_PENDING_PER_CLIENT || (qosQueueBytes >= MAX_QOS_BYTES_PENDING_PER_CLIENT && qosPacketQueue.size() > 0))
+            {
+                logger->logf(LOG_WARNING, "Dropping QoS message for client '%s', because its QoS buffers were full.", client_id.c_str());
+                return;
+            }
+            const uint16_t pid = nextPacketId++;
+            copyPacket->setPacketId(pid);
+            QueuedQosPacket p;
+            p.packet = copyPacket;
+            p.id = pid;
+            qosPacketQueue.push_back(p);
+            qosQueueBytes += copyPacket->getTotalMemoryFootprint();
+            locker.unlock();
+
+            if (!clientDisconnected())
+            {
+                Client_p c = makeSharedClient();
+                c->writeMqttPacketAndBlameThisClient(*copyPacket.get());
+                copyPacket->setDuplicate(); // Any dealings with this packet from here will be a duplicate.
+            }
         }
     }
 }

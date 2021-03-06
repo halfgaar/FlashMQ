@@ -181,4 +181,18 @@ AuthResult AuthPlugin::unPwdCheck(const std::string &username, const std::string
     return r;
 }
 
+std::string AuthResultToString(AuthResult r)
+{
+    {
+        if (r == AuthResult::success)
+            return "success";
+        if (r == AuthResult::acl_denied)
+            return "ACL denied";
+        if (r == AuthResult::login_denied)
+            return "login Denied";
+        if (r == AuthResult::error)
+            return "error in check";
+    }
 
+    return "";
+}

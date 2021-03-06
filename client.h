@@ -93,6 +93,7 @@ public:
     bool hasConnectPacketSeen() { return connectPacketSeen; }
     ThreadData_p getThreadData() { return threadData; }
     std::string &getClientId() { return this->clientid; }
+    const std::string &getUsername() const { return this->username; }
     bool getCleanSession() { return cleanSession; }
     void assignSession(std::shared_ptr<Session> &session);
     std::shared_ptr<Session> getSession();

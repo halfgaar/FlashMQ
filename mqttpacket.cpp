@@ -73,17 +73,19 @@ MqttPacket::MqttPacket(const Publish &publish) :
         throw ProtocolError("Topic path too long.");
     }
 
+    this->topic = publish.topic;
+
     packetType = PacketType::PUBLISH;
     this->qos = publish.qos;
     first_byte = static_cast<char>(packetType) << 4;
     first_byte |= (publish.qos << 1);
     first_byte |= (static_cast<char>(publish.retain) & 0b00000001);
 
-    char topicLenMSB = (publish.topic.length() & 0xFF00) >> 8;
-    char topicLenLSB = publish.topic.length() & 0x00FF;
+    char topicLenMSB = (topic.length() & 0xFF00) >> 8;
+    char topicLenLSB = topic.length() & 0x00FF;
     writeByte(topicLenMSB);
     writeByte(topicLenLSB);
-    writeBytes(publish.topic.c_str(), publish.topic.length());
+    writeBytes(topic.c_str(), topic.length());
 
     if (publish.qos)
     {
@@ -357,7 +359,7 @@ void MqttPacket::handlePublish()
     if (qos == 0 && dup)
         throw ProtocolError("Duplicate flag is set for QoS 0 packet. This is illegal.");
 
-    std::string topic(readBytes(variable_header_length), variable_header_length);
+    topic = std::string(readBytes(variable_header_length), variable_header_length);
 
     if (!isValidUtf8(topic))
     {
@@ -388,20 +390,23 @@ void MqttPacket::handlePublish()
         sender->writeMqttPacket(response);
     }
 
-    if (retain)
+    if (sender->getThreadData()->authPlugin.aclCheck(sender->getClientId(), sender->getUsername(), topic, AclAccess::write) == AuthResult::success)
     {
-        size_t payload_length = remainingAfterPos();
-        std::string payload(readBytes(payload_length), payload_length);
+        if (retain)
+        {
+            size_t payload_length = remainingAfterPos();
+            std::string payload(readBytes(payload_length), payload_length);
 
-        sender->getThreadData()->getSubscriptionStore()->setRetainedMessage(topic, payload, qos);
+            sender->getThreadData()->getSubscriptionStore()->setRetainedMessage(topic, payload, qos);
+        }
+
+        // Set dup flag to 0, because that must not be propagated [MQTT-3.3.1-3].
+        // Existing subscribers don't get retain=1. [MQTT-3.3.1-9]
+        bites[0] &= 0b11110110;
+
+        // For the existing clients, we can just write the same packet back out, with our small alterations.
+        sender->getThreadData()->getSubscriptionStore()->queuePacketAtSubscribers(topic, *this);
     }
-
-    // Set dup flag to 0, because that must not be propagated [MQTT-3.3.1-3].
-    // Existing subscribers don't get retain=1. [MQTT-3.3.1-9]
-    bites[0] &= 0b11110110;
-
-    // For the existing clients, we can just write the same packet back out, with our small alterations.
-    sender->getThreadData()->getSubscriptionStore()->queuePacketAtSubscribers(topic, *this);
 }
 
 void MqttPacket::handlePubAck()
@@ -483,6 +488,11 @@ size_t MqttPacket::getSizeIncludingNonPresentHeader() const
     }
 
     return total;
+}
+
+const std::string &MqttPacket::getTopic() const
+{
+    return this->topic;
 }
 
 

@@ -26,6 +26,7 @@ public:
 
 class MqttPacket
 {
+    std::string topic;
     std::vector<char> bites;
     size_t fixed_header_length = 0; // if 0, this packet does not contain the bytes of the fixed header.
     RemainingLength remainingLength;
@@ -72,6 +73,7 @@ public:
     size_t getSizeIncludingNonPresentHeader() const;
     const std::vector<char> &getBites() const { return bites; }
     char getQos() const { return qos; }
+    const std::string &getTopic() const;
     Client_p getSender() const;
     void setSender(const Client_p &value);
     bool containsFixedHeader() const;

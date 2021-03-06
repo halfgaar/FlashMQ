@@ -40,6 +40,9 @@ extern "C"
     void mosquitto_log_printf(int level, const char *fmt, ...);
 }
 
+std::string AuthResultToString(AuthResult r);
+
+
 class AuthPlugin
 {
     F_auth_plugin_version version = nullptr;
