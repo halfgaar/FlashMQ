@@ -354,6 +354,9 @@ void MqttPacket::handlePublish()
         throw ProtocolError("QoS 3 is a protocol violation.");
     this->qos = qos;
 
+    if (qos == 0 && dup)
+        throw ProtocolError("Duplicate flag is set for QoS 0 packet. This is illegal.");
+
     std::string topic(readBytes(variable_header_length), variable_header_length);
 
     if (!isValidUtf8(topic))
