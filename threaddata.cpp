@@ -52,7 +52,6 @@ void ThreadData::start(thread_f f)
 void ThreadData::quit()
 {
     running = false;
-    thread.join();
 }
 
 void ThreadData::giveClient(Client_p client)
@@ -107,6 +106,23 @@ void ThreadData::queueDoKeepAliveCheck()
     taskQueue.push_front(f);
 
     wakeUpThread();
+}
+
+void ThreadData::queueQuit()
+{
+    std::lock_guard<std::mutex> locker(taskQueueMutex);
+
+    auto f = std::bind(&ThreadData::quit, this);
+    taskQueue.push_front(f);
+
+    authPlugin.setQuitting();
+
+    wakeUpThread();
+}
+
+void ThreadData::waitForQuit()
+{
+    thread.join();
 }
 
 // TODO: profile how fast hash iteration is. Perhaps having a second list/vector is beneficial?

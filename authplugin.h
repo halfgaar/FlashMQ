@@ -63,6 +63,7 @@ class AuthPlugin
     Logger *logger = nullptr;
     bool initialized = false;
     bool wanted = false;
+    bool quitting = false;
 
     void *loadSymbol(void *handle, const char *symbol) const;
 public:
@@ -78,6 +79,8 @@ public:
     void securityCleanup(bool reloading);
     AuthResult aclCheck(const std::string &clientid, const std::string &username, const std::string &topic, AclAccess access);
     AuthResult unPwdCheck(const std::string &username, const std::string &password);
+
+    void setQuitting();
 
 };
 

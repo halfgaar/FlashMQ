@@ -440,7 +440,12 @@ void MainApp::start()
 
     for(std::shared_ptr<ThreadData> &thread : threads)
     {
-        thread->quit();
+        thread->queueQuit();
+    }
+
+    for(std::shared_ptr<ThreadData> &thread : threads)
+    {
+        thread->waitForQuit();
     }
 
     for(auto pair : listenerMap)

@@ -97,6 +97,9 @@ void AuthPlugin::init()
     if (settings.authPluginSerializeInit)
         lock.lock();
 
+    if (quitting)
+        return;
+
     AuthOptCompatWrap &authOpts = settings.getAuthOptsCompat();
     int result = init_v2(&pluginData, authOpts.head(), authOpts.size());
     if (result != 0)
@@ -124,6 +127,9 @@ void AuthPlugin::securityInit(bool reloading)
     UnscopedLock lock(initMutex);
     if (settings.authPluginSerializeInit)
         lock.lock();
+
+    if (quitting)
+        return;
 
     AuthOptCompatWrap &authOpts = settings.getAuthOptsCompat();
     int result = security_init_v2(pluginData, authOpts.head(), authOpts.size(), reloading);
@@ -199,6 +205,11 @@ AuthResult AuthPlugin::unPwdCheck(const std::string &username, const std::string
     }
 
     return r;
+}
+
+void AuthPlugin::setQuitting()
+{
+    this->quitting = true;
 }
 
 std::string AuthResultToString(AuthResult r)

@@ -33,6 +33,7 @@ class ThreadData
     void reload(std::shared_ptr<Settings> settings);
     void wakeUpThread();
     void doKeepAliveCheck();
+    void quit();
 
 public:
     Settings settingsLocalCopy; // Is updated on reload, within the thread loop.
@@ -50,7 +51,7 @@ public:
     ThreadData(ThreadData &&other) = delete;
 
     void start(thread_f f);
-    void quit();
+
     void giveClient(Client_p client);
     Client_p getClient(int fd);
     void removeClient(Client_p client);
@@ -60,6 +61,8 @@ public:
     void initAuthPlugin();
     void queueReload(std::shared_ptr<Settings> settings);
     void queueDoKeepAliveCheck();
+    void queueQuit();
+    void waitForQuit();
 
 };
 
