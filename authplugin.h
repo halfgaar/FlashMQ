@@ -54,6 +54,9 @@ class AuthPlugin
     F_auth_plugin_unpwd_check_v2 unpwd_check_v2 = nullptr;
     F_auth_plugin_psk_key_get_v2 psk_key_get_v2 = nullptr;
 
+    static std::mutex initMutex;
+    static std::mutex authChecksMutex;
+
     Settings &settings; // A ref because I want it to always be the same as the thread's settings
 
     void *pluginData = nullptr;

@@ -32,6 +32,7 @@ add_executable(FlashMQ
     mosquittoauthoptcompatwrap.cpp
     settings.cpp
     listener.cpp
+    unscopedlock.cpp
     )
 
 target_link_libraries(FlashMQ pthread dl ssl crypto)

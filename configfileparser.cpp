@@ -20,7 +20,7 @@ void ConfigFileParser::testKeyValidity(const std::string &key, const std::set<st
     if (valid_key_it == validKeys.end())
     {
         std::ostringstream oss;
-        oss << "Config key '" << key << "' is not valid here.";
+        oss << "Config key '" << key << "' is not valid (here).";
         throw ConfigFileException(oss.str());
     }
 }
@@ -42,6 +42,8 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validKeys.insert("log_file");
     validKeys.insert("allow_unsafe_clientid_chars");
     validKeys.insert("allow_unsafe_username_chars");
+    validKeys.insert("auth_plugin_serialize_init");
+    validKeys.insert("auth_plugin_serialize_auth_checks");
     validKeys.insert("client_initial_buffer_size");
     validKeys.insert("max_packet_size");
 
@@ -226,6 +228,18 @@ void ConfigFileParser::loadFile(bool test)
                 {
                     bool tmp = stringTruthiness(value);
                     tmpSettings->allowUnsafeUsernameChars = tmp;
+                }
+
+                if (key == "auth_plugin_serialize_init")
+                {
+                    bool tmp = stringTruthiness(value);
+                    tmpSettings->authPluginSerializeInit = tmp;
+                }
+
+                if (key == "auth_plugin_serialize_auth_checks")
+                {
+                    bool tmp = stringTruthiness(value);
+                    tmpSettings->authPluginSerializeAuthChecks = tmp;
                 }
 
                 if (key == "client_initial_buffer_size")

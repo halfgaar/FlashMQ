@@ -6,6 +6,10 @@
 #include <dlfcn.h>
 
 #include "exceptions.h"
+#include "unscopedlock.h"
+
+std::mutex AuthPlugin::initMutex;
+std::mutex AuthPlugin::authChecksMutex;
 
 void mosquitto_log_printf(int level, const char *fmt, ...)
 {
@@ -89,6 +93,10 @@ void AuthPlugin::init()
     if (!wanted)
         return;
 
+    UnscopedLock lock(initMutex);
+    if (settings.authPluginSerializeInit)
+        lock.lock();
+
     AuthOptCompatWrap &authOpts = settings.getAuthOptsCompat();
     int result = init_v2(&pluginData, authOpts.head(), authOpts.size());
     if (result != 0)
@@ -112,6 +120,10 @@ void AuthPlugin::securityInit(bool reloading)
 {
     if (!wanted)
         return;
+
+    UnscopedLock lock(initMutex);
+    if (settings.authPluginSerializeInit)
+        lock.lock();
 
     AuthOptCompatWrap &authOpts = settings.getAuthOptsCompat();
     int result = security_init_v2(pluginData, authOpts.head(), authOpts.size(), reloading);
@@ -148,6 +160,10 @@ AuthResult AuthPlugin::aclCheck(const std::string &clientid, const std::string &
         return AuthResult::error;
     }
 
+    UnscopedLock lock(authChecksMutex);
+    if (settings.authPluginSerializeAuthChecks)
+        lock.lock();
+
     int result = acl_check_v2(pluginData, clientid.c_str(), username.c_str(), topic.c_str(), static_cast<int>(access));
     AuthResult result_ = static_cast<AuthResult>(result);
 
@@ -169,6 +185,10 @@ AuthResult AuthPlugin::unPwdCheck(const std::string &username, const std::string
         logger->logf(LOG_ERR, "Username+password check wanted, but initialization failed. Can't perform check.");
         return AuthResult::error;
     }
+
+    UnscopedLock lock(authChecksMutex);
+    if (settings.authPluginSerializeAuthChecks)
+        lock.lock();
 
     int result = unpwd_check_v2(pluginData, username.c_str(), password.c_str());
     AuthResult r = static_cast<AuthResult>(result);
