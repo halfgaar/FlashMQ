@@ -25,13 +25,33 @@ void ConfigFileParser::testKeyValidity(const std::string &key, const std::set<st
     }
 }
 
-void ConfigFileParser::checkFileAccess(const std::string &key, const std::string &pathToCheck) const
+void ConfigFileParser::checkFileExistsAndReadable(const std::string &key, const std::string &pathToCheck) const
 {
     if (access(pathToCheck.c_str(), R_OK) != 0)
     {
         std::ostringstream oss;
         oss << "Error for '" << key << "': " << pathToCheck << " is not there or not readable";
         throw ConfigFileException(oss.str());
+    }
+}
+
+void ConfigFileParser::checkFileOrItsDirWritable(const std::string &filepath) const
+{
+    if (access(filepath.c_str(), F_OK) == 0)
+    {
+        if (access(filepath.c_str(), W_OK) != 0)
+        {
+            std::string msg = formatString("File '%s' is there, but not writable", filepath.c_str());
+            throw ConfigFileException(msg);
+        }
+        return;
+    }
+    std::string dirname = dirnameOf(filepath);
+
+    if (access(dirname.c_str(), W_OK) != 0)
+    {
+        std::string msg = formatString("File '%s' is not there and can't be created, because '%s' is also not writable", filepath.c_str(), dirname.c_str());
+        throw ConfigFileException(msg);
     }
 }
 
@@ -60,7 +80,7 @@ void ConfigFileParser::loadFile(bool test)
     if (path.empty())
         return;
 
-    checkFileAccess("application config file", path);
+    checkFileExistsAndReadable("application config file", path);
 
     std::ifstream infile(path, std::ios::in);
 
@@ -208,13 +228,13 @@ void ConfigFileParser::loadFile(bool test)
 
                 if (key == "auth_plugin")
                 {
-                    checkFileAccess(key, value);
+                    checkFileExistsAndReadable(key, value);
                     tmpSettings->authPluginPath = value;
                 }
 
                 if (key == "log_file")
                 {
-                    checkFileAccess(key, value);
+                    checkFileOrItsDirWritable(value);
                     tmpSettings->logPath = value;
                 }
 

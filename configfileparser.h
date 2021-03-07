@@ -27,7 +27,8 @@ class ConfigFileParser
     std::set<std::string> validListenKeys;
 
     void testKeyValidity(const std::string &key, const std::set<std::string> &validKeys) const;
-    void checkFileAccess(const std::string &key, const std::string &pathToCheck) const;
+    void checkFileExistsAndReadable(const std::string &key, const std::string &pathToCheck) const;
+    void checkFileOrItsDirWritable(const std::string &filepath) const;
 public:
     ConfigFileParser(const std::string &path);
     void loadFile(bool test);

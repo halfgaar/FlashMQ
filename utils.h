@@ -60,4 +60,7 @@ void testSsl(const std::string &fullchain, const std::string &privkey);
 
 std::string formatString(const std::string str, ...);
 
+std::string dirnameOf(const std::string& fname);
+
+
 #endif // UTILS_H
