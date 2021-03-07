@@ -476,6 +476,13 @@ void MainApp::loadConfig()
     confFileParser->loadFile(false);
     settings = std::move(confFileParser->settings);
 
+    if (settings->listeners.empty())
+    {
+        std::shared_ptr<Listener> defaultListener(new Listener());
+        defaultListener->isValid();
+        settings->listeners.push_back(defaultListener);
+    }
+
     // For now, it's too much work to be able to reload new listeners, with all the shared resource stuff going on. So, I'm
     // loading them to a local var which is never updated.
     if (listeners.empty())

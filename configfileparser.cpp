@@ -289,12 +289,6 @@ void ConfigFileParser::loadFile(bool test)
         }
     }
 
-    if (tmpSettings->listeners.empty())
-    {
-        std::shared_ptr<Listener> defaultListener(new Listener());
-        tmpSettings->listeners.push_back(defaultListener);
-    }
-
     tmpSettings->authOptCompatWrap = AuthOptCompatWrap(authOpts);
 
     if (!test)
