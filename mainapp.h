@@ -39,6 +39,7 @@ class MainApp
     std::shared_ptr<Settings> settings;
     std::list<std::shared_ptr<Listener>> listeners;
     std::mutex quitMutex;
+    std::string fuzzFilePath;
 
     Logger *logger = Logger::getInstance();
 
@@ -49,6 +50,7 @@ class MainApp
     int createListenSocket(const std::shared_ptr<Listener> &listener);
     void wakeUpThread();
     void queueKeepAliveCheckAtAllThreads();
+    void setFuzzFile(const std::string &fuzzFilePath);
 
     MainApp(const std::string &configFilePath);
 public:

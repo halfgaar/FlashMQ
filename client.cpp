@@ -7,8 +7,9 @@
 
 #include "logger.h"
 
-Client::Client(int fd, ThreadData_p threadData, SSL *ssl, bool websocket, std::shared_ptr<Settings> settings) :
+Client::Client(int fd, ThreadData_p threadData, SSL *ssl, bool websocket, std::shared_ptr<Settings> settings, bool fuzzMode) :
     fd(fd),
+    fuzzMode(fuzzMode),
     initialBufferSize(settings->clientInitialBufferSize), // The client is constructed in the main thread, so we need to use its settings copy
     maxPacketSize(settings->maxPacketSize), // Same as initialBufferSize comment.
     ioWrapper(ssl, websocket, initialBufferSize, this),
@@ -264,6 +265,11 @@ void Client::resetBuffersIfEligible()
 // Call this from a place you know the writeBufMutex is locked, or we're still only doing SSL accept.
 void Client::setReadyForWriting(bool val)
 {
+#ifndef NDEBUG
+    if (fuzzMode)
+        return;
+#endif
+
     if (disconnecting)
         return;
 
@@ -286,6 +292,11 @@ void Client::setReadyForWriting(bool val)
 
 void Client::setReadyForReading(bool val)
 {
+#ifndef NDEBUG
+    if (fuzzMode)
+        return;
+#endif
+
     if (disconnecting)
         return;
 

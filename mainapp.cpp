@@ -185,6 +185,9 @@ void MainApp::doHelp(const char *arg)
     puts(" -h, --help                           Print help");
     puts(" -c, --config-file <flashmq.conf>     Configuration file.");
     puts(" -t, --test-config                    Test configuration file.");
+#ifndef NDEBUG
+    puts(" -z, --fuzz-file <inputdata.dat>      For fuzzing, provides the bytes that would be sent by a client.");
+#endif
     puts(" -V, --version                        Show version");
     puts(" -l, --license                        Show license");
 }
@@ -256,6 +259,11 @@ void MainApp::queueKeepAliveCheckAtAllThreads()
     }
 }
 
+void MainApp::setFuzzFile(const std::string &fuzzFilePath)
+{
+    this->fuzzFilePath = fuzzFilePath;
+}
+
 void MainApp::initMainApp(int argc, char *argv[])
 {
     if (instance != nullptr)
@@ -266,17 +274,19 @@ void MainApp::initMainApp(int argc, char *argv[])
         {"help", no_argument, nullptr, 'h'},
         {"config-file", required_argument, nullptr, 'c'},
         {"test-config", no_argument, nullptr, 't'},
+        {"fuzz-file", required_argument, nullptr, 'z'},
         {"version", no_argument, nullptr, 'V'},
         {"license", no_argument, nullptr, 'l'},
         {nullptr, 0, nullptr, 0}
     };
 
     std::string configFile;
+    std::string fuzzFile;
 
     int option_index = 0;
     int opt;
     bool testConfig = false;
-    while((opt = getopt_long(argc, argv, "hc:Vlt", long_options, &option_index)) != -1)
+    while((opt = getopt_long(argc, argv, "hc:Vltz:", long_options, &option_index)) != -1)
     {
         switch(opt)
         {
@@ -289,6 +299,9 @@ void MainApp::initMainApp(int argc, char *argv[])
         case 'V':
             MainApp::showLicense();
             exit(0);
+        case 'z':
+            fuzzFile = optarg;
+            break;
         case 'h':
             MainApp::doHelp(argv[0]);
             exit(16);
@@ -325,6 +338,7 @@ void MainApp::initMainApp(int argc, char *argv[])
     }
 
     instance = new MainApp(configFile);
+    instance->setFuzzFile(fuzzFile);
 }
 
 
@@ -364,6 +378,37 @@ void MainApp::start()
         t->start(&do_thread_work);
         threads.push_back(t);
     }
+
+#ifndef NDEBUG
+    // I fuzzed using afl-fuzz. You need to compile it with their compiler.
+    if (!fuzzFilePath.empty())
+    {
+        int fd = open(fuzzFilePath.c_str(), O_RDONLY);
+
+        if (fd < 0)
+            return;
+
+        try
+        {
+            std::vector<MqttPacket> packetQueueIn;
+
+            Client_p client(new Client(fd, threads[0], nullptr, false, settings, true));
+            client->readFdIntoBuffer();
+            client->bufferToMqttPackets(packetQueueIn, client);
+
+            for (MqttPacket &packet : packetQueueIn)
+            {
+                packet.handle();
+            }
+        }
+        catch (ProtocolError &ex)
+        {
+            logger->logf(LOG_ERR, "Expected MqttPacket handling error: %s", ex.what());
+        }
+
+        running = false;
+    }
+#endif
 
     uint next_thread_index = 0;
 
