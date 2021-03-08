@@ -17,6 +17,7 @@ MqttPacket::MqttPacket(CirBuf &buf, size_t packet_len, size_t fixed_header_lengt
     fixed_header_length(fixed_header_length),
     sender(sender)
 {
+    assert(packet_len > 0);
     buf.read(bites.data(), packet_len);
 
     first_byte = bites[0];
@@ -116,6 +117,9 @@ MqttPacket::MqttPacket(const PubAck &pubAck) :
 
 void MqttPacket::handle()
 {
+    if (packetType == PacketType::Reserved)
+        throw ProtocolError("Packet type 0 specified, which is reserved and invalid.");
+
     if (packetType != PacketType::CONNECT)
     {
         if (!sender->getAuthenticated())

@@ -310,12 +310,15 @@ bool Client::bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn, Client_
         // Determine the packet length by decoding the variable length
         int remaining_length_i = 1; // index of 'remaining length' field is one after start.
         uint fixed_header_length = 1;
-        int multiplier = 1;
-        uint packet_length = 0;
+        size_t multiplier = 1;
+        size_t packet_length = 0;
         unsigned char encodedByte = 0;
         do
         {
             fixed_header_length++;
+
+            if (fixed_header_length > 5)
+                throw ProtocolError("Packet signifies more than 5 bytes in variable length header. Invalid.");
 
             // This happens when you only don't have all the bytes that specify the remaining length.
             if (fixed_header_length > readbuf.usedBytes())
@@ -333,6 +336,11 @@ bool Client::bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn, Client_
         if (!authenticated && packet_length >= 1024*1024)
         {
             throw ProtocolError("An unauthenticated client sends a packet of 1 MB or bigger? Probably it's just random bytes.");
+        }
+
+        if (packet_length > ABSOLUTE_MAX_PACKET_SIZE)
+        {
+            throw ProtocolError("A client sends a packet claiming to be bigger than the maximum MQTT allows.");
         }
 
         if (packet_length <= readbuf.usedBytes())
