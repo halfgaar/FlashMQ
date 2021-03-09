@@ -33,6 +33,8 @@ void Session::assignActiveConnection(std::shared_ptr<Client> &client)
 
 void Session::writePacket(const MqttPacket &packet, char max_qos)
 {
+    assert(max_qos <= 2);
+
     if (thread->authPlugin.aclCheck(client_id, username, packet.getTopic(), AclAccess::read) == AuthResult::success)
     {
         const char qos = std::min<char>(packet.getQos(), max_qos);

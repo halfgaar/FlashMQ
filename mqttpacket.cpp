@@ -334,7 +334,15 @@ void MqttPacket::handleSubscribe()
     {
         uint16_t topicLength = readTwoBytesToUInt16();
         std::string topic(readBytes(topicLength), topicLength);
+
+        if (topic.empty() || !isValidUtf8(topic))
+            throw ProtocolError("Subscribe topic not valid UTF-8.");
+
         char qos = readByte();
+
+        if (qos > 2)
+            throw ProtocolError("QoS is greater than 2, and/or reserved bytes in QoS field are not 0.");
+
         logger->logf(LOG_INFO, "Client '%s' subscribed to '%s'", sender->repr().c_str(), topic.c_str());
         sender->getThreadData()->getSubscriptionStore()->addSubscription(sender, topic, qos);
         subs_reponse_codes.push_back(qos);
