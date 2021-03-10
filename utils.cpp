@@ -280,6 +280,12 @@ bool parseHttpHeader(CirBuf &buf, std::string &websocket_key, int &websocket_ver
         }
 
         std::list<std::string> fields = split(line, ':', 1);
+
+        if (fields.size() != 2)
+        {
+            throw BadHttpRequest("This does not look like a HTTP request.");
+        }
+
         const std::vector<std::string> fields2(fields.begin(), fields.end());
         std::string name = str_tolower(fields2[0]);
         trim(name);
