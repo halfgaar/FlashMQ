@@ -1,0 +1,9 @@
+GET /mqtt HTTP/1.1
+Host: localhost:8080
+Upgrade: websocket
+Connection: Upgrade
+Origin: https://localhost:8080
+Sec-WebSocket-Key: t0gTTkLcTIeCWbst7pmP3A==
+Sec-Websocket-Version: 13
+Sec-Websocket-Protocol: mqtt
+

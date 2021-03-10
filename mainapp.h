@@ -40,6 +40,7 @@ class MainApp
     std::list<std::shared_ptr<Listener>> listeners;
     std::mutex quitMutex;
     std::string fuzzFilePath;
+    bool fuzzWebsockets = false;
 
     Logger *logger = Logger::getInstance();
 
@@ -51,6 +52,7 @@ class MainApp
     void wakeUpThread();
     void queueKeepAliveCheckAtAllThreads();
     void setFuzzFile(const std::string &fuzzFilePath);
+    void setFuzzWebsockets(bool val);
 
     MainApp(const std::string &configFilePath);
 public:
