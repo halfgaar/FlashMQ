@@ -10,6 +10,7 @@
 #include <vector>
 #include <functional>
 #include <forward_list>
+#include <list>
 
 #include "forward_declarations.h"
 
@@ -20,6 +21,7 @@
 #include "subscriptionstore.h"
 #include "configfileparser.h"
 #include "timer.h"
+#include "scopedsocket.h"
 
 class MainApp
 {
@@ -48,7 +50,7 @@ class MainApp
     void reloadConfig();
     static void doHelp(const char *arg);
     static void showLicense();
-    int createListenSocket(const std::shared_ptr<Listener> &listener);
+    std::list<ScopedSocket> createListenSocket(const std::shared_ptr<Listener> &listener);
     void wakeUpThread();
     void queueKeepAliveCheckAtAllThreads();
     void setFuzzFile(const std::string &fuzzFilePath);

@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <sys/sysinfo.h>
+#include <arpa/inet.h>
 
 #include <openssl/ssl.h>
 #include <openssl/err.h>
@@ -205,47 +206,59 @@ void MainApp::showLicense()
     puts("Author: Wiebe Cazemier <wiebe@halfgaar.net>");
 }
 
-int MainApp::createListenSocket(const std::shared_ptr<Listener> &listener)
+std::list<ScopedSocket> MainApp::createListenSocket(const std::shared_ptr<Listener> &listener)
 {
+    std::list<ScopedSocket> result;
+
     if (listener->port <= 0)
-        return -2;
+        return result;
 
-    logger->logf(LOG_NOTICE, "Creating %s listener on port %d", listener->getProtocolName().c_str(), listener->port);
-
-    try
+    for (ListenerProtocol p : std::list<ListenerProtocol>({ ListenerProtocol::IPv4, ListenerProtocol::IPv6}))
     {
-        int listen_fd = check<std::runtime_error>(socket(AF_INET, SOCK_STREAM, 0));
+        std::string pname = p == ListenerProtocol::IPv4 ? "IPv4" : "IPv6";
+        int family = p == ListenerProtocol::IPv4 ? AF_INET : AF_INET6;
 
-        // Not needed for now. Maybe I will make multiple accept threads later, with SO_REUSEPORT.
-        int optval = 1;
-        check<std::runtime_error>(setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &optval, sizeof(optval)));
+        if (!(listener->protocol == ListenerProtocol::IPv46 || listener->protocol == p))
+            continue;
 
-        int flags = fcntl(listen_fd, F_GETFL);
-        check<std::runtime_error>(fcntl(listen_fd, F_SETFL, flags | O_NONBLOCK ));
+        try
+        {
+            logger->logf(LOG_NOTICE, "Creating %s %s listener on [%s]:%d", pname.c_str(), listener->getProtocolName().c_str(),
+                         listener->getBindAddress(p).c_str(), listener->port);
 
-        struct sockaddr_in in_addr_plain;
-        in_addr_plain.sin_family = AF_INET;
-        in_addr_plain.sin_addr.s_addr = INADDR_ANY;
-        in_addr_plain.sin_port = htons(listener->port);
+            BindAddr bindAddr = getBindAddr(family, listener->getBindAddress(p), listener->port);
 
-        check<std::runtime_error>(bind(listen_fd, (struct sockaddr *)(&in_addr_plain), sizeof(struct sockaddr_in)));
-        check<std::runtime_error>(listen(listen_fd, 1024));
+            int listen_fd = check<std::runtime_error>(socket(family, SOCK_STREAM, 0));
 
-        struct epoll_event ev;
-        memset(&ev, 0, sizeof (struct epoll_event));
+            // Not needed for now. Maybe I will make multiple accept threads later, with SO_REUSEPORT.
+            int optval = 1;
+            check<std::runtime_error>(setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &optval, sizeof(optval)));
 
-        ev.data.fd = listen_fd;
-        ev.events = EPOLLIN;
-        check<std::runtime_error>(epoll_ctl(this->epollFdAccept, EPOLL_CTL_ADD, listen_fd, &ev));
+            int flags = fcntl(listen_fd, F_GETFL);
+            check<std::runtime_error>(fcntl(listen_fd, F_SETFL, flags | O_NONBLOCK ));
 
-        return listen_fd;
+            check<std::runtime_error>(bind(listen_fd, bindAddr.p.get(), bindAddr.len));
+            check<std::runtime_error>(listen(listen_fd, 1024));
+
+            struct epoll_event ev;
+            memset(&ev, 0, sizeof (struct epoll_event));
+
+            ev.data.fd = listen_fd;
+            ev.events = EPOLLIN;
+            check<std::runtime_error>(epoll_ctl(this->epollFdAccept, EPOLL_CTL_ADD, listen_fd, &ev));
+
+            result.push_back(ScopedSocket(listen_fd));
+
+        }
+        catch (std::exception &ex)
+        {
+            logger->logf(LOG_ERR, "Creating %s %s listener on [%s]:%d failed: %s", pname.c_str(), listener->getProtocolName().c_str(),
+                         listener->getBindAddress(p).c_str(), listener->port, ex.what());
+            return std::list<ScopedSocket>();
+        }
     }
-    catch (std::exception &ex)
-    {
-        logger->logf(LOG_NOTICE, "Creating %s listener on port %d failed: %s", listener->getProtocolName().c_str(), listener->port, ex.what());
-        return -1;
-    }
-    return -1;
+
+    return result;
 }
 
 void MainApp::wakeUpThread()
@@ -367,13 +380,19 @@ void MainApp::start()
 {
     timer.start();
 
-    std::map<int, std::shared_ptr<Listener>> listenerMap;
+    std::map<int, std::shared_ptr<Listener>> listenerMap; // For finding listeners by fd.
+    std::list<ScopedSocket> activeListenSockets; // For RAII/ownership
 
     for(std::shared_ptr<Listener> &listener : this->listeners)
     {
-        int fd = createListenSocket(listener);
-        if (fd > 0)
-            listenerMap[fd] = listener;
+        std::list<ScopedSocket> scopedSockets = createListenSocket(listener);
+
+        for (ScopedSocket &scopedSocket : scopedSockets)
+        {
+            if (scopedSocket.socket > 0)
+                listenerMap[scopedSocket.socket] = listener;
+            activeListenSockets.push_back(std::move(scopedSocket));
+        }
     }
 
 #ifdef NDEBUG
@@ -506,11 +525,6 @@ void MainApp::start()
     {
         thread->waitForQuit();
     }
-
-    for(auto pair : listenerMap)
-    {
-        close(pair.first);
-    }
 }
 
 void MainApp::quit()
@@ -596,3 +610,4 @@ void MainApp::queueCleanup()
 
     wakeUpThread();
 }
+

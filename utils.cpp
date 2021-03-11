@@ -427,3 +427,41 @@ std::string dirnameOf(const std::string& path)
      return (std::string::npos == pos) ? "" : path.substr(0, pos);
 }
 
+
+BindAddr getBindAddr(int family, const std::string &bindAddress,  int port)
+{
+    BindAddr result;
+
+    if (family == AF_INET)
+    {
+        struct sockaddr_in *in_addr_v4 = new sockaddr_in();
+        result.len = sizeof(struct sockaddr_in);
+        memset(in_addr_v4, 0, result.len);
+
+        if (bindAddress.empty())
+            in_addr_v4->sin_addr.s_addr = INADDR_ANY;
+        else
+            inet_pton(AF_INET, bindAddress.c_str(), &in_addr_v4->sin_addr);
+
+        in_addr_v4->sin_family = AF_INET;
+        in_addr_v4->sin_port = htons(port);
+        result.p.reset(reinterpret_cast<sockaddr*>(in_addr_v4));
+    }
+    if (family == AF_INET6)
+    {
+        struct sockaddr_in6 *in_addr_v6 = new sockaddr_in6();
+        result.len = sizeof(struct sockaddr_in6);
+        memset(in_addr_v6, 0, result.len);
+
+        if (bindAddress.empty())
+            in_addr_v6->sin6_addr = IN6ADDR_ANY_INIT;
+        else
+            inet_pton(AF_INET6, bindAddress.c_str(), &in_addr_v6->sin6_addr);
+
+        in_addr_v6->sin6_family = AF_INET6;
+        in_addr_v6->sin6_port = htons(port);
+        result.p.reset(reinterpret_cast<sockaddr*>(in_addr_v6));
+    }
+
+    return result;
+}

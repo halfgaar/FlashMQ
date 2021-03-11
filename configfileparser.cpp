@@ -71,6 +71,9 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validListenKeys.insert("protocol");
     validListenKeys.insert("fullchain");
     validListenKeys.insert("privkey");
+    validListenKeys.insert("inet_protocol");
+    validListenKeys.insert("inet4_bind_address");
+    validListenKeys.insert("inet6_bind_address");
 
     settings.reset(new Settings());
 }
@@ -93,7 +96,7 @@ void ConfigFileParser::loadFile(bool test)
 
     std::list<std::string> lines;
 
-    const std::regex key_value_regex("^([a-zA-Z0-9_\\-]+) +([a-zA-Z0-9_\\-/\\.]+)$");
+    const std::regex key_value_regex("^([a-zA-Z0-9_\\-]+) +([a-zA-Z0-9_\\-/\\.:]+)$");
     const std::regex block_regex_start("^([a-zA-Z0-9_\\-]+) *\\{$");
     const std::regex block_regex_end("^\\}$");
 
@@ -210,6 +213,25 @@ void ConfigFileParser::loadFile(bool test)
                 if (key == "privkey")
                 {
                     curListener->sslPrivkey = value;
+                }
+                if (key == "inet_protocol")
+                {
+                    if (value == "ip4")
+                        curListener->protocol = ListenerProtocol::IPv4;
+                    else if (value == "ip6")
+                        curListener->protocol = ListenerProtocol::IPv6;
+                    else if (value == "ip4_ip6")
+                        curListener->protocol = ListenerProtocol::IPv46;
+                    else
+                        throw ConfigFileException(formatString("Invalid inet protocol: %s", value.c_str()));
+                }
+                if (key == "inet4_bind_address")
+                {
+                    curListener->inet4BindAddress = value;
+                }
+                if (key == "inet6_bind_address")
+                {
+                    curListener->inet6BindAddress = value;
                 }
 
                 continue;

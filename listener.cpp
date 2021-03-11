@@ -76,3 +76,20 @@ void Listener::loadCertAndKeyFromConfig()
     if (SSL_CTX_use_PrivateKey_file(sslctx->get(), sslPrivkey.c_str(), SSL_FILETYPE_PEM) != 1)
         throw std::runtime_error("Loading key failed. This was after test loading the certificate, so is very unexpected.");
 }
+
+std::string Listener::getBindAddress(ListenerProtocol p)
+{
+    if (p == ListenerProtocol::IPv4)
+    {
+        if (inet4BindAddress.empty())
+            return "0.0.0.0";
+        return inet4BindAddress;
+    }
+    if (p == ListenerProtocol::IPv6)
+    {
+        if (inet6BindAddress.empty())
+            return "::";
+        return inet6BindAddress;
+    }
+    return "";
+}

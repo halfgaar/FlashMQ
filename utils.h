@@ -9,8 +9,11 @@
 #include <vector>
 #include <algorithm>
 #include <openssl/evp.h>
+#include <memory>
+#include <arpa/inet.h>
 
 #include "cirbuf.h"
+#include "bindaddr.h"
 
 template<typename T> int check(int rc)
 {
@@ -61,6 +64,8 @@ void testSsl(const std::string &fullchain, const std::string &privkey);
 std::string formatString(const std::string str, ...);
 
 std::string dirnameOf(const std::string& fname);
+
+BindAddr getBindAddr(int family, const std::string &bindAddress, int port);
 
 
 #endif // UTILS_H
