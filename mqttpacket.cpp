@@ -327,6 +327,11 @@ void MqttPacket::handleDisconnect()
 
 void MqttPacket::handleSubscribe()
 {
+    const char firstByteFirstNibble = (first_byte & 0x0F);
+
+    if (firstByteFirstNibble != 2)
+        throw ProtocolError("First LSB of first byte is wrong value for subscribe packet.");
+
     uint16_t packet_id = readTwoBytesToUInt16();
 
     std::list<char> subs_reponse_codes;
