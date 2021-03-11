@@ -54,3 +54,14 @@ size_t PubAck::getLengthWithoutFixedHeader() const
 {
     return 2;
 }
+
+UnsubAck::UnsubAck(uint16_t packet_id) :
+    packet_id(packet_id)
+{
+
+}
+
+size_t UnsubAck::getLengthWithoutFixedHeader() const
+{
+    return 2;
+}

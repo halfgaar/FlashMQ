@@ -30,6 +30,20 @@ void SubscriptionNode::addSubscriber(const std::shared_ptr<Session> &subscriber,
     }
 }
 
+void SubscriptionNode::removeSubscriber(const std::shared_ptr<Session> &subscriber)
+{
+    Subscription sub;
+    sub.session = subscriber;
+    sub.qos = 0;
+
+    auto it = std::find(subscribers.begin(), subscribers.end(), sub);
+
+    if (it != subscribers.end())
+    {
+        subscribers.erase(it);
+    }
+}
+
 
 SubscriptionStore::SubscriptionStore() :
     root(new SubscriptionNode("root")),
@@ -76,6 +90,52 @@ void SubscriptionStore::addSubscription(Client_p &client, const std::string &top
             const std::shared_ptr<Session> &ses = session_it->second;
             deepestNode->addSubscriber(ses, qos);
             giveClientRetainedMessages(ses, topic, qos);
+        }
+    }
+
+    lock_guard.unlock();
+
+
+}
+
+void SubscriptionStore::removeSubscription(Client_p &client, const std::string &topic)
+{
+    const std::list<std::string> subtopics = split(topic, '/');
+
+    RWLockGuard lock_guard(&subscriptionsRwlock);
+    lock_guard.wrlock();
+
+    // TODO: because it's so similar to adding a subscription, make a function to retrieve the deepest node?
+    SubscriptionNode *deepestNode = root.get();
+    for(const std::string &subtopic : subtopics)
+    {
+        std::unique_ptr<SubscriptionNode> *selectedChildren = nullptr;
+
+        if (subtopic == "#")
+            selectedChildren = &deepestNode->childrenPound;
+        else if (subtopic == "+")
+            selectedChildren = &deepestNode->childrenPlus;
+        else
+            selectedChildren = &deepestNode->children[subtopic];
+
+        std::unique_ptr<SubscriptionNode> &node = *selectedChildren;
+
+        if (!node)
+        {
+            return;
+        }
+        deepestNode = node.get();
+    }
+
+    assert(deepestNode);
+
+    if (deepestNode)
+    {
+        auto session_it = sessionsByIdConst.find(client->getClientId());
+        if (session_it != sessionsByIdConst.end())
+        {
+            const std::shared_ptr<Session> &ses = session_it->second;
+            deepestNode->removeSubscriber(ses);
         }
     }
 

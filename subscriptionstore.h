@@ -42,6 +42,7 @@ public:
 
     std::vector<Subscription> &getSubscribers();
     void addSubscriber(const std::shared_ptr<Session> &subscriber, char qos);
+    void removeSubscriber(const std::shared_ptr<Session> &subscriber);
     std::unordered_map<std::string, std::unique_ptr<SubscriptionNode>> children;
     std::unique_ptr<SubscriptionNode> childrenPlus;
     std::unique_ptr<SubscriptionNode> childrenPound;
@@ -69,6 +70,7 @@ public:
     SubscriptionStore();
 
     void addSubscription(Client_p &client, const std::string &topic, char qos);
+    void removeSubscription(Client_p &client, const std::string &topic);
     void registerClientAndKickExistingOne(Client_p &client);
     bool sessionPresent(const std::string &clientid);
 

@@ -66,6 +66,16 @@ MqttPacket::MqttPacket(const SubAck &subAck) :
     calculateRemainingLength();
 }
 
+MqttPacket::MqttPacket(const UnsubAck &unsubAck) :
+    bites(unsubAck.getLengthWithoutFixedHeader())
+{
+    packetType = PacketType::SUBACK;
+    first_byte = static_cast<char>(packetType) << 4;
+    writeByte((unsubAck.packet_id & 0xFF00) >> 8);
+    writeByte(unsubAck.packet_id & 0x00FF);
+    calculateRemainingLength();
+}
+
 MqttPacket::MqttPacket(const Publish &publish) :
     bites(publish.getLengthWithoutFixedHeader())
 {
@@ -136,6 +146,8 @@ void MqttPacket::handle()
         sender->writePingResp();
     else if (packetType == PacketType::SUBSCRIBE)
         handleSubscribe();
+    else if (packetType == PacketType::UNSUBSCRIBE)
+        handleUnsubscribe();
     else if (packetType == PacketType::PUBLISH)
         handlePublish();
     else if (packetType == PacketType::PUBACK)
@@ -355,6 +367,32 @@ void MqttPacket::handleSubscribe()
 
     SubAck subAck(packet_id, subs_reponse_codes);
     MqttPacket response(subAck);
+    sender->writeMqttPacket(response);
+}
+
+void MqttPacket::handleUnsubscribe()
+{
+    const char firstByteFirstNibble = (first_byte & 0x0F);
+
+    if (firstByteFirstNibble != 2)
+        throw ProtocolError("First LSB of first byte is wrong value for subscribe packet.");
+
+    uint16_t packet_id = readTwoBytesToUInt16();
+
+    while (remainingAfterPos() > 0)
+    {
+        uint16_t topicLength = readTwoBytesToUInt16();
+        std::string topic(readBytes(topicLength), topicLength);
+
+        if (topic.empty() || !isValidUtf8(topic))
+            throw ProtocolError("Subscribe topic not valid UTF-8.");
+
+        sender->getThreadData()->getSubscriptionStore()->removeSubscription(sender, topic);
+        logger->logf(LOG_INFO, "Client '%s' unsubscribed to '%s'", sender->repr().c_str(), topic.c_str());
+    }
+
+    UnsubAck unsubAck(packet_id);
+    MqttPacket response(unsubAck);
     sender->writeMqttPacket(response);
 }
 

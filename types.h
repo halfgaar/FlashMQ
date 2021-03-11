@@ -69,6 +69,14 @@ public:
     size_t getLengthWithoutFixedHeader() const;
 };
 
+class UnsubAck
+{
+public:
+    uint16_t packet_id;
+    UnsubAck(uint16_t packet_id);
+    size_t getLengthWithoutFixedHeader() const;
+};
+
 class Publish
 {
 public:

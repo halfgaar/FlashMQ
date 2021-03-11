@@ -59,6 +59,7 @@ public:
     // Constructor for outgoing packets. These may not allocate room for the fixed header, because we don't (always) know the length in advance.
     MqttPacket(const ConnAck &connAck);
     MqttPacket(const SubAck &subAck);
+    MqttPacket(const UnsubAck &unsubAck);
     MqttPacket(const Publish &publish);
     MqttPacket(const PubAck &pubAck);
 
@@ -66,6 +67,7 @@ public:
     void handleConnect();
     void handleDisconnect();
     void handleSubscribe();
+    void handleUnsubscribe();
     void handlePing();
     void handlePublish();
     void handlePubAck();
