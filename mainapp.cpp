@@ -539,7 +539,20 @@ void MainApp::quit()
     running = false;
 }
 
-// Loaded on app start where you want it to crash, loaded from within try/catch on reload, to allow the program to continue.
+
+void MainApp::setlimits(rlim_t nofile)
+{
+    logger->logf(LOG_INFO, "Setting ulimit nofile to %ld. TODO: configurable in config file.", nofile);
+    struct rlimit v = { nofile, nofile };
+    if (setrlimit(RLIMIT_NOFILE, &v) < 0)
+    {
+        logger->logf(LOG_ERR, "Setting ulimit nofile failed: %s. This means the default is used.", strerror(errno));
+    }
+}
+
+/**
+ * @brief MainApp::loadConfig is loaded on app start where you want it to crash, loaded from within try/catch on reload, to allow the program to continue.
+ */
 void MainApp::loadConfig()
 {
     Logger *logger = Logger::getInstance();
@@ -563,6 +576,8 @@ void MainApp::loadConfig()
 
     logger->setLogPath(settings->logPath);
     logger->reOpen();
+
+    setlimits(1000000);
 
     for (std::shared_ptr<Listener> &l : this->listeners)
     {

@@ -11,6 +11,7 @@
 #include <functional>
 #include <forward_list>
 #include <list>
+#include <sys/resource.h>
 
 #include "forward_declarations.h"
 
@@ -46,6 +47,7 @@ class MainApp
 
     Logger *logger = Logger::getInstance();
 
+    void setlimits(rlim_t nofile);
     void loadConfig();
     void reloadConfig();
     static void doHelp(const char *arg);
