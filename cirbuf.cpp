@@ -196,12 +196,13 @@ void CirBuf::reset()
 void CirBuf::write(const void *buf, size_t count)
 {
     assert(count <= freeSpace());
+    assert(size > 0);
 
     ssize_t len_left = count;
     size_t src_i = 0;
     while (len_left > 0)
     {
-        const size_t len = std::min<int>(len_left, maxWriteSize());
+        const size_t len = std::min<ssize_t>(len_left, maxWriteSize());
         assert(len > 0);
         const char *src = &reinterpret_cast<const char*>(buf)[src_i];
         std::memcpy(headPtr(), src, len);
@@ -217,13 +218,14 @@ void CirBuf::write(const void *buf, size_t count)
 void CirBuf::read(void *buf, const size_t count)
 {
     assert(count <= usedBytes());
+    assert(size > 0);
 
     char *_buf = static_cast<char*>(buf);
     int i = 0;
     ssize_t _packet_len = count;
     while (_packet_len > 0)
     {
-        const int readlen = std::min<int>(maxReadSize(), _packet_len);
+        const int readlen = std::min<ssize_t>(maxReadSize(), _packet_len);
         assert(readlen > 0);
         std::memcpy(&_buf[i], tailPtr(), readlen);
         advanceTail(readlen);

@@ -204,6 +204,9 @@ void MqttPacket::handleConnect()
         bool will_flag = !!(flagByte & 0b00000100);
         bool clean_session = !!(flagByte & 0b00000010);
 
+        if (will_qos > 2)
+            throw ProtocolError("Invalid QoS for will.");
+
         uint16_t keep_alive = readTwoBytesToUInt16();
 
         uint16_t client_id_length = readTwoBytesToUInt16();
@@ -237,13 +240,13 @@ void MqttPacket::handleConnect()
         }
 
         // The specs don't really say what to do when client id not UTF8, so including here.
-        if (!isValidUtf8(client_id) || !isValidUtf8(username) || !isValidUtf8(password))
+        if (!isValidUtf8(client_id) || !isValidUtf8(username) || !isValidUtf8(password) || !isValidUtf8(will_topic))
         {
             ConnAck connAck(ConnAckReturnCodes::MalformedUsernameOrPassword);
             MqttPacket response(connAck);
             sender->setReadyForDisconnect();
             sender->writeMqttPacket(response);
-            logger->logf(LOG_ERR, "Client ID, username or passwords has invalid UTF8: ", client_id.c_str());
+            logger->logf(LOG_ERR, "Client ID, username, password or will topic has invalid UTF8: ", client_id.c_str());
             return;
         }
 

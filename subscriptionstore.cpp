@@ -216,7 +216,8 @@ void SubscriptionStore::publishRecursively(std::vector<std::string>::const_itera
 {
     if (cur_subtopic_it == end) // This is the end of the topic path, so look for subscribers here.
     {
-        publishNonRecursively(packet, this_node->getSubscribers());
+        if (this_node)
+            publishNonRecursively(packet, this_node->getSubscribers());
         return;
     }
 

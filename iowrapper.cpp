@@ -390,12 +390,21 @@ ssize_t IoWrapper::readWebsocketAndOrSsl(int fd, void *buf, size_t nbytes, IoWra
     }
 }
 
+/**
+ * @brief IoWrapper::websocketBytesToReadBuffer takes the payload from a websocket packet and puts it in the 'normal' read buffer, the
+ * buffer that contains the MQTT bytes.
+ * @param buf
+ * @param nbytes
+ * @return
+ */
 ssize_t IoWrapper::websocketBytesToReadBuffer(void *buf, const size_t nbytes)
 {
     const ssize_t targetBufMaxSize = nbytes;
     ssize_t nbytesRead = 0;
 
-    while (websocketPendingBytes.usedBytes() >= WEBSOCKET_MIN_HEADER_BYTES_NEEDED && nbytesRead < targetBufMaxSize)
+    while (websocketPendingBytes.usedBytes() >= WEBSOCKET_MIN_HEADER_BYTES_NEEDED
+           && incompleteWebsocketRead.frame_bytes_left <= websocketPendingBytes.usedBytes()
+           && nbytesRead < targetBufMaxSize)
     {
         // This block decodes the header.
         if (!incompleteWebsocketRead.sillWorkingOnFrame())
@@ -465,8 +474,8 @@ ssize_t IoWrapper::websocketBytesToReadBuffer(void *buf, const size_t nbytes)
             char *targetBuf = &static_cast<char*>(buf)[nbytesRead];
             while(websocketPendingBytes.usedBytes() > 0 && incompleteWebsocketRead.frame_bytes_left > 0 && nbytesRead < targetBufMaxSize)
             {
-                const size_t asManyBytesOfThisFrameAsPossible = std::min<int>(websocketPendingBytes.maxReadSize(), incompleteWebsocketRead.frame_bytes_left);
-                const size_t maxReadSize = std::min<int>(asManyBytesOfThisFrameAsPossible, targetBufMaxSize - nbytesRead);
+                const size_t asManyBytesOfThisFrameAsPossible = std::min<size_t>(websocketPendingBytes.maxReadSize(), incompleteWebsocketRead.frame_bytes_left);
+                const size_t maxReadSize = std::min<size_t>(asManyBytesOfThisFrameAsPossible, targetBufMaxSize - nbytesRead);
                 assert(maxReadSize > 0);
                 assert(static_cast<ssize_t>(maxReadSize) + nbytesRead <= targetBufMaxSize);
                 for (size_t x = 0; x < maxReadSize; x++)
@@ -480,15 +489,25 @@ ssize_t IoWrapper::websocketBytesToReadBuffer(void *buf, const size_t nbytes)
         }
         else if (incompleteWebsocketRead.opcode == WebsocketOpcode::Ping)
         {
-            // A ping MAY have user data, which needs to be ponged back;
+            // A ping MAY have user data, which needs to be ponged back. Pings contain no MQTT data, so nbytesRead is
+            // not touched, nor are we writing to the client's MQTT buffer.
 
-            // Constructing a new temporary buffer because I need the reponse in one frame for writeAsMuchOfBufAsWebsocketFrame().
-            std::vector<char> response(incompleteWebsocketRead.frame_bytes_left);
-            websocketPendingBytes.read(response.data(), response.size());
+            if (incompleteWebsocketRead.frame_bytes_left <= websocketPendingBytes.usedBytes())
+            {
+                // Constructing a new temporary buffer because I need the reponse in one frame for writeAsMuchOfBufAsWebsocketFrame().
+                std::vector<char> response(incompleteWebsocketRead.frame_bytes_left);
+                websocketPendingBytes.read(response.data(), response.size());
 
-            websocketWriteRemainder.ensureFreeSpace(response.size());
-            writeAsMuchOfBufAsWebsocketFrame(response.data(), response.size(), WebsocketOpcode::Pong);
-            parentClient->setReadyForWriting(true);
+                websocketWriteRemainder.ensureFreeSpace(response.size());
+                writeAsMuchOfBufAsWebsocketFrame(response.data(), response.size(), WebsocketOpcode::Pong);
+                parentClient->setReadyForWriting(true);
+            }
+        }
+        else
+        {
+            // Specs: "MQTT Control Packets MUST be sent in WebSocket binary data frames. If any other type of data frame is
+            // received the recipient MUST close the Network Connection [MQTT-6.0.0-1]".
+            throw ProtocolError("Websocket frames must be 'binary' or 'ping'");
         }
 
         if (!incompleteWebsocketRead.sillWorkingOnFrame())
@@ -539,7 +558,7 @@ ssize_t IoWrapper::writeAsMuchOfBufAsWebsocketFrame(const void *buf, size_t nbyt
         const int header_length = x + extended_payload_length_num_bytes;
 
         // This block writes the extended payload length.
-        nBytesReal = std::min<int>(nbytes, websocketWriteRemainder.freeSpace() - header_length);
+        nBytesReal = std::min<size_t>(nbytes, websocketWriteRemainder.freeSpace() - header_length);
         const uint64_t nbytes64 = nBytesReal;
         for (int z = extended_payload_length_num_bytes - 1; z >= 0; z--)
         {
