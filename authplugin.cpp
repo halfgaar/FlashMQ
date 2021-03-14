@@ -50,7 +50,7 @@ void AuthPlugin::loadPlugin(const std::string &pathToSoFile)
     if (pathToSoFile.empty())
         return;
 
-    logger->logf(LOG_INFO, "Loading auth plugin %s", pathToSoFile.c_str());
+    logger->logf(LOG_NOTICE, "Loading auth plugin %s", pathToSoFile.c_str());
 
     initialized = false;
     wanted = true;

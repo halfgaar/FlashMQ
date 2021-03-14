@@ -360,7 +360,7 @@ void MqttPacket::handleSubscribe()
         if (qos > 2)
             throw ProtocolError("QoS is greater than 2, and/or reserved bytes in QoS field are not 0.");
 
-        logger->logf(LOG_INFO, "Client '%s' subscribed to '%s'", sender->repr().c_str(), topic.c_str());
+        logger->logf(LOG_SUBSCRIBE, "Client '%s' subscribed to '%s'", sender->repr().c_str(), topic.c_str());
         sender->getThreadData()->getSubscriptionStore()->addSubscription(sender, topic, qos);
         subs_reponse_codes.push_back(qos);
     }
@@ -388,7 +388,7 @@ void MqttPacket::handleUnsubscribe()
             throw ProtocolError("Subscribe topic not valid UTF-8.");
 
         sender->getThreadData()->getSubscriptionStore()->removeSubscription(sender, topic);
-        logger->logf(LOG_INFO, "Client '%s' unsubscribed to '%s'", sender->repr().c_str(), topic.c_str());
+        logger->logf(LOG_UNSUBSCRIBE, "Client '%s' unsubscribed from '%s'", sender->repr().c_str(), topic.c_str());
     }
 
     UnsubAck unsubAck(packet_id);

@@ -40,7 +40,7 @@ int register_signal_handers()
     if (sigaction(SIGHUP, &sa, nullptr) != 0 || sigaction(SIGTERM, &sa, nullptr) != 0 || sigaction(SIGINT, &sa, nullptr) != 0)
     {
         Logger *logger = Logger::getInstance();
-        logger->logf(LOG_INFO, "Error registering signal handlers");
+        logger->logf(LOG_ERR, "Error registering signal handlers");
         return -1;
     }
 

@@ -81,9 +81,24 @@ void Logger::setLogPath(const std::string &path)
     Logger::logPath = path;
 }
 
+void Logger::setFlags(bool logDebug, bool logSubscriptions)
+{
+    std::lock_guard<std::mutex> locker(logMutex);
+
+    if (logDebug)
+        curLogLevel |= LOG_DEBUG;
+    else
+        curLogLevel &= ~LOG_DEBUG;
+
+    if (logSubscriptions)
+        curLogLevel |= (LOG_UNSUBSCRIBE & LOG_SUBSCRIBE);
+    else
+        curLogLevel &= ~(LOG_UNSUBSCRIBE & LOG_SUBSCRIBE);
+}
+
 void Logger::logf(int level, const char *str, va_list valist)
 {
-    if (level > curLogLevel) // TODO: wrong: bitmap based
+    if ((level & curLogLevel) == 0)
         return;
 
     std::lock_guard<std::mutex> locker(logMutex);

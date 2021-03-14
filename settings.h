@@ -23,6 +23,8 @@ public:
     bool authPluginSerializeAuthChecks = false;
     int clientInitialBufferSize = 1024; // Must be power of 2
     int maxPacketSize = 268435461; // 256 MB + 5
+    bool logDebug = false;
+    bool logSubscriptions = false;
     std::list<std::shared_ptr<Listener>> listeners; // Default one is created later, when none are defined.
 
     AuthOptCompatWrap &getAuthOptsCompat();

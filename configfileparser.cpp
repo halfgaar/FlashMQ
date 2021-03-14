@@ -66,6 +66,8 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validKeys.insert("auth_plugin_serialize_auth_checks");
     validKeys.insert("client_initial_buffer_size");
     validKeys.insert("max_packet_size");
+    validKeys.insert("log_debug");
+    validKeys.insert("log_subscriptions");
 
     validListenKeys.insert("port");
     validListenKeys.insert("protocol");
@@ -302,6 +304,18 @@ void ConfigFileParser::loadFile(bool test)
                         throw ConfigFileException(oss.str());
                     }
                     tmpSettings->maxPacketSize = newVal;
+                }
+
+                if (key == "log_debug")
+                {
+                    bool tmp = stringTruthiness(value);
+                    tmpSettings->logDebug = tmp;
+                }
+
+                if (key == "log_subscriptions")
+                {
+                    bool tmp = stringTruthiness(value);
+                    tmpSettings->logSubscriptions = tmp;
                 }
             }
         }

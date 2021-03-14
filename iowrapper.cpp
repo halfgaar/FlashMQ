@@ -265,7 +265,7 @@ ssize_t IoWrapper::writeOrSslWrite(int fd, const void *buf, size_t nbytes, IoWra
             unsigned long error_code = ERR_get_error();
             if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE)
             {
-                logger->logf(LOG_DEBUG, "Write is incomplete: %d", err);
+                logger->logf(LOG_DEBUG, "SSL Write is incomplete: %d. Will be retried later.", err);
                 *error = IoWrapResult::Wouldblock;
                 IncompleteSslWrite sslAction(buf_, nbytes_);
                 this->incompleteSslWrite = sslAction;

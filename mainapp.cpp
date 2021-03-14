@@ -585,6 +585,7 @@ void MainApp::loadConfig()
 
     logger->setLogPath(settings->logPath);
     logger->reOpen();
+    logger->setFlags(settings->logDebug, settings->logSubscriptions);
 
     setlimits(1000000);
 
