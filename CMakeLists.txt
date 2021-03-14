@@ -35,6 +35,7 @@ add_executable(FlashMQ
     unscopedlock.cpp
     scopedsocket.cpp
     bindaddr.cpp
+    oneinstancelock.cpp
     )
 
 target_link_libraries(FlashMQ pthread dl ssl crypto)

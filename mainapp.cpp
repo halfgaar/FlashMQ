@@ -378,6 +378,13 @@ MainApp *MainApp::getMainApp()
 
 void MainApp::start()
 {
+#ifndef NDEBUG
+    if (fuzzFilePath.empty())
+    {
+        oneInstanceLock.lock();
+    }
+#endif
+
     timer.start();
 
     std::map<int, std::shared_ptr<Listener>> listenerMap; // For finding listeners by fd.
@@ -515,6 +522,8 @@ void MainApp::start()
 
         }
     }
+
+    oneInstanceLock.unlock();
 
     for(std::shared_ptr<ThreadData> &thread : threads)
     {

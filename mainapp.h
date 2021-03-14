@@ -23,6 +23,7 @@
 #include "configfileparser.h"
 #include "timer.h"
 #include "scopedsocket.h"
+#include "oneinstancelock.h"
 
 class MainApp
 {
@@ -44,6 +45,7 @@ class MainApp
     std::mutex quitMutex;
     std::string fuzzFilePath;
     bool fuzzWebsockets = false;
+    OneInstanceLock oneInstanceLock;
 
     Logger *logger = Logger::getInstance();
 
