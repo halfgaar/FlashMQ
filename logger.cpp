@@ -30,6 +30,10 @@ std::string Logger::getLogLevelString(int level) const
         return "ERROR";
     case LOG_DEBUG:
         return "DEBUG";
+    case LOG_SUBSCRIBE:
+        return "SUBSCRIBE";
+    case LOG_UNSUBSCRIBE:
+        return "UNSUBSCRIBE";
     default:
         return "UNKNOWN LOG LEVEL";
     }
