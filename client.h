@@ -115,6 +115,10 @@ public:
     std::string getKeepAliveInfoString() const;
     void resetBuffersIfEligible();
 
+#ifndef NDEBUG
+    void setFakeUpgraded();
+#endif
+
 };
 
 #endif // CLIENT_H

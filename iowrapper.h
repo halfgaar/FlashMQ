@@ -115,6 +115,10 @@ public:
     bool isWebsocket() const;
     WebsocketState getWebsocketState() const;
 
+#ifndef NDEBUG
+    void setFakeUpgraded();
+#endif
+
     ssize_t readWebsocketAndOrSsl(int fd, void *buf, size_t nbytes, IoWrapResult *error);
     ssize_t writeWebsocketAndOrSsl(int fd, const void *buf, size_t nbytes, IoWrapResult *error);
 };

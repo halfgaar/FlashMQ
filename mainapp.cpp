@@ -188,9 +188,10 @@ void MainApp::doHelp(const char *arg)
     puts(" -t, --test-config                    Test configuration file.");
 #ifndef NDEBUG
     puts(" -z, --fuzz-file <inputdata.dat>      For fuzzing, provides the bytes that would be sent by a client.");
-    puts(" -W, --fuzz-websockets                Mark the client as websockets for fuzzing. The handshaking process makes");
-    puts("                                      it a less useful though, because the fuzzer is not able to handle");
-    puts("                                      replies from the server, which would change the internal state.");
+    puts("                                      If the name contains 'web' it will activate websocket mode.");
+    puts("                                      If the name also contains 'upgrade', it will assume the websocket");
+    puts("                                      client is upgrade, and bypass the cryptograhically secured websocket");
+    puts("                                      handshake.");
 #endif
     puts(" -V, --version                        Show version");
     puts(" -l, --license                        Show license");
@@ -280,11 +281,6 @@ void MainApp::setFuzzFile(const std::string &fuzzFilePath)
     this->fuzzFilePath = fuzzFilePath;
 }
 
-void MainApp::setFuzzWebsockets(bool val)
-{
-    this->fuzzWebsockets = val;
-}
-
 void MainApp::initMainApp(int argc, char *argv[])
 {
     if (instance != nullptr)
@@ -296,7 +292,6 @@ void MainApp::initMainApp(int argc, char *argv[])
         {"config-file", required_argument, nullptr, 'c'},
         {"test-config", no_argument, nullptr, 't'},
         {"fuzz-file", required_argument, nullptr, 'z'},
-        {"fuzz-websockets", no_argument, nullptr, 'W'},
         {"version", no_argument, nullptr, 'V'},
         {"license", no_argument, nullptr, 'l'},
         {nullptr, 0, nullptr, 0}
@@ -304,12 +299,11 @@ void MainApp::initMainApp(int argc, char *argv[])
 
     std::string configFile;
     std::string fuzzFile;
-    bool fuzzWebsockets = false;
 
     int option_index = 0;
     int opt;
     bool testConfig = false;
-    while((opt = getopt_long(argc, argv, "hc:Vltz:W", long_options, &option_index)) != -1)
+    while((opt = getopt_long(argc, argv, "hc:Vltz:", long_options, &option_index)) != -1)
     {
         switch(opt)
         {
@@ -324,9 +318,6 @@ void MainApp::initMainApp(int argc, char *argv[])
             exit(0);
         case 'z':
             fuzzFile = optarg;
-            break;
-        case 'W':
-            fuzzWebsockets = true;
             break;
         case 'h':
             MainApp::doHelp(argv[0]);
@@ -365,7 +356,6 @@ void MainApp::initMainApp(int argc, char *argv[])
 
     instance = new MainApp(configFile);
     instance->setFuzzFile(fuzzFile);
-    instance->setFuzzWebsockets(fuzzWebsockets);
 }
 
 
@@ -412,27 +402,30 @@ void MainApp::start()
     ev.events = EPOLLIN;
     check<std::runtime_error>(epoll_ctl(this->epollFdAccept, EPOLL_CTL_ADD, taskEventFd, &ev));
 
-    for (int i = 0; i < num_threads; i++)
-    {
-        std::shared_ptr<ThreadData> t(new ThreadData(i, subscriptionStore, settings));
-        t->start(&do_thread_work);
-        threads.push_back(t);
-    }
-
 #ifndef NDEBUG
     // I fuzzed using afl-fuzz. You need to compile it with their compiler.
     if (!fuzzFilePath.empty())
     {
-        int fd = open(fuzzFilePath.c_str(), O_RDONLY);
+        // No threads for execution stability/determinism.
+        num_threads = 0;
 
-        if (fd < 0)
-            return;
+        int fd = open(fuzzFilePath.c_str(), O_RDONLY);
+        assert(fd > 0);
+
+        const std::string fuzzFilePathLower = str_tolower(fuzzFilePath);
+        bool fuzzWebsockets = strContains(fuzzFilePathLower, "web");
 
         try
         {
             std::vector<MqttPacket> packetQueueIn;
 
-            Client_p client(new Client(fd, threads[0], nullptr, fuzzWebsockets, settings, true));
+            std::shared_ptr<ThreadData> threaddata(new ThreadData(0, subscriptionStore, settings));
+
+            Client_p client(new Client(fd, threaddata, nullptr, fuzzWebsockets, settings, true));
+
+            if (fuzzWebsockets && strContains(fuzzFilePathLower, "upgrade"))
+                client->setFakeUpgraded();
+
             client->readFdIntoBuffer();
             client->bufferToMqttPackets(packetQueueIn, client);
 
@@ -449,6 +442,13 @@ void MainApp::start()
         running = false;
     }
 #endif
+
+    for (int i = 0; i < num_threads; i++)
+    {
+        std::shared_ptr<ThreadData> t(new ThreadData(i, subscriptionStore, settings));
+        t->start(&do_thread_work);
+        threads.push_back(t);
+    }
 
     uint next_thread_index = 0;
 

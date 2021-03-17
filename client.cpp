@@ -262,6 +262,16 @@ void Client::resetBuffersIfEligible()
     writebuf.resetSizeIfEligable(initialBufferSize);
 }
 
+#ifndef NDEBUG
+/**
+ * @brief IoWrapper::setFakeUpgraded().
+ */
+void Client::setFakeUpgraded()
+{
+    ioWrapper.setFakeUpgraded();
+}
+#endif
+
 // Call this from a place you know the writeBufMutex is locked, or we're still only doing SSL accept.
 void Client::setReadyForWriting(bool val)
 {

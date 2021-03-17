@@ -127,6 +127,17 @@ WebsocketState IoWrapper::getWebsocketState() const
     return websocketState;
 }
 
+#ifndef NDEBUG
+/**
+ * @brief IoWrapper::setFakeUpgraded marks this wrapper as upgraded. This is for fuzzing, so to bypass the sha1 protected handshake
+ * of websockets.
+ */
+void IoWrapper::setFakeUpgraded()
+{
+    websocketState = WebsocketState::Upgraded;
+}
+#endif
+
 /**
  * @brief SSL and non-SSL sockets behave differently. For one, reading 0 doesn't mean 'disconnected' with an SSL
  * socket. This wrapper unifies behavor for the caller.
