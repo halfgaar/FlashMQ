@@ -15,6 +15,12 @@ ThreadData::ThreadData(int threadnr, std::shared_ptr<SubscriptionStore> &subscri
     check<std::runtime_error>(epoll_ctl(epollfd, EPOLL_CTL_ADD, event_fd, &ev));
 }
 
+void ThreadData::quit()
+{
+    running = false;
+    thread.join();
+}
+
 void ThreadData::giveClient(Client_p client)
 {
     int fd = client->getFd();

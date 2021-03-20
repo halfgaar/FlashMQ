@@ -26,6 +26,7 @@ class ThreadData
     std::mutex readForDequeuingMutex;
 
 public:
+    bool running = true;
     std::thread thread;
     int threadnr = 0;
     int epollfd = 0;
@@ -33,6 +34,7 @@ public:
 
     ThreadData(int threadnr, std::shared_ptr<SubscriptionStore> &subscriptionStore);
 
+    void quit();
     void giveClient(Client_p client);
     Client_p getClient(int fd);
     void removeClient(Client_p client);
