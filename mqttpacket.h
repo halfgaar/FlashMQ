@@ -35,6 +35,7 @@ public:
     MqttPacket(char *buf, size_t len, size_t fixed_header_length, Client_p &sender);
 
     // TODO: not constructors, but static functions that return all the stuff after the fixed header, then a constructor with vector.
+    // Or, I can not have the fixed header, and calculate that on write-to-buf.
     MqttPacket(const ConnAck &connAck);
     MqttPacket(const SubAck &subAck);
     MqttPacket(const Publish &publish);
