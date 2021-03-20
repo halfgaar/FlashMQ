@@ -9,6 +9,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 SET(CMAKE_CXX_FLAGS "-rdynamic")
 
+add_compile_options(-Wall)
+
 add_executable(FlashMQ
     mainapp.cpp
     main.cpp

@@ -28,6 +28,16 @@ SOURCES +=  tst_maintests.cpp \
     ../authplugin.cpp \
     ../session.cpp \
     ../configfileparser.cpp \
+    ../sslctxmanager.cpp \
+    ../timer.cpp \
+    ../iowrapper.cpp \
+    ../mosquittoauthoptcompatwrap.cpp \
+    ../settings.cpp \
+    ../listener.cpp \
+    ../unscopedlock.cpp \
+    ../scopedsocket.cpp \
+    ../bindaddr.cpp \
+    ../oneinstancelock.cpp \
     mainappthread.cpp \
     twoclienttestcontext.cpp
 
@@ -49,9 +59,19 @@ HEADERS += \
     ../authplugin.h \
     ../session.h \
     ../configfileparser.h \
+    ../sslctxmanager.h \
+    ../timer.h \
+    ../iowrapper.h \
+    ../mosquittoauthoptcompatwrap.h \
+    ../settings.h \
+    ../listener.h \
+    ../unscopedlock.h \
+    ../scopedsocket.h \
+    ../bindaddr.h \
+    ../oneinstancelock.h \
     mainappthread.h \
     twoclienttestcontext.h
 
-LIBS += -ldl
+LIBS += -ldl -lssl -lcrypto
 
 QMAKE_LFLAGS += -rdynamic

@@ -207,10 +207,10 @@ int64_t currentMSecsSinceEpoch()
     return milliseconds;
 }
 
-std::string getSecureRandomString(const size_t len)
+std::string getSecureRandomString(const ssize_t len)
 {
     std::vector<char> buf(len);
-    size_t actual_len = getrandom(buf.data(), len, 0);
+    ssize_t actual_len = getrandom(buf.data(), len, 0);
 
     if (actual_len < 0 || actual_len != len)
     {

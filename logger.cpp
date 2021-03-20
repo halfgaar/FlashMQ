@@ -145,4 +145,5 @@ int logSslError(const char *str, size_t len, void *u)
 {
     Logger *logger = Logger::getInstance();
     logger->logf(LOG_ERR, str);
+    return 0;
 }

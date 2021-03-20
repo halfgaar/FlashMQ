@@ -45,7 +45,7 @@ void trim(std::string &s);
 bool startsWith(const std::string &s, const std::string &needle);
 
 int64_t currentMSecsSinceEpoch();
-std::string getSecureRandomString(const size_t len);
+std::string getSecureRandomString(const ssize_t len);
 std::string str_tolower(std::string s);
 bool stringTruthiness(const std::string &val);
 bool isPowerOfTwo(int val);
