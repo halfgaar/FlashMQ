@@ -137,6 +137,31 @@ bool isValidPublishPath(const std::string &s)
     return true;
 }
 
+bool isValidSubscribePath(const std::string &s)
+{
+    bool plusAllowed = true;
+    bool nextMustBeSlash = false;
+    bool poundSeen = false;
+
+    for (const char c : s)
+    {
+        if (!plusAllowed && c == '+')
+            return false;
+
+        if (nextMustBeSlash && c != '/')
+            return false;
+
+        if (poundSeen)
+            return false;
+
+        plusAllowed = c == '/';
+        nextMustBeSlash = c == '+';
+        poundSeen = c == '#';
+    }
+
+    return true;
+}
+
 bool containsDangerousCharacters(const std::string &s)
 {
     if (s.empty())

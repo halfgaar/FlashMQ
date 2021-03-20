@@ -44,6 +44,8 @@ private slots:
     void test_circbuf_wrapped_doubling();
     void test_circbuf_full_wrapped_buffer_doubling();
 
+    void test_validSubscribePath();
+
     void test_retained();
     void test_retained_changed();
     void test_retained_removed();
@@ -276,6 +278,26 @@ void MainTests::test_circbuf_full_wrapped_buffer_doubling()
     }
 
     QVERIFY(true);
+}
+
+void MainTests::test_validSubscribePath()
+{
+    QVERIFY(isValidSubscribePath("one/two/three"));
+    QVERIFY(isValidSubscribePath("one//three"));
+    QVERIFY(isValidSubscribePath("one/+/three"));
+    QVERIFY(isValidSubscribePath("one/+/#"));
+    QVERIFY(isValidSubscribePath("#"));
+    QVERIFY(isValidSubscribePath("///"));
+    QVERIFY(isValidSubscribePath("//#"));
+    QVERIFY(isValidSubscribePath("+"));
+    QVERIFY(isValidSubscribePath(""));
+
+    QVERIFY(!isValidSubscribePath("one/tw+o/three"));
+    QVERIFY(!isValidSubscribePath("one/+o/three"));
+    QVERIFY(!isValidSubscribePath("one/a+/three"));
+    QVERIFY(!isValidSubscribePath("#//three"));
+    QVERIFY(!isValidSubscribePath("#//+"));
+    QVERIFY(!isValidSubscribePath("one/#/+"));
 }
 
 void MainTests::test_retained()

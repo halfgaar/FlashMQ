@@ -358,6 +358,9 @@ void MqttPacket::handleSubscribe()
         if (topic.empty() || !isValidUtf8(topic))
             throw ProtocolError("Subscribe topic not valid UTF-8.");
 
+        if (isValidSubscribePath(topic))
+            throw ProtocolError(formatString("Invalid subscribe path: %s", topic.c_str()));
+
         char qos = readByte();
 
         if (qos > 2)
