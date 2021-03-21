@@ -308,6 +308,7 @@ void MainTests::test_validSubscribePath()
     QVERIFY(isValidSubscribePath("//#"));
     QVERIFY(isValidSubscribePath("+"));
     QVERIFY(isValidSubscribePath(""));
+    QVERIFY(isValidSubscribePath("hello"));
 
     QVERIFY(!isValidSubscribePath("one/tw+o/three"));
     QVERIFY(!isValidSubscribePath("one/+o/three"));
