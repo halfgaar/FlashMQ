@@ -165,7 +165,8 @@ void ThreadData::doKeepAliveCheck()
             }
             else
             {
-                client->resetBuffersIfEligible();
+                if (client)
+                    client->resetBuffersIfEligible();
                 it++;
             }
         }
