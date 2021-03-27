@@ -77,7 +77,7 @@ class Client
     bool will_retain = false;
     char will_qos = 0;
 
-    ThreadData_p threadData;
+    std::shared_ptr<ThreadData> threadData;
     std::mutex writeBufMutex;
 
     std::shared_ptr<Session> session;
@@ -88,7 +88,7 @@ class Client
     void setReadyForReading(bool val);
 
 public:
-    Client(int fd, ThreadData_p threadData, SSL *ssl, bool websocket, std::shared_ptr<Settings> settings, bool fuzzMode=false);
+    Client(int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, bool websocket, std::shared_ptr<Settings> settings, bool fuzzMode=false);
     Client(const Client &other) = delete;
     Client(Client &&other) = delete;
     ~Client();
@@ -102,14 +102,14 @@ public:
     void startOrContinueSslAccept();
     void markAsDisconnecting();
     bool readFdIntoBuffer();
-    bool bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn, Client_p &sender);
+    bool bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn, std::shared_ptr<Client> &sender);
     void setClientProperties(ProtocolVersion protocolVersion, const std::string &clientId, const std::string username, bool connectPacketSeen, uint16_t keepalive, bool cleanSession);
     void setWill(const std::string &topic, const std::string &payload, bool retain, char qos);
     void clearWill();
     void setAuthenticated(bool value) { authenticated = value;}
     bool getAuthenticated() { return authenticated; }
     bool hasConnectPacketSeen() { return connectPacketSeen; }
-    ThreadData_p getThreadData() { return threadData; }
+    std::shared_ptr<ThreadData> getThreadData() { return threadData; }
     std::string &getClientId() { return this->clientid; }
     const std::string &getUsername() const { return this->username; }
     bool getCleanSession() { return cleanSession; }

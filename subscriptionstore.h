@@ -86,9 +86,9 @@ class SubscriptionStore
 public:
     SubscriptionStore();
 
-    void addSubscription(Client_p &client, const std::string &topic, char qos);
-    void removeSubscription(Client_p &client, const std::string &topic);
-    void registerClientAndKickExistingOne(Client_p &client);
+    void addSubscription(std::shared_ptr<Client> &client, const std::string &topic, char qos);
+    void removeSubscription(std::shared_ptr<Client> &client, const std::string &topic);
+    void registerClientAndKickExistingOne(std::shared_ptr<Client> &client);
     bool sessionPresent(const std::string &clientid);
 
     void queuePacketAtSubscribers(const std::string &topic, const MqttPacket &packet);

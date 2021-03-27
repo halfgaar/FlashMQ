@@ -69,7 +69,7 @@ SubscriptionStore::SubscriptionStore() :
 
 }
 
-void SubscriptionStore::addSubscription(Client_p &client, const std::string &topic, char qos)
+void SubscriptionStore::addSubscription(std::shared_ptr<Client> &client, const std::string &topic, char qos)
 {
     const std::list<std::string> subtopics = split(topic, '/');
 
@@ -115,7 +115,7 @@ void SubscriptionStore::addSubscription(Client_p &client, const std::string &top
 
 }
 
-void SubscriptionStore::removeSubscription(Client_p &client, const std::string &topic)
+void SubscriptionStore::removeSubscription(std::shared_ptr<Client> &client, const std::string &topic)
 {
     const std::list<std::string> subtopics = split(topic, '/');
 
@@ -162,7 +162,7 @@ void SubscriptionStore::removeSubscription(Client_p &client, const std::string &
 }
 
 // Removes an existing client when it already exists [MQTT-3.1.4-2].
-void SubscriptionStore::registerClientAndKickExistingOne(Client_p &client)
+void SubscriptionStore::registerClientAndKickExistingOne(std::shared_ptr<Client> &client)
 {
     RWLockGuard lock_guard(&subscriptionsRwlock);
     lock_guard.wrlock();

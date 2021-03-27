@@ -21,9 +21,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include <memory>
 
 class Client;
-typedef std::shared_ptr<Client> Client_p;
 class ThreadData;
-typedef std::shared_ptr<ThreadData> ThreadData_p;
 class MqttPacket;
 class SubscriptionStore;
 class Session;

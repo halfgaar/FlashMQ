@@ -71,7 +71,7 @@ void ThreadData::quit()
     running = false;
 }
 
-void ThreadData::giveClient(Client_p client)
+void ThreadData::giveClient(std::shared_ptr<Client> client)
 {
     clients_by_fd_mutex.lock();
     int fd = client->getFd();
@@ -85,13 +85,13 @@ void ThreadData::giveClient(Client_p client)
     check<std::runtime_error>(epoll_ctl(epollfd, EPOLL_CTL_ADD, fd, &ev));
 }
 
-Client_p ThreadData::getClient(int fd)
+std::shared_ptr<Client> ThreadData::getClient(int fd)
 {
     std::lock_guard<std::mutex> lck(clients_by_fd_mutex);
     return this->clients_by_fd[fd];
 }
 
-void ThreadData::removeClient(Client_p client)
+void ThreadData::removeClient(std::shared_ptr<Client> client)
 {
     client->markAsDisconnecting();
 
@@ -157,7 +157,7 @@ void ThreadData::doKeepAliveCheck()
         auto it = clients_by_fd.begin();
         while (it != clients_by_fd.end())
         {
-            Client_p &client = it->second;
+            std::shared_ptr<Client> &client = it->second;
             if (client && client->keepAliveExpired())
             {
                 client->setDisconnectReason("Keep-alive expired: " + client->getKeepAliveInfoString());

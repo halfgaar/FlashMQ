@@ -91,7 +91,7 @@ void do_thread_work(ThreadData *threadData)
                     continue;
                 }
 
-                Client_p client = threadData->getClient(fd);
+                std::shared_ptr<Client> client = threadData->getClient(fd);
 
                 if (client)
                 {
@@ -437,7 +437,7 @@ void MainApp::start()
 
             std::shared_ptr<ThreadData> threaddata(new ThreadData(0, subscriptionStore, settings));
 
-            Client_p client(new Client(fd, threaddata, nullptr, fuzzWebsockets, settings, true));
+            std::shared_ptr<Client> client(new Client(fd, threaddata, nullptr, fuzzWebsockets, settings, true));
 
             if (fuzzWebsockets && strContains(fuzzFilePathLower, "upgrade"))
                 client->setFakeUpgraded();
@@ -515,7 +515,7 @@ void MainApp::start()
                         SSL_set_fd(clientSSL, fd);
                     }
 
-                    Client_p client(new Client(fd, thread_data, clientSSL, listener->websocket, settings));
+                    std::shared_ptr<Client> client(new Client(fd, thread_data, clientSSL, listener->websocket, settings));
                     thread_data->giveClient(client);
                 }
                 else

@@ -29,7 +29,7 @@ RemainingLength::RemainingLength()
 }
 
 // constructor for parsing incoming packets
-MqttPacket::MqttPacket(CirBuf &buf, size_t packet_len, size_t fixed_header_length, Client_p &sender) :
+MqttPacket::MqttPacket(CirBuf &buf, size_t packet_len, size_t fixed_header_length, std::shared_ptr<Client> &sender) :
     bites(packet_len),
     fixed_header_length(fixed_header_length),
     sender(sender)
@@ -574,12 +574,12 @@ const std::string &MqttPacket::getTopic() const
 }
 
 
-Client_p MqttPacket::getSender() const
+std::shared_ptr<Client> MqttPacket::getSender() const
 {
     return sender;
 }
 
-void MqttPacket::setSender(const Client_p &value)
+void MqttPacket::setSender(const std::shared_ptr<Client> &value)
 {
     sender = value;
 }

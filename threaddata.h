@@ -42,7 +42,7 @@ typedef void (*thread_f)(ThreadData *);
 
 class ThreadData
 {
-    std::unordered_map<int, Client_p> clients_by_fd;
+    std::unordered_map<int, std::shared_ptr<Client>> clients_by_fd;
     std::mutex clients_by_fd_mutex;
     std::shared_ptr<SubscriptionStore> subscriptionStore;
     Logger *logger;
@@ -69,9 +69,9 @@ public:
 
     void start(thread_f f);
 
-    void giveClient(Client_p client);
-    Client_p getClient(int fd);
-    void removeClient(Client_p client);
+    void giveClient(std::shared_ptr<Client> client);
+    std::shared_ptr<Client> getClient(int fd);
+    void removeClient(std::shared_ptr<Client> client);
     void removeClient(int fd);
     std::shared_ptr<SubscriptionStore> &getSubscriptionStore();
 

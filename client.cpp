@@ -24,7 +24,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 
 #include "logger.h"
 
-Client::Client(int fd, ThreadData_p threadData, SSL *ssl, bool websocket, std::shared_ptr<Settings> settings, bool fuzzMode) :
+Client::Client(int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, bool websocket, std::shared_ptr<Settings> settings, bool fuzzMode) :
     fd(fd),
     fuzzMode(fuzzMode),
     initialBufferSize(settings->clientInitialBufferSize), // The client is constructed in the main thread, so we need to use its settings copy
@@ -341,7 +341,7 @@ void Client::setReadyForReading(bool val)
     check<std::runtime_error>(epoll_ctl(threadData->epollfd, EPOLL_CTL_MOD, fd, &ev));
 }
 
-bool Client::bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn, Client_p &sender)
+bool Client::bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn, std::shared_ptr<Client> &sender)
 {
     while (readbuf.usedBytes() >= MQTT_HEADER_LENGH)
     {

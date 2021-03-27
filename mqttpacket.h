@@ -48,7 +48,7 @@ class MqttPacket
     size_t fixed_header_length = 0; // if 0, this packet does not contain the bytes of the fixed header.
     RemainingLength remainingLength;
     char qos = 0;
-    Client_p sender;
+    std::shared_ptr<Client> sender;
     char first_byte = 0;
     size_t pos = 0;
     size_t packet_id_pos = 0;
@@ -67,7 +67,7 @@ class MqttPacket
     MqttPacket(const MqttPacket &other) = default;
 public:
     PacketType packetType = PacketType::Reserved;
-    MqttPacket(CirBuf &buf, size_t packet_len, size_t fixed_header_length, Client_p &sender); // Constructor for parsing incoming packets.
+    MqttPacket(CirBuf &buf, size_t packet_len, size_t fixed_header_length, std::shared_ptr<Client> &sender); // Constructor for parsing incoming packets.
 
     MqttPacket(MqttPacket &&other) = default;
 
@@ -93,8 +93,8 @@ public:
     const std::vector<char> &getBites() const { return bites; }
     char getQos() const { return qos; }
     const std::string &getTopic() const;
-    Client_p getSender() const;
-    void setSender(const Client_p &value);
+    std::shared_ptr<Client> getSender() const;
+    void setSender(const std::shared_ptr<Client> &value);
     bool containsFixedHeader() const;
     char getFirstByte() const;
     RemainingLength getRemainingLength() const;

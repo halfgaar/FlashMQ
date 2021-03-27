@@ -12,6 +12,7 @@ SET(CMAKE_CXX_FLAGS "-rdynamic")
 add_compile_options(-Wall)
 
 add_executable(FlashMQ
+    forward_declarations.h
     mainapp.h
     utils.h
     threaddata.h
