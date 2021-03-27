@@ -12,6 +12,32 @@ SET(CMAKE_CXX_FLAGS "-rdynamic")
 add_compile_options(-Wall)
 
 add_executable(FlashMQ
+    mainapp.h
+    utils.h
+    threaddata.h
+    client.h
+    session.h
+    mqttpacket.h
+    exceptions.h
+    types.h
+    subscriptionstore.h
+    rwlockguard.h
+    retainedmessage.h
+    cirbuf.h
+    logger.h
+    authplugin.h
+    configfileparser.h
+    sslctxmanager.h
+    timer.h
+    iowrapper.h
+    mosquittoauthoptcompatwrap.h
+    settings.h
+    listener.h
+    unscopedlock.h
+    scopedsocket.h
+    bindaddr.h
+    oneinstancelock.h
+
     mainapp.cpp
     main.cpp
     utils.cpp
