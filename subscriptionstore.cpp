@@ -241,7 +241,7 @@ void SubscriptionStore::publishRecursively(std::vector<std::string>::const_itera
     if (this_node->children.empty() && !this_node->childrenPlus && !this_node->childrenPound)
         return;
 
-    std::string cur_subtop = *cur_subtopic_it;
+    const std::string &cur_subtop = *cur_subtopic_it;
 
     const auto next_subtopic = ++cur_subtopic_it;
 
@@ -250,7 +250,7 @@ void SubscriptionStore::publishRecursively(std::vector<std::string>::const_itera
         publishNonRecursively(packet, this_node->childrenPound->getSubscribers());
     }
 
-    auto sub_node = this_node->children.find(cur_subtop);
+    const auto &sub_node = this_node->children.find(cur_subtop);
     if (sub_node != this_node->children.end())
     {
         publishRecursively(next_subtopic, end, sub_node->second, packet);
