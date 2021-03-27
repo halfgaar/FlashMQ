@@ -327,7 +327,7 @@ void MqttPacket::handleConnect()
             ConnAck connAck(ConnAckReturnCodes::Accepted, sessionPresent);
             MqttPacket response(connAck);
             sender->writeMqttPacket(response);
-            logger->logf(LOG_NOTICE, "User '%s' logged in successfully", username.c_str());
+            logger->logf(LOG_NOTICE, "Client '%s' logged in successfully", sender->repr().c_str());
         }
         else
         {
