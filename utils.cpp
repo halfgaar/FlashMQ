@@ -77,13 +77,16 @@ bool topicsMatch(const std::string &subscribeTopic, const std::string &publishTo
     return result;
 }
 
-bool isValidUtf8(const std::string &s)
+bool isValidUtf8(const std::string &s, bool alsoCheckInvalidPublishChars)
 {
     int multibyte_remain = 0;
     int cur_code_point = 0;
     for(const char &x : s)
     {
         if (x == 0)
+            return false;
+
+        if (alsoCheckInvalidPublishChars && (x == '#' || x == '+'))
             return false;
 
         if(!multibyte_remain)

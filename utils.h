@@ -49,7 +49,7 @@ std::vector<std::string> splitToVector(const std::string &input, const char sep,
 
 bool topicsMatch(const std::string &subscribeTopic, const std::string &publishTopic);
 
-bool isValidUtf8(const std::string &s);
+bool isValidUtf8(const std::string &s, bool alsoCheckInvalidPublishChars = false);
 
 bool strContains(const std::string &s, const std::string &needle);
 
