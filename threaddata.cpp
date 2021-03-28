@@ -22,7 +22,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 ThreadData::ThreadData(int threadnr, std::shared_ptr<SubscriptionStore> &subscriptionStore, std::shared_ptr<Settings> settings) :
     subscriptionStore(subscriptionStore),
     settingsLocalCopy(*settings.get()),
-    authPlugin(settingsLocalCopy),
+    authentication(settingsLocalCopy),
     threadnr(threadnr)
 {
     logger = Logger::getInstance();
@@ -132,7 +132,7 @@ void ThreadData::queueQuit()
     auto f = std::bind(&ThreadData::quit, this);
     taskQueue.push_front(f);
 
-    authPlugin.setQuitting();
+    authentication.setQuitting();
 
     wakeUpThread();
 }
@@ -140,6 +140,16 @@ void ThreadData::queueQuit()
 void ThreadData::waitForQuit()
 {
     thread.join();
+}
+
+void ThreadData::queuePasswdFileReload()
+{
+    std::lock_guard<std::mutex> locker(taskQueueMutex);
+
+    auto f = std::bind(&Authentication::loadMosquittoPasswordFile, &authentication);
+    taskQueue.push_front(f);
+
+    wakeUpThread();
 }
 
 // TODO: profile how fast hash iteration is. Perhaps having a second list/vector is beneficial?
@@ -179,9 +189,10 @@ void ThreadData::doKeepAliveCheck()
 
 void ThreadData::initAuthPlugin()
 {
-    authPlugin.loadPlugin(settingsLocalCopy.authPluginPath);
-    authPlugin.init();
-    authPlugin.securityInit(false);
+    authentication.loadMosquittoPasswordFile();
+    authentication.loadPlugin(settingsLocalCopy.authPluginPath);
+    authentication.init();
+    authentication.securityInit(false);
 }
 
 void ThreadData::reload(std::shared_ptr<Settings> settings)
@@ -193,8 +204,8 @@ void ThreadData::reload(std::shared_ptr<Settings> settings)
         // Because the auth plugin has a reference to it, it will also be updated.
         settingsLocalCopy = *settings.get();
 
-        authPlugin.securityCleanup(true);
-        authPlugin.securityInit(true);
+        authentication.securityCleanup(true);
+        authentication.securityInit(true);
     }
     catch (AuthPluginException &ex)
     {

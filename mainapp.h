@@ -73,6 +73,7 @@ class MainApp
     std::list<ScopedSocket> createListenSocket(const std::shared_ptr<Listener> &listener);
     void wakeUpThread();
     void queueKeepAliveCheckAtAllThreads();
+    void queuePasswordFileReloadAllThreads();
     void setFuzzFile(const std::string &fuzzFilePath);
 
     MainApp(const std::string &configFilePath);

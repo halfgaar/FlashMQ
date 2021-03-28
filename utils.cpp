@@ -21,6 +21,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "sys/random.h"
 #include <algorithm>
 #include <cstdio>
+#include <cstring>
 
 #include "openssl/ssl.h"
 #include "openssl/err.h"
@@ -29,6 +30,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "cirbuf.h"
 #include "sslctxmanager.h"
 #include "logger.h"
+#include "evpencodectxmanager.h"
 
 std::list<std::__cxx11::string> split(const std::string &input, const char sep, size_t max, bool keep_empty_parts)
 {
@@ -355,6 +357,30 @@ bool parseHttpHeader(CirBuf &buf, std::string &websocket_key, int &websocket_ver
     }
 
     return doubleEmptyLine;
+}
+
+std::vector<char> base64Decode(const std::string &s)
+{
+    if (s.length() % 4 != 0)
+        throw std::runtime_error("Decoding invalid base64 string");
+
+    if (s.empty())
+        throw std::runtime_error("Trying to base64 decode an empty string.");
+
+    std::vector<char> tmp(s.size());
+
+    int outl = 0;
+    int outl_total = 0;
+
+    EvpEncodeCtxManager b64_ctx;
+    if (EVP_DecodeUpdate(b64_ctx.ctx, reinterpret_cast<unsigned char*>(tmp.data()), &outl, reinterpret_cast<const unsigned char*>(s.c_str()), s.size()) < 0)
+        throw std::runtime_error("Failure in EVP_DecodeUpdate()");
+    outl_total += outl;
+    if (EVP_DecodeFinal(b64_ctx.ctx, reinterpret_cast<unsigned char*>(tmp[outl_total]), &outl) < 0)
+        throw std::runtime_error("Failure in EVP_DecodeFinal()");
+    std::vector<char> result(outl_total);
+    std::memcpy(result.data(), tmp.data(), outl_total);
+    return result;
 }
 
 std::string base64Encode(const unsigned char *input, const int length)

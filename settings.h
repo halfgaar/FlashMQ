@@ -42,6 +42,8 @@ public:
     int maxPacketSize = 268435461; // 256 MB + 5
     bool logDebug = false;
     bool logSubscriptions = false;
+    std::string mosquittoPasswordFile;
+    bool allowAnonymous = false;
     std::list<std::shared_ptr<Listener>> listeners; // Default one is created later, when none are defined.
 
     AuthOptCompatWrap &getAuthOptsCompat();

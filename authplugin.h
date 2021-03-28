@@ -41,6 +41,26 @@ enum class AuthResult
     error = 13
 };
 
+/**
+ * @brief The MosquittoPasswordFileEntry struct stores the decoded base64 password salt and hash.
+ *
+ * The Mosquitto encrypted format looks like that of crypt(2), but it's not. This is an example entry:
+ *
+ * one:$6$emTXKCHfxMnZLDWg$gDcJRPojvOX8l7W/DRhSPoxV3CgPfECJVGRzw2Sqjdc2KIQ/CVLS1mNEuZUsp/vLdj7RCuqXCkgG43+XIc8WBA==
+ *
+ * $ is the seperator. '6' is hard-coded by the 'mosquitto_passwd' utility.
+ */
+struct MosquittoPasswordFileEntry
+{
+    std::vector<char> salt;
+    std::vector<char> cryptedPassword;
+
+    MosquittoPasswordFileEntry(const std::vector<char> &&salt, const std::vector<char> &&cryptedPassword);
+
+    // The plan was that objects of this type wouldn't be copied, but I can't get emplacing to work without it...?
+    //MosquittoPasswordFileEntry(const MosquittoPasswordFileEntry &other) = delete;
+};
+
 typedef int (*F_auth_plugin_version)(void);
 
 typedef int (*F_auth_plugin_init_v2)(void **, struct mosquitto_auth_opt *, int);
@@ -59,8 +79,11 @@ extern "C"
 
 std::string AuthResultToString(AuthResult r);
 
-
-class AuthPlugin
+/**
+ * @brief The Authentication class handles our integrated authentication, but also supports loading Mosquitto auth
+ * plugin compatible .so files.
+ */
+class Authentication
 {
     F_auth_plugin_version version = nullptr;
     F_auth_plugin_init_v2 init_v2 = nullptr;
@@ -79,15 +102,30 @@ class AuthPlugin
     void *pluginData = nullptr;
     Logger *logger = nullptr;
     bool initialized = false;
-    bool wanted = false;
+    bool useExternalPlugin = false;
     bool quitting = false;
+
+    /**
+     * @brief mosquittoPasswordFile is a once set value based on config. It's not reloaded on reload signal currently, because it
+     * forces some decisions when you change files or remove the config option. For instance, do you remove all accounts loaded
+     * from the previous one? Perhaps I'm overthinking it.
+     *
+     * Its content is, however, reloaded every two seconds.
+     */
+    const std::string mosquittoPasswordFile;
+
+    struct timespec mosquittoPasswordFileLastLoad;
+
+    std::unique_ptr<std::unordered_map<std::string, MosquittoPasswordFileEntry>> mosquittoPasswordEntries;
+    EVP_MD_CTX *mosquittoDigestContext = nullptr;
+    const EVP_MD *sha512 = EVP_sha512();
 
     void *loadSymbol(void *handle, const char *symbol) const;
 public:
-    AuthPlugin(Settings &settings);
-    AuthPlugin(const AuthPlugin &other) = delete;
-    AuthPlugin(AuthPlugin &&other) = delete;
-    ~AuthPlugin();
+    Authentication(Settings &settings);
+    Authentication(const Authentication &other) = delete;
+    Authentication(Authentication &&other) = delete;
+    ~Authentication();
 
     void loadPlugin(const std::string &pathToSoFile);
     void init();
@@ -98,6 +136,8 @@ public:
     AuthResult unPwdCheck(const std::string &username, const std::string &password);
 
     void setQuitting();
+    void loadMosquittoPasswordFile();
+    AuthResult unPwdCheckFromMosquittoPasswordFile(const std::string &username, const std::string &password);
 
 };
 

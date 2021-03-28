@@ -70,6 +70,7 @@ bool isPowerOfTwo(int val);
 
 bool parseHttpHeader(CirBuf &buf, std::string &websocket_key, int &websocket_version);
 
+std::vector<char> base64Decode(const std::string &s);
 std::string base64Encode(const unsigned char *input, const int length);
 std::string generateWebsocketAcceptString(const std::string &websocketKey);
 

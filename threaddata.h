@@ -54,7 +54,7 @@ class ThreadData
 
 public:
     Settings settingsLocalCopy; // Is updated on reload, within the thread loop.
-    AuthPlugin authPlugin;
+    Authentication authentication;
     bool running = true;
     std::thread thread;
     int threadnr = 0;
@@ -80,6 +80,7 @@ public:
     void queueDoKeepAliveCheck();
     void queueQuit();
     void waitForQuit();
+    void queuePasswdFileReload();
 
 };
 

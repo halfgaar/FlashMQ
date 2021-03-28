@@ -313,7 +313,7 @@ void MqttPacket::handleConnect()
             sender->setDisconnectReason("Invalid username character");
             accessGranted = false;
         }
-        else if (sender->getThreadData()->authPlugin.unPwdCheck(username, password) == AuthResult::success)
+        else if (sender->getThreadData()->authentication.unPwdCheck(username, password) == AuthResult::success)
         {
             accessGranted = true;
         }
@@ -462,7 +462,7 @@ void MqttPacket::handlePublish()
         sender->writeMqttPacket(response);
     }
 
-    if (sender->getThreadData()->authPlugin.aclCheck(sender->getClientId(), sender->getUsername(), topic, AclAccess::write) == AuthResult::success)
+    if (sender->getThreadData()->authentication.aclCheck(sender->getClientId(), sender->getUsername(), topic, AclAccess::write) == AuthResult::success)
     {
         if (retain)
         {

@@ -21,12 +21,15 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include <fcntl.h>
 #include <sstream>
 #include <dlfcn.h>
+#include <fstream>
+#include "sys/stat.h"
 
 #include "exceptions.h"
 #include "unscopedlock.h"
+#include "utils.h"
 
-std::mutex AuthPlugin::initMutex;
-std::mutex AuthPlugin::authChecksMutex;
+std::mutex Authentication::initMutex;
+std::mutex Authentication::authChecksMutex;
 
 void mosquitto_log_printf(int level, const char *fmt, ...)
 {
@@ -37,19 +40,39 @@ void mosquitto_log_printf(int level, const char *fmt, ...)
     va_end(valist);
 }
 
+MosquittoPasswordFileEntry::MosquittoPasswordFileEntry(const std::vector<char> &&salt, const std::vector<char> &&cryptedPassword) :
+    salt(salt),
+    cryptedPassword(cryptedPassword)
+{
 
-AuthPlugin::AuthPlugin(Settings &settings) :
-    settings(settings)
+}
+
+
+Authentication::Authentication(Settings &settings) :
+    settings(settings),
+    mosquittoPasswordFile(settings.mosquittoPasswordFile),
+    mosquittoDigestContext(EVP_MD_CTX_new())
 {
     logger = Logger::getInstance();
+
+    if(!sha512)
+    {
+        throw std::runtime_error("Failed to initialize SHA512 for decoding auth entry");
+    }
+
+    EVP_DigestInit_ex(mosquittoDigestContext, sha512, NULL);
+    memset(&mosquittoPasswordFileLastLoad, 0, sizeof(struct timespec));
 }
 
-AuthPlugin::~AuthPlugin()
+Authentication::~Authentication()
 {
     cleanup();
+
+    if (mosquittoDigestContext)
+        EVP_MD_CTX_free(mosquittoDigestContext);
 }
 
-void *AuthPlugin::loadSymbol(void *handle, const char *symbol) const
+void *Authentication::loadSymbol(void *handle, const char *symbol) const
 {
     void *r = dlsym(handle, symbol);
 
@@ -62,7 +85,7 @@ void *AuthPlugin::loadSymbol(void *handle, const char *symbol) const
     return r;
 }
 
-void AuthPlugin::loadPlugin(const std::string &pathToSoFile)
+void Authentication::loadPlugin(const std::string &pathToSoFile)
 {
     if (pathToSoFile.empty())
         return;
@@ -70,7 +93,7 @@ void AuthPlugin::loadPlugin(const std::string &pathToSoFile)
     logger->logf(LOG_NOTICE, "Loading auth plugin %s", pathToSoFile.c_str());
 
     initialized = false;
-    wanted = true;
+    useExternalPlugin = true;
 
     if (access(pathToSoFile.c_str(), R_OK) != 0)
     {
@@ -105,9 +128,13 @@ void AuthPlugin::loadPlugin(const std::string &pathToSoFile)
     initialized = true;
 }
 
-void AuthPlugin::init()
+/**
+ * @brief AuthPlugin::init is like Mosquitto's init(), and is to allow the plugin to init memory. Plugins should not load
+ * their authentication data here. That's what securityInit() is for.
+ */
+void Authentication::init()
 {
-    if (!wanted)
+    if (!useExternalPlugin)
         return;
 
     UnscopedLock lock(initMutex);
@@ -123,7 +150,7 @@ void AuthPlugin::init()
         throw FatalError("Error initialising auth plugin.");
 }
 
-void AuthPlugin::cleanup()
+void Authentication::cleanup()
 {
     if (!cleanup_v2)
         return;
@@ -136,9 +163,13 @@ void AuthPlugin::cleanup()
         logger->logf(LOG_ERR, "Error cleaning up auth plugin"); // Not doing exception, because we're shutting down anyway.
 }
 
-void AuthPlugin::securityInit(bool reloading)
+/**
+ * @brief AuthPlugin::securityInit initializes the security data, like loading users, ACL tables, etc.
+ * @param reloading
+ */
+void Authentication::securityInit(bool reloading)
 {
-    if (!wanted)
+    if (!useExternalPlugin)
         return;
 
     UnscopedLock lock(initMutex);
@@ -157,9 +188,9 @@ void AuthPlugin::securityInit(bool reloading)
     initialized = true;
 }
 
-void AuthPlugin::securityCleanup(bool reloading)
+void Authentication::securityCleanup(bool reloading)
 {
-    if (!wanted)
+    if (!useExternalPlugin)
         return;
 
     initialized = false;
@@ -172,9 +203,9 @@ void AuthPlugin::securityCleanup(bool reloading)
     }
 }
 
-AuthResult AuthPlugin::aclCheck(const std::string &clientid, const std::string &username, const std::string &topic, AclAccess access)
+AuthResult Authentication::aclCheck(const std::string &clientid, const std::string &username, const std::string &topic, AclAccess access)
 {
-    if (!wanted)
+    if (!useExternalPlugin)
         return AuthResult::success;
 
     if (!initialized)
@@ -198,14 +229,19 @@ AuthResult AuthPlugin::aclCheck(const std::string &clientid, const std::string &
     return result_;
 }
 
-AuthResult AuthPlugin::unPwdCheck(const std::string &username, const std::string &password)
+AuthResult Authentication::unPwdCheck(const std::string &username, const std::string &password)
 {
-    if (!wanted)
-        return AuthResult::success;
+    AuthResult firstResult = unPwdCheckFromMosquittoPasswordFile(username, password);
+
+    if (firstResult != AuthResult::success)
+        return firstResult;
+
+    if (!useExternalPlugin)
+        return firstResult;
 
     if (!initialized)
     {
-        logger->logf(LOG_ERR, "Username+password check wanted, but initialization failed. Can't perform check.");
+        logger->logf(LOG_ERR, "Username+password check with plugin wanted, but initialization failed. Can't perform check.");
         return AuthResult::error;
     }
 
@@ -224,9 +260,124 @@ AuthResult AuthPlugin::unPwdCheck(const std::string &username, const std::string
     return r;
 }
 
-void AuthPlugin::setQuitting()
+void Authentication::setQuitting()
 {
     this->quitting = true;
+}
+
+/**
+ * @brief Authentication::loadMosquittoPasswordFile is called once on startup, and on a frequent interval, and reloads the file if changed.
+ */
+void Authentication::loadMosquittoPasswordFile()
+{
+    if (this->mosquittoPasswordFile.empty())
+        return;
+
+    if (access(this->mosquittoPasswordFile.c_str(), R_OK) != 0)
+    {
+        logger->logf(LOG_ERR, "Passwd file '%s' is not there or not readable.", this->mosquittoPasswordFile.c_str());
+        return;
+    }
+
+    struct stat statbuf;
+    memset(&statbuf, 0, sizeof(struct stat));
+    check<std::runtime_error>(stat(mosquittoPasswordFile.c_str(), &statbuf));
+    struct timespec ctime = statbuf.st_ctim;
+
+    if (ctime.tv_sec == this->mosquittoPasswordFileLastLoad.tv_sec)
+        return;
+
+    logger->logf(LOG_NOTICE, "Change detected in '%s'. Reloading.", this->mosquittoPasswordFile.c_str());
+
+    try
+    {
+        std::ifstream infile(this->mosquittoPasswordFile, std::ios::in);
+        std::unique_ptr<std::unordered_map<std::string, MosquittoPasswordFileEntry>> passwordEntries_tmp(new std::unordered_map<std::string, MosquittoPasswordFileEntry>());
+
+        for(std::string line; getline(infile, line ); )
+        {
+            if (line.empty())
+                continue;
+
+            try
+            {
+                std::vector<std::string> fields = splitToVector(line, ':');
+
+                if (fields.size() != 2)
+                    throw std::runtime_error(formatString("Passwd file line '%s' contains more than one ':'", line.c_str()));
+
+                const std::string &username = fields[0];
+
+                for (const std::string &field : fields)
+                {
+                    if (field.size() == 0)
+                    {
+                        throw std::runtime_error(formatString("An empty field was found in '%'", line.c_str()));
+                    }
+                }
+
+                std::vector<std::string> fields2 = splitToVector(fields[1], '$', 3, false);
+
+                if (fields2.size() != 3)
+                    throw std::runtime_error(formatString("Invalid line format in '%s'. Expected three fields separated by '$'", line.c_str()));
+
+                if (fields2[0] != "6")
+                    throw std::runtime_error("Password fields must start with $6$");
+
+                std::vector<char> salt = base64Decode(fields2[1]);
+                std::vector<char> cryptedPassword = base64Decode(fields2[2]);
+                passwordEntries_tmp->emplace(username, MosquittoPasswordFileEntry(std::move(salt), std::move(cryptedPassword)));
+            }
+            catch (std::exception &ex)
+            {
+                std::string lineCut = formatString("%s...", line.substr(0, 20).c_str());
+                logger->logf(LOG_ERR, "Dropping invalid username/password line: '%s'. Error: %s", lineCut.c_str(), ex.what());
+            }
+        }
+
+        this->mosquittoPasswordEntries = std::move(passwordEntries_tmp);
+        this->mosquittoPasswordFileLastLoad = ctime;
+    }
+    catch (std::exception &ex)
+    {
+        logger->logf(LOG_ERR, "Error loading Mosquitto password file: '%s'. Authentication won't work.", ex.what());
+    }
+}
+
+AuthResult Authentication::unPwdCheckFromMosquittoPasswordFile(const std::string &username, const std::string &password)
+{
+    if (this->mosquittoPasswordFile.empty())
+        return AuthResult::success;
+
+    if (!this->mosquittoPasswordEntries)
+        return AuthResult::login_denied;
+
+    AuthResult result = settings.allowAnonymous ? AuthResult::success : AuthResult::login_denied;
+
+    auto it = mosquittoPasswordEntries->find(username);
+    if (it != mosquittoPasswordEntries->end())
+    {
+        result = AuthResult::login_denied;
+
+        unsigned char md_value[EVP_MAX_MD_SIZE];
+        unsigned int output_len = 0;
+
+        const MosquittoPasswordFileEntry &entry = it->second;
+
+        EVP_MD_CTX_reset(mosquittoDigestContext);
+        EVP_DigestInit_ex(mosquittoDigestContext, sha512, NULL);
+        EVP_DigestUpdate(mosquittoDigestContext, password.c_str(), password.length());
+        EVP_DigestUpdate(mosquittoDigestContext, entry.salt.data(), entry.salt.size());
+        EVP_DigestFinal_ex(mosquittoDigestContext, md_value, &output_len);
+
+        std::vector<char> hashedSalted(output_len);
+        std::memcpy(hashedSalted.data(), md_value, output_len);
+
+        if (hashedSalted == entry.cryptedPassword)
+            result = AuthResult::success;
+    }
+
+    return result;
 }
 
 std::string AuthResultToString(AuthResult r)
