@@ -49,7 +49,8 @@ Client::~Client()
         will.retain = will_retain;
         const MqttPacket willPacket(will);
 
-        store->queuePacketAtSubscribers(will_topic, willPacket);
+        const std::vector<std::string> subtopics = splitToVector(will_topic, '/');
+        store->queuePacketAtSubscribers(subtopics, willPacket);
     }
 
     if (disconnectReason.empty())

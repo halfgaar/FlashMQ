@@ -214,7 +214,6 @@ bool SubscriptionStore::sessionPresent(const std::string &clientid)
     return result;
 }
 
-// TODO: should I implement cache, this needs to be changed to returning a list of clients.
 void SubscriptionStore::publishNonRecursively(const MqttPacket &packet, const std::vector<Subscription> &subscribers) const
 {
     for (const Subscription &sub : subscribers)
@@ -262,11 +261,9 @@ void SubscriptionStore::publishRecursively(std::vector<std::string>::const_itera
     }
 }
 
-void SubscriptionStore::queuePacketAtSubscribers(const std::string &topic, const MqttPacket &packet)
+void SubscriptionStore::queuePacketAtSubscribers(const std::vector<std::string> &subtopics, const MqttPacket &packet)
 {
-    // TODO: keep a cache of topics vs clients
-
-    const std::vector<std::string> subtopics = splitToVector(topic, '/');
+    assert(subtopics.size() > 0);
 
     RWLockGuard lock_guard(&subscriptionsRwlock);
     lock_guard.rdlock();

@@ -102,6 +102,7 @@ MqttPacket::MqttPacket(const Publish &publish) :
     }
 
     this->topic = publish.topic;
+    this->subtopics = splitToVector(publish.topic, '/');
 
     packetType = PacketType::PUBLISH;
     this->qos = publish.qos;
@@ -229,7 +230,7 @@ void MqttPacket::handleConnect()
         uint16_t client_id_length = readTwoBytesToUInt16();
         std::string client_id(readBytes(client_id_length), client_id_length);
 
-        std::string username = "anonymous";
+        std::string username;
         std::string password;
         std::string will_topic;
         std::string will_payload;
@@ -248,7 +249,7 @@ void MqttPacket::handleConnect()
             username = std::string(readBytes(user_name_length), user_name_length);
 
             if (username.empty())
-                username = "anonymous";
+                throw ProtocolError("Username flagged as present, but it's 0 bytes.");
         }
         if (password_flag)
         {
@@ -438,6 +439,7 @@ void MqttPacket::handlePublish()
         throw ProtocolError("Duplicate flag is set for QoS 0 packet. This is illegal.");
 
     topic = std::string(readBytes(variable_header_length), variable_header_length);
+    subtopics = splitToVector(topic, '/');
 
     if (!isValidUtf8(topic, true))
     {
@@ -462,7 +464,7 @@ void MqttPacket::handlePublish()
         sender->writeMqttPacket(response);
     }
 
-    if (sender->getThreadData()->authentication.aclCheck(sender->getClientId(), sender->getUsername(), topic, AclAccess::write) == AuthResult::success)
+    if (sender->getThreadData()->authentication.aclCheck(sender->getClientId(), sender->getUsername(), topic, subtopics, AclAccess::write) == AuthResult::success)
     {
         if (retain)
         {
@@ -477,7 +479,7 @@ void MqttPacket::handlePublish()
         bites[0] &= 0b11110110;
 
         // For the existing clients, we can just write the same packet back out, with our small alterations.
-        sender->getThreadData()->getSubscriptionStore()->queuePacketAtSubscribers(topic, *this);
+        sender->getThreadData()->getSubscriptionStore()->queuePacketAtSubscribers(subtopics, *this);
     }
 }
 
@@ -565,6 +567,11 @@ size_t MqttPacket::getSizeIncludingNonPresentHeader() const
 const std::string &MqttPacket::getTopic() const
 {
     return this->topic;
+}
+
+const std::vector<std::string> &MqttPacket::getSubtopics() const
+{
+    return this->subtopics;
 }
 
 

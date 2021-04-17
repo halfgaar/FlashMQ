@@ -86,6 +86,7 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validKeys.insert("log_debug");
     validKeys.insert("log_subscriptions");
     validKeys.insert("mosquitto_password_file");
+    validKeys.insert("mosquitto_acl_file");
     validKeys.insert("allow_anonymous");
 
     validListenKeys.insert("port");
@@ -340,6 +341,11 @@ void ConfigFileParser::loadFile(bool test)
                 if (key == "mosquitto_password_file")
                 {
                     tmpSettings->mosquittoPasswordFile = value;
+                }
+
+                if (key == "mosquitto_acl_file")
+                {
+                    tmpSettings->mosquittoAclFile = value;
                 }
 
                 if (key == "allow_anonymous")

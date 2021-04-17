@@ -149,6 +149,9 @@ void ThreadData::queuePasswdFileReload()
     auto f = std::bind(&Authentication::loadMosquittoPasswordFile, &authentication);
     taskQueue.push_front(f);
 
+    auto f2 = std::bind(&Authentication::loadMosquittoAclFile, &authentication);
+    taskQueue.push_front(f2);
+
     wakeUpThread();
 }
 
@@ -190,6 +193,7 @@ void ThreadData::doKeepAliveCheck()
 void ThreadData::initAuthPlugin()
 {
     authentication.loadMosquittoPasswordFile();
+    authentication.loadMosquittoAclFile();
     authentication.loadPlugin(settingsLocalCopy.authPluginPath);
     authentication.init();
     authentication.securityInit(false);

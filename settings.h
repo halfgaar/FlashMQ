@@ -43,6 +43,7 @@ public:
     bool logDebug = false;
     bool logSubscriptions = false;
     std::string mosquittoPasswordFile;
+    std::string mosquittoAclFile;
     bool allowAnonymous = false;
     std::list<std::shared_ptr<Listener>> listeners; // Default one is created later, when none are defined.
 

@@ -23,6 +23,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include <dlfcn.h>
 #include <fstream>
 #include "sys/stat.h"
+#include "cassert"
 
 #include "exceptions.h"
 #include "unscopedlock.h"
@@ -51,6 +52,7 @@ MosquittoPasswordFileEntry::MosquittoPasswordFileEntry(const std::vector<char> &
 Authentication::Authentication(Settings &settings) :
     settings(settings),
     mosquittoPasswordFile(settings.mosquittoPasswordFile),
+    mosquittoAclFile(settings.mosquittoAclFile),
     mosquittoDigestContext(EVP_MD_CTX_new())
 {
     logger = Logger::getInstance();
@@ -203,14 +205,21 @@ void Authentication::securityCleanup(bool reloading)
     }
 }
 
-AuthResult Authentication::aclCheck(const std::string &clientid, const std::string &username, const std::string &topic, AclAccess access)
+AuthResult Authentication::aclCheck(const std::string &clientid, const std::string &username, const std::string &topic, const std::vector<std::string> &subtopics, AclAccess access)
 {
+    assert(subtopics.size() > 0);
+
+    AuthResult firstResult = aclCheckFromMosquittoAclFile(clientid, username, subtopics, access);
+
+    if (firstResult != AuthResult::success)
+        return firstResult;
+
     if (!useExternalPlugin)
-        return AuthResult::success;
+        return firstResult;
 
     if (!initialized)
     {
-        logger->logf(LOG_ERR, "ACL check wanted, but initialization failed.  Can't perform check.");
+        logger->logf(LOG_ERR, "ACL check by plugin wanted, but initialization failed.  Can't perform check.");
         return AuthResult::error;
     }
 
@@ -344,6 +353,105 @@ void Authentication::loadMosquittoPasswordFile()
     }
 }
 
+void Authentication::loadMosquittoAclFile()
+{
+    if (this->mosquittoAclFile.empty())
+        return;
+
+    if (access(this->mosquittoAclFile.c_str(), R_OK) != 0)
+    {
+        logger->logf(LOG_ERR, "ACL file '%s' is not there or not readable.", this->mosquittoAclFile.c_str());
+        return;
+    }
+
+    struct stat statbuf;
+    memset(&statbuf, 0, sizeof(struct stat));
+    check<std::runtime_error>(stat(mosquittoAclFile.c_str(), &statbuf));
+    struct timespec ctime = statbuf.st_ctim;
+
+    if (ctime.tv_sec == this->mosquittoAclFileLastChange.tv_sec)
+        return;
+
+    logger->logf(LOG_NOTICE, "Change detected in '%s'. Reloading.", this->mosquittoAclFile.c_str());
+
+    AclTree newTree;
+
+    // Not doing by-line error handling, because ingoring one invalid line can completely change the user's intent.
+    try
+    {
+        std::string currentUser;
+
+        std::ifstream infile(this->mosquittoAclFile, std::ios::in);
+        for(std::string line; getline(infile, line ); )
+        {
+            trim(line);
+
+            if (line.empty() || startsWith(line, "#"))
+                continue;
+
+            const std::vector<std::string> fields = splitToVector(line, ' ', 3, false);
+
+            if (fields.size() < 2)
+                throw ConfigFileException(formatString("Line does not have enough fields: %s", line.c_str()));
+
+            const std::string &firstWord = str_tolower(fields[0]);
+
+            if (firstWord == "topic" || firstWord == "pattern")
+            {
+                AclGrant g = AclGrant::ReadWrite;
+                std::string topic;
+
+                if (fields.size() == 3)
+                {
+                    topic = fields[2];
+                    g = stringToAclGrant(fields[1]);
+                }
+                else if (fields.size() == 2)
+                {
+                    topic = fields[1];
+                }
+                else
+                    throw ConfigFileException(formatString("Invalid markup of 'topic' line: %s", line.c_str()));
+
+                if (!isValidSubscribePath(topic))
+                    throw ConfigFileException(formatString("Topic '%s' is not a valid ACL topic", topic.c_str()));
+
+                AclTopicType type = firstWord == "pattern" ? AclTopicType::Patterns : AclTopicType::Strings;
+                newTree.addTopic(topic, g, type, currentUser);
+            }
+            else if (firstWord == "user")
+            {
+                currentUser = fields[1];
+            }
+            else
+            {
+                throw ConfigFileException(formatString("Invalid keyword '%s' in '%s'", firstWord.c_str(), line.c_str()));
+            }
+
+        }
+
+        aclTree = std::move(newTree);
+    }
+    catch (std::exception &ex)
+    {
+        logger->logf(LOG_ERR, "Error loading Mosquitto ACL file: '%s'. Authorization won't work.", ex.what());
+    }
+
+    mosquittoAclFileLastChange = ctime;
+}
+
+AuthResult Authentication::aclCheckFromMosquittoAclFile(const std::string &clientid, const std::string &username, const std::vector<std::string> &subtopics, AclAccess access)
+{
+    assert(access != AclAccess::none);
+
+    if (this->mosquittoAclFile.empty())
+        return AuthResult::success;
+
+    AclGrant ag = access == AclAccess::write ? AclGrant::Write : AclGrant::Read;
+    AuthResult result = aclTree.findPermission(subtopics, ag, username, clientid);
+    return result;
+}
+
 AuthResult Authentication::unPwdCheckFromMosquittoPasswordFile(const std::string &username, const std::string &password)
 {
     if (this->mosquittoPasswordFile.empty())
@@ -382,16 +490,14 @@ AuthResult Authentication::unPwdCheckFromMosquittoPasswordFile(const std::string
 
 std::string AuthResultToString(AuthResult r)
 {
-    {
-        if (r == AuthResult::success)
-            return "success";
-        if (r == AuthResult::acl_denied)
-            return "ACL denied";
-        if (r == AuthResult::login_denied)
-            return "login Denied";
-        if (r == AuthResult::error)
-            return "error in check";
-    }
+    if (r == AuthResult::success)
+        return "success";
+    if (r == AuthResult::acl_denied)
+        return "ACL denied";
+    if (r == AuthResult::login_denied)
+        return "login Denied";
+    if (r == AuthResult::error)
+        return "error in check";
 
     return "";
 }

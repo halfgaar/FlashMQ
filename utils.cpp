@@ -55,8 +55,8 @@ bool topicsMatch(const std::string &subscribeTopic, const std::string &publishTo
     if (subscribeTopic.find("+") == std::string::npos && subscribeTopic.find("#") == std::string::npos)
         return subscribeTopic == publishTopic;
 
-    const std::list<std::string> subscribeParts = split(subscribeTopic, '/');
-    const std::list<std::string> publishParts = split(publishTopic, '/');
+    const std::vector<std::string> subscribeParts = splitToVector(subscribeTopic, '/');
+    const std::vector<std::string> publishParts = splitToVector(publishTopic, '/');
 
     auto subscribe_itr = subscribeParts.begin();
     auto publish_itr = publishParts.begin();
@@ -203,22 +203,26 @@ bool containsDangerousCharacters(const std::string &s)
     return false;
 }
 
-std::vector<std::string> splitToVector(const std::string &input, const char sep, size_t max, bool keep_empty_parts)
+const std::vector<std::string> splitToVector(const std::string &input, const char sep, size_t max, bool keep_empty_parts)
 {
-    std::vector<std::string> list;
-    list.reserve(16); // This is somewhat arbitratry, knowing some typical MQTT topic use cases
+    const auto subtopic_count = std::count(input.begin(), input.end(), '/') + 1;
+
+    std::vector<std::string> result;
+    result.reserve(subtopic_count);
     size_t start = 0;
     size_t end;
 
-    while (list.size() < max && (end = input.find(sep, start)) != std::string::npos)
+    const auto npos = std::string::npos;
+
+    while (result.size() < max && (end = input.find(sep, start)) != npos)
     {
         if (start != end || keep_empty_parts)
-            list.push_back(input.substr(start, end - start));
+            result.push_back(input.substr(start, end - start));
         start = end + 1; // increase by length of seperator.
     }
     if (start != input.size() || keep_empty_parts)
-        list.push_back(input.substr(start, std::string::npos));
-    return list;
+        result.push_back(input.substr(start, npos));
+    return result;
 }
 
 void ltrim(std::string &s)

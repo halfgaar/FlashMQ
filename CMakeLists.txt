@@ -39,6 +39,8 @@ add_executable(FlashMQ
     bindaddr.h
     oneinstancelock.h
     evpencodectxmanager.h
+    acltree.h
+    enums.h
 
     mainapp.cpp
     main.cpp
@@ -67,6 +69,8 @@ add_executable(FlashMQ
     bindaddr.cpp
     oneinstancelock.cpp
     evpencodectxmanager.cpp
+    acltree.cpp
+
     )
 
 target_link_libraries(FlashMQ pthread dl ssl crypto)

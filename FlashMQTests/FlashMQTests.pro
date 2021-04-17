@@ -38,6 +38,8 @@ SOURCES +=  tst_maintests.cpp \
     ../scopedsocket.cpp \
     ../bindaddr.cpp \
     ../oneinstancelock.cpp \
+    ../evpencodectxmanager.cpp \
+    ../acltree.cpp \
     mainappthread.cpp \
     twoclienttestcontext.cpp
 
@@ -69,6 +71,8 @@ HEADERS += \
     ../scopedsocket.h \
     ../bindaddr.h \
     ../oneinstancelock.h \
+    ../evpencodectxmanager.h \
+    ../acltree.h \
     mainappthread.h \
     twoclienttestcontext.h
 

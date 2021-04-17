@@ -21,25 +21,11 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include <string>
 #include <cstring>
 
+#include "enums.h"
+
 #include "logger.h"
 #include "configfileparser.h"
-
-// Compatible with Mosquitto
-enum class AclAccess
-{
-    none = 0,
-    read = 1,
-    write = 2
-};
-
-// Compatible with Mosquitto
-enum class AuthResult
-{
-    success = 0,
-    acl_denied = 12,
-    login_denied = 11,
-    error = 13
-};
+#include "acltree.h"
 
 /**
  * @brief The MosquittoPasswordFileEntry struct stores the decoded base64 password salt and hash.
@@ -113,12 +99,16 @@ class Authentication
      * Its content is, however, reloaded every two seconds.
      */
     const std::string mosquittoPasswordFile;
+    const std::string mosquittoAclFile;
 
     struct timespec mosquittoPasswordFileLastLoad;
+    struct timespec mosquittoAclFileLastChange;
 
     std::unique_ptr<std::unordered_map<std::string, MosquittoPasswordFileEntry>> mosquittoPasswordEntries;
     EVP_MD_CTX *mosquittoDigestContext = nullptr;
     const EVP_MD *sha512 = EVP_sha512();
+
+    AclTree aclTree;
 
     void *loadSymbol(void *handle, const char *symbol) const;
 public:
@@ -132,11 +122,13 @@ public:
     void cleanup();
     void securityInit(bool reloading);
     void securityCleanup(bool reloading);
-    AuthResult aclCheck(const std::string &clientid, const std::string &username, const std::string &topic, AclAccess access);
+    AuthResult aclCheck(const std::string &clientid, const std::string &username, const std::string &topic, const std::vector<std::string> &subtopics, AclAccess access);
     AuthResult unPwdCheck(const std::string &username, const std::string &password);
 
     void setQuitting();
     void loadMosquittoPasswordFile();
+    void loadMosquittoAclFile();
+    AuthResult aclCheckFromMosquittoAclFile(const std::string &clientid, const std::string &username, const std::vector<std::string> &subtopics, AclAccess access);
     AuthResult unPwdCheckFromMosquittoPasswordFile(const std::string &username, const std::string &password);
 
 };

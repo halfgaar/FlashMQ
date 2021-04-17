@@ -91,7 +91,7 @@ public:
     void registerClientAndKickExistingOne(std::shared_ptr<Client> &client);
     bool sessionPresent(const std::string &clientid);
 
-    void queuePacketAtSubscribers(const std::string &topic, const MqttPacket &packet);
+    void queuePacketAtSubscribers(const std::vector<std::string> &subtopics, const MqttPacket &packet);
     void giveClientRetainedMessages(const std::shared_ptr<Session> &ses, const std::string &subscribe_topic, char max_qos);
 
     void setRetainedMessage(const std::string &topic, const std::string &payload, char qos);
