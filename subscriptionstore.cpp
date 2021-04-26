@@ -63,7 +63,7 @@ void SubscriptionNode::removeSubscriber(const std::shared_ptr<Session> &subscrib
 
 
 SubscriptionStore::SubscriptionStore() :
-    root(new SubscriptionNode("root")),
+    root("root"),
     sessionsByIdConst(sessionsById)
 {
 
@@ -76,7 +76,7 @@ void SubscriptionStore::addSubscription(std::shared_ptr<Client> &client, const s
     RWLockGuard lock_guard(&subscriptionsRwlock);
     lock_guard.wrlock();
 
-    SubscriptionNode *deepestNode = root.get();
+    SubscriptionNode *deepestNode = &root;
     for(const std::string &subtopic : subtopics)
     {
         std::unique_ptr<SubscriptionNode> *selectedChildren = nullptr;
@@ -123,7 +123,7 @@ void SubscriptionStore::removeSubscription(std::shared_ptr<Client> &client, cons
     lock_guard.wrlock();
 
     // TODO: because it's so similar to adding a subscription, make a function to retrieve the deepest node?
-    SubscriptionNode *deepestNode = root.get();
+    SubscriptionNode *deepestNode = &root;
     for(const std::string &subtopic : subtopics)
     {
         std::unique_ptr<SubscriptionNode> *selectedChildren = nullptr;
@@ -228,7 +228,7 @@ void SubscriptionStore::publishNonRecursively(const MqttPacket &packet, const st
 }
 
 void SubscriptionStore::publishRecursively(std::vector<std::string>::const_iterator cur_subtopic_it, std::vector<std::string>::const_iterator end,
-                                           std::unique_ptr<SubscriptionNode> &this_node, const MqttPacket &packet) const
+                                           SubscriptionNode *this_node, const MqttPacket &packet) const
 {
     if (cur_subtopic_it == end) // This is the end of the topic path, so look for subscribers here.
     {
@@ -252,12 +252,12 @@ void SubscriptionStore::publishRecursively(std::vector<std::string>::const_itera
     const auto &sub_node = this_node->children.find(cur_subtop);
     if (sub_node != this_node->children.end())
     {
-        publishRecursively(next_subtopic, end, sub_node->second, packet);
+        publishRecursively(next_subtopic, end, sub_node->second.get(), packet);
     }
 
     if (this_node->childrenPlus)
     {
-        publishRecursively(next_subtopic, end, this_node->childrenPlus, packet);
+        publishRecursively(next_subtopic, end, this_node->childrenPlus.get(), packet);
     }
 }
 
@@ -268,7 +268,7 @@ void SubscriptionStore::queuePacketAtSubscribers(const std::vector<std::string> 
     RWLockGuard lock_guard(&subscriptionsRwlock);
     lock_guard.rdlock();
 
-    publishRecursively(subtopics.begin(), subtopics.end(), root, packet);
+    publishRecursively(subtopics.begin(), subtopics.end(), &root, packet);
 }
 
 void SubscriptionStore::giveClientRetainedMessages(const std::shared_ptr<Session> &ses, const std::string &subscribe_topic, char max_qos)
@@ -392,7 +392,7 @@ void SubscriptionStore::removeExpiredSessionsClients()
 
     logger->logf(LOG_NOTICE, "Rebuilding subscription tree");
 
-    root->cleanSubscriptions();
+    root.cleanSubscriptions();
 }
 
 // QoS is not used in the comparision. This means you upgrade your QoS by subscribing again. The
