@@ -384,8 +384,7 @@ bool Client::bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn, std::sh
 
         if (packet_length <= readbuf.usedBytes())
         {
-            MqttPacket packet(readbuf, packet_length, fixed_header_length, sender);
-            packetQueueIn.push_back(std::move(packet));
+            packetQueueIn.emplace_back(readbuf, packet_length, fixed_header_length, sender);
         }
         else
             break;
