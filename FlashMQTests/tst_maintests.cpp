@@ -26,6 +26,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "mainapp.h"
 #include "mainappthread.h"
 #include "twoclienttestcontext.h"
+#include "threaddata.h"
 
 // Dumb Qt version gives warnings when comparing uint with number literal.
 template <typename T1, typename T2>
@@ -74,6 +75,8 @@ private slots:
     void test_acl_tree2();
     void test_acl_patterns_username();
     void test_acl_patterns_clientid();
+
+    void test_sse_split();
 
 };
 
@@ -585,6 +588,31 @@ void MainTests::test_acl_patterns_clientid()
     QCOMPARE(aclTree.findPermission(splitToVector("d/clientid_one/f", '/'), AclGrant::Read, "foo", "clientid_one"), AuthResult::acl_denied);
     QCOMPARE(aclTree.findPermission(splitToVector("d/clientid_one/f/A", '/'), AclGrant::Read, "foo", "clientid_one"), AuthResult::success);
     QCOMPARE(aclTree.findPermission(splitToVector("d/clientid_one/f/A/B", '/'), AclGrant::Read, "foo", "clientid_one"), AuthResult::success);
+}
+
+void MainTests::test_sse_split()
+{
+    std::shared_ptr<SubscriptionStore> store(new SubscriptionStore);
+    std::shared_ptr<Settings> settings(new Settings);
+    ThreadData data(0, store, settings);
+
+    std::list<std::string> topics;
+    topics.push_back("one/two/threeabcasdfasdf/koe");
+    topics.push_back("/two/threeabcasdfasdf/koe"); // Test empty component.
+    topics.push_back("//two/threeabcasdfasdf/koe"); // Test two empty components.
+    topics.push_back("//1234567890abcde/bla/koe"); // Test two empty components, 15 char topic (one byte short of 16 alignment).
+    topics.push_back("//1234567890abcdef/bla/koe"); // Test two empty components, 16 char topic
+    topics.push_back("//1234567890abcdefg/bla/koe"); // Test two empty components, 17 char topic
+    topics.push_back("//1234567890abcdefg/1234567890abcdefg/koe"); // Test two empty components, two 17 char topics
+    topics.push_back("//1234567890abcdef/1234567890abcdefg/koe"); // Test two empty components, 16 and 17 char
+    topics.push_back("//1234567890abcdef/1234567890abcdefg/koe/");
+    topics.push_back("//1234567890abcdef/1234567890abcdefg/koe//");
+    topics.push_back("//1234567890abcdef/1234567890abcdef/");
+
+    for (const std::string &t : topics)
+    {
+        QCOMPARE(*data.splitTopic(t), splitToVector(t, '/'));
+    }
 }
 
 QTEST_GUILESS_MAIN(MainTests)

@@ -7,7 +7,7 @@ add_definitions(-DOPENSSL_API_COMPAT=0x10100000L)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-SET(CMAKE_CXX_FLAGS "-rdynamic")
+SET(CMAKE_CXX_FLAGS "-rdynamic -msse4.2")
 
 add_compile_options(-Wall)
 

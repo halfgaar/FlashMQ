@@ -19,8 +19,12 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include <string>
 #include <sstream>
 
+#define TOPIC_MEMORY_LENGTH 65560
+
 ThreadData::ThreadData(int threadnr, std::shared_ptr<SubscriptionStore> &subscriptionStore, std::shared_ptr<Settings> settings) :
     subscriptionStore(subscriptionStore),
+    subtopicParseMem(TOPIC_MEMORY_LENGTH),
+    topicCopy(TOPIC_MEMORY_LENGTH),
     settingsLocalCopy(*settings.get()),
     authentication(settingsLocalCopy),
     threadnr(threadnr)
@@ -153,6 +157,45 @@ void ThreadData::queuePasswdFileReload()
     taskQueue.push_front(f2);
 
     wakeUpThread();
+}
+
+/**
+ * @brief ThreadData::splitTopic uses SSE4.2 to detect the '/' chars, 16 chars at a time, and returns a pointer to thread-local memory.
+ * @param topic string is altered: some extra space is reserved.
+ * @return Pointer to thread-owned vector of subtopics.
+ *
+ * Because it returns a pointer to the thread-local vector, only the current thread should touch it.
+ */
+std::vector<std::string> *ThreadData::splitTopic(const std::string &topic)
+{
+    subtopics.clear();
+
+    const int s = topic.size();
+    std::memcpy(topicCopy.data(), topic.c_str(), s+1);
+    std::memset(&topicCopy.data()[s], 0, 16);
+    int n = 0;
+    int carryi = 0;
+    while (n <= s)
+    {
+        const char *i = &topicCopy.data()[n];
+        __m128i loaded = _mm_loadu_si128((__m128i*)i);
+
+        int len_left = s - n;
+        int index = _mm_cmpestri(slashes, 1, loaded, len_left, 0);
+        std::memcpy(&subtopicParseMem[carryi], i, index);
+        carryi += std::min<int>(index, len_left);
+
+        n += index;
+
+        if (index < 16 || n >= s)
+        {
+            subtopics.emplace_back(subtopicParseMem.data(), carryi);
+            carryi = 0;
+            n++;
+        }
+    }
+
+    return &subtopics;
 }
 
 // TODO: profile how fast hash iteration is. Perhaps having a second list/vector is beneficial?

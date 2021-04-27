@@ -79,3 +79,4 @@ HEADERS += \
 LIBS += -ldl -lssl -lcrypto
 
 QMAKE_LFLAGS += -rdynamic
+QMAKE_CXXFLAGS += -msse4.2

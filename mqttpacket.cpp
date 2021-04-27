@@ -102,7 +102,7 @@ MqttPacket::MqttPacket(const Publish &publish) :
     }
 
     this->topic = publish.topic;
-    this->subtopics = splitToVector(publish.topic, '/');
+    this->subtopics = sender->getThreadData()->splitTopic(this->topic);
 
     packetType = PacketType::PUBLISH;
     this->qos = publish.qos;
@@ -439,7 +439,7 @@ void MqttPacket::handlePublish()
         throw ProtocolError("Duplicate flag is set for QoS 0 packet. This is illegal.");
 
     topic = std::string(readBytes(variable_header_length), variable_header_length);
-    subtopics = splitToVector(topic, '/');
+    subtopics = sender->getThreadData()->splitTopic(topic);
 
     if (!isValidUtf8(topic, true))
     {
@@ -464,7 +464,7 @@ void MqttPacket::handlePublish()
         sender->writeMqttPacket(response);
     }
 
-    if (sender->getThreadData()->authentication.aclCheck(sender->getClientId(), sender->getUsername(), topic, subtopics, AclAccess::write) == AuthResult::success)
+    if (sender->getThreadData()->authentication.aclCheck(sender->getClientId(), sender->getUsername(), topic, *subtopics, AclAccess::write) == AuthResult::success)
     {
         if (retain)
         {
@@ -479,7 +479,7 @@ void MqttPacket::handlePublish()
         bites[0] &= 0b11110110;
 
         // For the existing clients, we can just write the same packet back out, with our small alterations.
-        sender->getThreadData()->getSubscriptionStore()->queuePacketAtSubscribers(subtopics, *this);
+        sender->getThreadData()->getSubscriptionStore()->queuePacketAtSubscribers(*subtopics, *this);
     }
 }
 
@@ -569,7 +569,7 @@ const std::string &MqttPacket::getTopic() const
     return this->topic;
 }
 
-const std::vector<std::string> &MqttPacket::getSubtopics() const
+const std::vector<std::string> *MqttPacket::getSubtopics() const
 {
     return this->subtopics;
 }

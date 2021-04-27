@@ -52,7 +52,7 @@ void Session::writePacket(const MqttPacket &packet, char max_qos)
 {
     assert(max_qos <= 2);
 
-    if (thread->authentication.aclCheck(client_id, username, packet.getTopic(), packet.getSubtopics(), AclAccess::read) == AuthResult::success)
+    if (thread->authentication.aclCheck(client_id, username, packet.getTopic(), *packet.getSubtopics(), AclAccess::read) == AuthResult::success)
     {
         const char qos = std::min<char>(packet.getQos(), max_qos);
 
