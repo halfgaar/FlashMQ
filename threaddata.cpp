@@ -18,6 +18,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "threaddata.h"
 #include <string>
 #include <sstream>
+#include <cassert>
 
 #define TOPIC_MEMORY_LENGTH 65560
 
@@ -181,6 +182,7 @@ std::vector<std::string> *ThreadData::splitTopic(const std::string &topic)
         __m128i loaded = _mm_loadu_si128((__m128i*)i);
 
         int len_left = s - n;
+        assert(len_left >= 0);
         int index = _mm_cmpestri(slashes, 1, loaded, len_left, 0);
         std::memcpy(&subtopicParseMem[carryi], i, index);
         carryi += std::min<int>(index, len_left);

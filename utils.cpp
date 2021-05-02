@@ -83,11 +83,8 @@ bool isValidUtf8(const std::string &s, bool alsoCheckInvalidPublishChars)
 {
     int multibyte_remain = 0;
     int cur_code_point = 0;
-    for(const char &x : s)
+    for(const char x : s)
     {
-        if (x == 0)
-            return false;
-
         if (alsoCheckInvalidPublishChars && (x == '#' || x == '+'))
             return false;
 
@@ -95,7 +92,11 @@ bool isValidUtf8(const std::string &s, bool alsoCheckInvalidPublishChars)
         {
             cur_code_point = 0;
 
-            if((x & 0b11100000) == 0b11000000) // 2 byte char
+            if ((x & 0b10000000) == 0) // when the MSB is 0, it's ASCII, most common case
+            {
+                cur_code_point += (x & 0b01111111);
+            }
+            else if((x & 0b11100000) == 0b11000000) // 2 byte char
             {
                 multibyte_remain = 1;
                 cur_code_point += ((x & 0b00011111) << 6);
@@ -128,7 +129,7 @@ bool isValidUtf8(const std::string &s, bool alsoCheckInvalidPublishChars)
             // Invalid range for MQTT. [MQTT-1.5.3-1]
             if (cur_code_point >= 0xD800 && cur_code_point <= 0xDFFF) // Dec 55296-57343
                 return false;
-            if (cur_code_point >= 0x0001 && cur_code_point <= 0x001F)
+            if (cur_code_point <= 0x001F)
                 return false;
             if (cur_code_point >= 0x007F && cur_code_point <= 0x009F)
                 return false;
