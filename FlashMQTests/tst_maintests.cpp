@@ -79,6 +79,7 @@ private slots:
     void test_sse_split();
 
     void test_validUtf8();
+    void test_validUtf8Sse();
 
 };
 
@@ -624,6 +625,7 @@ void MainTests::test_validUtf8()
     char m[16];
 
     QVERIFY(isValidUtf8(""));
+    QVERIFY(isValidUtf8("ƀ"));
     QVERIFY(isValidUtf8("Hello"));
 
     std::memset(m, 0, 16);
@@ -680,6 +682,81 @@ void MainTests::test_validUtf8()
     m[0] = 127;
     std::string e(m, 1);
     QVERIFY(!isValidUtf8(e));
+}
+
+void MainTests::test_validUtf8Sse()
+{
+    std::shared_ptr<SubscriptionStore> store(new SubscriptionStore);
+    std::shared_ptr<Settings> settings(new Settings);
+    ThreadData data(0, store, settings);
+
+    char m[16];
+
+    QVERIFY(data.isValidUtf8(""));
+    QVERIFY(data.isValidUtf8("ƀ"));
+    QVERIFY(data.isValidUtf8("Hello"));
+
+    std::memset(m, 0, 16);
+    QVERIFY(!data.isValidUtf8(std::string(m, 16)));
+
+    QVERIFY(data.isValidUtf8("Straƀe")); // two byte chars
+    QVERIFY(data.isValidUtf8("StraƀeHelloHelloHelloHelloHelloHello")); // two byte chars
+    QVERIFY(data.isValidUtf8("HelloHelloHelloHelloHelloHelloHelloHelloStraƀeHelloHelloHelloHelloHelloHello")); // two byte chars
+
+    QVERIFY(!data.isValidUtf8("Straƀe#", true));
+    QVERIFY(!data.isValidUtf8("ƀ#", true));
+    QVERIFY(!data.isValidUtf8("#ƀ", true));
+    QVERIFY(!data.isValidUtf8("+", true));
+    QVERIFY(!data.isValidUtf8("🩰+asdfasdfasdf", true));
+    QVERIFY(!data.isValidUtf8("+asdfasdfasdf", true));
+
+    std::memset(m, 0, 16);
+    m[0] = 'a';
+    m[1] = 13; // is \r
+    QVERIFY(!data.isValidUtf8(std::string(m, 16)));
+
+    const std::string unicode_ballet_shoes("🩰");
+    QVERIFY(unicode_ballet_shoes.length() == 4);
+    QVERIFY(data.isValidUtf8(unicode_ballet_shoes));
+
+    const std::string unicode_ballot_box("☐");
+    QVERIFY(unicode_ballot_box.length() == 3);
+    QVERIFY(data.isValidUtf8(unicode_ballot_box));
+
+    std::memset(m, 0, 16);
+    m[0] = 0b11000001; // Start 2 byte char
+    m[1] = 0b00000001; // Next byte doesn't start with 1, which is wrong
+    std::string a(m, 2);
+    QVERIFY(!data.isValidUtf8(a));
+
+    std::memset(m, 0, 16);
+    m[0] = 0b11100001; // Start 3 byte char
+    m[1] = 0b10100001;
+    m[2] = 0b00000001; // Next byte doesn't start with 1, which is wrong
+    std::string b(m, 3);
+    QVERIFY(!data.isValidUtf8(b));
+
+    std::memset(m, 0, 16);
+    m[0] = 0b11110001; // Start 4 byte char
+    m[1] = 0b10100001;
+    m[2] = 0b10100001;
+    m[3] = 0b00000001; // Next byte doesn't start with 1, which is wrong
+    std::string c(m, 4);
+    QVERIFY(!data.isValidUtf8(c));
+
+    std::memset(m, 0, 16);
+    m[0] = 0b11110001; // Start 4 byte char
+    m[1] = 0b10100001;
+    m[2] = 0b00100001; // Doesn't start with 1: invalid.
+    m[3] = 0b10000001;
+    std::string d(m, 4);
+    QVERIFY(!data.isValidUtf8(d));
+
+    // Upper ASCII, invalid
+    std::memset(m, 0, 16);
+    m[0] = 127;
+    std::string e(m, 1);
+    QVERIFY(!data.isValidUtf8(e));
 }
 
 QTEST_GUILESS_MAIN(MainTests)

@@ -441,7 +441,7 @@ void MqttPacket::handlePublish()
     topic = std::string(readBytes(variable_header_length), variable_header_length);
     subtopics = sender->getThreadData()->splitTopic(topic);
 
-    if (!isValidUtf8(topic, true))
+    if (!sender->getThreadData()->isValidUtf8(topic, true))
     {
         logger->logf(LOG_WARNING, "Client '%s' published a message with invalid UTF8 or +/# in it. Dropping.", sender->repr().c_str());
         return;
