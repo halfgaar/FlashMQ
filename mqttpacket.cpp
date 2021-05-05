@@ -23,6 +23,10 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 
 #include "utils.h"
 
+#include "threadlocalutils.h"
+
+thread_local Utils utils;
+
 RemainingLength::RemainingLength()
 {
     memset(bytes, 0, 4);
@@ -102,7 +106,7 @@ MqttPacket::MqttPacket(const Publish &publish) :
     }
 
     this->topic = publish.topic;
-    this->subtopics = sender->getThreadData()->splitTopic(this->topic);
+    this->subtopics = utils.splitTopic(this->topic);
 
     packetType = PacketType::PUBLISH;
     this->qos = publish.qos;
@@ -258,7 +262,7 @@ void MqttPacket::handleConnect()
         }
 
         // The specs don't really say what to do when client id not UTF8, so including here.
-        if (!isValidUtf8(client_id) || !isValidUtf8(username) || !isValidUtf8(password) || !isValidUtf8(will_topic))
+        if (!utils.isValidUtf8(client_id) || !utils.isValidUtf8(username) || !utils.isValidUtf8(password) || !utils.isValidUtf8(will_topic))
         {
             ConnAck connAck(ConnAckReturnCodes::MalformedUsernameOrPassword);
             MqttPacket response(connAck);
@@ -373,7 +377,7 @@ void MqttPacket::handleSubscribe()
         uint16_t topicLength = readTwoBytesToUInt16();
         std::string topic(readBytes(topicLength), topicLength);
 
-        if (topic.empty() || !isValidUtf8(topic))
+        if (topic.empty() || !utils.isValidUtf8(topic))
             throw ProtocolError("Subscribe topic not valid UTF-8.");
 
         if (!isValidSubscribePath(topic))
@@ -408,7 +412,7 @@ void MqttPacket::handleUnsubscribe()
         uint16_t topicLength = readTwoBytesToUInt16();
         std::string topic(readBytes(topicLength), topicLength);
 
-        if (topic.empty() || !isValidUtf8(topic))
+        if (topic.empty() || !utils.isValidUtf8(topic))
             throw ProtocolError("Subscribe topic not valid UTF-8.");
 
         sender->getThreadData()->getSubscriptionStore()->removeSubscription(sender, topic);
@@ -439,9 +443,9 @@ void MqttPacket::handlePublish()
         throw ProtocolError("Duplicate flag is set for QoS 0 packet. This is illegal.");
 
     topic = std::string(readBytes(variable_header_length), variable_header_length);
-    subtopics = sender->getThreadData()->splitTopic(topic);
+    subtopics = utils.splitTopic(topic);
 
-    if (!sender->getThreadData()->isValidUtf8(topic, true))
+    if (!utils.isValidUtf8(topic, true))
     {
         logger->logf(LOG_WARNING, "Client '%s' published a message with invalid UTF8 or +/# in it. Dropping.", sender->repr().c_str());
         return;

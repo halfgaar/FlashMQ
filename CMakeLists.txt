@@ -41,6 +41,7 @@ add_executable(FlashMQ
     evpencodectxmanager.h
     acltree.h
     enums.h
+    threadlocalutils.h
 
     mainapp.cpp
     main.cpp
@@ -70,6 +71,7 @@ add_executable(FlashMQ
     oneinstancelock.cpp
     evpencodectxmanager.cpp
     acltree.cpp
+    threadlocalutils.cpp
 
     )
 

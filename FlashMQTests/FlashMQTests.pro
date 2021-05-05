@@ -40,6 +40,7 @@ SOURCES +=  tst_maintests.cpp \
     ../oneinstancelock.cpp \
     ../evpencodectxmanager.cpp \
     ../acltree.cpp \
+    ../threadlocalutils.cpp \
     mainappthread.cpp \
     twoclienttestcontext.cpp
 
@@ -73,6 +74,7 @@ HEADERS += \
     ../oneinstancelock.h \
     ../evpencodectxmanager.h \
     ../acltree.h \
+    ../threadlocalutils.h \
     mainappthread.h \
     twoclienttestcontext.h
 

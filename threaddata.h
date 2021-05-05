@@ -18,8 +18,6 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #ifndef THREADDATA_H
 #define THREADDATA_H
 
-#include <immintrin.h>
-
 #include <thread>
 
 #include <sys/epoll.h>
@@ -48,17 +46,6 @@ class ThreadData
     std::mutex clients_by_fd_mutex;
     std::shared_ptr<SubscriptionStore> subscriptionStore;
     Logger *logger;
-
-    // Topic parsing working memory
-    std::vector<std::string> subtopics;
-    std::vector<char> subtopicParseMem;
-    std::vector<char> topicCopy;
-    __m128i slashes = _mm_set1_epi8('/');
-    __m128i lowerBound = _mm_set1_epi8(0x20);
-    __m128i lastAsciiChar = _mm_set1_epi8(0x7E);
-    __m128i non_ascii_mask = _mm_set1_epi8(0b10000000);
-    __m128i pound = _mm_set1_epi8('#');
-    __m128i plus = _mm_set1_epi8('+');
 
     void reload(std::shared_ptr<Settings> settings);
     void wakeUpThread();
@@ -94,10 +81,6 @@ public:
     void queueQuit();
     void waitForQuit();
     void queuePasswdFileReload();
-
-    std::vector<std::string> *splitTopic(const std::string &topic);
-    bool isValidUtf8(const std::string &s, bool alsoCheckInvalidPublishChars = false);
-
 };
 
 #endif // THREADDATA_H

@@ -26,7 +26,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "mainapp.h"
 #include "mainappthread.h"
 #include "twoclienttestcontext.h"
-#include "threaddata.h"
+#include "threadlocalutils.h"
 
 // Dumb Qt version gives warnings when comparing uint with number literal.
 template <typename T1, typename T2>
@@ -595,9 +595,7 @@ void MainTests::test_acl_patterns_clientid()
 
 void MainTests::test_sse_split()
 {
-    std::shared_ptr<SubscriptionStore> store(new SubscriptionStore);
-    std::shared_ptr<Settings> settings(new Settings);
-    ThreadData data(0, store, settings);
+    Utils data;
 
     std::list<std::string> topics;
     topics.push_back("one/two/threeabcasdfasdf/koe");
@@ -686,9 +684,7 @@ void MainTests::test_validUtf8()
 
 void MainTests::test_validUtf8Sse()
 {
-    std::shared_ptr<SubscriptionStore> store(new SubscriptionStore);
-    std::shared_ptr<Settings> settings(new Settings);
-    ThreadData data(0, store, settings);
+    Utils data;
 
     char m[16];
 
