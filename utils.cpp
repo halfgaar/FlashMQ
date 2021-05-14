@@ -32,7 +32,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "logger.h"
 #include "evpencodectxmanager.h"
 
-std::list<std::__cxx11::string> split(const std::string &input, const char sep, size_t max, bool keep_empty_parts)
+std::list<std::string> split(const std::string &input, const char sep, size_t max, bool keep_empty_parts)
 {
     std::list<std::string> list;
     size_t start = 0;

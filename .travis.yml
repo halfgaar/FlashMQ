@@ -1,0 +1,22 @@
+language: cpp
+
+jobs:
+  include:
+    - name: "Ubuntu 18.04 | Clang"
+      dist: bionic
+      compiler: clang
+    - name: "Ubuntu 18.04 | GCC"
+      dist: bionic
+      compiler: gcc
+    - name: "Ubuntu 20.04 | Clang"
+      dist: focal
+      compiler: clang
+    - name: "Ubuntu 20.04 | GCC"
+      dist: focal
+      compiler: gcc
+
+script:
+- set -e  # If any step reports a problem consider the whole build a failure
+- ./build.sh
+- ./FlashMQBuildRelease/FlashMQ --version
+- set +e  # Prevent Travis internals from breaking our build, see https://github.com/travis-ci/travis-ci/issues/891
