@@ -21,6 +21,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include <vector>
 #include <unordered_map>
 #include <cstring>
+#include <string>
 
 /**
  * @brief The mosquitto_auth_opt struct is a resource managed class of auth options, compatible with passing as arguments to Mosquitto
