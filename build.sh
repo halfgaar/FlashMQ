@@ -10,15 +10,15 @@ fi
 
 BUILD_DIR="FlashMQBuild$BUILD_TYPE"
 
+set -eu
+
 if [[ -e "$BUILD_DIR" ]]; then
-  echo "$BUILD_DIR already exists. Not doing anything. You can run 'make' in it, if you want."
-  exit 1
+  >&2 echo "$BUILD_DIR already exists. You can run 'make' in it, if you want.
+"
+else
+  mkdir "$BUILD_DIR"
 fi
 
-set -e
-set -u
-
-mkdir "$BUILD_DIR"
 cd "$BUILD_DIR"
 
 cmake -DCMAKE_BUILD_TYPE="$BUILD_TYPE" "$thisdir"

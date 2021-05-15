@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
+include(CheckCXXCompilerFlag)
 
 project(FlashMQ LANGUAGES CXX)
 
@@ -7,7 +8,13 @@ add_definitions(-DOPENSSL_API_COMPAT=0x10100000L)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-SET(CMAKE_CXX_FLAGS "-rdynamic -msse4.2")
+SET(CMAKE_CXX_FLAGS "-msse4.2")
+
+check_cxx_compiler_flag("-rdynamic" COMPILER_SUPPORTS_RDYNAMIC)
+if (${COMPILER_SUPPORTS_RDYNAMIC})
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -rdynamic")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -rdynamic")
+endif()
 
 add_compile_options(-Wall)
 
