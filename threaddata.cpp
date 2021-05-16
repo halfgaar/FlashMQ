@@ -49,7 +49,8 @@ void ThreadData::start(thread_f f)
     std::ostringstream threadName;
     threadName << "FlashMQ T " << threadnr;
     threadName.flush();
-    const char *c_str = threadName.str().c_str();
+    std::string name = threadName.str();
+    const char *c_str = name.c_str();
     pthread_setname_np(native, c_str);
 
     cpu_set_t cpuset;

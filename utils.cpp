@@ -261,7 +261,7 @@ int64_t currentMSecsSinceEpoch()
 
 std::string getSecureRandomString(const ssize_t len)
 {
-    std::vector<char> buf(len);
+    std::vector<unsigned char> buf(len);
     ssize_t actual_len = getrandom(buf.data(), len, 0);
 
     if (actual_len < 0 || actual_len != len)
@@ -273,7 +273,7 @@ std::string getSecureRandomString(const ssize_t len)
     const int possibleCharactersCount = possibleCharacters.length();
 
     std::string randomString;
-    for(const unsigned char &c : buf)
+    for(const unsigned char c : buf)
     {
         unsigned int index = c % possibleCharactersCount;
         char nextChar = possibleCharacters.at(index);
