@@ -85,6 +85,12 @@ int main(int argc, char *argv[])
         logger->logf(LOG_NOTICE, "Starting FlashMQ");
         mainApp->start();
     }
+    catch (ConfigFileException &ex)
+    {
+        // Not using the logger here, because we may have had all sorts of init errors while setting it up.
+        std::cerr << ex.what() << std::endl;
+        return 99;
+    }
     catch (std::exception &ex)
     {
         // Not using the logger here, because we may have had all sorts of init errors while setting it up.

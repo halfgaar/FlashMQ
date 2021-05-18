@@ -138,6 +138,12 @@ void ConfigFileParser::loadFile(bool test)
         if (line.empty())
             continue;
 
+        // The regex matcher can be made to crash on very long lines, so we're protecting ourselves.
+        if (line.length() > 256)
+        {
+            throw ConfigFileException(formatString("Error at line %d in '%s': line suspiciouly long.", linenr, path.c_str()));
+        }
+
         std::smatch matches;
 
         const bool blockStartMatch = std::regex_search(line, matches, block_regex_start);
