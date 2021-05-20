@@ -24,6 +24,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include <vector>
 #include <memory>
 #include <list>
+#include <limits>
 
 #include "sslctxmanager.h"
 #include "listener.h"
@@ -44,7 +45,7 @@ class ConfigFileParser
     std::set<std::string> validListenKeys;
 
     void testKeyValidity(const std::string &key, const std::set<std::string> &validKeys) const;
-    void checkFileExistsAndReadable(const std::string &key, const std::string &pathToCheck) const;
+    void checkFileExistsAndReadable(const std::string &key, const std::string &pathToCheck, ssize_t max_size = std::numeric_limits<ssize_t>::max()) const;
     void checkFileOrItsDirWritable(const std::string &filepath) const;
 public:
     ConfigFileParser(const std::string &path);

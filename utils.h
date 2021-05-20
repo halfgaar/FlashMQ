@@ -86,5 +86,7 @@ std::string dirnameOf(const std::string& fname);
 
 BindAddr getBindAddr(int family, const std::string &bindAddress, int port);
 
+ssize_t getFileSize(const std::string &path);
+
 
 #endif // UTILS_H

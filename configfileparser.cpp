@@ -22,6 +22,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include <sstream>
 #include "fstream"
 #include <regex>
+#include "sys/stat.h"
 
 #include "openssl/ssl.h"
 #include "openssl/err.h"
@@ -42,13 +43,28 @@ void ConfigFileParser::testKeyValidity(const std::string &key, const std::set<st
     }
 }
 
-void ConfigFileParser::checkFileExistsAndReadable(const std::string &key, const std::string &pathToCheck) const
+void ConfigFileParser::checkFileExistsAndReadable(const std::string &key, const std::string &pathToCheck, ssize_t max_size) const
 {
     if (access(pathToCheck.c_str(), R_OK) != 0)
     {
         std::ostringstream oss;
         oss << "Error for '" << key << "': " << pathToCheck << " is not there or not readable";
         throw ConfigFileException(oss.str());
+    }
+
+    struct stat statbuf;
+    memset(&statbuf, 0, sizeof(struct stat));
+    if (stat(path.c_str(), &statbuf) < 0)
+        throw ConfigFileException(formatString("Reading stat of '%s' failed.", pathToCheck.c_str()));
+
+    if (!S_ISREG(statbuf.st_mode))
+    {
+        throw ConfigFileException(formatString("Error for '%s': '%s' is not a regular file.", key.c_str(), pathToCheck.c_str()));
+    }
+
+    if (statbuf.st_size > max_size)
+    {
+        throw ConfigFileException(formatString("Error for '%s': '%s' is bigger than %ld bytes.", key.c_str(), pathToCheck.c_str(), max_size));
     }
 }
 
@@ -105,7 +121,7 @@ void ConfigFileParser::loadFile(bool test)
     if (path.empty())
         return;
 
-    checkFileExistsAndReadable("application config file", path);
+    checkFileExistsAndReadable("application config file", path, 1024*1024*10);
 
     std::ifstream infile(path, std::ios::in);
 
@@ -236,10 +252,12 @@ void ConfigFileParser::loadFile(bool test)
                 }
                 else if (key == "fullchain")
                 {
+                    checkFileExistsAndReadable("SSL fullchain", value, 1024*1024);
                     curListener->sslFullchain = value;
                 }
                 if (key == "privkey")
                 {
+                    checkFileExistsAndReadable("SSL privkey", value, 1024*1024);
                     curListener->sslPrivkey = value;
                 }
                 if (key == "inet_protocol")
@@ -278,7 +296,7 @@ void ConfigFileParser::loadFile(bool test)
 
                 if (key == "auth_plugin")
                 {
-                    checkFileExistsAndReadable(key, value);
+                    checkFileExistsAndReadable(key, value, 1024*1024*100);
                     tmpSettings->authPluginPath = value;
                 }
 
@@ -346,11 +364,13 @@ void ConfigFileParser::loadFile(bool test)
 
                 if (key == "mosquitto_password_file")
                 {
+                    checkFileExistsAndReadable("mosquitto_password_file", value, 1024*1024*1024);
                     tmpSettings->mosquittoPasswordFile = value;
                 }
 
                 if (key == "mosquitto_acl_file")
                 {
+                    checkFileExistsAndReadable("mosquitto_acl_file", value, 1024*1024*1024);
                     tmpSettings->mosquittoAclFile = value;
                 }
 

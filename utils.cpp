@@ -15,6 +15,8 @@ You should have received a copy of the GNU Affero General Public
 License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "sys/stat.h"
+
 #include "utils.h"
 
 #include "sys/time.h"
@@ -465,6 +467,12 @@ void testSsl(const std::string &fullchain, const std::string &privkey)
     if (privkey.empty())
         throw ConfigFileException("No fullchain specified for private key");
 
+    if (getFileSize(fullchain) == 0)
+        throw ConfigFileException(formatString("SSL 'fullchain' file '%s' is empty or invalid", fullchain.c_str()));
+
+    if (getFileSize(privkey) == 0)
+        throw ConfigFileException(formatString("SSL 'privkey' file '%s' is empty or invalid", privkey.c_str()));
+
     SslCtxManager sslCtx;
     if (SSL_CTX_use_certificate_file(sslCtx.get(), fullchain.c_str(), SSL_FILETYPE_PEM) != 1)
     {
@@ -540,4 +548,14 @@ BindAddr getBindAddr(int family, const std::string &bindAddress,  int port)
     }
 
     return result;
+}
+
+ssize_t getFileSize(const std::string &path)
+{
+    struct stat statbuf;
+    memset(&statbuf, 0, sizeof(struct stat));
+    if (stat(path.c_str(), &statbuf) < 0)
+        return -1;
+
+    return statbuf.st_size;
 }
