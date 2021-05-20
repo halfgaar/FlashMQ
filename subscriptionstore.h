@@ -64,6 +64,8 @@ public:
     std::unique_ptr<SubscriptionNode> childrenPlus;
     std::unique_ptr<SubscriptionNode> childrenPound;
 
+    SubscriptionNode *getChildren(const std::string &subtopic) const;
+
     int cleanSubscriptions();
 };
 

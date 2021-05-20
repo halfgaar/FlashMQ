@@ -61,6 +61,20 @@ void SubscriptionNode::removeSubscriber(const std::shared_ptr<Session> &subscrib
     }
 }
 
+/**
+ * @brief SubscriptionNode::getChildren gets children or null pointer. Const, so doesn't default-create node for
+ *        non-existing children.
+ * @param subtopic
+ * @return
+ */
+SubscriptionNode *SubscriptionNode::getChildren(const std::string &subtopic) const
+{
+    auto it = children.find(subtopic);
+    if (it != children.end())
+        return it->second.get();
+    return nullptr;
+}
+
 
 SubscriptionStore::SubscriptionStore() :
     root("root"),
@@ -122,26 +136,25 @@ void SubscriptionStore::removeSubscription(std::shared_ptr<Client> &client, cons
     RWLockGuard lock_guard(&subscriptionsRwlock);
     lock_guard.wrlock();
 
-    // TODO: because it's so similar to adding a subscription, make a function to retrieve the deepest node?
+    // This code looks like that for addSubscription(), but it's specifically different in that we don't want to default-create non-existing
+    // nodes. We need to abort when that happens.
     SubscriptionNode *deepestNode = &root;
     for(const std::string &subtopic : subtopics)
     {
-        std::unique_ptr<SubscriptionNode> *selectedChildren = nullptr;
+        SubscriptionNode *selectedChildren = nullptr;
 
         if (subtopic == "#")
-            selectedChildren = &deepestNode->childrenPound;
+            selectedChildren = deepestNode->childrenPound.get();
         else if (subtopic == "+")
-            selectedChildren = &deepestNode->childrenPlus;
+            selectedChildren = deepestNode->childrenPlus.get();
         else
-            selectedChildren = &deepestNode->children[subtopic];
+            selectedChildren = deepestNode->getChildren(subtopic);
 
-        std::unique_ptr<SubscriptionNode> &node = *selectedChildren;
-
-        if (!node)
+        if (!selectedChildren)
         {
             return;
         }
-        deepestNode = node.get();
+        deepestNode = selectedChildren;
     }
 
     assert(deepestNode);
@@ -236,6 +249,10 @@ void SubscriptionStore::publishRecursively(std::vector<std::string>::const_itera
             publishNonRecursively(packet, this_node->getSubscribers());
         return;
     }
+
+    // Null nodes in the tree shouldn't happen at this point. It points to bugs elsewhere. However, I don't remember why I check the pointer
+    // inside the if-block above, instead of the start of the method.
+    assert(this_node != nullptr);
 
     if (this_node->children.empty() && !this_node->childrenPlus && !this_node->childrenPound)
         return;
