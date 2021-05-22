@@ -481,6 +481,7 @@ void MqttPacket::handlePublish()
         // Set dup flag to 0, because that must not be propagated [MQTT-3.3.1-3].
         // Existing subscribers don't get retain=1. [MQTT-3.3.1-9]
         bites[0] &= 0b11110110;
+        first_byte = bites[0];
 
         // For the existing clients, we can just write the same packet back out, with our small alterations.
         sender->getThreadData()->getSubscriptionStore()->queuePacketAtSubscribers(*subtopics, *this);
