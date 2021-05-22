@@ -61,7 +61,7 @@ void Session::writePacket(const MqttPacket &packet, char max_qos)
             if (!clientDisconnected())
             {
                 std::shared_ptr<Client> c = makeSharedClient();
-                c->writeMqttPacketAndBlameThisClient(packet);
+                c->writeMqttPacketAndBlameThisClient(packet, qos);
             }
         }
         else if (qos == 1)
@@ -85,7 +85,7 @@ void Session::writePacket(const MqttPacket &packet, char max_qos)
             if (!clientDisconnected())
             {
                 std::shared_ptr<Client> c = makeSharedClient();
-                c->writeMqttPacketAndBlameThisClient(*copyPacket.get());
+                c->writeMqttPacketAndBlameThisClient(*copyPacket.get(), qos);
                 copyPacket->setDuplicate(); // Any dealings with this packet from here will be a duplicate.
             }
         }
@@ -134,7 +134,7 @@ void Session::sendPendingQosMessages()
         std::lock_guard<std::mutex> locker(qosQueueMutex);
         for (QueuedQosPacket &qosMessage : qosPacketQueue)
         {
-            c->writeMqttPacketAndBlameThisClient(*qosMessage.packet.get());
+            c->writeMqttPacketAndBlameThisClient(*qosMessage.packet.get(), qosMessage.packet->getQos());
             qosMessage.packet->setDuplicate(); // Any dealings with this packet from here will be a duplicate.
         }
     }
