@@ -73,7 +73,11 @@ void Session::writePacket(const MqttPacket &packet, char max_qos)
                 logger->logf(LOG_WARNING, "Dropping QoS message for client '%s', because its QoS buffers were full.", client_id.c_str());
                 return;
             }
-            const uint16_t pid = nextPacketId++;
+            nextPacketId++;
+            if (nextPacketId == 0)
+                nextPacketId++;
+
+            const uint16_t pid = nextPacketId;
             copyPacket->setPacketId(pid);
             QueuedQosPacket p;
             p.packet = copyPacket;
