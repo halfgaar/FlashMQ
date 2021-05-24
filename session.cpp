@@ -96,6 +96,10 @@ void Session::writePacket(const MqttPacket &packet, char max_qos)
 // should be acked in order.
 void Session::clearQosMessage(uint16_t packet_id)
 {
+#ifndef NDEBUG
+    logger->logf(LOG_DEBUG, "Clearing QoS message for '%s', packet id '%d'. Left in queue: %d", client_id.c_str(), packet_id, qosPacketQueue.size());
+#endif
+
     std::lock_guard<std::mutex> locker(qosQueueMutex);
 
     auto it = qosPacketQueue.begin();
