@@ -36,10 +36,23 @@ void RWLockGuard::wrlock()
         throw std::runtime_error("wrlock failed.");
 }
 
+/**
+ * @brief RWLockGuard::rdlock locks for reading, and considers it OK of the current thread already owns the lock for writing.
+ *
+ * The man page says: "The current thread already owns the read-write lock for writing." I hope that is literally the case.
+ */
 void RWLockGuard::rdlock()
 {
-    if (pthread_rwlock_rdlock(rwlock) != 0)
-        throw std::runtime_error("rdlock failed.");
+    int rc = pthread_rwlock_rdlock(rwlock);
+
+    if (rc == EDEADLK)
+    {
+        rwlock = NULL;
+        return;
+    }
+
+    if (rc != 0)
+        throw std::runtime_error(strerror(rc));
 }
 
 void RWLockGuard::unlock()
