@@ -57,6 +57,7 @@ class MqttPacket
     char first_byte = 0;
     size_t pos = 0;
     size_t packet_id_pos = 0;
+    uint16_t packet_id = 0;
     ProtocolVersion protocolVersion = ProtocolVersion::None;
     Logger *logger = Logger::getInstance();
 
@@ -68,6 +69,7 @@ class MqttPacket
     size_t remainingAfterPos();
 
     void calculateRemainingLength();
+    void pubCommonConstruct(const uint16_t packet_id, PacketType packetType, uint8_t firstByteDefaultBits = 0);
 
     MqttPacket(const MqttPacket &other) = default;
 public:
@@ -84,6 +86,9 @@ public:
     MqttPacket(const UnsubAck &unsubAck);
     MqttPacket(const Publish &publish);
     MqttPacket(const PubAck &pubAck);
+    MqttPacket(const PubRec &pubRec);
+    MqttPacket(const PubComp &pubComp);
+    MqttPacket(const PubRel &pubRel);
 
     void handle();
     void handleConnect();
@@ -93,6 +98,9 @@ public:
     void handlePing();
     void handlePublish();
     void handlePubAck();
+    void handlePubRec();
+    void handlePubRel();
+    void handlePubComp();
 
     size_t getSizeIncludingNonPresentHeader() const;
     const std::vector<char> &getBites() const { return bites; }
@@ -105,6 +113,7 @@ public:
     char getFirstByte() const;
     RemainingLength getRemainingLength() const;
     void setPacketId(uint16_t packet_id);
+    uint16_t getPacketId() const;
     void setDuplicate();
     size_t getTotalMemoryFootprint();
 };

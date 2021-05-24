@@ -64,11 +64,13 @@ void Session::writePacket(const MqttPacket &packet, char max_qos)
                 c->writeMqttPacketAndBlameThisClient(packet, qos);
             }
         }
-        else if (qos == 1)
+        else if (qos > 0)
         {
             std::shared_ptr<MqttPacket> copyPacket = packet.getCopy();
             std::unique_lock<std::mutex> locker(qosQueueMutex);
-            if (qosPacketQueue.size() >= MAX_QOS_MSG_PENDING_PER_CLIENT || (qosQueueBytes >= MAX_QOS_BYTES_PENDING_PER_CLIENT && qosPacketQueue.size() > 0))
+
+            const size_t totalQosPacketsInTransit = qosPacketQueue.size() + incomingQoS2MessageIds.size() + outgoingQoS2MessageIds.size();
+            if (totalQosPacketsInTransit >= MAX_QOS_MSG_PENDING_PER_CLIENT || (qosQueueBytes >= MAX_QOS_BYTES_PENDING_PER_CLIENT && qosPacketQueue.size() > 0))
             {
                 logger->logf(LOG_WARNING, "Dropping QoS message for client '%s', because its QoS buffers were full.", client_id.c_str());
                 return;
@@ -145,6 +147,13 @@ void Session::sendPendingQosMessages()
             c->writeMqttPacketAndBlameThisClient(*qosMessage.packet.get(), qosMessage.packet->getQos());
             qosMessage.packet->setDuplicate(); // Any dealings with this packet from here will be a duplicate.
         }
+
+        for (const uint16_t packet_id : outgoingQoS2MessageIds)
+        {
+            PubRel pubRel(packet_id);
+            MqttPacket packet(pubRel);
+            c->writeMqttPacketAndBlameThisClient(packet, 2);
+        }
     }
 }
 
@@ -157,4 +166,42 @@ void Session::touch(time_t val)
 bool Session::hasExpired()
 {
     return clientDisconnected() && (lastTouched + EXPIRE_SESSION_AFTER) < time(NULL);
+}
+
+void Session::addIncomingQoS2MessageId(uint16_t packet_id)
+{
+    incomingQoS2MessageIds.insert(packet_id);
+}
+
+bool Session::incomingQoS2MessageIdInTransit(uint16_t packet_id) const
+{
+    const auto it = incomingQoS2MessageIds.find(packet_id);
+    return it != incomingQoS2MessageIds.end();
+}
+
+void Session::removeIncomingQoS2MessageId(u_int16_t packet_id)
+{
+#ifndef NDEBUG
+    logger->logf(LOG_DEBUG, "As QoS 2 receiver: publish released (PUBREL) for '%s', packet id '%d'. Left in queue: %d", client_id.c_str(), packet_id, incomingQoS2MessageIds.size());
+#endif
+
+    const auto it = incomingQoS2MessageIds.find(packet_id);
+    if (it != incomingQoS2MessageIds.end())
+        incomingQoS2MessageIds.erase(it);
+}
+
+void Session::addOutgoingQoS2MessageId(uint16_t packet_id)
+{
+    outgoingQoS2MessageIds.insert(packet_id);
+}
+
+void Session::removeOutgoingQoS2MessageId(u_int16_t packet_id)
+{
+#ifndef NDEBUG
+    logger->logf(LOG_DEBUG, "As QoS 2 sender: publish complete (PUBCOMP) for '%s', packet id '%d'. Left in queue: %d", client_id.c_str(), packet_id, outgoingQoS2MessageIds.size());
+#endif
+
+    const auto it = outgoingQoS2MessageIds.find(packet_id);
+    if (it != outgoingQoS2MessageIds.end())
+        outgoingQoS2MessageIds.erase(it);
 }

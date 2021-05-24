@@ -113,4 +113,28 @@ public:
     size_t getLengthWithoutFixedHeader() const;
 };
 
+class PubRec
+{
+public:
+    PubRec(uint16_t packet_id);
+    uint16_t packet_id;
+    size_t getLengthWithoutFixedHeader() const;
+};
+
+class PubComp
+{
+public:
+    PubComp(uint16_t packet_id);
+    uint16_t packet_id;
+    size_t getLengthWithoutFixedHeader() const;
+};
+
+class PubRel
+{
+public:
+    PubRel(uint16_t packet_id);
+    uint16_t packet_id;
+    size_t getLengthWithoutFixedHeader() const;
+};
+
 #endif // TYPES_H

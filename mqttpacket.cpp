@@ -132,20 +132,50 @@ MqttPacket::MqttPacket(const Publish &publish) :
     calculateRemainingLength();
 }
 
-// This constructor cheats and doesn't use calculateRemainingLength, because it's always the same. It allocates enough space in the vector.
+/**
+ * @brief MqttPacket::pubCommonConstruct is common code for constructors for all those empty pub control packets (ack, rec(eived), rel(ease), comp(lete)).
+ * @param packet_id
+ *
+ * This functions cheats a bit and doesn't use calculateRemainingLength, because it's always 2. Be sure to allocate enough room in the vector when
+ * you use this function (add 2 to the length).
+ */
+void MqttPacket::pubCommonConstruct(const uint16_t packet_id, PacketType packetType, uint8_t firstByteDefaultBits)
+{
+    assert(firstByteDefaultBits <= 0xF);
+
+    fixed_header_length = 2;
+    first_byte = (static_cast<uint8_t>(packetType) << 4) | firstByteDefaultBits;
+    writeByte(first_byte);
+    writeByte(2); // length is always 2.
+    uint8_t packetIdMSB = (packet_id & 0xFF00) >> 8;
+    uint8_t packetIdLSB = (packet_id & 0x00FF);
+    packet_id_pos = pos;
+    writeByte(packetIdMSB);
+    writeByte(packetIdLSB);
+}
+
 MqttPacket::MqttPacket(const PubAck &pubAck) :
     bites(pubAck.getLengthWithoutFixedHeader() + 2)
 {
-    fixed_header_length = 2; // This is the cheat part mentioned above. We're not calculating it dynamically.
-    packetType = PacketType::PUBACK;
-    first_byte = static_cast<char>(packetType) << 4;
-    writeByte(first_byte);
-    writeByte(2); // length is always 2.
-    char topicLenMSB = (pubAck.packet_id & 0xFF00) >> 8;
-    char topicLenLSB = (pubAck.packet_id & 0x00FF);
-    packet_id_pos = pos;
-    writeByte(topicLenMSB);
-    writeByte(topicLenLSB);
+    pubCommonConstruct(pubAck.packet_id, PacketType::PUBACK);
+}
+
+MqttPacket::MqttPacket(const PubRec &pubRec) :
+    bites(pubRec.getLengthWithoutFixedHeader() + 2)
+{
+    pubCommonConstruct(pubRec.packet_id, PacketType::PUBREC);
+}
+
+MqttPacket::MqttPacket(const PubComp &pubComp) :
+    bites(pubComp.getLengthWithoutFixedHeader() + 2)
+{
+    pubCommonConstruct(pubComp.packet_id, PacketType::PUBCOMP);
+}
+
+MqttPacket::MqttPacket(const PubRel &pubRel) :
+    bites(pubRel.getLengthWithoutFixedHeader() + 2)
+{
+    pubCommonConstruct(pubRel.packet_id, PacketType::PUBREL, 0b0010);
 }
 
 void MqttPacket::handle()
@@ -175,6 +205,12 @@ void MqttPacket::handle()
         handlePublish();
     else if (packetType == PacketType::PUBACK)
         handlePubAck();
+    else if (packetType == PacketType::PUBREC)
+        handlePubRec();
+    else if (packetType == PacketType::PUBREL)
+        handlePubRel();
+    else if (packetType == PacketType::PUBCOMP)
+        handlePubComp();
 }
 
 void MqttPacket::handleConnect()
@@ -437,7 +473,7 @@ void MqttPacket::handlePublish()
     bool dup = !!(first_byte & 0b00001000);
     char qos = (first_byte & 0b00000110) >> 1;
 
-    if (qos == 3)
+    if (qos > 2)
         throw ProtocolError("QoS 3 is a protocol violation.");
     this->qos = qos;
 
@@ -453,21 +489,37 @@ void MqttPacket::handlePublish()
         return;
     }
 
+#ifndef NDEBUG
+    logger->logf(LOG_DEBUG, "Publish received, topic '%s'. QoS=%d. Retain=%d, dup=%d", topic.c_str(), qos, retain, dup);
+#endif
+
     if (qos)
     {
-        if (qos > 1)
-            throw ProtocolError("Qos > 1 not implemented.");
         packet_id_pos = pos;
-        uint16_t packet_id = readTwoBytesToUInt16();
+        packet_id = readTwoBytesToUInt16();
 
-        // Clear the packet ID from this packet, because each new publish must get a new one. It's more of a debug precaution.
-        pos -= 2;
-        char zero[2]; zero[0] = 0; zero[1] = 0;
-        writeBytes(zero, 2);
+        if (qos == 1)
+        {
+            PubAck pubAck(packet_id);
+            MqttPacket response(pubAck);
+            sender->writeMqttPacket(response);
+        }
+        else
+        {
+            PubRec pubRec(packet_id);
+            MqttPacket response(pubRec);
+            sender->writeMqttPacket(response);
 
-        PubAck pubAck(packet_id);
-        MqttPacket response(pubAck);
-        sender->writeMqttPacket(response);
+            if (sender->getSession()->incomingQoS2MessageIdInTransit(packet_id))
+            {
+                return;
+            }
+            else
+            {
+                // Doing this before the authentication on purpose, so when the publish is not allowed, the QoS control packets are allowed and can finish.
+                sender->getSession()->addIncomingQoS2MessageId(packet_id);
+            }
+        }
     }
 
     if (sender->getThreadData()->authentication.aclCheck(sender->getClientId(), sender->getUsername(), topic, *subtopics, AclAccess::write) == AuthResult::success)
@@ -494,6 +546,42 @@ void MqttPacket::handlePubAck()
 {
     uint16_t packet_id = readTwoBytesToUInt16();
     sender->getSession()->clearQosMessage(packet_id);
+}
+
+/**
+ * @brief MqttPacket::handlePubRec handles QoS 2 'publish received' packets. The publisher receives these.
+ */
+void MqttPacket::handlePubRec()
+{
+    const uint16_t packet_id = readTwoBytesToUInt16();
+    sender->getSession()->clearQosMessage(packet_id);
+    sender->getSession()->addOutgoingQoS2MessageId(packet_id);
+
+    PubRel pubRel(packet_id);
+    MqttPacket response(pubRel);
+    sender->writeMqttPacket(response);
+}
+
+/**
+ * @brief MqttPacket::handlePubRel handles QoS 2 'publish release'. The publisher sends these.
+ */
+void MqttPacket::handlePubRel()
+{
+    const uint16_t packet_id = readTwoBytesToUInt16();
+    sender->getSession()->removeIncomingQoS2MessageId(packet_id);
+
+    PubComp pubcomp(packet_id);
+    MqttPacket response(pubcomp);
+    sender->writeMqttPacket(response);
+}
+
+/**
+ * @brief MqttPacket::handlePubComp handles QoS 2 'publish complete'. The publisher receives these.
+ */
+void MqttPacket::handlePubComp()
+{
+    const uint16_t packet_id = readTwoBytesToUInt16();
+    sender->getSession()->removeOutgoingQoS2MessageId(packet_id);
 }
 
 void MqttPacket::calculateRemainingLength()
@@ -529,12 +617,20 @@ void MqttPacket::setPacketId(uint16_t packet_id)
     assert(packetType == PacketType::PUBLISH);
     assert(qos > 0);
 
+    this->packet_id = packet_id;
+
     pos = packet_id_pos;
 
     char topicLenMSB = (packet_id & 0xFF00) >> 8;
     char topicLenLSB = (packet_id & 0x00FF);
     writeByte(topicLenMSB);
     writeByte(topicLenLSB);
+}
+
+uint16_t MqttPacket::getPacketId() const
+{
+    assert(qos > 0);
+    return packet_id;
 }
 
 // If I read the specs correctly, the DUP flag is merely for show. It doesn't control anything?

@@ -21,6 +21,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include <memory>
 #include <list>
 #include <mutex>
+#include <set>
 
 #include "forward_declarations.h"
 #include "logger.h"
@@ -45,6 +46,8 @@ class Session
     std::string client_id;
     std::string username;
     std::list<QueuedQosPacket> qosPacketQueue; // Using list because it's easiest to maintain order [MQTT-4.6.0-6]
+    std::set<uint16_t> incomingQoS2MessageIds;
+    std::set<uint16_t> outgoingQoS2MessageIds;
     std::mutex qosQueueMutex;
     uint16_t nextPacketId = 0;
     ssize_t qosQueueBytes = 0;
@@ -66,6 +69,14 @@ public:
     void sendPendingQosMessages();
     void touch(time_t val = 0);
     bool hasExpired();
+
+    void addIncomingQoS2MessageId(uint16_t packet_id);
+    bool incomingQoS2MessageIdInTransit(uint16_t packet_id) const;
+    void removeIncomingQoS2MessageId(u_int16_t packet_id);
+
+    void addOutgoingQoS2MessageId(uint16_t packet_id);
+    void removeOutgoingQoS2MessageId(u_int16_t packet_id);
+
 };
 
 #endif // SESSION_H

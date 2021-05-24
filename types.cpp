@@ -82,3 +82,36 @@ size_t UnsubAck::getLengthWithoutFixedHeader() const
 {
     return 2;
 }
+
+PubRec::PubRec(uint16_t packet_id) :
+    packet_id(packet_id)
+{
+
+}
+
+size_t PubRec::getLengthWithoutFixedHeader() const
+{
+    return 2;
+}
+
+PubComp::PubComp(uint16_t packet_id) :
+    packet_id(packet_id)
+{
+
+}
+
+size_t PubComp::getLengthWithoutFixedHeader() const
+{
+    return 2;
+}
+
+PubRel::PubRel(uint16_t packet_id) :
+    packet_id(packet_id)
+{
+
+}
+
+size_t PubRel::getLengthWithoutFixedHeader() const
+{
+    return 2;
+}
