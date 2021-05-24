@@ -81,6 +81,8 @@ private slots:
     void test_validUtf8();
     void test_validUtf8Sse();
 
+    void testPacketInt16Parse();
+
 };
 
 MainTests::MainTests()
@@ -753,6 +755,21 @@ void MainTests::test_validUtf8Sse()
     m[0] = 127;
     std::string e(m, 1);
     QVERIFY(!data.isValidUtf8(e));
+}
+
+void MainTests::testPacketInt16Parse()
+{
+    std::vector<uint64_t> tests {128, 300, 64, 65550, 32000};
+
+    for (const uint16_t id : tests)
+    {
+        Publish pub("hallo", "content", 1);
+        MqttPacket packet(pub);
+        packet.setPacketId(id);
+        packet.pos -= 2;
+        uint16_t idParsed = packet.readTwoBytesToUInt16();
+        QVERIFY(id == idParsed);
+    }
 }
 
 QTEST_GUILESS_MAIN(MainTests)

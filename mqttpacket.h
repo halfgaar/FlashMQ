@@ -43,6 +43,10 @@ public:
 
 class MqttPacket
 {
+#ifdef TESTING
+    friend class MainTests;
+#endif
+
     std::string topic;
     std::vector<std::string> *subtopics; // comes from local thread storage. See std::vector<std::string> *ThreadData::splitTopic(std::string &topic)
     std::vector<char> bites;

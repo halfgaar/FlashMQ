@@ -143,6 +143,7 @@ MqttPacket::MqttPacket(const PubAck &pubAck) :
     writeByte(2); // length is always 2.
     char topicLenMSB = (pubAck.packet_id & 0xFF00) >> 8;
     char topicLenLSB = (pubAck.packet_id & 0x00FF);
+    packet_id_pos = pos;
     writeByte(topicLenMSB);
     writeByte(topicLenLSB);
 }
@@ -641,7 +642,9 @@ uint16_t MqttPacket::readTwoBytesToUInt16()
     if (pos + 2 > bites.size())
         throw ProtocolError("Invalid packet: header specifies invalid length.");
 
-    uint16_t i = bites[pos] << 8 | bites[pos+1];
+    uint8_t a = bites[pos];
+    uint8_t b = bites[pos+1];
+    uint16_t i = a << 8 | b;
     pos += 2;
     return i;
 }
