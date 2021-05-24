@@ -31,7 +31,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 
 #define MAX_EVENTS 1024
 
-#define VERSION "0.6.1"
+#define VERSION "0.6.2"
 
 MainApp *MainApp::instance = nullptr;
 
