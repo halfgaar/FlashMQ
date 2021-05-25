@@ -42,6 +42,8 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "scopedsocket.h"
 #include "oneinstancelock.h"
 
+#define VERSION "0.6.2"
+
 class MainApp
 {
     static MainApp *instance;
