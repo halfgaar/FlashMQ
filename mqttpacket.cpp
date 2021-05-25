@@ -327,13 +327,14 @@ void MqttPacket::handleConnect()
         if (accessGranted)
         {
             bool sessionPresent = protocolVersion >= ProtocolVersion::Mqtt311 && !clean_session && subscriptionStore->sessionPresent(client_id);
-            subscriptionStore->registerClientAndKickExistingOne(sender);
 
             sender->setAuthenticated(true);
             ConnAck connAck(ConnAckReturnCodes::Accepted, sessionPresent);
             MqttPacket response(connAck);
             sender->writeMqttPacket(response);
             logger->logf(LOG_NOTICE, "Client '%s' logged in successfully", sender->repr().c_str());
+
+            subscriptionStore->registerClientAndKickExistingOne(sender);
         }
         else
         {
