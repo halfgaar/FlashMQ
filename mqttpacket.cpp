@@ -349,7 +349,11 @@ void MqttPacket::handleConnect()
         bool accessGranted = false;
         std::string denyLogMsg;
 
-        if (!settings.allowUnsafeUsernameChars && containsDangerousCharacters(username))
+        if (!user_name_flag && settings.allowAnonymous)
+        {
+            accessGranted = true;
+        }
+        else if (!settings.allowUnsafeUsernameChars && containsDangerousCharacters(username))
         {
             denyLogMsg = formatString("Username '%s' has + or # in the id and 'allow_unsafe_username_chars' is false.", username.c_str());
             sender->setDisconnectReason("Invalid username character");

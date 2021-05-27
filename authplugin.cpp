@@ -454,7 +454,7 @@ AuthResult Authentication::aclCheckFromMosquittoAclFile(const std::string &clien
 
 AuthResult Authentication::unPwdCheckFromMosquittoPasswordFile(const std::string &username, const std::string &password)
 {
-    if (this->mosquittoPasswordFile.empty())
+    if (this->mosquittoPasswordFile.empty() && settings.allowAnonymous)
         return AuthResult::success;
 
     if (!this->mosquittoPasswordEntries)

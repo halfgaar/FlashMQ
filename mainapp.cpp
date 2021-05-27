@@ -434,6 +434,8 @@ void MainApp::start()
         // No threads for execution stability/determinism.
         num_threads = 0;
 
+        settings->allowAnonymous = true;
+
         int fd = open(fuzzFilePath.c_str(), O_RDONLY);
         assert(fd > 0);
 
