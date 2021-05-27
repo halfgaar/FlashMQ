@@ -82,7 +82,11 @@ int main(int argc, char *argv[])
         Logger *logger = Logger::getInstance();
         mainApp = MainApp::getMainApp();
         check<std::runtime_error>(register_signal_handers());
-        logger->logf(LOG_NOTICE, "Starting FlashMQ version %s", VERSION);
+#ifdef NDEBUG
+        logger->logf(LOG_NOTICE, "Starting FlashMQ version %s, release build.", VERSION);
+#else
+        logger->logf(LOG_NOTICE, "Starting FlashMQ version %s, debug build.", VERSION);
+#endif
         mainApp->start();
     }
     catch (ConfigFileException &ex)
