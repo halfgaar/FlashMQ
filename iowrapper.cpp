@@ -547,7 +547,7 @@ ssize_t IoWrapper::websocketBytesToReadBuffer(void *buf, const size_t nbytes)
 }
 
 /**
- * @brief IoWrapper::writeAsMuchOfBufAsWebsocketFrame writes buf of part of buf as websocket frame to websocketWriteRemainder
+ * @brief IoWrapper::writeAsMuchOfBufAsWebsocketFrame writes buf or part of buf as websocket frame to websocketWriteRemainder
  * @param buf
  * @param nbytes. The amount of bytes. Can be 0, for just an empty websocket frame.
  * @return
