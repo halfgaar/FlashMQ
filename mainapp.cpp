@@ -442,6 +442,9 @@ void MainApp::start()
         int fdnull = open("/dev/null", O_RDWR);
         assert(fdnull > 0);
 
+        int fdnull2 = open("/dev/null", O_RDWR);
+        assert(fdnull2 > 0);
+
         const std::string fuzzFilePathLower = str_tolower(fuzzFilePath);
         bool fuzzWebsockets = strContains(fuzzFilePathLower, "web");
 
@@ -456,11 +459,21 @@ void MainApp::start()
             subscriber->setClientProperties(ProtocolVersion::Mqtt311, "subscriber", "subuser", true, 60, true);
             subscriber->setAuthenticated(true);
 
+            std::shared_ptr<Client> websocketsubscriber(new Client(fdnull2, threaddata, nullptr, true, settings, true));
+            websocketsubscriber->setClientProperties(ProtocolVersion::Mqtt311, "websocketsubscriber", "websocksubuser", true, 60, true);
+            websocketsubscriber->setAuthenticated(true);
+            websocketsubscriber->setFakeUpgraded();
+            subscriptionStore->registerClientAndKickExistingOne(websocketsubscriber);
+            subscriptionStore->addSubscription(websocketsubscriber, "#", 0);
+
             subscriptionStore->registerClientAndKickExistingOne(subscriber);
             subscriptionStore->addSubscription(subscriber, "#", 0);
 
             if (fuzzWebsockets && strContains(fuzzFilePathLower, "upgrade"))
+            {
                 client->setFakeUpgraded();
+                subscriber->setFakeUpgraded();
+            }
 
             client->readFdIntoBuffer();
             client->bufferToMqttPackets(packetQueueIn, client);
@@ -471,6 +484,7 @@ void MainApp::start()
             }
 
             subscriber->writeBufIntoFd();
+            websocketsubscriber->writeBufIntoFd();
         }
         catch (ProtocolError &ex)
         {
