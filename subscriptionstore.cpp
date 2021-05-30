@@ -78,6 +78,7 @@ SubscriptionNode *SubscriptionNode::getChildren(const std::string &subtopic) con
 
 SubscriptionStore::SubscriptionStore() :
     root("root"),
+    rootDollar("rootDollar"),
     sessionsByIdConst(sessionsById)
 {
 
@@ -87,10 +88,13 @@ void SubscriptionStore::addSubscription(std::shared_ptr<Client> &client, const s
 {
     const std::list<std::string> subtopics = split(topic, '/');
 
+    SubscriptionNode *deepestNode = &root;
+    if (topic.length() > 0 && topic[0] == '$')
+        deepestNode = &rootDollar;
+
     RWLockGuard lock_guard(&subscriptionsRwlock);
     lock_guard.wrlock();
 
-    SubscriptionNode *deepestNode = &root;
     for(const std::string &subtopic : subtopics)
     {
         std::unique_ptr<SubscriptionNode> *selectedChildren = nullptr;
@@ -120,25 +124,27 @@ void SubscriptionStore::addSubscription(std::shared_ptr<Client> &client, const s
         {
             const std::shared_ptr<Session> &ses = session_it->second;
             deepestNode->addSubscriber(ses, qos);
-            giveClientRetainedMessages(ses, topic, qos);
+            uint64_t count = giveClientRetainedMessages(ses, topic, qos);
+            client->getThreadData()->incrementSentMessageCount(count);
         }
     }
 
     lock_guard.unlock();
-
-
 }
 
 void SubscriptionStore::removeSubscription(std::shared_ptr<Client> &client, const std::string &topic)
 {
     const std::list<std::string> subtopics = split(topic, '/');
 
+    SubscriptionNode *deepestNode = &root;
+    if (topic.length() > 0 && topic[0] == '$')
+        deepestNode = &rootDollar;
+
     RWLockGuard lock_guard(&subscriptionsRwlock);
     lock_guard.wrlock();
 
     // This code looks like that for addSubscription(), but it's specifically different in that we don't want to default-create non-existing
     // nodes. We need to abort when that happens.
-    SubscriptionNode *deepestNode = &root;
     for(const std::string &subtopic : subtopics)
     {
         SubscriptionNode *selectedChildren = nullptr;
@@ -208,7 +214,8 @@ void SubscriptionStore::registerClientAndKickExistingOne(std::shared_ptr<Client>
 
     session->assignActiveConnection(client);
     client->assignSession(session);
-    session->sendPendingQosMessages();
+    uint64_t count = session->sendPendingQosMessages();
+    client->getThreadData()->incrementSentMessageCount(count);
 }
 
 bool SubscriptionStore::sessionPresent(const std::string &clientid)
@@ -227,7 +234,7 @@ bool SubscriptionStore::sessionPresent(const std::string &clientid)
     return result;
 }
 
-void SubscriptionStore::publishNonRecursively(const MqttPacket &packet, const std::vector<Subscription> &subscribers) const
+void SubscriptionStore::publishNonRecursively(const MqttPacket &packet, const std::vector<Subscription> &subscribers, uint64_t &count) const
 {
     for (const Subscription &sub : subscribers)
     {
@@ -235,18 +242,29 @@ void SubscriptionStore::publishNonRecursively(const MqttPacket &packet, const st
         if (!session_weak.expired()) // Shared pointer expires when session has been cleaned by 'clean session' connect.
         {
             const std::shared_ptr<Session> session = session_weak.lock();
-            session->writePacket(packet, sub.qos);
+            session->writePacket(packet, sub.qos, count);
         }
     }
 }
 
+/**
+ * @brief SubscriptionStore::publishRecursively
+ * @param cur_subtopic_it
+ * @param end
+ * @param this_node
+ * @param packet
+ * @param count as a reference (vs return value) because a return value introduces an extra call i.e. limits tail recursion optimization.
+ *
+ * As noted in the params section, this method was written so that it could be (somewhat) optimized for tail recursion by the kernel. If you refactor this,
+ * look at objdump --disassemble --demangle to see how many calls (not jumps) to itself are made and compare.
+ */
 void SubscriptionStore::publishRecursively(std::vector<std::string>::const_iterator cur_subtopic_it, std::vector<std::string>::const_iterator end,
-                                           SubscriptionNode *this_node, const MqttPacket &packet) const
+                                           SubscriptionNode *this_node, const MqttPacket &packet, uint64_t &count) const
 {
     if (cur_subtopic_it == end) // This is the end of the topic path, so look for subscribers here.
     {
         if (this_node)
-            publishNonRecursively(packet, this_node->getSubscribers());
+            publishNonRecursively(packet, this_node->getSubscribers(), count);
         return;
     }
 
@@ -263,33 +281,44 @@ void SubscriptionStore::publishRecursively(std::vector<std::string>::const_itera
 
     if (this_node->childrenPound)
     {
-        publishNonRecursively(packet, this_node->childrenPound->getSubscribers());
+        publishNonRecursively(packet, this_node->childrenPound->getSubscribers(), count);
     }
 
     const auto &sub_node = this_node->children.find(cur_subtop);
     if (sub_node != this_node->children.end())
     {
-        publishRecursively(next_subtopic, end, sub_node->second.get(), packet);
+        publishRecursively(next_subtopic, end, sub_node->second.get(), packet, count);
     }
 
     if (this_node->childrenPlus)
     {
-        publishRecursively(next_subtopic, end, this_node->childrenPlus.get(), packet);
+        publishRecursively(next_subtopic, end, this_node->childrenPlus.get(), packet, count);
     }
 }
 
-void SubscriptionStore::queuePacketAtSubscribers(const std::vector<std::string> &subtopics, const MqttPacket &packet)
+void SubscriptionStore::queuePacketAtSubscribers(const std::vector<std::string> &subtopics, const MqttPacket &packet, bool dollar)
 {
     assert(subtopics.size() > 0);
+
+    SubscriptionNode *startNode = dollar ? &rootDollar : &root;
 
     RWLockGuard lock_guard(&subscriptionsRwlock);
     lock_guard.rdlock();
 
-    publishRecursively(subtopics.begin(), subtopics.end(), &root, packet);
+    uint64_t count = 0;
+    publishRecursively(subtopics.begin(), subtopics.end(), startNode, packet, count);
+
+    std::shared_ptr<Client> sender = packet.getSender();
+    if (sender)
+    {
+        sender->getThreadData()->incrementSentMessageCount(count);
+    }
 }
 
-void SubscriptionStore::giveClientRetainedMessages(const std::shared_ptr<Session> &ses, const std::string &subscribe_topic, char max_qos)
+uint64_t SubscriptionStore::giveClientRetainedMessages(const std::shared_ptr<Session> &ses, const std::string &subscribe_topic, char max_qos)
 {
+    uint64_t count = 0;
+
     RWLockGuard locker(&retainedMessagesRwlock);
     locker.rdlock();
 
@@ -300,8 +329,12 @@ void SubscriptionStore::giveClientRetainedMessages(const std::shared_ptr<Session
         const MqttPacket packet(publish);
 
         if (topicsMatch(subscribe_topic, rm.topic))
-            ses->writePacket(packet, max_qos);
+        {
+            ses->writePacket(packet, max_qos, count);
+        }
     }
+
+    return count;
 }
 
 void SubscriptionStore::setRetainedMessage(const std::string &topic, const std::string &payload, char qos)

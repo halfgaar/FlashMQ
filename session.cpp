@@ -48,7 +48,7 @@ void Session::assignActiveConnection(std::shared_ptr<Client> &client)
     this->thread = client->getThreadData();
 }
 
-void Session::writePacket(const MqttPacket &packet, char max_qos)
+void Session::writePacket(const MqttPacket &packet, char max_qos, uint64_t &count)
 {
     assert(max_qos <= 2);
 
@@ -62,6 +62,7 @@ void Session::writePacket(const MqttPacket &packet, char max_qos)
             {
                 std::shared_ptr<Client> c = makeSharedClient();
                 c->writeMqttPacketAndBlameThisClient(packet, qos);
+                count++;
             }
         }
         else if (qos > 0)
@@ -93,6 +94,7 @@ void Session::writePacket(const MqttPacket &packet, char max_qos)
                 std::shared_ptr<Client> c = makeSharedClient();
                 c->writeMqttPacketAndBlameThisClient(*copyPacket.get(), qos);
                 copyPacket->setDuplicate(); // Any dealings with this packet from here will be a duplicate.
+                count++;
             }
         }
     }
@@ -136,8 +138,10 @@ void Session::clearQosMessage(uint16_t packet_id)
 //
 // There is a bit of a hole there, I think. When we write out a packet to a receiver, it may decide to drop it, if its buffers
 // are full, for instance. We are not required to (periodically) retry. TODO Perhaps I will implement that retry anyway.
-void Session::sendPendingQosMessages()
+uint64_t Session::sendPendingQosMessages()
 {
+    uint64_t count = 0;
+
     if (!clientDisconnected())
     {
         std::shared_ptr<Client> c = makeSharedClient();
@@ -146,6 +150,7 @@ void Session::sendPendingQosMessages()
         {
             c->writeMqttPacketAndBlameThisClient(*qosMessage.packet.get(), qosMessage.packet->getQos());
             qosMessage.packet->setDuplicate(); // Any dealings with this packet from here will be a duplicate.
+            count++;
         }
 
         for (const uint16_t packet_id : outgoingQoS2MessageIds)
@@ -155,6 +160,8 @@ void Session::sendPendingQosMessages()
             c->writeMqttPacketAndBlameThisClient(packet, 2);
         }
     }
+
+    return count;
 }
 
 void Session::touch(time_t val)

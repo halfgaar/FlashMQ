@@ -323,6 +323,9 @@ void MainTests::test_validSubscribePath()
     QVERIFY(isValidSubscribePath(""));
     QVERIFY(isValidSubscribePath("hello"));
 
+    QVERIFY(isValidSubscribePath("$SYS/hello"));
+    QVERIFY(isValidSubscribePath("hello/$SYS")); // Hmm, is this valid?
+
     QVERIFY(!isValidSubscribePath("one/tw+o/three"));
     QVERIFY(!isValidSubscribePath("one/+o/three"));
     QVERIFY(!isValidSubscribePath("one/a+/three"));
@@ -707,6 +710,7 @@ void MainTests::test_validUtf8Sse()
     QVERIFY(!data.isValidUtf8("+", true));
     QVERIFY(!data.isValidUtf8("🩰+asdfasdfasdf", true));
     QVERIFY(!data.isValidUtf8("+asdfasdfasdf", true));
+    QVERIFY(!data.isValidUtf8("$SYS/asdfasdfasdf", true));
 
     std::memset(m, 0, 16);
     m[0] = 'a';

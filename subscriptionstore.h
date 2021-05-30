@@ -72,6 +72,7 @@ public:
 class SubscriptionStore
 {
     SubscriptionNode root;
+    SubscriptionNode rootDollar;
     pthread_rwlock_t subscriptionsRwlock = PTHREAD_RWLOCK_INITIALIZER;
     std::unordered_map<std::string, std::shared_ptr<Session>> sessionsById;
     const std::unordered_map<std::string, std::shared_ptr<Session>> &sessionsByIdConst;
@@ -81,9 +82,9 @@ class SubscriptionStore
 
     Logger *logger = Logger::getInstance();
 
-    void publishNonRecursively(const MqttPacket &packet, const std::vector<Subscription> &subscribers) const;
+    void publishNonRecursively(const MqttPacket &packet, const std::vector<Subscription> &subscribers, uint64_t &count) const;
     void publishRecursively(std::vector<std::string>::const_iterator cur_subtopic_it, std::vector<std::string>::const_iterator end,
-                            SubscriptionNode *this_node, const MqttPacket &packet) const;
+                            SubscriptionNode *this_node, const MqttPacket &packet, uint64_t &count) const;
 
 public:
     SubscriptionStore();
@@ -93,8 +94,8 @@ public:
     void registerClientAndKickExistingOne(std::shared_ptr<Client> &client);
     bool sessionPresent(const std::string &clientid);
 
-    void queuePacketAtSubscribers(const std::vector<std::string> &subtopics, const MqttPacket &packet);
-    void giveClientRetainedMessages(const std::shared_ptr<Session> &ses, const std::string &subscribe_topic, char max_qos);
+    void queuePacketAtSubscribers(const std::vector<std::string> &subtopics, const MqttPacket &packet, bool dollar = false);
+    uint64_t giveClientRetainedMessages(const std::shared_ptr<Session> &ses, const std::string &subscribe_topic, char max_qos);
 
     void setRetainedMessage(const std::string &topic, const std::string &payload, char qos);
 

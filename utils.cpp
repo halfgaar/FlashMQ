@@ -57,6 +57,9 @@ bool topicsMatch(const std::string &subscribeTopic, const std::string &publishTo
     if (subscribeTopic.find("+") == std::string::npos && subscribeTopic.find("#") == std::string::npos)
         return subscribeTopic == publishTopic;
 
+    if (!subscribeTopic.empty() && !publishTopic.empty() && publishTopic[0] == '$' && subscribeTopic[0] != '$')
+        return false;
+
     const std::vector<std::string> subscribeParts = splitToVector(subscribeTopic, '/');
     const std::vector<std::string> publishParts = splitToVector(publishTopic, '/');
 

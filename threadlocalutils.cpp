@@ -60,6 +60,9 @@ bool Utils::isValidUtf8(const std::string &s, bool alsoCheckInvalidPublishChars)
     std::memcpy(topicCopy.data(), s.c_str(), len);
     std::memset(&topicCopy.data()[len], 0x20, 16); // I fill out with spaces, as valid chars
 
+    if (alsoCheckInvalidPublishChars && len > 0 && s[0] == '$')
+        return false;
+
     int n = 0;
     const char *i = topicCopy.data();
     while (n < len)

@@ -28,6 +28,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include <mutex>
 #include <shared_mutex>
 #include <functional>
+#include <chrono>
 
 #include "forward_declarations.h"
 
@@ -46,6 +47,15 @@ class ThreadData
     std::mutex clients_by_fd_mutex;
     std::shared_ptr<SubscriptionStore> subscriptionStore;
     Logger *logger;
+
+    uint64_t receivedMessageCount = 0;
+    uint64_t receivedMessageCountPrevious = 0;
+    std::chrono::time_point<std::chrono::steady_clock> receivedMessagePreviousTime = std::chrono::steady_clock::now();
+
+    uint64_t sentMessageCount = 0;
+    uint64_t sentMessageCountPrevious = 0;
+    std::chrono::time_point<std::chrono::steady_clock> sentMessagePreviousTime = std::chrono::steady_clock::now();
+
 
     void reload(std::shared_ptr<Settings> settings);
     void wakeUpThread();
@@ -81,6 +91,16 @@ public:
     void queueQuit();
     void waitForQuit();
     void queuePasswdFileReload();
+
+    int getNrOfClients() const;
+
+    void incrementReceivedMessageCount();
+    uint64_t getReceivedMessageCount() const;
+    uint64_t getReceivedMessagePerSecond();
+
+    void incrementSentMessageCount(uint64_t n);
+    uint64_t getSentMessageCount() const;
+    uint64_t getSentMessagePerSecond();
 };
 
 #endif // THREADDATA_H

@@ -157,6 +157,59 @@ void ThreadData::queuePasswdFileReload()
     wakeUpThread();
 }
 
+int ThreadData::getNrOfClients() const
+{
+    return clients_by_fd.size();
+}
+
+void ThreadData::incrementReceivedMessageCount()
+{
+    receivedMessageCount++;
+}
+
+uint64_t ThreadData::getReceivedMessageCount() const
+{
+    return receivedMessageCount;
+}
+
+/**
+ * @brief ThreadData::getReceivedMessagePerSecond gets the amount of seconds received, averaged over the last time this was called.
+ * @return
+ *
+ * Locking is not required, because the counter is not written to from here.
+ */
+uint64_t ThreadData::getReceivedMessagePerSecond()
+{
+    std::chrono::time_point<std::chrono::steady_clock> now = std::chrono::steady_clock::now();
+    std::chrono::milliseconds msSinceLastTime = std::chrono::duration_cast<std::chrono::milliseconds>(now - receivedMessagePreviousTime);
+    uint64_t messagesTimes1000 = (receivedMessageCount - receivedMessageCountPrevious) * 1000;
+    uint64_t result = messagesTimes1000 / (msSinceLastTime.count() + 1); // branchless avoidance of div by 0;
+    receivedMessagePreviousTime = now;
+    receivedMessageCountPrevious = receivedMessageCount;
+    return result;
+}
+
+void ThreadData::incrementSentMessageCount(uint64_t n)
+{
+    sentMessageCount += n;
+}
+
+uint64_t ThreadData::getSentMessageCount() const
+{
+    return sentMessageCount;
+}
+
+uint64_t ThreadData::getSentMessagePerSecond()
+{
+    std::chrono::time_point<std::chrono::steady_clock> now = std::chrono::steady_clock::now();
+    std::chrono::milliseconds msSinceLastTime = std::chrono::duration_cast<std::chrono::milliseconds>(now - sentMessagePreviousTime);
+    uint64_t messagesTimes1000 = (sentMessageCount - sentMessageCountPrevious) * 1000;
+    uint64_t result = messagesTimes1000 / (msSinceLastTime.count() + 1); // branchless avoidance of div by 0;
+    sentMessagePreviousTime = now;
+    sentMessageCountPrevious = sentMessageCount;
+    return result;
+}
+
 // TODO: profile how fast hash iteration is. Perhaps having a second list/vector is beneficial?
 void ThreadData::doKeepAliveCheck()
 {

@@ -497,6 +497,8 @@ void MqttPacket::handlePublish()
     logger->logf(LOG_DEBUG, "Publish received, topic '%s'. QoS=%d. Retain=%d, dup=%d", topic.c_str(), qos, retain, dup);
 #endif
 
+    sender->getThreadData()->incrementReceivedMessageCount();
+
     if (qos)
     {
         packet_id_pos = pos;

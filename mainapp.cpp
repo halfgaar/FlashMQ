@@ -187,6 +187,10 @@ MainApp::MainApp(const std::string &configFilePath) :
 
     auto fPasswordFileReload = std::bind(&MainApp::queuePasswordFileReloadAllThreads, this);
     timer.addCallback(fPasswordFileReload, 2000, "Password file reload.");
+
+    auto fPublishStats = std::bind(&MainApp::publishStatsOnDollarTopic, this);
+    timer.addCallback(fPublishStats, 10000, "Publish stats on $SYS");
+    publishStatsOnDollarTopic();
 }
 
 MainApp::~MainApp()
@@ -304,6 +308,43 @@ void MainApp::queuePasswordFileReloadAllThreads()
 void MainApp::setFuzzFile(const std::string &fuzzFilePath)
 {
     this->fuzzFilePath = fuzzFilePath;
+}
+
+void MainApp::publishStatsOnDollarTopic()
+{
+    uint nrOfClients = 0;
+    uint64_t receivedMessageCountPerSecond = 0;
+    uint64_t receivedMessageCount = 0;
+    uint64_t sentMessageCountPerSecond = 0;
+    uint64_t sentMessageCount = 0;
+
+    for (std::shared_ptr<ThreadData> &thread : threads)
+    {
+        nrOfClients += thread->getNrOfClients();
+
+        receivedMessageCountPerSecond += thread->getReceivedMessagePerSecond();
+        receivedMessageCount += thread->getReceivedMessageCount();
+
+        sentMessageCountPerSecond += thread->getSentMessagePerSecond();
+        sentMessageCount += thread->getSentMessageCount();
+    }
+
+    publishStat("$SYS/broker/clients/total", nrOfClients);
+
+    publishStat("$SYS/broker/load/messages/received/total", receivedMessageCount);
+    publishStat("$SYS/broker/load/messages/received/persecond", receivedMessageCountPerSecond);
+
+    publishStat("$SYS/broker/load/messages/sent/total", sentMessageCount);
+    publishStat("$SYS/broker/load/messages/sent/persecond", sentMessageCountPerSecond);
+}
+
+void MainApp::publishStat(const std::string &topic, uint64_t n)
+{
+    std::vector<std::string> *subtopics = utils.splitTopic(topic);
+    const std::string payload = std::to_string(n);
+    Publish p(topic, payload, 0);
+    subscriptionStore->queuePacketAtSubscribers(*subtopics, p, true);
+    subscriptionStore->setRetainedMessage(topic, payload, 0);
 }
 
 void MainApp::initMainApp(int argc, char *argv[])
