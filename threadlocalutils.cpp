@@ -1,9 +1,11 @@
+#ifdef __SSE4_2__
+
 #include "threadlocalutils.h"
 
 #include <cstring>
 #include <cassert>
 
-Utils::Utils() :
+SimdUtils::SimdUtils() :
     subtopicParseMem(TOPIC_MEMORY_LENGTH),
     topicCopy(TOPIC_MEMORY_LENGTH)
 {
@@ -11,15 +13,14 @@ Utils::Utils() :
 }
 
 /**
- * @brief ThreadData::splitTopic uses SSE4.2 to detect the '/' chars, 16 chars at a time, and returns a pointer to thread-local memory.
- * @param topic string is altered: some extra space is reserved.
- * @return Pointer to thread-owned vector of subtopics.
- *
- * Because it returns a pointer to the thread-local vector, only the current thread should touch it.
+ * @brief SimdUtils::splitTopic uses SSE4.2 to detect the '/' chars, 16 chars at a time, and returns a pointer to thread-local memory.
+ * @param topic
+ * @param output is cleared and emplaced in. You can give it members from the Utils class, to avoid re-allocation.
+ * @return
  */
-std::vector<std::string> *Utils::splitTopic(const std::string &topic)
+std::vector<std::string> *SimdUtils::splitTopic(const std::string &topic, std::vector<std::string> &output)
 {
-    subtopics.clear();
+    output.clear();
 
     const int s = topic.size();
     std::memcpy(topicCopy.data(), topic.c_str(), s+1);
@@ -41,16 +42,16 @@ std::vector<std::string> *Utils::splitTopic(const std::string &topic)
 
         if (index < 16 || n >= s)
         {
-            subtopics.emplace_back(subtopicParseMem.data(), carryi);
+            output.emplace_back(subtopicParseMem.data(), carryi);
             carryi = 0;
             n++;
         }
     }
 
-    return &subtopics;
+    return &output;
 }
 
-bool Utils::isValidUtf8(const std::string &s, bool alsoCheckInvalidPublishChars)
+bool SimdUtils::isValidUtf8(const std::string &s, bool alsoCheckInvalidPublishChars)
 {
     const int len = s.size();
 
@@ -136,3 +137,5 @@ bool Utils::isValidUtf8(const std::string &s, bool alsoCheckInvalidPublishChars)
 
     return true;
 }
+
+#endif

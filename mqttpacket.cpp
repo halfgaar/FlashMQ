@@ -23,9 +23,9 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 
 #include "utils.h"
 
-#include "threadlocalutils.h"
-
-thread_local Utils utils;
+// We can void constant reallocation of space for parsed subtopics by using this. But, beware to only use it during handling of the current
+// packet. Don't access it for a stored packet, because then it will have changed.
+thread_local std::vector<std::string> gSubtopics;
 
 RemainingLength::RemainingLength()
 {
@@ -106,7 +106,8 @@ MqttPacket::MqttPacket(const Publish &publish) :
     }
 
     this->topic = publish.topic;
-    this->subtopics = utils.splitTopic(this->topic);
+    this->subtopics = &gSubtopics;
+    splitTopic(this->topic, gSubtopics);
 
     packetType = PacketType::PUBLISH;
     this->qos = publish.qos;
@@ -299,7 +300,7 @@ void MqttPacket::handleConnect()
         }
 
         // The specs don't really say what to do when client id not UTF8, so including here.
-        if (!utils.isValidUtf8(client_id) || !utils.isValidUtf8(username) || !utils.isValidUtf8(password) || !utils.isValidUtf8(will_topic))
+        if (!isValidUtf8(client_id) || !isValidUtf8(username) || !isValidUtf8(password) || !isValidUtf8(will_topic))
         {
             ConnAck connAck(ConnAckReturnCodes::MalformedUsernameOrPassword);
             MqttPacket response(connAck);
@@ -419,7 +420,7 @@ void MqttPacket::handleSubscribe()
         uint16_t topicLength = readTwoBytesToUInt16();
         std::string topic(readBytes(topicLength), topicLength);
 
-        if (topic.empty() || !utils.isValidUtf8(topic))
+        if (topic.empty() || !isValidUtf8(topic))
             throw ProtocolError("Subscribe topic not valid UTF-8.");
 
         if (!isValidSubscribePath(topic))
@@ -438,6 +439,7 @@ void MqttPacket::handleSubscribe()
     SubAck subAck(packet_id, subs_reponse_codes);
     MqttPacket response(subAck);
     sender->writeMqttPacket(response);
+    this->subtopics = nullptr;
 }
 
 void MqttPacket::handleUnsubscribe()
@@ -454,7 +456,7 @@ void MqttPacket::handleUnsubscribe()
         uint16_t topicLength = readTwoBytesToUInt16();
         std::string topic(readBytes(topicLength), topicLength);
 
-        if (topic.empty() || !utils.isValidUtf8(topic))
+        if (topic.empty() || !isValidUtf8(topic))
             throw ProtocolError("Subscribe topic not valid UTF-8.");
 
         sender->getThreadData()->getSubscriptionStore()->removeSubscription(sender, topic);
@@ -485,9 +487,10 @@ void MqttPacket::handlePublish()
         throw ProtocolError("Duplicate flag is set for QoS 0 packet. This is illegal.");
 
     topic = std::string(readBytes(variable_header_length), variable_header_length);
-    subtopics = utils.splitTopic(topic);
+    subtopics = &gSubtopics;
+    splitTopic(topic, gSubtopics);
 
-    if (!utils.isValidUtf8(topic, true))
+    if (!isValidUtf8(topic, true))
     {
         logger->logf(LOG_WARNING, "Client '%s' published a message with invalid UTF8 or +/# in it. Dropping.", sender->repr().c_str());
         return;
@@ -546,6 +549,7 @@ void MqttPacket::handlePublish()
         // For the existing clients, we can just write the same packet back out, with our small alterations.
         sender->getThreadData()->getSubscriptionStore()->queuePacketAtSubscribers(*subtopics, *this);
     }
+    this->subtopics = nullptr;
 }
 
 void MqttPacket::handlePubAck()
@@ -678,6 +682,10 @@ const std::string &MqttPacket::getTopic() const
     return this->topic;
 }
 
+/**
+ * @brief MqttPacket::getSubtopics returns a pointer to the parsed subtopics. Use with care!
+ * @return a pointer to a vector of subtopics that will be overwritten the next packet!
+ */
 const std::vector<std::string> *MqttPacket::getSubtopics() const
 {
     return this->subtopics;

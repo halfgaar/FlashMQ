@@ -78,10 +78,12 @@ private slots:
 
     void test_sse_split();
 
-    void test_validUtf8();
+    void test_validUtf8Generic();
     void test_validUtf8Sse();
 
     void testPacketInt16Parse();
+
+    void testTopicsMatch();
 
 };
 
@@ -600,7 +602,8 @@ void MainTests::test_acl_patterns_clientid()
 
 void MainTests::test_sse_split()
 {
-    Utils data;
+    SimdUtils data;
+    std::vector<std::string> output;
 
     std::list<std::string> topics;
     topics.push_back("one/two/threeabcasdfasdf/koe");
@@ -619,50 +622,51 @@ void MainTests::test_sse_split()
 
     for (const std::string &t : topics)
     {
-        QCOMPARE(*data.splitTopic(t), splitToVector(t, '/'));
+        data.splitTopic(t, output);
+        QCOMPARE(output, splitToVector(t, '/'));
     }
 }
 
-void MainTests::test_validUtf8()
+void MainTests::test_validUtf8Generic()
 {
     char m[16];
 
-    QVERIFY(isValidUtf8(""));
-    QVERIFY(isValidUtf8("ƀ"));
-    QVERIFY(isValidUtf8("Hello"));
+    QVERIFY(isValidUtf8Generic(""));
+    QVERIFY(isValidUtf8Generic("ƀ"));
+    QVERIFY(isValidUtf8Generic("Hello"));
 
     std::memset(m, 0, 16);
-    QVERIFY(!isValidUtf8(std::string(m, 16)));
+    QVERIFY(!isValidUtf8Generic(std::string(m, 16)));
 
-    QVERIFY(isValidUtf8("Straƀe")); // two byte chars
-    QVERIFY(isValidUtf8("StraƀeHelloHelloHelloHelloHelloHello")); // two byte chars
-    QVERIFY(isValidUtf8("HelloHelloHelloHelloHelloHelloHelloHelloStraƀeHelloHelloHelloHelloHelloHello")); // two byte chars
+    QVERIFY(isValidUtf8Generic("Straƀe")); // two byte chars
+    QVERIFY(isValidUtf8Generic("StraƀeHelloHelloHelloHelloHelloHello")); // two byte chars
+    QVERIFY(isValidUtf8Generic("HelloHelloHelloHelloHelloHelloHelloHelloStraƀeHelloHelloHelloHelloHelloHello")); // two byte chars
 
     std::memset(m, 0, 16);
     m[0] = 'a';
     m[1] = 13; // is \r
-    QVERIFY(!isValidUtf8(std::string(m, 16)));
+    QVERIFY(!isValidUtf8Generic(std::string(m, 16)));
 
     const std::string unicode_ballet_shoes("🩰");
     QVERIFY(unicode_ballet_shoes.length() == 4);
-    QVERIFY(isValidUtf8(unicode_ballet_shoes));
+    QVERIFY(isValidUtf8Generic(unicode_ballet_shoes));
 
     const std::string unicode_ballot_box("☐");
     QVERIFY(unicode_ballot_box.length() == 3);
-    QVERIFY(isValidUtf8(unicode_ballot_box));
+    QVERIFY(isValidUtf8Generic(unicode_ballot_box));
 
     std::memset(m, 0, 16);
     m[0] = 0b11000001; // Start 2 byte char
     m[1] = 0b00000001; // Next byte doesn't start with 1, which is wrong
     std::string a(m, 2);
-    QVERIFY(!isValidUtf8(a));
+    QVERIFY(!isValidUtf8Generic(a));
 
     std::memset(m, 0, 16);
     m[0] = 0b11100001; // Start 3 byte char
     m[1] = 0b10100001;
     m[2] = 0b00000001; // Next byte doesn't start with 1, which is wrong
     std::string b(m, 3);
-    QVERIFY(!isValidUtf8(b));
+    QVERIFY(!isValidUtf8Generic(b));
 
     std::memset(m, 0, 16);
     m[0] = 0b11110001; // Start 4 byte char
@@ -670,7 +674,7 @@ void MainTests::test_validUtf8()
     m[2] = 0b10100001;
     m[3] = 0b00000001; // Next byte doesn't start with 1, which is wrong
     std::string c(m, 4);
-    QVERIFY(!isValidUtf8(c));
+    QVERIFY(!isValidUtf8Generic(c));
 
     std::memset(m, 0, 16);
     m[0] = 0b11110001; // Start 4 byte char
@@ -678,18 +682,18 @@ void MainTests::test_validUtf8()
     m[2] = 0b00100001; // Doesn't start with 1: invalid.
     m[3] = 0b10000001;
     std::string d(m, 4);
-    QVERIFY(!isValidUtf8(d));
+    QVERIFY(!isValidUtf8Generic(d));
 
     // Upper ASCII, invalid
     std::memset(m, 0, 16);
     m[0] = 127;
     std::string e(m, 1);
-    QVERIFY(!isValidUtf8(e));
+    QVERIFY(!isValidUtf8Generic(e));
 }
 
 void MainTests::test_validUtf8Sse()
 {
-    Utils data;
+    SimdUtils data;
 
     char m[16];
 
@@ -774,6 +778,33 @@ void MainTests::testPacketInt16Parse()
         uint16_t idParsed = packet.readTwoBytesToUInt16();
         QVERIFY(id == idParsed);
     }
+}
+
+void MainTests::testTopicsMatch()
+{
+    QVERIFY(topicsMatch("#", ""));
+    QVERIFY(topicsMatch("#", "asdf/b/sdf"));
+    QVERIFY(topicsMatch("#", "+/b/sdf"));
+    QVERIFY(topicsMatch("#", "/one/two/asdf"));
+    QVERIFY(topicsMatch("#", "/one/two/asdf/"));
+    QVERIFY(topicsMatch("+/+/+/+/+", "/one/two/asdf/"));
+    QVERIFY(topicsMatch("+/+/#", "/one/two/asdf/"));
+    QVERIFY(topicsMatch("+/+/#", "/1234567890abcdef/two/asdf/"));
+    QVERIFY(topicsMatch("+/+/#", "/1234567890abcdefg/two/asdf/"));
+    QVERIFY(topicsMatch("+/+/#", "/1234567890abcde/two/asdf/"));
+    QVERIFY(topicsMatch("+/+/#", "1234567890abcde//two/asdf/"));
+
+    QVERIFY(!topicsMatch("+/santa", "/one/two/asdf/"));
+    QVERIFY(!topicsMatch("+/+/+/+/", "/one/two/asdf/a"));
+    QVERIFY(!topicsMatch("+/one/+/+/", "/one/two/asdf/a"));
+
+    QVERIFY(topicsMatch("$SYS/cow", "$SYS/cow"));
+    QVERIFY(topicsMatch("$SYS/cow/+", "$SYS/cow/bla"));
+    QVERIFY(topicsMatch("$SYS/#", "$SYS/broker/clients/connected"));
+
+    QVERIFY(!topicsMatch("$SYS/cow/+", "$SYS/cow/bla/foobar"));
+    QVERIFY(!topicsMatch("#", "$SYS/cow"));
+
 }
 
 QTEST_GUILESS_MAIN(MainTests)

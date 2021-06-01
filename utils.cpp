@@ -34,6 +34,12 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "logger.h"
 #include "evpencodectxmanager.h"
 
+
+#ifdef __SSE4_2__
+#include "threadlocalutils.h"
+thread_local SimdUtils simdUtils;
+#endif
+
 std::list<std::string> split(const std::string &input, const char sep, size_t max, bool keep_empty_parts)
 {
     std::list<std::string> list;
@@ -60,8 +66,16 @@ bool topicsMatch(const std::string &subscribeTopic, const std::string &publishTo
     if (!subscribeTopic.empty() && !publishTopic.empty() && publishTopic[0] == '$' && subscribeTopic[0] != '$')
         return false;
 
-    const std::vector<std::string> subscribeParts = splitToVector(subscribeTopic, '/');
-    const std::vector<std::string> publishParts = splitToVector(publishTopic, '/');
+    std::vector<std::string> subscribeParts;
+    std::vector<std::string> publishParts;
+
+#ifdef __SSE4_2__
+    simdUtils.splitTopic(subscribeTopic, subscribeParts);
+    simdUtils.splitTopic(publishTopic, publishParts);
+#else
+    splitToVector(subscribeTopic, subscribeParts, '/');
+    splitToVector(publishTopic, publishParts, '/');
+#endif
 
     auto subscribe_itr = subscribeParts.begin();
     auto publish_itr = publishParts.begin();
@@ -84,7 +98,7 @@ bool topicsMatch(const std::string &subscribeTopic, const std::string &publishTo
     return result;
 }
 
-bool isValidUtf8(const std::string &s, bool alsoCheckInvalidPublishChars)
+bool isValidUtf8Generic(const std::string &s, bool alsoCheckInvalidPublishChars)
 {
     int multibyte_remain = 0;
     int cur_code_point = 0;
@@ -144,6 +158,15 @@ bool isValidUtf8(const std::string &s, bool alsoCheckInvalidPublishChars)
         }
     }
     return multibyte_remain == 0;
+}
+
+bool isValidUtf8(const std::string &s, bool alsoCheckInvalidPublishChars)
+{
+#ifdef __SSE4_2__
+    return simdUtils.isValidUtf8(s, alsoCheckInvalidPublishChars);
+#else
+    return isValidUtf8Generic(s, alsoCheckInvalidPublishChars);
+#endif
 }
 
 bool strContains(const std::string &s, const std::string &needle)
@@ -209,25 +232,39 @@ bool containsDangerousCharacters(const std::string &s)
     return false;
 }
 
-const std::vector<std::string> splitToVector(const std::string &input, const char sep, size_t max, bool keep_empty_parts)
+void splitTopic(const std::string &topic, std::vector<std::string> &output)
+{
+#ifdef __SSE4_2__
+    simdUtils.splitTopic(topic, output);
+#else
+    splitToVector(topic, output, '/');
+#endif
+}
+
+void splitToVector(const std::string &input, std::vector<std::string> &output, const char sep, size_t max, bool keep_empty_parts)
 {
     const auto subtopic_count = std::count(input.begin(), input.end(), '/') + 1;
 
-    std::vector<std::string> result;
-    result.reserve(subtopic_count);
+    output.reserve(subtopic_count);
     size_t start = 0;
     size_t end;
 
     const auto npos = std::string::npos;
 
-    while (result.size() < max && (end = input.find(sep, start)) != npos)
+    while (output.size() < max && (end = input.find(sep, start)) != npos)
     {
         if (start != end || keep_empty_parts)
-            result.push_back(input.substr(start, end - start));
+            output.push_back(input.substr(start, end - start));
         start = end + 1; // increase by length of seperator.
     }
     if (start != input.size() || keep_empty_parts)
-        result.push_back(input.substr(start, npos));
+        output.push_back(input.substr(start, npos));
+}
+
+const std::vector<std::string> splitToVector(const std::string &input, const char sep, size_t max, bool keep_empty_parts)
+{
+    std::vector<std::string> result;
+    splitToVector(input, result, sep, max, keep_empty_parts);
     return result;
 }
 

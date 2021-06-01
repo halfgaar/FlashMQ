@@ -84,14 +84,11 @@ int main(int argc, char *argv[])
         check<std::runtime_error>(register_signal_handers());
 
         std::string sse = "without SSE support";
-#ifdef __SSE2__
-        sse = "with SSE2 support";
-#endif
 #ifdef __SSE4_2__
         sse = "with SSE4.2 support";
 #endif
 #ifdef NDEBUG
-        logger->logf(LOG_NOTICE, "Starting FlashMQ version %s, release build.", VERSION, sse.c_str());
+        logger->logf(LOG_NOTICE, "Starting FlashMQ version %s, release build %s.", VERSION, sse.c_str());
 #else
         logger->logf(LOG_NOTICE, "Starting FlashMQ version %s, debug build %s.", VERSION, sse.c_str());
 #endif

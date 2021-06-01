@@ -41,7 +41,6 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "timer.h"
 #include "scopedsocket.h"
 #include "oneinstancelock.h"
-#include "threadlocalutils.h"
 
 #define VERSION "0.7.0"
 
@@ -65,7 +64,6 @@ class MainApp
     std::mutex quitMutex;
     std::string fuzzFilePath;
     OneInstanceLock oneInstanceLock;
-    Utils utils;
 
     Logger *logger = Logger::getInstance();
 

@@ -340,10 +340,11 @@ void MainApp::publishStatsOnDollarTopic()
 
 void MainApp::publishStat(const std::string &topic, uint64_t n)
 {
-    std::vector<std::string> *subtopics = utils.splitTopic(topic);
+    std::vector<std::string> subtopics;
+    splitTopic(topic, subtopics);
     const std::string payload = std::to_string(n);
     Publish p(topic, payload, 0);
-    subscriptionStore->queuePacketAtSubscribers(*subtopics, p, true);
+    subscriptionStore->queuePacketAtSubscribers(subtopics, p, true);
     subscriptionStore->setRetainedMessage(topic, payload, 0);
 }
 

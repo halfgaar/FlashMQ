@@ -48,7 +48,7 @@ class MqttPacket
 #endif
 
     std::string topic;
-    std::vector<std::string> *subtopics; // comes from local thread storage. See std::vector<std::string> *ThreadData::splitTopic(std::string &topic)
+    std::vector<std::string> *subtopics = nullptr;
     std::vector<char> bites;
     size_t fixed_header_length = 0; // if 0, this packet does not contain the bytes of the fixed header.
     RemainingLength remainingLength;
