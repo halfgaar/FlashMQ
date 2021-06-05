@@ -21,6 +21,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include <sstream>
 #include <iostream>
 #include <cassert>
+#include <chrono>
 
 #include "logger.h"
 
@@ -136,7 +137,7 @@ bool Client::readFdIntoBuffer()
         return false;
     }
 
-    lastActivity = time(NULL);
+    lastActivity = std::chrono::steady_clock::now();
     if (session)
         session->touch(lastActivity);
 
@@ -273,17 +274,22 @@ bool Client::keepAliveExpired()
     if (keepalive == 0)
         return false;
 
-    if (!authenticated)
-        return lastActivity + 20 < time(NULL);
+    const std::chrono::time_point<std::chrono::steady_clock> now = std::chrono::steady_clock::now();
 
-    bool result = (lastActivity + (keepalive*10/5)) < time(NULL);
+    if (!authenticated)
+        return lastActivity + std::chrono::seconds(20) < now;
+
+    std::chrono::seconds x(keepalive*10/5);
+    bool result = (lastActivity + x) < now;
     return result;
 }
 
 std::string Client::getKeepAliveInfoString() const
 {
-    std::string s = "authenticated: " + std::to_string(authenticated) + ", keep-alive: " + std::to_string(keepalive) + "s, last activity "
-            + std::to_string(time(NULL) - lastActivity) + " seconds ago.";
+    std::chrono::seconds secondsSinceLastActivity = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - lastActivity);
+
+    std::string s = formatString("authenticated=%s, keep-alive=%ss, last activity=%s seconds ago.", std::to_string(authenticated).c_str(), std::to_string(keepalive).c_str(),
+                                  std::to_string(secondsSinceLastActivity.count()).c_str());
     return s;
 }
 

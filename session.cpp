@@ -164,15 +164,19 @@ uint64_t Session::sendPendingQosMessages()
     return count;
 }
 
-void Session::touch(time_t val)
+std::chrono::time_point<std::chrono::steady_clock> zeroTime;
+std::chrono::seconds expireAfter(EXPIRE_SESSION_AFTER);
+
+void Session::touch(std::chrono::time_point<std::chrono::steady_clock> val)
 {
-    time_t newval = val > 0 ? val : time(NULL);
+    std::chrono::time_point<std::chrono::steady_clock> newval = val > zeroTime ? val : std::chrono::steady_clock::now();
     lastTouched = newval;
 }
 
 bool Session::hasExpired()
 {
-    return clientDisconnected() && (lastTouched + EXPIRE_SESSION_AFTER) < time(NULL);
+    std::chrono::time_point<std::chrono::steady_clock> now = std::chrono::steady_clock::now();
+    return clientDisconnected() && (lastTouched + expireAfter) < now;
 }
 
 void Session::addIncomingQoS2MessageId(uint16_t packet_id)

@@ -65,7 +65,7 @@ class Client
     bool disconnectWhenBytesWritten = false;
     bool disconnecting = false;
     std::string disconnectReason;
-    time_t lastActivity = time(NULL);
+    std::chrono::time_point<std::chrono::steady_clock> lastActivity;
 
     std::string clientid;
     std::string username;

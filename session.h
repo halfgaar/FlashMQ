@@ -51,7 +51,7 @@ class Session
     std::mutex qosQueueMutex;
     uint16_t nextPacketId = 0;
     ssize_t qosQueueBytes = 0;
-    time_t lastTouched = time(NULL);
+    std::chrono::time_point<std::chrono::steady_clock> lastTouched;
     Logger *logger = Logger::getInstance();
 
 public:
@@ -67,7 +67,7 @@ public:
     void writePacket(const MqttPacket &packet, char max_qos, uint64_t &count);
     void clearQosMessage(uint16_t packet_id);
     uint64_t sendPendingQosMessages();
-    void touch(time_t val = 0);
+    void touch(std::chrono::time_point<std::chrono::steady_clock> val = std::chrono::time_point<std::chrono::steady_clock>());
     bool hasExpired();
 
     void addIncomingQoS2MessageId(uint16_t packet_id);
