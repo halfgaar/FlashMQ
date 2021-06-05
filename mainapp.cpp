@@ -496,12 +496,12 @@ void MainApp::start()
 
             std::shared_ptr<ThreadData> threaddata(new ThreadData(0, subscriptionStore, settings));
 
-            std::shared_ptr<Client> client(new Client(fd, threaddata, nullptr, fuzzWebsockets, settings, true));
-            std::shared_ptr<Client> subscriber(new Client(fdnull, threaddata, nullptr, fuzzWebsockets, settings, true));
+            std::shared_ptr<Client> client(new Client(fd, threaddata, nullptr, fuzzWebsockets, nullptr, settings, true));
+            std::shared_ptr<Client> subscriber(new Client(fdnull, threaddata, nullptr, fuzzWebsockets, nullptr, settings, true));
             subscriber->setClientProperties(ProtocolVersion::Mqtt311, "subscriber", "subuser", true, 60, true);
             subscriber->setAuthenticated(true);
 
-            std::shared_ptr<Client> websocketsubscriber(new Client(fdnull2, threaddata, nullptr, true, settings, true));
+            std::shared_ptr<Client> websocketsubscriber(new Client(fdnull2, threaddata, nullptr, true, nullptr, settings, true));
             websocketsubscriber->setClientProperties(ProtocolVersion::Mqtt311, "websocketsubscriber", "websocksubuser", true, 60, true);
             websocketsubscriber->setAuthenticated(true);
             websocketsubscriber->setFakeUpgraded();
@@ -573,10 +573,11 @@ void MainApp::start()
 
                     logger->logf(LOG_INFO, "Accepting connection on thread %d on %s", thread_data->threadnr, listener->getProtocolName().c_str());
 
-                    struct sockaddr addr;
-                    memset(&addr, 0, sizeof(struct sockaddr));
-                    socklen_t len = sizeof(struct sockaddr);
-                    int fd = check<std::runtime_error>(accept(cur_fd, &addr, &len));
+                    struct sockaddr_in6 addrBiggest;
+                    struct sockaddr *addr = reinterpret_cast<sockaddr*>(&addrBiggest);
+                    socklen_t len = sizeof(struct sockaddr_in6);
+                    memset(addr, 0, len);
+                    int fd = check<std::runtime_error>(accept(cur_fd, addr, &len));
 
                     SSL *clientSSL = nullptr;
                     if (listener->isSsl())
@@ -593,7 +594,7 @@ void MainApp::start()
                         SSL_set_fd(clientSSL, fd);
                     }
 
-                    std::shared_ptr<Client> client(new Client(fd, thread_data, clientSSL, listener->websocket, settings));
+                    std::shared_ptr<Client> client(new Client(fd, thread_data, clientSSL, listener->websocket, addr, settings));
                     thread_data->giveClient(client);
                 }
                 else

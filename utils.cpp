@@ -600,3 +600,35 @@ ssize_t getFileSize(const std::string &path)
 
     return statbuf.st_size;
 }
+
+std::string sockaddrToString(sockaddr *addr)
+{
+    if (!addr)
+        return "[unknown address]";
+
+    char buf[INET6_ADDRSTRLEN];
+    void *addr_in = nullptr;
+
+    if (addr->sa_family == AF_INET)
+    {
+        struct sockaddr_in *ipv4sockAddr = reinterpret_cast<struct sockaddr_in*>(addr);
+        addr_in = &ipv4sockAddr->sin_addr;
+    }
+    else if (addr->sa_family == AF_INET6)
+    {
+        struct sockaddr_in6 *ipv6sockAddr = reinterpret_cast<struct sockaddr_in6*>(addr);
+        addr_in = &ipv6sockAddr->sin6_addr;
+    }
+
+    if (addr_in)
+    {
+        const char *rc = inet_ntop(addr->sa_family, addr_in, buf, INET6_ADDRSTRLEN);
+        if (rc)
+        {
+            std::string remote_addr(rc);
+            return remote_addr;
+        }
+    }
+
+    return "[unknown address]";
+}

@@ -91,5 +91,7 @@ BindAddr getBindAddr(int family, const std::string &bindAddress, int port);
 
 ssize_t getFileSize(const std::string &path);
 
+std::string sockaddrToString(struct sockaddr *addr);
+
 
 #endif // UTILS_H

@@ -40,7 +40,6 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #define MQTT_HEADER_LENGH 2
 
 
-// TODO: give accepted addr, for showing in logs
 class Client
 {
     friend class IoWrapper;
@@ -54,6 +53,8 @@ class Client
     const size_t maxPacketSize = 0;
 
     IoWrapper ioWrapper;
+    std::string transportStr;
+    std::string address;
 
     CirBuf readbuf;
     CirBuf writebuf;
@@ -88,7 +89,7 @@ class Client
     void setReadyForReading(bool val);
 
 public:
-    Client(int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, bool websocket, std::shared_ptr<Settings> settings, bool fuzzMode=false);
+    Client(int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, bool websocket, struct sockaddr *addr, std::shared_ptr<Settings> settings, bool fuzzMode=false);
     Client(const Client &other) = delete;
     Client(Client &&other) = delete;
     ~Client();

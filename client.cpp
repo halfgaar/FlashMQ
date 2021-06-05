@@ -24,8 +24,9 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include <chrono>
 
 #include "logger.h"
+#include "utils.h"
 
-Client::Client(int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, bool websocket, std::shared_ptr<Settings> settings, bool fuzzMode) :
+Client::Client(int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, bool websocket, struct sockaddr *addr, std::shared_ptr<Settings> settings, bool fuzzMode) :
     fd(fd),
     fuzzMode(fuzzMode),
     initialBufferSize(settings->clientInitialBufferSize), // The client is constructed in the main thread, so we need to use its settings copy
@@ -37,6 +38,13 @@ Client::Client(int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, bool we
 {
     int flags = fcntl(fd, F_GETFL);
     fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+
+    this->address = sockaddrToString(addr);
+
+    if (ssl)
+        transportStr = websocket ? "TCP/Websocket/MQTT/SSL" : "TCP/MQTT/SSL";
+    else
+        transportStr = websocket ? "TCP/Websocket/MQTT/Non-SSL" : "TCP/MQTT/Non-SSL";
 }
 
 Client::~Client()
@@ -255,10 +263,9 @@ bool Client::writeBufIntoFd()
 
 std::string Client::repr()
 {
-    std::ostringstream a;
-    a << "[Client=" << clientid << ", user=" << username << ", fd=" << fd << "]";
-    a.flush();
-    return a.str();
+    std::string s = formatString("[ClientID='%s', username='%s', fd=%d, keepalive=%ds, transport='%s', address='%s']",
+                                 clientid.c_str(), username.c_str(), fd, keepalive, this->transportStr.c_str(), this->address.c_str());
+    return s;
 }
 
 /**
