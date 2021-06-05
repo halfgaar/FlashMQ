@@ -67,7 +67,7 @@ class MainApp
 
     Logger *logger = Logger::getInstance();
 
-    void setlimits(rlim_t nofile);
+    void setlimits();
     void loadConfig();
     void reloadConfig();
     static void doHelp(const char *arg);

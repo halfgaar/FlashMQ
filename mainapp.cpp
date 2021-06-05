@@ -644,13 +644,14 @@ void MainApp::quit()
 }
 
 
-void MainApp::setlimits(rlim_t nofile)
+void MainApp::setlimits()
 {
-    logger->logf(LOG_INFO, "Setting ulimit nofile to %ld. TODO: configurable in config file.", nofile);
+    rlim_t nofile = settings->rlimitNoFile;
+    logger->logf(LOG_INFO, "Setting rlimit nofile to %ld.", nofile);
     struct rlimit v = { nofile, nofile };
     if (setrlimit(RLIMIT_NOFILE, &v) < 0)
     {
-        logger->logf(LOG_ERR, "Setting ulimit nofile failed: %s. This means the default is used.", strerror(errno));
+        logger->logf(LOG_ERR, "Setting ulimit nofile failed: '%s'. This means the default is used.", strerror(errno));
     }
 }
 
@@ -682,7 +683,7 @@ void MainApp::loadConfig()
     logger->reOpen();
     logger->setFlags(settings->logDebug, settings->logSubscriptions);
 
-    setlimits(1000000);
+    setlimits();
 
     for (std::shared_ptr<Listener> &l : this->listeners)
     {

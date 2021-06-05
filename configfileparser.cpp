@@ -104,6 +104,7 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validKeys.insert("mosquitto_password_file");
     validKeys.insert("mosquitto_acl_file");
     validKeys.insert("allow_anonymous");
+    validKeys.insert("rlimit_nofile");
 
     validListenKeys.insert("port");
     validListenKeys.insert("protocol");
@@ -378,6 +379,16 @@ void ConfigFileParser::loadFile(bool test)
                 {
                     bool tmp = stringTruthiness(value);
                     tmpSettings->allowAnonymous = tmp;
+                }
+
+                if (key == "rlimit_nofile")
+                {
+                    int newVal = std::stoi(value);
+                    if (newVal <= 0)
+                    {
+                        throw ConfigFileException(formatString("Value '%d' is negative.", newVal));
+                    }
+                    tmpSettings->rlimitNoFile = newVal;
                 }
             }
         }

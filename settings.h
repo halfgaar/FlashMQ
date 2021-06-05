@@ -45,6 +45,7 @@ public:
     std::string mosquittoPasswordFile;
     std::string mosquittoAclFile;
     bool allowAnonymous = false;
+    int rlimitNoFile = 1000000;
     std::list<std::shared_ptr<Listener>> listeners; // Default one is created later, when none are defined.
 
     AuthOptCompatWrap &getAuthOptsCompat();
