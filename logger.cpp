@@ -94,6 +94,8 @@ void Logger::reOpen()
 // I want all messages logged during app startup to also show on stdout/err, otherwise failure can look so silent. So, call this when the app started.
 void Logger::noLongerLogToStd()
 {
+    if (!logPath.empty())
+        logf(LOG_INFO, "Switching logging from stdout to logfile '%s'", logPath.c_str());
     alsoLogToStd = false;
 }
 
