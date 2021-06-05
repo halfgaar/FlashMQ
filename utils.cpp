@@ -57,7 +57,8 @@ std::list<std::string> split(const std::string &input, const char sep, size_t ma
     return list;
 }
 
-
+thread_local std::vector<std::string> subscribeParts;
+thread_local std::vector<std::string> publishParts;
 bool topicsMatch(const std::string &subscribeTopic, const std::string &publishTopic)
 {
     if (subscribeTopic.find("+") == std::string::npos && subscribeTopic.find("#") == std::string::npos)
@@ -66,8 +67,8 @@ bool topicsMatch(const std::string &subscribeTopic, const std::string &publishTo
     if (!subscribeTopic.empty() && !publishTopic.empty() && publishTopic[0] == '$' && subscribeTopic[0] != '$')
         return false;
 
-    std::vector<std::string> subscribeParts;
-    std::vector<std::string> publishParts;
+    subscribeParts.clear();
+    publishParts.clear();
 
 #ifdef __SSE4_2__
     simdUtils.splitTopic(subscribeTopic, subscribeParts);
