@@ -211,7 +211,7 @@ void MainApp::doHelp(const char *arg)
     printf("Usage: %s [options]\n", arg);
     puts("");
     puts(" -h, --help                           Print help");
-    puts(" -c, --config-file <flashmq.conf>     Configuration file.");
+    puts(" -c, --config-file <flashmq.conf>     Configuration file. Default '/etc/flashmq/flashmq.conf'.");
     puts(" -t, --test-config                    Test configuration file.");
 #ifndef NDEBUG
     puts(" -z, --fuzz-file <inputdata.dat>      For fuzzing, provides the bytes that would be sent by a client.");
@@ -369,7 +369,14 @@ void MainApp::initMainApp(int argc, char *argv[])
         {nullptr, 0, nullptr, 0}
     };
 
+    const std::string defaultConfigFile = "/etc/flashmq/flashmq.conf";
     std::string configFile;
+
+    if (access(defaultConfigFile.c_str(), R_OK) == 0)
+    {
+        configFile = defaultConfigFile;
+    }
+
     std::string fuzzFile;
 
     int option_index = 0;
@@ -409,14 +416,14 @@ void MainApp::initMainApp(int argc, char *argv[])
         {
             if (configFile.empty())
             {
-                std::cerr << "No config specified." << std::endl;
+                std::cerr << "No config specified (with -c) and the default " << defaultConfigFile << " not found." << std::endl << std::endl;
                 MainApp::doHelp(argv[0]);
                 exit(1);
             }
 
             ConfigFileParser c(configFile);
             c.loadFile(true);
-            puts("Config OK");
+            printf("Config '%s' OK\n", configFile.c_str());
             exit(0);
         }
         catch (ConfigFileException &ex)
