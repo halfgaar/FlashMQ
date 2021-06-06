@@ -83,7 +83,7 @@ void Timer::stop()
 
 void Timer::addCallback(std::function<void ()> f, uint64_t interval_ms, const std::string &name)
 {
-    logger->logf(LOG_DEBUG, "Adding event '%s' to the timer.", name.c_str());
+    logger->logf(LOG_DEBUG, "Adding event '%s' to the timer with an interval of %ld ms.", name.c_str(), interval_ms);
 
     CallbackEntry c;
     c.f = f;

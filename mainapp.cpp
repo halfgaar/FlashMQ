@@ -179,8 +179,13 @@ MainApp::MainApp(const std::string &configFilePath) :
     // TODO: override in conf possibility.
     logger->logf(LOG_NOTICE, "%d CPUs are detected, making as many threads.", num_threads);
 
-    auto f = std::bind(&MainApp::queueCleanup, this);
-    timer.addCallback(f, 86400000, "session expiration");
+    if (settings->expireSessionsAfterSeconds > 0)
+    {
+        auto f = std::bind(&MainApp::queueCleanup, this);
+        const uint64_t derrivedSessionCheckInterval = std::max<uint64_t>((settings->expireSessionsAfterSeconds)*1000*2, 600000);
+        const uint64_t sessionCheckInterval = std::min<uint64_t>(derrivedSessionCheckInterval, 86400000);
+        timer.addCallback(f, sessionCheckInterval, "session expiration");
+    }
 
     auto fKeepAlive = std::bind(&MainApp::queueKeepAliveCheckAtAllThreads, this);
     timer.addCallback(fKeepAlive, 30000, "keep-alive check");
@@ -726,7 +731,7 @@ void MainApp::queueCleanup()
 {
     std::lock_guard<std::mutex> locker(eventMutex);
 
-    auto f = std::bind(&SubscriptionStore::removeExpiredSessionsClients, subscriptionStore.get());
+    auto f = std::bind(&SubscriptionStore::removeExpiredSessionsClients, subscriptionStore.get(), settings->expireSessionsAfterSeconds);
     taskQueue.push_front(f);
 
     wakeUpThread();

@@ -164,17 +164,23 @@ uint64_t Session::sendPendingQosMessages()
     return count;
 }
 
-std::chrono::time_point<std::chrono::steady_clock> zeroTime;
-std::chrono::seconds expireAfter(EXPIRE_SESSION_AFTER);
-
-void Session::touch(std::chrono::time_point<std::chrono::steady_clock> val)
+/**
+ * @brief Session::touch with a time value allowed touching without causing another sys/lib call to get the time.
+ * @param newval
+ */
+void Session::touch(std::chrono::time_point<std::chrono::steady_clock> newval)
 {
-    std::chrono::time_point<std::chrono::steady_clock> newval = val > zeroTime ? val : std::chrono::steady_clock::now();
     lastTouched = newval;
 }
 
-bool Session::hasExpired()
+void Session::touch()
 {
+    lastTouched = std::chrono::steady_clock::now();
+}
+
+bool Session::hasExpired(int expireAfterSeconds)
+{
+    std::chrono::seconds expireAfter(expireAfterSeconds);
     std::chrono::time_point<std::chrono::steady_clock> now = std::chrono::steady_clock::now();
     return clientDisconnected() && (lastTouched + expireAfter) < now;
 }

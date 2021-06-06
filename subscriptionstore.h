@@ -99,7 +99,7 @@ public:
 
     void setRetainedMessage(const std::string &topic, const std::string &payload, char qos);
 
-    void removeExpiredSessionsClients();
+    void removeExpiredSessionsClients(int expireSessionsAfterSeconds);
 };
 
 #endif // SUBSCRIPTIONSTORE_H

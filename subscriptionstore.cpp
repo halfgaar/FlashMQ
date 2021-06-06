@@ -417,7 +417,7 @@ int SubscriptionNode::cleanSubscriptions()
 }
 
 // This is not MQTT compliant, but the standard doesn't keep real world constraints into account.
-void SubscriptionStore::removeExpiredSessionsClients()
+void SubscriptionStore::removeExpiredSessionsClients(int expireSessionsAfterSeconds)
 {
     RWLockGuard lock_guard(&subscriptionsRwlock);
     lock_guard.wrlock();
@@ -429,11 +429,9 @@ void SubscriptionStore::removeExpiredSessionsClients()
     {
         std::shared_ptr<Session> &session = session_it->second;
 
-        if (session->hasExpired())
+        if (session->hasExpired(expireSessionsAfterSeconds))
         {
-#ifndef NDEBUG
             logger->logf(LOG_DEBUG, "Removing expired session from store %s", session->getClientId().c_str());
-#endif
             session_it = sessionsById.erase(session_it);
         }
         else

@@ -46,6 +46,7 @@ public:
     std::string mosquittoAclFile;
     bool allowAnonymous = false;
     int rlimitNoFile = 1000000;
+    uint64_t expireSessionsAfterSeconds = 1209600;
     std::list<std::shared_ptr<Listener>> listeners; // Default one is created later, when none are defined.
 
     AuthOptCompatWrap &getAuthOptsCompat();

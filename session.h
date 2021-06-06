@@ -30,9 +30,6 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #define MAX_QOS_MSG_PENDING_PER_CLIENT 32
 #define MAX_QOS_BYTES_PENDING_PER_CLIENT 4096
 
-// TODO make setting
-#define EXPIRE_SESSION_AFTER 1209600
-
 struct QueuedQosPacket
 {
     uint16_t id;
@@ -67,8 +64,9 @@ public:
     void writePacket(const MqttPacket &packet, char max_qos, uint64_t &count);
     void clearQosMessage(uint16_t packet_id);
     uint64_t sendPendingQosMessages();
-    void touch(std::chrono::time_point<std::chrono::steady_clock> val = std::chrono::time_point<std::chrono::steady_clock>());
-    bool hasExpired();
+    void touch(std::chrono::time_point<std::chrono::steady_clock> val);
+    void touch();
+    bool hasExpired(int expireAfterSeconds);
 
     void addIncomingQoS2MessageId(uint16_t packet_id);
     bool incomingQoS2MessageIdInTransit(uint16_t packet_id) const;

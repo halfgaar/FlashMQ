@@ -105,6 +105,7 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validKeys.insert("mosquitto_acl_file");
     validKeys.insert("allow_anonymous");
     validKeys.insert("rlimit_nofile");
+    validKeys.insert("expire_sessions_after_seconds");
 
     validListenKeys.insert("port");
     validListenKeys.insert("protocol");
@@ -389,6 +390,16 @@ void ConfigFileParser::loadFile(bool test)
                         throw ConfigFileException(formatString("Value '%d' is negative.", newVal));
                     }
                     tmpSettings->rlimitNoFile = newVal;
+                }
+
+                if (key == "expire_sessions_after_seconds")
+                {
+                    int64_t newVal = std::stoi(value);
+                    if (newVal < 0 || (newVal > 0 && newVal <= 300)) // 0 means disable
+                    {
+                        throw ConfigFileException(formatString("expire_sessions_after_seconds value '%d' is invalid. Valid values are 0, or 300 or higher.", newVal));
+                    }
+                    tmpSettings->expireSessionsAfterSeconds = newVal;
                 }
             }
         }
