@@ -29,6 +29,7 @@ class Settings
     friend class ConfigFileParser;
 
     AuthOptCompatWrap authOptCompatWrap;
+    std::unordered_map<std::string, std::string> flashmqAuthPluginOpts;
 
 public:
     // Actual config options with their defaults.
@@ -47,9 +48,11 @@ public:
     bool allowAnonymous = false;
     int rlimitNoFile = 1000000;
     uint64_t expireSessionsAfterSeconds = 1209600;
+    int authPluginTimerPeriod = 60;
     std::list<std::shared_ptr<Listener>> listeners; // Default one is created later, when none are defined.
 
     AuthOptCompatWrap &getAuthOptsCompat();
+    std::unordered_map<std::string, std::string> &getFlashmqAuthPluginOpts();
 };
 
 #endif // SETTINGS_H

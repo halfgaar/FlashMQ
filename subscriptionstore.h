@@ -89,7 +89,7 @@ class SubscriptionStore
 public:
     SubscriptionStore();
 
-    void addSubscription(std::shared_ptr<Client> &client, const std::string &topic, char qos);
+    void addSubscription(std::shared_ptr<Client> &client, const std::string &topic, const std::vector<std::string> &subtopics, char qos);
     void removeSubscription(std::shared_ptr<Client> &client, const std::string &topic);
     void registerClientAndKickExistingOne(std::shared_ptr<Client> &client);
     bool sessionPresent(const std::string &clientid);

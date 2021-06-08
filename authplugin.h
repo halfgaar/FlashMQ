@@ -26,6 +26,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "logger.h"
 #include "configfileparser.h"
 #include "acltree.h"
+#include "flashmq_plugin.h"
 
 /**
  * @brief The MosquittoPasswordFileEntry struct stores the decoded base64 password salt and hash.
@@ -49,6 +50,7 @@ struct MosquittoPasswordFileEntry
 
 typedef int (*F_auth_plugin_version)(void);
 
+// Mosquitto functions
 typedef int (*F_auth_plugin_init_v2)(void **, struct mosquitto_auth_opt *, int);
 typedef int (*F_auth_plugin_cleanup_v2)(void *, struct mosquitto_auth_opt *, int);
 typedef int (*F_auth_plugin_security_init_v2)(void *, struct mosquitto_auth_opt *, int, bool);
@@ -57,11 +59,28 @@ typedef int (*F_auth_plugin_acl_check_v2)(void *, const char *, const char *, co
 typedef int (*F_auth_plugin_unpwd_check_v2)(void *, const char *, const char *);
 typedef int (*F_auth_plugin_psk_key_get_v2)(void *, const char *, const char *, char *, int);
 
+
+typedef void(*F_flashmq_auth_plugin_allocate_thread_memory_v1)(void **thread_data, std::unordered_map<std::string, std::string> &auth_opts);
+typedef void(*F_flashmq_auth_plugin_deallocate_thread_memory_v1)(void *thread_data, std::unordered_map<std::string, std::string> &auth_opts);
+typedef void(*F_flashmq_auth_plugin_init_v1)(void *thread_data, std::unordered_map<std::string, std::string> &auth_opts, bool reloading);
+typedef void(*F_flashmq_auth_plugin_deinit_v1)(void *thread_data, std::unordered_map<std::string, std::string> &auth_opts, bool reloading);
+typedef AuthResult(*F_flashmq_auth_plugin_acl_check_v1)(void *thread_data, AclAccess access, const std::string &clientid, const std::string &username, const FlashMQMessage &msg);
+typedef AuthResult(*F_flashmq_auth_plugin_login_check_v1)(void *thread_data, const std::string &username, const std::string &password);
+typedef void (*F_flashmq_auth_plugin_periodic_event)(void *thread_data);
+
 extern "C"
 {
     // Gets called by the plugin, so it needs to exist, globally
     void mosquitto_log_printf(int level, const char *fmt, ...);
 }
+
+enum class PluginVersion
+{
+    None,
+    Determining,
+    FlashMQv1,
+    MosquittoV2,
+};
 
 std::string AuthResultToString(AuthResult r);
 
@@ -72,6 +91,8 @@ std::string AuthResultToString(AuthResult r);
 class Authentication
 {
     F_auth_plugin_version version = nullptr;
+
+    // Mosquitto functions
     F_auth_plugin_init_v2 init_v2 = nullptr;
     F_auth_plugin_cleanup_v2 cleanup_v2 = nullptr;
     F_auth_plugin_security_init_v2 security_init_v2 = nullptr;
@@ -79,6 +100,14 @@ class Authentication
     F_auth_plugin_acl_check_v2 acl_check_v2 = nullptr;
     F_auth_plugin_unpwd_check_v2 unpwd_check_v2 = nullptr;
     F_auth_plugin_psk_key_get_v2 psk_key_get_v2 = nullptr;
+
+    F_flashmq_auth_plugin_allocate_thread_memory_v1 flashmq_auth_plugin_allocate_thread_memory_v1 = nullptr;
+    F_flashmq_auth_plugin_deallocate_thread_memory_v1 flashmq_auth_plugin_deallocate_thread_memory_v1 = nullptr;
+    F_flashmq_auth_plugin_init_v1 flashmq_auth_plugin_init_v1 = nullptr;
+    F_flashmq_auth_plugin_deinit_v1 flashmq_auth_plugin_deinit_v1 = nullptr;
+    F_flashmq_auth_plugin_acl_check_v1 flashmq_auth_plugin_acl_check_v1 = nullptr;
+    F_flashmq_auth_plugin_login_check_v1 flashmq_auth_plugin_login_check_v1 = nullptr;
+    F_flashmq_auth_plugin_periodic_event flashmq_auth_plugin_periodic_event_v1 = nullptr;
 
     static std::mutex initMutex;
     static std::mutex authChecksMutex;
@@ -88,7 +117,7 @@ class Authentication
     void *pluginData = nullptr;
     Logger *logger = nullptr;
     bool initialized = false;
-    bool useExternalPlugin = false;
+    PluginVersion pluginVersion = PluginVersion::None;
     bool quitting = false;
 
     /**
@@ -110,7 +139,7 @@ class Authentication
 
     AclTree aclTree;
 
-    void *loadSymbol(void *handle, const char *symbol) const;
+    void *loadSymbol(void *handle, const char *symbol, bool exceptionOnError = true) const;
 public:
     Authentication(Settings &settings);
     Authentication(const Authentication &other) = delete;
@@ -122,7 +151,8 @@ public:
     void cleanup();
     void securityInit(bool reloading);
     void securityCleanup(bool reloading);
-    AuthResult aclCheck(const std::string &clientid, const std::string &username, const std::string &topic, const std::vector<std::string> &subtopics, AclAccess access);
+    AuthResult aclCheck(const std::string &clientid, const std::string &username, const std::string &topic, const std::vector<std::string> &subtopics,
+                        AclAccess access, char qos, bool retain);
     AuthResult unPwdCheck(const std::string &username, const std::string &password);
 
     void setQuitting();
@@ -130,6 +160,8 @@ public:
     void loadMosquittoAclFile();
     AuthResult aclCheckFromMosquittoAclFile(const std::string &clientid, const std::string &username, const std::vector<std::string> &subtopics, AclAccess access);
     AuthResult unPwdCheckFromMosquittoPasswordFile(const std::string &username, const std::string &password);
+
+    void periodicEvent();
 
 };
 

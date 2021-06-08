@@ -61,7 +61,7 @@ public:
     bool clientDisconnected() const;
     std::shared_ptr<Client> makeSharedClient() const;
     void assignActiveConnection(std::shared_ptr<Client> &client);
-    void writePacket(const MqttPacket &packet, char max_qos, uint64_t &count);
+    void writePacket(const MqttPacket &packet, char max_qos, bool retain, uint64_t &count);
     void clearQosMessage(uint16_t packet_id);
     uint64_t sendPendingQosMessages();
     void touch(std::chrono::time_point<std::chrono::steady_clock> val);

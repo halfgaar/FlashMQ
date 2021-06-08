@@ -142,6 +142,7 @@ void ThreadData::queueQuit()
 void ThreadData::waitForQuit()
 {
     thread.join();
+    authentication.cleanup();
 }
 
 void ThreadData::queuePasswdFileReload()
@@ -210,6 +211,21 @@ uint64_t ThreadData::getSentMessagePerSecond()
     return result;
 }
 
+void ThreadData::queueAuthPluginPeriodicEvent()
+{
+    std::lock_guard<std::mutex> locker(taskQueueMutex);
+
+    auto f = std::bind(&ThreadData::authPluginPeriodicEvent, this);
+    taskQueue.push_front(f);
+
+    wakeUpThread();
+}
+
+void ThreadData::authPluginPeriodicEvent()
+{
+    authentication.periodicEvent();
+}
+
 // TODO: profile how fast hash iteration is. Perhaps having a second list/vector is beneficial?
 void ThreadData::doKeepAliveCheck()
 {
@@ -266,13 +282,9 @@ void ThreadData::reload(std::shared_ptr<Settings> settings)
         authentication.securityCleanup(true);
         authentication.securityInit(true);
     }
-    catch (AuthPluginException &ex)
-    {
-        logger->logf(LOG_ERR, "Error reloading auth plugin: %s. Security checks will now fail, because we don't know the status of the plugin anymore.", ex.what());
-    }
     catch (std::exception &ex)
     {
-        logger->logf(LOG_ERR, "Error reloading: %s.", ex.what());
+        logger->logf(LOG_ERR, "Error reloading auth plugin: %s. Security checks will now fail, because we don't know the status of the plugin anymore.", ex.what());
     }
 }
 

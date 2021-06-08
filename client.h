@@ -99,6 +99,7 @@ public:
     bool isSsl() const;
     bool getSslReadWantsWrite() const;
     bool getSslWriteWantsRead() const;
+    ProtocolVersion getProtocolVersion() const;
 
     void startOrContinueSslAccept();
     void markAsDisconnecting();

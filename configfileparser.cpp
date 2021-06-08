@@ -92,11 +92,12 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     path(path)
 {
     validKeys.insert("auth_plugin");
+    validKeys.insert("auth_plugin_serialize_init");
+    validKeys.insert("auth_plugin_serialize_auth_checks");
+    validKeys.insert("auth_plugin_timer_period");
     validKeys.insert("log_file");
     validKeys.insert("allow_unsafe_clientid_chars");
     validKeys.insert("allow_unsafe_username_chars");
-    validKeys.insert("auth_plugin_serialize_init");
-    validKeys.insert("auth_plugin_serialize_auth_checks");
     validKeys.insert("client_initial_buffer_size");
     validKeys.insert("max_packet_size");
     validKeys.insert("log_debug");
@@ -401,6 +402,16 @@ void ConfigFileParser::loadFile(bool test)
                     }
                     tmpSettings->expireSessionsAfterSeconds = newVal;
                 }
+
+                if (key == "auth_plugin_timer_period")
+                {
+                    int newVal = std::stoi(value);
+                    if (newVal < 0)
+                    {
+                        throw ConfigFileException(formatString("auth_plugin_timer_period value '%d' is invalid. Valid values are 0 or higher. 0 means disabled.", newVal));
+                    }
+                    tmpSettings->authPluginTimerPeriod = newVal;
+                }
             }
         }
         catch (std::invalid_argument &ex) // catch for the stoi()
@@ -410,6 +421,7 @@ void ConfigFileParser::loadFile(bool test)
     }
 
     tmpSettings->authOptCompatWrap = AuthOptCompatWrap(authOpts);
+    tmpSettings->flashmqAuthPluginOpts = std::move(authOpts);
 
     if (!test)
     {
@@ -417,9 +429,5 @@ void ConfigFileParser::loadFile(bool test)
     }
 }
 
-AuthOptCompatWrap &Settings::getAuthOptsCompat()
-{
-    return authOptCompatWrap;
-}
 
 

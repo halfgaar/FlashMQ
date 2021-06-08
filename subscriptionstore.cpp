@@ -84,10 +84,8 @@ SubscriptionStore::SubscriptionStore() :
 
 }
 
-void SubscriptionStore::addSubscription(std::shared_ptr<Client> &client, const std::string &topic, char qos)
+void SubscriptionStore::addSubscription(std::shared_ptr<Client> &client, const std::string &topic, const std::vector<std::string> &subtopics, char qos)
 {
-    const std::list<std::string> subtopics = split(topic, '/');
-
     SubscriptionNode *deepestNode = &root;
     if (topic.length() > 0 && topic[0] == '$')
         deepestNode = &rootDollar;
@@ -242,7 +240,7 @@ void SubscriptionStore::publishNonRecursively(const MqttPacket &packet, const st
         if (!session_weak.expired()) // Shared pointer expires when session has been cleaned by 'clean session' connect.
         {
             const std::shared_ptr<Session> session = session_weak.lock();
-            session->writePacket(packet, sub.qos, count);
+            session->writePacket(packet, sub.qos, false, count);
         }
     }
 }
@@ -330,7 +328,7 @@ uint64_t SubscriptionStore::giveClientRetainedMessages(const std::shared_ptr<Ses
 
         if (topicsMatch(subscribe_topic, rm.topic))
         {
-            ses->writePacket(packet, max_qos, count);
+            ses->writePacket(packet, max_qos, true, count);
         }
     }
 

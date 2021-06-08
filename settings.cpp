@@ -18,3 +18,12 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "settings.h"
 
 
+AuthOptCompatWrap &Settings::getAuthOptsCompat()
+{
+    return authOptCompatWrap;
+}
+
+std::unordered_map<std::string, std::string> &Settings::getFlashmqAuthPluginOpts()
+{
+    return this->flashmqAuthPluginOpts;
+}

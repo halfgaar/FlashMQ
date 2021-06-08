@@ -101,6 +101,9 @@ public:
     void incrementSentMessageCount(uint64_t n);
     uint64_t getSentMessageCount() const;
     uint64_t getSentMessagePerSecond();
+
+    void queueAuthPluginPeriodicEvent();
+    void authPluginPeriodicEvent();
 };
 
 #endif // THREADDATA_H

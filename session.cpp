@@ -48,14 +48,20 @@ void Session::assignActiveConnection(std::shared_ptr<Client> &client)
     this->thread = client->getThreadData();
 }
 
-void Session::writePacket(const MqttPacket &packet, char max_qos, uint64_t &count)
+/**
+ * @brief Session::writePacket is the main way to give a client a packet -> it goes through the session.
+ * @param packet
+ * @param max_qos
+ * @param retain. Keep MQTT-3.3.1-9 in mind: existing subscribers don't get retain=1 on packets.
+ * @param count. Reference value is updated. It's for statistics.
+ */
+void Session::writePacket(const MqttPacket &packet, char max_qos, bool retain, uint64_t &count)
 {
     assert(max_qos <= 2);
+    const char qos = std::min<char>(packet.getQos(), max_qos);
 
-    if (thread->authentication.aclCheck(client_id, username, packet.getTopic(), *packet.getSubtopics(), AclAccess::read) == AuthResult::success)
+    if (thread->authentication.aclCheck(client_id, username, packet.getTopic(), *packet.getSubtopics(), AclAccess::read, qos, retain) == AuthResult::success)
     {
-        const char qos = std::min<char>(packet.getQos(), max_qos);
-
         if (qos == 0)
         {
             if (!clientDisconnected())

@@ -49,6 +49,7 @@ add_executable(FlashMQ
     acltree.h
     enums.h
     threadlocalutils.h
+    flashmq_plugin.h
 
     mainapp.cpp
     main.cpp
@@ -79,6 +80,7 @@ add_executable(FlashMQ
     evpencodectxmanager.cpp
     acltree.cpp
     threadlocalutils.cpp
+    flashmq_plugin.cpp
 
     )
 

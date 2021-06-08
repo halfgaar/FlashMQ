@@ -91,6 +91,11 @@ bool Client::getSslWriteWantsRead() const
     return ioWrapper.getSslWriteWantsRead();
 }
 
+ProtocolVersion Client::getProtocolVersion() const
+{
+    return protocolVersion;
+}
+
 void Client::startOrContinueSslAccept()
 {
     ioWrapper.startOrContinueSslAccept();

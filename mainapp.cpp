@@ -196,6 +196,12 @@ MainApp::MainApp(const std::string &configFilePath) :
     auto fPublishStats = std::bind(&MainApp::publishStatsOnDollarTopic, this);
     timer.addCallback(fPublishStats, 10000, "Publish stats on $SYS");
     publishStatsOnDollarTopic();
+
+    if (settings->authPluginTimerPeriod > 0)
+    {
+        auto fAuthPluginPeriodicEvent = std::bind(&MainApp::queueAuthPluginPeriodicEventAllThreads, this);
+        timer.addCallback(fAuthPluginPeriodicEvent, settings->authPluginTimerPeriod*1000, "Auth plugin periodic event.");
+    }
 }
 
 MainApp::~MainApp()
@@ -307,6 +313,14 @@ void MainApp::queuePasswordFileReloadAllThreads()
     for (std::shared_ptr<ThreadData> &thread : threads)
     {
         thread->queuePasswdFileReload();
+    }
+}
+
+void MainApp::queueAuthPluginPeriodicEventAllThreads()
+{
+    for (std::shared_ptr<ThreadData> &thread : threads)
+    {
+        thread->queueAuthPluginPeriodicEvent();
     }
 }
 
@@ -505,6 +519,7 @@ void MainApp::start()
         try
         {
             std::vector<MqttPacket> packetQueueIn;
+            std::vector<std::string> subtopics;
 
             std::shared_ptr<ThreadData> threaddata(new ThreadData(0, subscriptionStore, settings));
 
@@ -518,10 +533,11 @@ void MainApp::start()
             websocketsubscriber->setAuthenticated(true);
             websocketsubscriber->setFakeUpgraded();
             subscriptionStore->registerClientAndKickExistingOne(websocketsubscriber);
-            subscriptionStore->addSubscription(websocketsubscriber, "#", 0);
+            splitTopic("#", subtopics);
+            subscriptionStore->addSubscription(websocketsubscriber, "#", subtopics, 0);
 
             subscriptionStore->registerClientAndKickExistingOne(subscriber);
-            subscriptionStore->addSubscription(subscriber, "#", 0);
+            subscriptionStore->addSubscription(subscriber, "#", subtopics, 0);
 
             if (fuzzWebsockets && strContains(fuzzFilePathLower, "upgrade"))
             {

@@ -407,6 +407,7 @@ void MqttPacket::handleDisconnect()
 
 void MqttPacket::handleSubscribe()
 {
+    this->subtopics = &gSubtopics;
     const char firstByteFirstNibble = (first_byte & 0x0F);
 
     if (firstByteFirstNibble != 2)
@@ -431,9 +432,23 @@ void MqttPacket::handleSubscribe()
         if (qos > 2)
             throw ProtocolError("QoS is greater than 2, and/or reserved bytes in QoS field are not 0.");
 
-        logger->logf(LOG_SUBSCRIBE, "Client '%s' subscribed to '%s'", sender->repr().c_str(), topic.c_str());
-        sender->getThreadData()->getSubscriptionStore()->addSubscription(sender, topic, qos);
-        subs_reponse_codes.push_back(qos);
+        splitTopic(topic, *subtopics);
+        if (sender->getThreadData()->authentication.aclCheck(sender->getClientId(), sender->getUsername(), topic, *subtopics, AclAccess::subscribe, qos, false) == AuthResult::success)
+        {
+            logger->logf(LOG_SUBSCRIBE, "Client '%s' subscribed to '%s'", sender->repr().c_str(), topic.c_str());
+            sender->getThreadData()->getSubscriptionStore()->addSubscription(sender, topic, *subtopics, qos);
+            subs_reponse_codes.push_back(qos);
+        }
+        else
+        {
+            logger->logf(LOG_SUBSCRIBE, "Client '%s' subscribe to '%s' denied or failed.", sender->repr().c_str(), topic.c_str());
+
+            // We can't not send an ack, because if there are multiple subscribes, you send fewer acks back, losing sync.
+            char return_code = qos;
+            if (sender->getProtocolVersion() >= ProtocolVersion::Mqtt311)
+                return_code = static_cast<char>(SubAckReturnCodes::Fail);
+            subs_reponse_codes.push_back(return_code);
+        }
     }
 
     SubAck subAck(packet_id, subs_reponse_codes);
@@ -531,7 +546,7 @@ void MqttPacket::handlePublish()
         }
     }
 
-    if (sender->getThreadData()->authentication.aclCheck(sender->getClientId(), sender->getUsername(), topic, *subtopics, AclAccess::write) == AuthResult::success)
+    if (sender->getThreadData()->authentication.aclCheck(sender->getClientId(), sender->getUsername(), topic, *subtopics, AclAccess::write, qos, retain) == AuthResult::success)
     {
         if (retain)
         {

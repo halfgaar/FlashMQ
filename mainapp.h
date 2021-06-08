@@ -76,6 +76,7 @@ class MainApp
     void wakeUpThread();
     void queueKeepAliveCheckAtAllThreads();
     void queuePasswordFileReloadAllThreads();
+    void queueAuthPluginPeriodicEventAllThreads();
     void setFuzzFile(const std::string &fuzzFilePath);
     void publishStatsOnDollarTopic();
     void publishStat(const std::string &topic, uint64_t n);

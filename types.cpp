@@ -15,6 +15,8 @@ You should have received a copy of the GNU Affero General Public
 License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "cassert"
+
 #include "types.h"
 
 ConnAck::ConnAck(ConnAckReturnCodes return_code, bool session_present) :
@@ -29,6 +31,8 @@ ConnAck::ConnAck(ConnAckReturnCodes return_code, bool session_present) :
 SubAck::SubAck(uint16_t packet_id, const std::list<char> &subs_qos_reponses) :
     packet_id(packet_id)
 {
+    assert(!subs_qos_reponses.empty());
+
     for (char ack_code : subs_qos_reponses)
     {
         responses.push_back(static_cast<SubAckReturnCodes>(ack_code));
