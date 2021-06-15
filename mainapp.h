@@ -46,6 +46,10 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 
 class MainApp
 {
+#ifdef TESTING
+    friend class MainAppThread;
+#endif
+
     static MainApp *instance;
     int num_threads = 0;
 

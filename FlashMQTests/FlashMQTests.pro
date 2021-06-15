@@ -41,6 +41,7 @@ SOURCES +=  tst_maintests.cpp \
     ../evpencodectxmanager.cpp \
     ../acltree.cpp \
     ../threadlocalutils.cpp \
+    ../flashmq_plugin.cpp \
     mainappthread.cpp \
     twoclienttestcontext.cpp
 
@@ -75,6 +76,7 @@ HEADERS += \
     ../evpencodectxmanager.h \
     ../acltree.h \
     ../threadlocalutils.h \
+    ../flashmq_plugin.h \
     mainappthread.h \
     twoclienttestcontext.h
 

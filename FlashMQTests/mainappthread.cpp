@@ -21,6 +21,7 @@ MainAppThread::MainAppThread(QObject *parent) : QThread(parent)
 {
     MainApp::initMainApp(1, nullptr);
     appInstance = MainApp::getMainApp();
+    appInstance->settings->allowAnonymous = true;
 }
 
 void MainAppThread::run()
