@@ -122,7 +122,7 @@ void SubscriptionStore::addSubscription(std::shared_ptr<Client> &client, const s
         {
             const std::shared_ptr<Session> &ses = session_it->second;
             deepestNode->addSubscriber(ses, qos);
-            uint64_t count = giveClientRetainedMessages(ses, topic, qos);
+            uint64_t count = giveClientRetainedMessages(ses, subtopics, qos);
             client->getThreadData()->incrementSentMessageCount(count);
         }
     }
@@ -313,51 +313,99 @@ void SubscriptionStore::queuePacketAtSubscribers(const std::vector<std::string> 
     }
 }
 
-uint64_t SubscriptionStore::giveClientRetainedMessages(const std::shared_ptr<Session> &ses, const std::string &subscribe_topic, char max_qos)
+void SubscriptionStore::giveClientRetainedMessagesRecursively(std::vector<std::string>::const_iterator cur_subtopic_it, std::vector<std::string>::const_iterator end,
+                                                              RetainedMessageNode *this_node, char max_qos, const std::shared_ptr<Session> &ses,
+                                                              bool poundMode, uint64_t &count) const
+{
+    if (cur_subtopic_it == end)
+    {
+        for(const RetainedMessage &rm : this_node->retainedMessages)
+        {
+            Publish publish(rm.topic, rm.payload, rm.qos);
+            publish.retain = true;
+            const MqttPacket packet(publish);
+            ses->writePacket(packet, max_qos, true, count);
+        }
+        if (poundMode)
+        {
+            for (auto &pair : this_node->children)
+            {
+                std::unique_ptr<RetainedMessageNode> &child = pair.second;
+                giveClientRetainedMessagesRecursively(cur_subtopic_it, end, child.get(), max_qos, ses, poundMode, count);
+            }
+        }
+
+        return;
+    }
+
+    const std::string &cur_subtop = *cur_subtopic_it;
+    const auto next_subtopic = ++cur_subtopic_it;
+
+    bool poundFound = cur_subtop == "#";
+    if (poundFound || cur_subtop == "+")
+    {
+        for (auto &pair : this_node->children)
+        {
+            std::unique_ptr<RetainedMessageNode> &child = pair.second;
+            if (child) // I don't think it can ever be unset, but I'd rather avoid a crash.
+                giveClientRetainedMessagesRecursively(next_subtopic, end, child.get(), max_qos, ses, poundFound, count);
+        }
+    }
+    else
+    {
+        RetainedMessageNode *children = this_node->getChildren(cur_subtop);
+
+        if (children)
+        {
+            giveClientRetainedMessagesRecursively(next_subtopic, end, children, max_qos, ses, false, count);
+        }
+    }
+}
+
+uint64_t SubscriptionStore::giveClientRetainedMessages(const std::shared_ptr<Session> &ses, const std::vector<std::string> &subscribeSubtopics, char max_qos)
 {
     uint64_t count = 0;
+
+    RetainedMessageNode *startNode = &retainedMessagesRoot;
+    if (!subscribeSubtopics.empty() && !subscribeSubtopics[0].empty() > 0 && subscribeSubtopics[0][0] == '$')
+        startNode = &retainedMessagesRootDollar;
 
     RWLockGuard locker(&retainedMessagesRwlock);
     locker.rdlock();
 
-    for(const RetainedMessage &rm : retainedMessages)
-    {
-        Publish publish(rm.topic, rm.payload, rm.qos);
-        publish.retain = true;
-        const MqttPacket packet(publish);
-
-        if (topicsMatch(subscribe_topic, rm.topic))
-        {
-            ses->writePacket(packet, max_qos, true, count);
-        }
-    }
+    giveClientRetainedMessagesRecursively(subscribeSubtopics.begin(), subscribeSubtopics.end(), startNode, max_qos, ses, false, count);
 
     return count;
 }
 
-void SubscriptionStore::setRetainedMessage(const std::string &topic, const std::string &payload, char qos)
+void SubscriptionStore::setRetainedMessage(const std::string &topic, const std::vector<std::string> &subtopics, const std::string &payload, char qos)
 {
+    RetainedMessageNode *deepestNode = &retainedMessagesRoot;
+    if (!subtopics.empty() && !subtopics[0].empty() > 0 && subtopics[0][0] == '$')
+        deepestNode = &retainedMessagesRootDollar;
+
     RWLockGuard locker(&retainedMessagesRwlock);
     locker.wrlock();
 
-    RetainedMessage rm(topic, payload, qos);
-
-    auto retained_ptr = retainedMessages.find(rm);
-    bool retained_found = retained_ptr != retainedMessages.end();
-
-    if (!retained_found && payload.empty())
-        return;
-
-    if (retained_found && payload.empty())
+    for(const std::string &subtopic : subtopics)
     {
-        retainedMessages.erase(rm);
-        return;
+        std::unique_ptr<RetainedMessageNode> &selectedChildren = deepestNode->children[subtopic];
+
+        if (!selectedChildren)
+        {
+            selectedChildren.reset(new RetainedMessageNode());
+        }
+        deepestNode = selectedChildren.get();
     }
 
-    if (retained_found)
-        retainedMessages.erase(rm);
+    assert(deepestNode);
 
-    retainedMessages.insert(std::move(rm));
+    if (deepestNode)
+    {
+        deepestNode->addPayload(topic, payload, qos);
+    }
+
+    locker.unlock();
 }
 
 // Clean up the weak pointers to sessions and remove nodes that are empty.
@@ -465,4 +513,39 @@ void Subscription::reset()
 bool Subscription::sessionGone() const
 {
     return session.expired();
+}
+
+void RetainedMessageNode::addPayload(const std::string &topic, const std::string &payload, char qos)
+{
+    RetainedMessage rm(topic, payload, qos);
+
+    auto retained_ptr = retainedMessages.find(rm);
+    bool retained_found = retained_ptr != retainedMessages.end();
+
+    if (!retained_found && payload.empty())
+        return;
+
+    if (retained_found && payload.empty())
+    {
+        retainedMessages.erase(rm);
+        return;
+    }
+
+    if (retained_found)
+        retainedMessages.erase(rm);
+
+    retainedMessages.insert(std::move(rm));
+}
+
+/**
+ * @brief RetainedMessageNode::getChildren return the children or nullptr when there are none. Const, so doesn't default construct.
+ * @param subtopic
+ * @return
+ */
+RetainedMessageNode *RetainedMessageNode::getChildren(const std::string &subtopic) const
+{
+    auto it = children.find(subtopic);
+    if (it != children.end())
+        return it->second.get();
+    return nullptr;
 }

@@ -32,11 +32,6 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "retainedmessage.h"
 #include "logger.h"
 
-struct RetainedPayload
-{
-    std::string payload;
-    char qos;
-};
 
 struct Subscription
 {
@@ -69,6 +64,17 @@ public:
     int cleanSubscriptions();
 };
 
+class RetainedMessageNode
+{
+    friend class SubscriptionStore;
+
+    std::unordered_map<std::string, std::unique_ptr<RetainedMessageNode>> children;
+    std::unordered_set<RetainedMessage> retainedMessages;
+
+    void addPayload(const std::string &topic, const std::string &payload, char qos);
+    RetainedMessageNode *getChildren(const std::string &subtopic) const;
+};
+
 class SubscriptionStore
 {
     SubscriptionNode root;
@@ -78,7 +84,8 @@ class SubscriptionStore
     const std::unordered_map<std::string, std::shared_ptr<Session>> &sessionsByIdConst;
 
     pthread_rwlock_t retainedMessagesRwlock = PTHREAD_RWLOCK_INITIALIZER;
-    std::unordered_set<RetainedMessage> retainedMessages;
+    RetainedMessageNode retainedMessagesRoot;
+    RetainedMessageNode retainedMessagesRootDollar;
 
     Logger *logger = Logger::getInstance();
 
@@ -96,8 +103,12 @@ public:
 
     void queuePacketAtSubscribers(const std::vector<std::string> &subtopics, const MqttPacket &packet, bool dollar = false);
     uint64_t giveClientRetainedMessages(const std::shared_ptr<Session> &ses, const std::string &subscribe_topic, char max_qos);
+    void giveClientRetainedMessagesRecursively(std::vector<std::string>::const_iterator cur_subtopic_it, std::vector<std::string>::const_iterator end,
+                                               RetainedMessageNode *this_node, char max_qos, const std::shared_ptr<Session> &ses,
+                                               bool poundMode, uint64_t &count) const;
+    uint64_t giveClientRetainedMessages(const std::shared_ptr<Session> &ses, const std::vector<std::string> &subscribeSubtopics, char max_qos);
 
-    void setRetainedMessage(const std::string &topic, const std::string &payload, char qos);
+    void setRetainedMessage(const std::string &topic, const std::vector<std::string> &subtopics, const std::string &payload, char qos);
 
     void removeExpiredSessionsClients(int expireSessionsAfterSeconds);
 };

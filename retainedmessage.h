@@ -29,6 +29,7 @@ struct RetainedMessage
     RetainedMessage(const std::string &topic, const std::string &payload, char qos);
 
     bool operator==(const RetainedMessage &rhs) const;
+    bool empty() const;
 };
 
 namespace std {

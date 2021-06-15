@@ -553,7 +553,7 @@ void MqttPacket::handlePublish()
             size_t payload_length = remainingAfterPos();
             std::string payload(readBytes(payload_length), payload_length);
 
-            sender->getThreadData()->getSubscriptionStore()->setRetainedMessage(topic, payload, qos);
+            sender->getThreadData()->getSubscriptionStore()->setRetainedMessage(topic, *subtopics, payload, qos);
         }
 
         // Set dup flag to 0, because that must not be propagated [MQTT-3.3.1-3].

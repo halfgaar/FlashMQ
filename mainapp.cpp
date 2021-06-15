@@ -364,7 +364,7 @@ void MainApp::publishStat(const std::string &topic, uint64_t n)
     const std::string payload = std::to_string(n);
     Publish p(topic, payload, 0);
     subscriptionStore->queuePacketAtSubscribers(subtopics, p, true);
-    subscriptionStore->setRetainedMessage(topic, payload, 0);
+    subscriptionStore->setRetainedMessage(topic, subtopics, payload, 0);
 }
 
 void MainApp::initMainApp(int argc, char *argv[])

@@ -29,3 +29,8 @@ bool RetainedMessage::operator==(const RetainedMessage &rhs) const
 {
     return this->topic == rhs.topic;
 }
+
+bool RetainedMessage::empty() const
+{
+    return payload.empty();
+}
