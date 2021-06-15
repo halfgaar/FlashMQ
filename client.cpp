@@ -268,8 +268,9 @@ bool Client::writeBufIntoFd()
 
 std::string Client::repr()
 {
-    std::string s = formatString("[ClientID='%s', username='%s', fd=%d, keepalive=%ds, transport='%s', address='%s']",
-                                 clientid.c_str(), username.c_str(), fd, keepalive, this->transportStr.c_str(), this->address.c_str());
+    std::string s = formatString("[ClientID='%s', username='%s', fd=%d, keepalive=%ds, transport='%s', address='%s', cleanses=%d]",
+                                 clientid.c_str(), username.c_str(), fd, keepalive, this->transportStr.c_str(), this->address.c_str(),
+                                 cleanSession);
     return s;
 }
 
