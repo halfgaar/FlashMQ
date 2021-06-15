@@ -71,7 +71,7 @@ class RetainedMessageNode
     std::unordered_map<std::string, std::unique_ptr<RetainedMessageNode>> children;
     std::unordered_set<RetainedMessage> retainedMessages;
 
-    void addPayload(const std::string &topic, const std::string &payload, char qos);
+    void addPayload(const std::string &topic, const std::string &payload, char qos, int64_t &totalCount);
     RetainedMessageNode *getChildren(const std::string &subtopic) const;
 };
 
@@ -86,6 +86,7 @@ class SubscriptionStore
     pthread_rwlock_t retainedMessagesRwlock = PTHREAD_RWLOCK_INITIALIZER;
     RetainedMessageNode retainedMessagesRoot;
     RetainedMessageNode retainedMessagesRootDollar;
+    int64_t retainedMessageCount = 0;
 
     Logger *logger = Logger::getInstance();
 
@@ -111,6 +112,8 @@ public:
     void setRetainedMessage(const std::string &topic, const std::vector<std::string> &subtopics, const std::string &payload, char qos);
 
     void removeExpiredSessionsClients(int expireSessionsAfterSeconds);
+
+    int64_t getRetainedMessageCount() const;
 };
 
 #endif // SUBSCRIPTIONSTORE_H

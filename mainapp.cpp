@@ -355,6 +355,8 @@ void MainApp::publishStatsOnDollarTopic()
 
     publishStat("$SYS/broker/load/messages/sent/total", sentMessageCount);
     publishStat("$SYS/broker/load/messages/sent/persecond", sentMessageCountPerSecond);
+
+    publishStat("$SYS/broker/retained messages/count", subscriptionStore->getRetainedMessageCount());
 }
 
 void MainApp::publishStat(const std::string &topic, uint64_t n)

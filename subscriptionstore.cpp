@@ -402,7 +402,7 @@ void SubscriptionStore::setRetainedMessage(const std::string &topic, const std::
 
     if (deepestNode)
     {
-        deepestNode->addPayload(topic, payload, qos);
+        deepestNode->addPayload(topic, payload, qos, retainedMessageCount);
     }
 
     locker.unlock();
@@ -489,6 +489,11 @@ void SubscriptionStore::removeExpiredSessionsClients(int expireSessionsAfterSeco
     root.cleanSubscriptions();
 }
 
+int64_t SubscriptionStore::getRetainedMessageCount() const
+{
+    return retainedMessageCount;
+}
+
 // QoS is not used in the comparision. This means you upgrade your QoS by subscribing again. The
 // specs don't specify what to do there.
 bool Subscription::operator==(const Subscription &rhs) const
@@ -515,8 +520,9 @@ bool Subscription::sessionGone() const
     return session.expired();
 }
 
-void RetainedMessageNode::addPayload(const std::string &topic, const std::string &payload, char qos)
+void RetainedMessageNode::addPayload(const std::string &topic, const std::string &payload, char qos, int64_t &totalCount)
 {
+    const int64_t countBefore = retainedMessages.size();
     RetainedMessage rm(topic, payload, qos);
 
     auto retained_ptr = retainedMessages.find(rm);
@@ -528,6 +534,8 @@ void RetainedMessageNode::addPayload(const std::string &topic, const std::string
     if (retained_found && payload.empty())
     {
         retainedMessages.erase(rm);
+        const int64_t diffCount = (retainedMessages.size() - countBefore);
+        totalCount += diffCount;
         return;
     }
 
@@ -535,6 +543,8 @@ void RetainedMessageNode::addPayload(const std::string &topic, const std::string
         retainedMessages.erase(rm);
 
     retainedMessages.insert(std::move(rm));
+    const int64_t diffCount = (retainedMessages.size() - countBefore);
+    totalCount += diffCount;
 }
 
 /**
