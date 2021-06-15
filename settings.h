@@ -41,7 +41,11 @@ public:
     bool authPluginSerializeAuthChecks = false;
     int clientInitialBufferSize = 1024; // Must be power of 2
     int maxPacketSize = 268435461; // 256 MB + 5
+#ifdef TESTING
+    bool logDebug = true;
+#else
     bool logDebug = false;
+#endif
     bool logSubscriptions = false;
     std::string mosquittoPasswordFile;
     std::string mosquittoAclFile;

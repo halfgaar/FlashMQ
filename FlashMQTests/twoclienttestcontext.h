@@ -39,7 +39,7 @@ public:
     void connectReceiver();
     void disconnectReceiver();
     void subscribeReceiver(const QString &topic);
-    void waitReceiverReceived();
+    void waitReceiverReceived(int count);
     void onClientError(const QMQTT::ClientError error);
 
     QList<QMQTT::Message> receivedMessages;

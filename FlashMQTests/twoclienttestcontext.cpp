@@ -27,7 +27,9 @@ TwoClientTestContext::TwoClientTestContext(QObject *parent) : QObject(parent)
     QHostInfo targetHostInfo = QHostInfo::fromName("localhost");
     QHostAddress targetHost(targetHostInfo.addresses().first());
     sender.reset(new QMQTT::Client(targetHost));
+    sender->setClientId("Sender");
     receiver.reset(new QMQTT::Client(targetHost));
+    receiver->setClientId("Receiver");
 
     connect(sender.data(), &QMQTT::Client::error, this, &TwoClientTestContext::onClientError);
     connect(receiver.data(), &QMQTT::Client::error, this, &TwoClientTestContext::onClientError);
@@ -72,14 +74,26 @@ void TwoClientTestContext::disconnectReceiver()
 void TwoClientTestContext::subscribeReceiver(const QString &topic)
 {
     receiver->subscribe(topic);
-}
 
-void TwoClientTestContext::waitReceiverReceived()
-{
     QEventLoop waiter;
     QTimer timeout;
     timeout.setSingleShot(true);
     timeout.setInterval(1000);
+    connect(&timeout, &QTimer::timeout, &waiter, &QEventLoop::quit);
+    connect(receiver.data(), &QMQTT::Client::subscribed, &waiter, &QEventLoop::quit);
+    timeout.start();
+    waiter.exec();
+}
+
+void TwoClientTestContext::waitReceiverReceived(int count)
+{
+    if (count > 0 && receivedMessages.count() == count)
+        return;
+
+    QEventLoop waiter;
+    QTimer timeout;
+    timeout.setSingleShot(true);
+    timeout.setInterval(3000);
     connect(&timeout, &QTimer::timeout, &waiter, &QEventLoop::quit);
     connect(receiver.data(), &QMQTT::Client::received, &waiter, &QEventLoop::quit);
     timeout.start();

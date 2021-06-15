@@ -48,13 +48,16 @@ class MainTests : public QObject
 {
     Q_OBJECT
 
-    MainAppThread mainApp;
+    QScopedPointer<MainAppThread> mainApp;
 
 public:
     MainTests();
     ~MainTests();
 
 private slots:
+    void init();
+    void cleanup();
+
     void cleanupTestCase();
 
     void test_circbuf();
@@ -89,8 +92,7 @@ private slots:
 
 MainTests::MainTests()
 {
-    mainApp.start();
-    mainApp.waitForStarted();
+
 }
 
 MainTests::~MainTests()
@@ -98,9 +100,21 @@ MainTests::~MainTests()
 
 }
 
+void MainTests::init()
+{
+    mainApp.reset(new MainAppThread());
+    mainApp->start();
+    mainApp->waitForStarted();
+}
+
+void MainTests::cleanup()
+{
+    mainApp->stopApp();
+}
+
 void MainTests::cleanupTestCase()
 {
-    mainApp.stopApp();
+
 }
 
 void MainTests::test_circbuf()
@@ -350,9 +364,9 @@ void MainTests::test_retained()
     testContext.connectReceiver();
     testContext.subscribeReceiver("dummy");
     testContext.subscribeReceiver(topic);
-    testContext.waitReceiverReceived();
+    testContext.waitReceiverReceived(1);
 
-    QVERIFY2(testContext.receivedMessages.count() == 1, "There must be one message in the received list");
+    QCOMPARE(testContext.receivedMessages.count(), 1);
 
     QMQTT::Message msg = testContext.receivedMessages.first();
     QCOMPARE(msg.payload(), payload);
@@ -361,7 +375,7 @@ void MainTests::test_retained()
     testContext.receivedMessages.clear();
 
     testContext.publish(topic, payload, true);
-    testContext.waitReceiverReceived();
+    testContext.waitReceiverReceived(1);
 
     QVERIFY2(testContext.receivedMessages.count() == 1, "There must be one message in the received list");
     QMQTT::Message msg2 = testContext.receivedMessages.first();
@@ -385,9 +399,9 @@ void MainTests::test_retained_changed()
 
     testContext.connectReceiver();
     testContext.subscribeReceiver(topic);
-    testContext.waitReceiverReceived();
+    testContext.waitReceiverReceived(1);
 
-    QVERIFY2(testContext.receivedMessages.count() == 1, "There must be one message in the received list");
+    QCOMPARE(testContext.receivedMessages.count(), 1);
 
     QMQTT::Message msg = testContext.receivedMessages.first();
     QCOMPARE(msg.payload(), payload);
@@ -410,7 +424,7 @@ void MainTests::test_retained_removed()
 
     testContext.connectReceiver();
     testContext.subscribeReceiver(topic);
-    testContext.waitReceiverReceived();
+    testContext.waitReceiverReceived(0);
 
     QVERIFY2(testContext.receivedMessages.empty(), "We erased the retained message. We shouldn't have received any.");
 }
@@ -427,9 +441,9 @@ void MainTests::test_packet_bigger_than_one_doubling()
     testContext.subscribeReceiver(topic);
 
     testContext.publish(topic, payload);
-    testContext.waitReceiverReceived();
+    testContext.waitReceiverReceived(1);
 
-    QVERIFY2(testContext.receivedMessages.count() == 1, "There must be one message in the received list");
+    QCOMPARE(testContext.receivedMessages.count(), 1);
 
     QMQTT::Message msg = testContext.receivedMessages.first();
     QCOMPARE(msg.payload(), payload);
@@ -449,7 +463,7 @@ void MainTests::test_very_big_packet()
     testContext.subscribeReceiver(topic);
 
     testContext.publish(topic, payload);
-    testContext.waitReceiverReceived();
+    testContext.waitReceiverReceived(1);
 
     QCOMPARE(testContext.receivedMessages.count(), 1);
 
