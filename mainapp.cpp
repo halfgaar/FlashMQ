@@ -202,6 +202,15 @@ MainApp::MainApp(const std::string &configFilePath) :
         auto fAuthPluginPeriodicEvent = std::bind(&MainApp::queueAuthPluginPeriodicEventAllThreads, this);
         timer.addCallback(fAuthPluginPeriodicEvent, settings->authPluginTimerPeriod*1000, "Auth plugin periodic event.");
     }
+
+    if (!settings->storageDir.empty())
+    {
+        subscriptionStore->loadRetainedMessages(settings->getRetainedMessagesDBFile());
+        subscriptionStore->loadSessionsAndSubscriptions(settings->getSessionsDBFile());
+    }
+
+    auto fSaveState = std::bind(&MainApp::saveState, this);
+    timer.addCallback(fSaveState, 900000, "Save state.");
 }
 
 MainApp::~MainApp()
@@ -367,6 +376,25 @@ void MainApp::publishStat(const std::string &topic, uint64_t n)
     Publish p(topic, payload, 0);
     subscriptionStore->queuePacketAtSubscribers(subtopics, p, true);
     subscriptionStore->setRetainedMessage(topic, subtopics, payload, 0);
+}
+
+void MainApp::saveState()
+{
+    try
+    {
+        if (!settings->storageDir.empty())
+        {
+            const std::string retainedDBPath = settings->getRetainedMessagesDBFile();
+            subscriptionStore->saveRetainedMessages(retainedDBPath);
+
+            const std::string sessionsDBPath = settings->getSessionsDBFile();
+            subscriptionStore->saveSessionsAndSubscriptions(sessionsDBPath);
+        }
+    }
+    catch(std::exception &ex)
+    {
+        logger->logf(LOG_ERR, "Error saving state: %s", ex.what());
+    }
 }
 
 void MainApp::initMainApp(int argc, char *argv[])
@@ -659,6 +687,8 @@ void MainApp::start()
     {
         thread->waitForQuit();
     }
+
+    saveState();
 }
 
 void MainApp::quit()

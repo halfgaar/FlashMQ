@@ -53,6 +53,7 @@ public:
     SubscriptionNode(SubscriptionNode &&node) = delete;
 
     std::vector<Subscription> &getSubscribers();
+    const std::string &getSubtopic() const;
     void addSubscriber(const std::shared_ptr<Session> &subscriber, char qos);
     void removeSubscriber(const std::shared_ptr<Session> &subscriber);
     std::unordered_map<std::string, std::unique_ptr<SubscriptionNode>> children;
@@ -77,6 +78,10 @@ class RetainedMessageNode
 
 class SubscriptionStore
 {
+#ifdef TESTING
+    friend class MainTests;
+#endif
+
     SubscriptionNode root;
     SubscriptionNode rootDollar;
     pthread_rwlock_t subscriptionsRwlock = PTHREAD_RWLOCK_INITIALIZER;
@@ -93,7 +98,11 @@ class SubscriptionStore
     void publishNonRecursively(const MqttPacket &packet, const std::vector<Subscription> &subscribers, uint64_t &count) const;
     void publishRecursively(std::vector<std::string>::const_iterator cur_subtopic_it, std::vector<std::string>::const_iterator end,
                             SubscriptionNode *this_node, const MqttPacket &packet, uint64_t &count) const;
+    void getRetainedMessages(RetainedMessageNode *this_node, std::vector<RetainedMessage> &outputList) const;
+    void getSubscriptions(SubscriptionNode *this_node, const std::string &composedTopic, bool root,
+                          std::unordered_map<std::string, std::list<SubscriptionForSerializing>> &outputList) const;
 
+    SubscriptionNode *getDeepestNode(const std::string &topic, const std::vector<std::string> &subtopics);
 public:
     SubscriptionStore();
 
@@ -103,7 +112,6 @@ public:
     bool sessionPresent(const std::string &clientid);
 
     void queuePacketAtSubscribers(const std::vector<std::string> &subtopics, const MqttPacket &packet, bool dollar = false);
-    uint64_t giveClientRetainedMessages(const std::shared_ptr<Session> &ses, const std::string &subscribe_topic, char max_qos);
     void giveClientRetainedMessagesRecursively(std::vector<std::string>::const_iterator cur_subtopic_it, std::vector<std::string>::const_iterator end,
                                                RetainedMessageNode *this_node, char max_qos, const std::shared_ptr<Session> &ses,
                                                bool poundMode, uint64_t &count) const;
@@ -114,6 +122,12 @@ public:
     void removeExpiredSessionsClients(int expireSessionsAfterSeconds);
 
     int64_t getRetainedMessageCount() const;
+
+    void saveRetainedMessages(const std::string &filePath);
+    void loadRetainedMessages(const std::string &filePath);
+
+    void saveSessionsAndSubscriptions(const std::string &filePath);
+    void loadSessionsAndSubscriptions(const std::string &filePath);
 };
 
 #endif // SUBSCRIPTIONSTORE_H

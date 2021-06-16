@@ -28,6 +28,8 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include <openssl/evp.h>
 #include <memory>
 #include <arpa/inet.h>
+#include "unistd.h"
+#include "sys/stat.h"
 
 #include "cirbuf.h"
 #include "bindaddr.h"
@@ -64,6 +66,7 @@ void ltrim(std::string &s);
 void rtrim(std::string &s);
 void trim(std::string &s);
 bool startsWith(const std::string &s, const std::string &needle);
+std::string &rtrim(std::string &s, unsigned char c);
 
 std::string getSecureRandomString(const ssize_t len);
 std::string str_tolower(std::string s);
@@ -91,6 +94,33 @@ BindAddr getBindAddr(int family, const std::string &bindAddress, int port);
 ssize_t getFileSize(const std::string &path);
 
 std::string sockaddrToString(struct sockaddr *addr);
+
+template<typename ex> void checkWritableDir(const std::string &path)
+{
+    if (path.empty())
+        throw ex("Dir path to check is an empty string.");
+
+    if (access(path.c_str(), W_OK) != 0)
+    {
+        std::string msg = formatString("Path '%s' is not there or not writable", path.c_str());
+        throw ex(msg);
+    }
+
+    struct stat statbuf;
+    memset(&statbuf, 0, sizeof(struct stat));
+    if (stat(path.c_str(), &statbuf) < 0)
+    {
+        // We checked for W_OK above, so this shouldn't happen.
+        std::string msg = formatString("Error getting information about '%s'.", path.c_str());
+        throw ex(msg);
+    }
+
+    if (!S_ISDIR(statbuf.st_mode))
+    {
+        std::string msg = formatString("Path '%s' is not a directory.", path.c_str());
+        throw ex(msg);
+    }
+}
 
 
 #endif // UTILS_H

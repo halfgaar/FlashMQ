@@ -34,3 +34,8 @@ bool RetainedMessage::empty() const
 {
     return payload.empty();
 }
+
+uint32_t RetainedMessage::getSize() const
+{
+    return topic.length() + payload.length() + 1;
+}

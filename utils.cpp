@@ -289,6 +289,14 @@ void trim(std::string &s)
     rtrim(s);
 }
 
+std::string &rtrim(std::string &s, unsigned char c)
+{
+    s.erase(std::find_if(s.rbegin(), s.rend(), [=](unsigned char ch) {
+        return (c != ch);
+    }).base(), s.end());
+    return s;
+}
+
 bool startsWith(const std::string &s, const std::string &needle)
 {
     return s.find(needle) == 0;

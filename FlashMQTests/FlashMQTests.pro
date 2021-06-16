@@ -42,6 +42,10 @@ SOURCES +=  tst_maintests.cpp \
     ../acltree.cpp \
     ../threadlocalutils.cpp \
     ../flashmq_plugin.cpp \
+    ../retainedmessagesdb.cpp \
+    ../persistencefile.cpp \
+    ../sessionsandsubscriptionsdb.cpp \
+    ../qospacketqueue.cpp \
     mainappthread.cpp \
     twoclienttestcontext.cpp
 
@@ -77,6 +81,10 @@ HEADERS += \
     ../acltree.h \
     ../threadlocalutils.h \
     ../flashmq_plugin.h \
+    ../retainedmessagesdb.h \
+    ../persistencefile.h \
+    ../sessionsandsubscriptionsdb.h \
+    ../qospacketqueue.h \
     mainappthread.h \
     twoclienttestcontext.h
 

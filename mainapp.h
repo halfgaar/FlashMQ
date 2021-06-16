@@ -84,6 +84,7 @@ class MainApp
     void setFuzzFile(const std::string &fuzzFilePath);
     void publishStatsOnDollarTopic();
     void publishStat(const std::string &topic, uint64_t n);
+    void saveState();
 
     MainApp(const std::string &configFilePath);
 public:

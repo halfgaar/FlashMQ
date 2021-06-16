@@ -21,12 +21,18 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include <QtQmqtt/qmqtt.h>
 #include <QScopedPointer>
 #include <QHostInfo>
+#include <list>
+#include <unordered_map>
 
 #include "cirbuf.h"
 #include "mainapp.h"
 #include "mainappthread.h"
 #include "twoclienttestcontext.h"
 #include "threadlocalutils.h"
+#include "retainedmessagesdb.h"
+#include "sessionsandsubscriptionsdb.h"
+#include "session.h"
+#include "threaddata.h"
 
 // Dumb Qt version gives warnings when comparing uint with number literal.
 template <typename T1, typename T2>
@@ -87,6 +93,12 @@ private slots:
     void testPacketInt16Parse();
 
     void testTopicsMatch();
+
+    void testRetainedMessageDB();
+    void testRetainedMessageDBNotPresent();
+    void testRetainedMessageDBEmptyList();
+
+    void testSavingSessions();
 
 };
 
@@ -820,6 +832,221 @@ void MainTests::testTopicsMatch()
     QVERIFY(!topicsMatch("$SYS/cow/+", "$SYS/cow/bla/foobar"));
     QVERIFY(!topicsMatch("#", "$SYS/cow"));
 
+}
+
+void MainTests::testRetainedMessageDB()
+{
+    try
+    {
+        std::string longpayload = getSecureRandomString(65537);
+        std::string longTopic = formatString("one/two/%s", getSecureRandomString(4000).c_str());
+
+        std::vector<RetainedMessage> messages;
+        messages.emplace_back("one/two/three", "payload", 0);
+        messages.emplace_back("one/two/wer", "payload", 1);
+        messages.emplace_back("one/e/wer", "payload", 1);
+        messages.emplace_back("one/wee/wer", "asdfasdfasdf", 1);
+        messages.emplace_back("one/two/wer", "µsdf", 1);
+        messages.emplace_back("/boe/bah", longpayload, 1);
+        messages.emplace_back("one/two/wer", "paylasdfaoad", 1);
+        messages.emplace_back("one/two/wer", "payload", 1);
+        messages.emplace_back(longTopic, "payload", 1);
+        messages.emplace_back(longTopic, longpayload, 1);
+        messages.emplace_back("one", "µsdf", 1);
+        messages.emplace_back("/boe", longpayload, 1);
+        messages.emplace_back("one", "µsdf", 1);
+        messages.emplace_back("", "foremptytopic", 0);
+
+        RetainedMessagesDB db("/tmp/flashmqtests_retained.db");
+        db.openWrite();
+        db.saveData(messages);
+        db.closeFile();
+
+        RetainedMessagesDB db2("/tmp/flashmqtests_retained.db");
+        db2.openRead();
+        std::list<RetainedMessage> messagesLoaded = db2.readData();
+        db2.closeFile();
+
+        QCOMPARE(messages.size(), messagesLoaded.size());
+
+        auto itOrg = messages.begin();
+        auto itLoaded = messagesLoaded.begin();
+        while (itOrg != messages.end() && itLoaded != messagesLoaded.end())
+        {
+            RetainedMessage &one = *itOrg;
+            RetainedMessage &two = *itLoaded;
+
+            // Comparing the fields because the RetainedMessage class has an == operator that only looks at topic.
+            QCOMPARE(one.topic, two.topic);
+            QCOMPARE(one.payload, two.payload);
+            QCOMPARE(one.qos, two.qos);
+
+            itOrg++;
+            itLoaded++;
+        }
+    }
+    catch (std::exception &ex)
+    {
+        QVERIFY2(false, ex.what());
+    }
+}
+
+void MainTests::testRetainedMessageDBNotPresent()
+{
+    try
+    {
+        RetainedMessagesDB db2("/tmp/flashmqtests_asdfasdfasdf.db");
+        db2.openRead();
+        std::list<RetainedMessage> messagesLoaded = db2.readData();
+        db2.closeFile();
+
+        MYCASTCOMPARE(messagesLoaded.size(), 0);
+
+        QVERIFY2(false, "We should have run into an exception.");
+    }
+    catch (PersistenceFileCantBeOpened &ex)
+    {
+        QVERIFY(true);
+    }
+    catch (std::exception &ex)
+    {
+        QVERIFY2(false, ex.what());
+    }
+}
+
+void MainTests::testRetainedMessageDBEmptyList()
+{
+    try
+    {
+        std::vector<RetainedMessage> messages;
+
+        RetainedMessagesDB db("/tmp/flashmqtests_retained.db");
+        db.openWrite();
+        db.saveData(messages);
+        db.closeFile();
+
+        RetainedMessagesDB db2("/tmp/flashmqtests_retained.db");
+        db2.openRead();
+        std::list<RetainedMessage> messagesLoaded = db2.readData();
+        db2.closeFile();
+
+        MYCASTCOMPARE(messages.size(), messagesLoaded.size());
+        MYCASTCOMPARE(messages.size(), 0);
+    }
+    catch (std::exception &ex)
+    {
+        QVERIFY2(false, ex.what());
+    }
+}
+
+void MainTests::testSavingSessions()
+{
+    try
+    {
+        std::shared_ptr<Settings> settings(new Settings());
+        std::shared_ptr<SubscriptionStore> store(new SubscriptionStore());
+        std::shared_ptr<ThreadData> t(new ThreadData(0, store, settings));
+
+        std::shared_ptr<Client> c1(new Client(0, t, nullptr, false, nullptr, settings, false));
+        c1->setClientProperties(ProtocolVersion::Mqtt311, "c1", "user1", true, 60, false);
+        store->registerClientAndKickExistingOne(c1);
+        c1->getSession()->touch();
+        c1->getSession()->addIncomingQoS2MessageId(2);
+        c1->getSession()->addIncomingQoS2MessageId(3);
+
+        std::shared_ptr<Client> c2(new Client(0, t, nullptr, false, nullptr, settings, false));
+        c2->setClientProperties(ProtocolVersion::Mqtt311, "c2", "user2", true, 60, false);
+        store->registerClientAndKickExistingOne(c2);
+        c2->getSession()->touch();
+        c2->getSession()->addOutgoingQoS2MessageId(55);
+        c2->getSession()->addOutgoingQoS2MessageId(66);
+
+        const std::string topic1 = "one/two/three";
+        std::vector<std::string> subtopics;
+        splitTopic(topic1, subtopics);
+        store->addSubscription(c1, topic1, subtopics, 0);
+
+        const std::string topic2 = "four/five/six";
+        splitTopic(topic2, subtopics);
+        store->addSubscription(c2, topic2, subtopics, 0);
+        store->addSubscription(c1, topic2, subtopics, 0);
+
+        const std::string topic3 = "";
+        splitTopic(topic3, subtopics);
+        store->addSubscription(c2, topic3, subtopics, 0);
+
+        const std::string topic4 = "#";
+        splitTopic(topic4, subtopics);
+        store->addSubscription(c2, topic4, subtopics, 0);
+
+        uint64_t count = 0;
+
+        Publish publish("a/b/c", "Hello Barry", 1);
+
+        std::shared_ptr<Session> c1ses = c1->getSession();
+        c1.reset();
+        c1ses->writePacket(publish, 1, false, count);
+
+        store->saveSessionsAndSubscriptions("/tmp/flashmqtests_sessions.db");
+
+        std::shared_ptr<SubscriptionStore> store2(new SubscriptionStore());
+        store2->loadSessionsAndSubscriptions("/tmp/flashmqtests_sessions.db");
+
+        MYCASTCOMPARE(store->sessionsById.size(), 2);
+        MYCASTCOMPARE(store2->sessionsById.size(), 2);
+
+        for (auto &pair : store->sessionsById)
+        {
+            std::shared_ptr<Session> &ses = pair.second;
+            std::shared_ptr<Session> &ses2 = store2->sessionsById[pair.first];
+            QCOMPARE(pair.first, ses2->getClientId());
+
+            QCOMPARE(ses->username, ses2->username);
+            QCOMPARE(ses->client_id, ses2->client_id);
+            QCOMPARE(ses->incomingQoS2MessageIds, ses2->incomingQoS2MessageIds);
+            QCOMPARE(ses->outgoingQoS2MessageIds, ses2->outgoingQoS2MessageIds);
+            QCOMPARE(ses->nextPacketId, ses2->nextPacketId);
+        }
+
+
+        std::unordered_map<std::string, std::list<SubscriptionForSerializing>> store1Subscriptions;
+        store->getSubscriptions(&store->root, "", true, store1Subscriptions);
+
+        std::unordered_map<std::string, std::list<SubscriptionForSerializing>> store2Subscriptions;
+        store->getSubscriptions(&store->root, "", true, store2Subscriptions);
+
+        MYCASTCOMPARE(store1Subscriptions.size(), 4);
+        MYCASTCOMPARE(store2Subscriptions.size(), 4);
+
+        for(auto &pair : store1Subscriptions)
+        {
+            std::list<SubscriptionForSerializing> &subscList1 = pair.second;
+            std::list<SubscriptionForSerializing> &subscList2 = store2Subscriptions[pair.first];
+
+            QCOMPARE(subscList1.size(), subscList2.size());
+
+            auto subs1It = subscList1.begin();
+            auto subs2It = subscList2.begin();
+
+            while (subs1It != subscList1.end())
+            {
+                SubscriptionForSerializing &one = *subs1It;
+                SubscriptionForSerializing &two = *subs2It;
+                QCOMPARE(one.clientId, two.clientId);
+                QCOMPARE(one.qos, two.qos);
+
+                subs1It++;
+                subs2It++;
+            }
+
+        }
+
+
+    }
+    catch (std::exception &ex)
+    {
+        QVERIFY2(false, ex.what());
+    }
 }
 
 QTEST_GUILESS_MAIN(MainTests)

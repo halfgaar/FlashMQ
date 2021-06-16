@@ -50,6 +50,10 @@ add_executable(FlashMQ
     enums.h
     threadlocalutils.h
     flashmq_plugin.h
+    retainedmessagesdb.h
+    persistencefile.h
+    sessionsandsubscriptionsdb.h
+    qospacketqueue.h
 
     mainapp.cpp
     main.cpp
@@ -81,6 +85,10 @@ add_executable(FlashMQ
     acltree.cpp
     threadlocalutils.cpp
     flashmq_plugin.cpp
+    retainedmessagesdb.cpp
+    persistencefile.cpp
+    sessionsandsubscriptionsdb.cpp
+    qospacketqueue.cpp
 
     )
 

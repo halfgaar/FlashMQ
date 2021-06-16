@@ -53,10 +53,14 @@ public:
     int rlimitNoFile = 1000000;
     uint64_t expireSessionsAfterSeconds = 1209600;
     int authPluginTimerPeriod = 60;
+    std::string storageDir;
     std::list<std::shared_ptr<Listener>> listeners; // Default one is created later, when none are defined.
 
     AuthOptCompatWrap &getAuthOptsCompat();
     std::unordered_map<std::string, std::string> &getFlashmqAuthPluginOpts();
+
+    std::string getRetainedMessagesDBFile() const;
+    std::string getSessionsDBFile() const;
 };
 
 #endif // SETTINGS_H

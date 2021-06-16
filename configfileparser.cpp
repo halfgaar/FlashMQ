@@ -107,6 +107,7 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validKeys.insert("allow_anonymous");
     validKeys.insert("rlimit_nofile");
     validKeys.insert("expire_sessions_after_seconds");
+    validKeys.insert("storage_dir");
 
     validListenKeys.insert("port");
     validListenKeys.insert("protocol");
@@ -411,6 +412,14 @@ void ConfigFileParser::loadFile(bool test)
                         throw ConfigFileException(formatString("auth_plugin_timer_period value '%d' is invalid. Valid values are 0 or higher. 0 means disabled.", newVal));
                     }
                     tmpSettings->authPluginTimerPeriod = newVal;
+                }
+
+                if (key == "storage_dir")
+                {
+                    std::string newPath = value;
+                    rtrim(newPath, '/');
+                    checkWritableDir<ConfigFileException>(newPath);
+                    tmpSettings->storageDir = newPath;
                 }
             }
         }

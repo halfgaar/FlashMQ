@@ -59,6 +59,8 @@ class MqttPacket
     size_t packet_id_pos = 0;
     uint16_t packet_id = 0;
     ProtocolVersion protocolVersion = ProtocolVersion::None;
+    size_t payloadStart = 0;
+    size_t payloadLen = 0;
     Logger *logger = Logger::getInstance();
 
     char *readBytes(size_t length);
@@ -116,6 +118,7 @@ public:
     uint16_t getPacketId() const;
     void setDuplicate();
     size_t getTotalMemoryFootprint();
+    std::string getPayloadCopy();
 };
 
 #endif // MQTTPACKET_H

@@ -47,8 +47,11 @@ MqttPacket::MqttPacket(CirBuf &buf, size_t packet_len, size_t fixed_header_lengt
     pos += fixed_header_length;
 }
 
-// This is easier than using the copy constructor publically, because then I have to keep maintaining a functioning copy constructor.
-// Returning shared pointer because that's typically how we need it; we only need to copy it if we pass it around as shared resource.
+/**
+ * @brief MqttPacket::getCopy (using default copy constructor and resetting some selected fields) is easier than using the copy constructor
+ *        publically, because then I have to keep maintaining a functioning copy constructor for each new field I add.
+ * @return a shared pointer because that's typically how we need it; we only need to copy it if we pass it around as shared resource.
+ */
 std::shared_ptr<MqttPacket> MqttPacket::getCopy() const
 {
     std::shared_ptr<MqttPacket> copyPacket(new MqttPacket(*this));
@@ -128,6 +131,9 @@ MqttPacket::MqttPacket(const Publish &publish) :
         char zero[2];
         writeBytes(zero, 2);
     }
+
+    payloadStart = pos;
+    payloadLen = publish.payload.length();
 
     writeBytes(publish.payload.c_str(), publish.payload.length());
     calculateRemainingLength();
@@ -546,13 +552,14 @@ void MqttPacket::handlePublish()
         }
     }
 
+    payloadLen = remainingAfterPos();
+    payloadStart = pos;
+
     if (sender->getThreadData()->authentication.aclCheck(sender->getClientId(), sender->getUsername(), topic, *subtopics, AclAccess::write, qos, retain) == AuthResult::success)
     {
         if (retain)
         {
-            size_t payload_length = remainingAfterPos();
-            std::string payload(readBytes(payload_length), payload_length);
-
+            std::string payload(readBytes(payloadLen), payloadLen);
             sender->getThreadData()->getSubscriptionStore()->setRetainedMessage(topic, *subtopics, payload, qos);
         }
 
@@ -677,6 +684,23 @@ void MqttPacket::setDuplicate()
 size_t MqttPacket::getTotalMemoryFootprint()
 {
     return bites.size() + sizeof(MqttPacket);
+}
+
+/**
+ * @brief MqttPacket::getPayloadCopy takes part of the vector of bytes and returns it as a string.
+ * @return
+ *
+ * It's necessary sometimes, but it's against FlashMQ's concept of not parsing the payload. Normally, you can just write out
+ * the whole byte array that is a packet to subscribers. No need to copy and such.
+ *
+ * I created it for saving QoS packages in the db file.
+ */
+std::string MqttPacket::getPayloadCopy()
+{
+    assert(payloadStart > 0);
+    assert(pos <= bites.size());
+    std::string payload(&bites[payloadStart], payloadLen);
+    return payload;
 }
 
 size_t MqttPacket::getSizeIncludingNonPresentHeader() const

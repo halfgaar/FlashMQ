@@ -20,14 +20,73 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "session.h"
 #include "client.h"
 
+std::chrono::time_point<std::chrono::steady_clock> appStartTime = std::chrono::steady_clock::now();
+
 Session::Session()
 {
 
 }
 
+int64_t Session::getProgramStartedAtUnixTimestamp()
+{
+    auto secondsSinceEpoch = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    const std::chrono::seconds age = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - appStartTime);
+    int64_t result = secondsSinceEpoch - age.count();
+    return result;
+}
+
+void Session::setProgramStartedAtUnixTimestamp(const int64_t unix_timestamp)
+{
+    auto secondsSinceEpoch = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch());
+    const std::chrono::seconds _unix_timestamp = std::chrono::seconds(unix_timestamp);
+    const std::chrono::seconds age_in_s = secondsSinceEpoch - _unix_timestamp;
+    appStartTime = std::chrono::steady_clock::now() - age_in_s;
+}
+
+
+int64_t Session::getSessionRelativeAgeInMs() const
+{
+    const std::chrono::milliseconds sessionAge = std::chrono::duration_cast<std::chrono::milliseconds>(lastTouched - appStartTime);
+    const int64_t sInMs = sessionAge.count();
+    return sInMs;
+}
+
+void Session::setSessionTouch(int64_t ageInMs)
+{
+    std::chrono::milliseconds ms(ageInMs);
+    std::chrono::time_point<std::chrono::steady_clock> point = appStartTime + ms;
+    lastTouched = point;
+}
+
+/**
+ * @brief Session::Session copy constructor. Was created for session storing, and is explicitely kept private, to avoid making accidental copies.
+ * @param other
+ *
+ * Because it was created for session storing, the fields we're copying are the fields being stored.
+ */
+Session::Session(const Session &other)
+{
+    this->username = other.username;
+    this->client_id = other.client_id;
+    this->incomingQoS2MessageIds = other.incomingQoS2MessageIds;
+    this->outgoingQoS2MessageIds = other.outgoingQoS2MessageIds;
+    this->nextPacketId = other.nextPacketId;
+    this->lastTouched = other.lastTouched;
+
+    // To be fully correct, we should copy the individual packets, but copying sessions is only done for saving them, and I know
+    // that no member of MqttPacket changes in the QoS process, so we can just keep the shared pointer to the original.
+    this->qosPacketQueue = other.qosPacketQueue;
+}
+
 Session::~Session()
 {
     logger->logf(LOG_DEBUG, "Session %s is being destroyed.", getClientId().c_str());
+}
+
+std::unique_ptr<Session> Session::getCopy() const
+{
+    std::unique_ptr<Session> s(new Session(*this));
+    return s;
 }
 
 bool Session::clientDisconnected() const
@@ -45,7 +104,6 @@ void Session::assignActiveConnection(std::shared_ptr<Client> &client)
     this->client = client;
     this->client_id = client->getClientId();
     this->username = client->getUsername();
-    this->thread = client->getThreadData();
 }
 
 /**
@@ -60,7 +118,9 @@ void Session::writePacket(const MqttPacket &packet, char max_qos, bool retain, u
     assert(max_qos <= 2);
     const char qos = std::min<char>(packet.getQos(), max_qos);
 
-    if (thread->authentication.aclCheck(client_id, username, packet.getTopic(), *packet.getSubtopics(), AclAccess::read, qos, retain) == AuthResult::success)
+    assert(packet.getSender());
+    Authentication &auth = packet.getSender()->getThreadData()->authentication;
+    if (auth.aclCheck(client_id, username, packet.getTopic(), *packet.getSubtopics(), AclAccess::read, qos, retain) == AuthResult::success)
     {
         if (qos == 0)
         {
@@ -73,11 +133,10 @@ void Session::writePacket(const MqttPacket &packet, char max_qos, bool retain, u
         }
         else if (qos > 0)
         {
-            std::shared_ptr<MqttPacket> copyPacket = packet.getCopy();
             std::unique_lock<std::mutex> locker(qosQueueMutex);
 
             const size_t totalQosPacketsInTransit = qosPacketQueue.size() + incomingQoS2MessageIds.size() + outgoingQoS2MessageIds.size();
-            if (totalQosPacketsInTransit >= MAX_QOS_MSG_PENDING_PER_CLIENT || (qosQueueBytes >= MAX_QOS_BYTES_PENDING_PER_CLIENT && qosPacketQueue.size() > 0))
+            if (totalQosPacketsInTransit >= MAX_QOS_MSG_PENDING_PER_CLIENT || (qosPacketQueue.getByteSize() >= MAX_QOS_BYTES_PENDING_PER_CLIENT && qosPacketQueue.size() > 0))
             {
                 logger->logf(LOG_WARNING, "Dropping QoS message for client '%s', because its QoS buffers were full.", client_id.c_str());
                 return;
@@ -86,13 +145,7 @@ void Session::writePacket(const MqttPacket &packet, char max_qos, bool retain, u
             if (nextPacketId == 0)
                 nextPacketId++;
 
-            const uint16_t pid = nextPacketId;
-            copyPacket->setPacketId(pid);
-            QueuedQosPacket p;
-            p.packet = copyPacket;
-            p.id = pid;
-            qosPacketQueue.push_back(p);
-            qosQueueBytes += copyPacket->getTotalMemoryFootprint();
+            std::shared_ptr<MqttPacket> copyPacket = qosPacketQueue.queuePacket(packet, nextPacketId);
             locker.unlock();
 
             if (!clientDisconnected())
@@ -115,27 +168,7 @@ void Session::clearQosMessage(uint16_t packet_id)
 #endif
 
     std::lock_guard<std::mutex> locker(qosQueueMutex);
-
-    auto it = qosPacketQueue.begin();
-    auto end = qosPacketQueue.end();
-    while (it != end)
-    {
-        QueuedQosPacket &p = *it;
-        if (p.id == packet_id)
-        {
-            size_t mem = p.packet->getTotalMemoryFootprint();
-            qosQueueBytes -= mem;
-            assert(qosQueueBytes >= 0);
-            if (qosQueueBytes < 0) // Should not happen, but correcting a hypothetical bug is fine for this purpose.
-                qosQueueBytes = 0;
-
-            qosPacketQueue.erase(it);
-
-            break;
-        }
-
-        it++;
-    }
+    qosPacketQueue.erase(packet_id);
 }
 
 // [MQTT-4.4.0-1]: "When a Client reconnects with CleanSession set to 0, both the Client and Server MUST re-send any
@@ -152,10 +185,10 @@ uint64_t Session::sendPendingQosMessages()
     {
         std::shared_ptr<Client> c = makeSharedClient();
         std::lock_guard<std::mutex> locker(qosQueueMutex);
-        for (QueuedQosPacket &qosMessage : qosPacketQueue)
+        for (const std::shared_ptr<MqttPacket> &qosMessage : qosPacketQueue)
         {
-            c->writeMqttPacketAndBlameThisClient(*qosMessage.packet.get(), qosMessage.packet->getQos());
-            qosMessage.packet->setDuplicate(); // Any dealings with this packet from here will be a duplicate.
+            c->writeMqttPacketAndBlameThisClient(*qosMessage.get(), qosMessage->getQos());
+            qosMessage->setDuplicate(); // Any dealings with this packet from here will be a duplicate.
             count++;
         }
 

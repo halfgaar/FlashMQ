@@ -20,7 +20,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "cassert"
 
 #include "rwlockguard.h"
-
+#include "retainedmessagesdb.h"
 
 SubscriptionNode::SubscriptionNode(const std::string &subtopic) :
     subtopic(subtopic)
@@ -31,6 +31,11 @@ SubscriptionNode::SubscriptionNode(const std::string &subtopic) :
 std::vector<Subscription> &SubscriptionNode::getSubscribers()
 {
     return subscribers;
+}
+
+const std::string &SubscriptionNode::getSubtopic() const
+{
+    return subtopic;
 }
 
 void SubscriptionNode::addSubscriber(const std::shared_ptr<Session> &subscriber, char qos)
@@ -84,14 +89,19 @@ SubscriptionStore::SubscriptionStore() :
 
 }
 
-void SubscriptionStore::addSubscription(std::shared_ptr<Client> &client, const std::string &topic, const std::vector<std::string> &subtopics, char qos)
+/**
+ * @brief SubscriptionStore::getDeepestNode gets the node in the tree walking the path of 'the/subscription/topic/path', making new nodes as required.
+ * @param topic
+ * @param subtopics
+ * @return
+ *
+ * caller is responsible for locking.
+ */
+SubscriptionNode *SubscriptionStore::getDeepestNode(const std::string &topic, const std::vector<std::string> &subtopics)
 {
     SubscriptionNode *deepestNode = &root;
     if (topic.length() > 0 && topic[0] == '$')
         deepestNode = &rootDollar;
-
-    RWLockGuard lock_guard(&subscriptionsRwlock);
-    lock_guard.wrlock();
 
     for(const std::string &subtopic : subtopics)
     {
@@ -114,6 +124,15 @@ void SubscriptionStore::addSubscription(std::shared_ptr<Client> &client, const s
     }
 
     assert(deepestNode);
+    return deepestNode;
+}
+
+void SubscriptionStore::addSubscription(std::shared_ptr<Client> &client, const std::string &topic, const std::vector<std::string> &subtopics, char qos)
+{
+    RWLockGuard lock_guard(&subscriptionsRwlock);
+    lock_guard.wrlock();
+
+    SubscriptionNode *deepestNode = getDeepestNode(topic, subtopics);
 
     if (deepestNode)
     {
@@ -492,6 +511,183 @@ void SubscriptionStore::removeExpiredSessionsClients(int expireSessionsAfterSeco
 int64_t SubscriptionStore::getRetainedMessageCount() const
 {
     return retainedMessageCount;
+}
+
+void SubscriptionStore::getRetainedMessages(RetainedMessageNode *this_node, std::vector<RetainedMessage> &outputList) const
+{
+    for(const RetainedMessage &rm : this_node->retainedMessages)
+    {
+        outputList.push_back(rm);
+    }
+
+    for(auto &pair : this_node->children)
+    {
+        const std::unique_ptr<RetainedMessageNode> &child = pair.second;
+        getRetainedMessages(child.get(), outputList);
+    }
+}
+
+/**
+ * @brief SubscriptionStore::getSubscriptions
+ * @param this_node
+ * @param composedTopic
+ * @param root bool. Every subtopic is concatenated with a '/', but not the first topic to 'root'. The root is a bit weird, virtual, so it needs different treatment.
+ * @param outputList
+ */
+void SubscriptionStore::getSubscriptions(SubscriptionNode *this_node, const std::string &composedTopic, bool root,
+                                         std::unordered_map<std::string, std::list<SubscriptionForSerializing>> &outputList) const
+{
+    for (const Subscription &node : this_node->getSubscribers())
+    {
+        if (!node.sessionGone())
+        {
+            SubscriptionForSerializing sub(node.session.lock()->getClientId(), node.qos);
+            outputList[composedTopic].push_back(sub);
+        }
+    }
+
+    for (auto &pair : this_node->children)
+    {
+        SubscriptionNode *node = pair.second.get();
+        const std::string topicAtNextLevel = root ? pair.first : composedTopic + "/" + pair.first;
+        getSubscriptions(node, topicAtNextLevel, false, outputList);
+    }
+
+    if (this_node->childrenPlus)
+    {
+        const std::string topicAtNextLevel = root ? "+" : composedTopic + "/+";
+        getSubscriptions(this_node->childrenPlus.get(), topicAtNextLevel, false, outputList);
+    }
+
+    if (this_node->childrenPound)
+    {
+        const std::string topicAtNextLevel = root ? "#" : composedTopic + "/#";
+        getSubscriptions(this_node->childrenPound.get(), topicAtNextLevel, false, outputList);
+    }
+}
+
+void SubscriptionStore::saveRetainedMessages(const std::string &filePath)
+{
+    logger->logf(LOG_INFO, "Saving retained messages to '%s'", filePath.c_str());
+
+    std::vector<RetainedMessage> result;
+    result.reserve(retainedMessageCount);
+
+    // Create the list of messages under lock, and unlock right after.
+    RWLockGuard locker(&retainedMessagesRwlock);
+    locker.rdlock();
+    getRetainedMessages(&retainedMessagesRoot, result);
+    locker.unlock();
+
+    logger->logf(LOG_DEBUG, "Collected %ld retained messages to save.", result.size());
+
+    // Then do the IO without locking the threads.
+    RetainedMessagesDB db(filePath);
+    db.openWrite();
+    db.saveData(result);
+}
+
+void SubscriptionStore::loadRetainedMessages(const std::string &filePath)
+{
+    try
+    {
+        logger->logf(LOG_INFO, "Loading '%s'", filePath.c_str());
+
+        RetainedMessagesDB db(filePath);
+        db.openRead();
+        std::list<RetainedMessage> messages = db.readData();
+
+        RWLockGuard locker(&retainedMessagesRwlock);
+        locker.wrlock();
+
+        std::vector<std::string> subtopics;
+        for (const RetainedMessage &rm : messages)
+        {
+            splitTopic(rm.topic, subtopics);
+            setRetainedMessage(rm.topic, subtopics, rm.payload, rm.qos);
+        }
+    }
+    catch (PersistenceFileCantBeOpened &ex)
+    {
+        logger->logf(LOG_WARNING, "File '%s' is not there (yet)", filePath.c_str());
+    }
+}
+
+void SubscriptionStore::saveSessionsAndSubscriptions(const std::string &filePath)
+{
+    logger->logf(LOG_INFO, "Saving sessions and subscriptions to '%s'", filePath.c_str());
+
+    RWLockGuard lock_guard(&subscriptionsRwlock);
+    lock_guard.wrlock();
+
+    // First copy the sessions...
+
+    std::list<std::unique_ptr<Session>> sessionCopies;
+
+    for (const auto &pair : sessionsByIdConst)
+    {
+        const Session &org = *pair.second.get();
+        sessionCopies.push_back(org.getCopy());
+    }
+
+    std::unordered_map<std::string, std::list<SubscriptionForSerializing>> subscriptionCopies;
+    getSubscriptions(&root, "", true, subscriptionCopies);
+
+    lock_guard.unlock();
+
+    // Then write the copies to disk, after having released the lock
+
+    logger->logf(LOG_DEBUG, "Collected %ld sessions and %ld subscriptions to save.", sessionCopies.size(), subscriptionCopies.size());
+
+    SessionsAndSubscriptionsDB db(filePath);
+    db.openWrite();
+    db.saveData(sessionCopies, subscriptionCopies);
+}
+
+void SubscriptionStore::loadSessionsAndSubscriptions(const std::string &filePath)
+{
+    try
+    {
+        logger->logf(LOG_INFO, "Loading '%s'", filePath.c_str());
+
+        SessionsAndSubscriptionsDB db(filePath);
+        db.openRead();
+        SessionsAndSubscriptionsResult loadedData = db.readData();
+
+        RWLockGuard locker(&subscriptionsRwlock);
+        locker.wrlock();
+
+        for (std::shared_ptr<Session> &session : loadedData.sessions)
+        {
+            sessionsById[session->getClientId()] = session;
+        }
+
+        std::vector<std::string> subtopics;
+
+        for (auto &pair : loadedData.subscriptions)
+        {
+            const std::string &topic = pair.first;
+            const std::list<SubscriptionForSerializing> &subs = pair.second;
+
+            for (const SubscriptionForSerializing &sub : subs)
+            {
+                splitTopic(topic, subtopics);
+                SubscriptionNode *subscriptionNode = getDeepestNode(topic, subtopics);
+
+                auto session_it = sessionsByIdConst.find(sub.clientId);
+                if (session_it != sessionsByIdConst.end())
+                {
+                    const std::shared_ptr<Session> &ses = session_it->second;
+                    subscriptionNode->addSubscriber(ses, sub.qos);
+                }
+
+            }
+        }
+    }
+    catch (PersistenceFileCantBeOpened &ex)
+    {
+        logger->logf(LOG_WARNING, "File '%s' is not there (yet)", filePath.c_str());
+    }
 }
 
 // QoS is not used in the comparision. This means you upgrade your QoS by subscribing again. The

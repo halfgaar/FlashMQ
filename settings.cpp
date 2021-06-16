@@ -16,7 +16,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 */
 
 #include "settings.h"
-
+#include "utils.h"
 
 AuthOptCompatWrap &Settings::getAuthOptsCompat()
 {
@@ -26,4 +26,22 @@ AuthOptCompatWrap &Settings::getAuthOptsCompat()
 std::unordered_map<std::string, std::string> &Settings::getFlashmqAuthPluginOpts()
 {
     return this->flashmqAuthPluginOpts;
+}
+
+std::string Settings::getRetainedMessagesDBFile() const
+{
+    if (storageDir.empty())
+        return "";
+
+    std::string path = formatString("%s/%s", storageDir.c_str(), "retained.db");
+    return path;
+}
+
+std::string Settings::getSessionsDBFile() const
+{
+    if (storageDir.empty())
+        return "";
+
+    std::string path = formatString("%s/%s", storageDir.c_str(), "sessions.db");
+    return path;
 }

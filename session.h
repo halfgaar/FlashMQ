@@ -25,37 +25,45 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 
 #include "forward_declarations.h"
 #include "logger.h"
+#include "sessionsandsubscriptionsdb.h"
+#include "qospacketqueue.h"
 
 // TODO make settings. But, num of packets can't exceed 65536, because the counter is 16 bit.
 #define MAX_QOS_MSG_PENDING_PER_CLIENT 32
 #define MAX_QOS_BYTES_PENDING_PER_CLIENT 4096
 
-struct QueuedQosPacket
-{
-    uint16_t id;
-    std::shared_ptr<MqttPacket> packet;
-};
-
 class Session
 {
+#ifdef TESTING
+    friend class MainTests;
+#endif
+
+    friend class SessionsAndSubscriptionsDB;
+
     std::weak_ptr<Client> client;
-    std::shared_ptr<ThreadData> thread;
     std::string client_id;
     std::string username;
-    std::list<QueuedQosPacket> qosPacketQueue; // Using list because it's easiest to maintain order [MQTT-4.6.0-6]
+    QoSPacketQueue qosPacketQueue;
     std::set<uint16_t> incomingQoS2MessageIds;
     std::set<uint16_t> outgoingQoS2MessageIds;
     std::mutex qosQueueMutex;
     uint16_t nextPacketId = 0;
-    ssize_t qosQueueBytes = 0;
-    std::chrono::time_point<std::chrono::steady_clock> lastTouched;
+    std::chrono::time_point<std::chrono::steady_clock> lastTouched = std::chrono::steady_clock::now();
     Logger *logger = Logger::getInstance();
+    int64_t getSessionRelativeAgeInMs() const;
+    void setSessionTouch(int64_t ageInMs);
 
+    Session(const Session &other);
 public:
     Session();
-    Session(const Session &other) = delete;
+
     Session(Session &&other) = delete;
     ~Session();
+
+    static int64_t getProgramStartedAtUnixTimestamp();
+    static void setProgramStartedAtUnixTimestamp(const int64_t unix_timestamp);
+
+    std::unique_ptr<Session> getCopy() const;
 
     const std::string &getClientId() const { return client_id; }
     bool clientDisconnected() const;
@@ -74,7 +82,6 @@ public:
 
     void addOutgoingQoS2MessageId(uint16_t packet_id);
     void removeOutgoingQoS2MessageId(u_int16_t packet_id);
-
 };
 
 #endif // SESSION_H

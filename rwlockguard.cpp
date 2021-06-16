@@ -32,7 +32,15 @@ RWLockGuard::~RWLockGuard()
 
 void RWLockGuard::wrlock()
 {
-    if (pthread_rwlock_wrlock(rwlock) != 0)
+    const int rc = pthread_rwlock_wrlock(rwlock);
+
+    if (rc == EDEADLK)
+    {
+        rwlock = nullptr;
+        return;
+    }
+
+    if (rc != 0)
         throw std::runtime_error("wrlock failed.");
 }
 
