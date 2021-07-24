@@ -19,6 +19,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 
 #include "session.h"
 #include "client.h"
+#include "threadauth.h"
 
 std::chrono::time_point<std::chrono::steady_clock> appStartTime = std::chrono::steady_clock::now();
 
@@ -118,8 +119,9 @@ void Session::writePacket(const MqttPacket &packet, char max_qos, bool retain, u
     assert(max_qos <= 2);
     const char qos = std::min<char>(packet.getQos(), max_qos);
 
-    assert(packet.getSender());
-    Authentication &auth = packet.getSender()->getThreadData()->authentication;
+    Authentication *_auth = ThreadAuth::getAuth();
+    assert(_auth);
+    Authentication &auth = *_auth;
     if (auth.aclCheck(client_id, username, packet.getTopic(), *packet.getSubtopics(), AclAccess::read, qos, retain) == AuthResult::success)
     {
         if (qos == 0)

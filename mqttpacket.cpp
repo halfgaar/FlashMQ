@@ -22,6 +22,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include <cassert>
 
 #include "utils.h"
+#include "threadauth.h"
 
 // We can void constant reallocation of space for parsed subtopics by using this. But, beware to only use it during handling of the current
 // packet. Don't access it for a stored packet, because then it will have changed.
@@ -356,6 +357,8 @@ void MqttPacket::handleConnect()
         bool accessGranted = false;
         std::string denyLogMsg;
 
+        Authentication &authentication = *ThreadAuth::getAuth();
+
         if (!user_name_flag && settings.allowAnonymous)
         {
             accessGranted = true;
@@ -366,7 +369,7 @@ void MqttPacket::handleConnect()
             sender->setDisconnectReason("Invalid username character");
             accessGranted = false;
         }
-        else if (sender->getThreadData()->authentication.unPwdCheck(username, password) == AuthResult::success)
+        else if (authentication.unPwdCheck(username, password) == AuthResult::success)
         {
             accessGranted = true;
         }
@@ -421,6 +424,8 @@ void MqttPacket::handleSubscribe()
 
     uint16_t packet_id = readTwoBytesToUInt16();
 
+    Authentication &authentication = *ThreadAuth::getAuth();
+
     std::list<char> subs_reponse_codes;
     while (remainingAfterPos() > 0)
     {
@@ -439,7 +444,7 @@ void MqttPacket::handleSubscribe()
             throw ProtocolError("QoS is greater than 2, and/or reserved bytes in QoS field are not 0.");
 
         splitTopic(topic, *subtopics);
-        if (sender->getThreadData()->authentication.aclCheck(sender->getClientId(), sender->getUsername(), topic, *subtopics, AclAccess::subscribe, qos, false) == AuthResult::success)
+        if (authentication.aclCheck(sender->getClientId(), sender->getUsername(), topic, *subtopics, AclAccess::subscribe, qos, false) == AuthResult::success)
         {
             logger->logf(LOG_SUBSCRIBE, "Client '%s' subscribed to '%s'", sender->repr().c_str(), topic.c_str());
             sender->getThreadData()->getSubscriptionStore()->addSubscription(sender, topic, *subtopics, qos);
@@ -555,7 +560,8 @@ void MqttPacket::handlePublish()
     payloadLen = remainingAfterPos();
     payloadStart = pos;
 
-    if (sender->getThreadData()->authentication.aclCheck(sender->getClientId(), sender->getUsername(), topic, *subtopics, AclAccess::write, qos, retain) == AuthResult::success)
+    Authentication &authentication = *ThreadAuth::getAuth();
+    if (authentication.aclCheck(sender->getClientId(), sender->getUsername(), topic, *subtopics, AclAccess::write, qos, retain) == AuthResult::success)
     {
         if (retain)
         {

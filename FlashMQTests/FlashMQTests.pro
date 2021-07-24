@@ -46,6 +46,7 @@ SOURCES +=  tst_maintests.cpp \
     ../persistencefile.cpp \
     ../sessionsandsubscriptionsdb.cpp \
     ../qospacketqueue.cpp \
+    ../threadauth.cpp \
     mainappthread.cpp \
     twoclienttestcontext.cpp
 
@@ -85,6 +86,7 @@ HEADERS += \
     ../persistencefile.h \
     ../sessionsandsubscriptionsdb.h \
     ../qospacketqueue.h \
+    ../threadauth.h \
     mainappthread.h \
     twoclienttestcontext.h
 

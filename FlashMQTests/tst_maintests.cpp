@@ -33,6 +33,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "sessionsandsubscriptionsdb.h"
 #include "session.h"
 #include "threaddata.h"
+#include "threadauth.h"
 
 // Dumb Qt version gives warnings when comparing uint with number literal.
 template <typename T1, typename T2>
@@ -946,6 +947,10 @@ void MainTests::testSavingSessions()
         std::shared_ptr<Settings> settings(new Settings());
         std::shared_ptr<SubscriptionStore> store(new SubscriptionStore());
         std::shared_ptr<ThreadData> t(new ThreadData(0, store, settings));
+
+        // Kind of a hack...
+        Authentication auth(*settings.get());
+        ThreadAuth::assign(&auth);
 
         std::shared_ptr<Client> c1(new Client(0, t, nullptr, false, nullptr, settings, false));
         c1->setClientProperties(ProtocolVersion::Mqtt311, "c1", "user1", true, 60, false);

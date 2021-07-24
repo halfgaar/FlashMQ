@@ -28,6 +28,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include <openssl/err.h>
 
 #include "logger.h"
+#include "threadauth.h"
 
 #define MAX_EVENTS 1024
 
@@ -36,6 +37,7 @@ MainApp *MainApp::instance = nullptr;
 void do_thread_work(ThreadData *threadData)
 {
     int epoll_fd = threadData->epollfd;
+    ThreadAuth::assign(&threadData->authentication);
 
     struct epoll_event events[MAX_EVENTS];
     memset(&events, 0, sizeof (struct epoll_event)*MAX_EVENTS);
