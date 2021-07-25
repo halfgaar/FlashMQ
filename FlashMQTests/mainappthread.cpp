@@ -19,15 +19,19 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 
 MainAppThread::MainAppThread(QObject *parent) : QThread(parent)
 {
-    if (appInstance)
-    {
-        delete appInstance;
-    }
-    appInstance = nullptr;
-    MainApp::instance = nullptr;
     MainApp::initMainApp(1, nullptr);
     appInstance = MainApp::getMainApp();
     appInstance->settings->allowAnonymous = true;
+}
+
+MainAppThread::~MainAppThread()
+{
+    if (appInstance)
+    {
+        delete appInstance;
+        MainApp::instance = nullptr;
+    }
+    appInstance = nullptr;
 }
 
 void MainAppThread::run()

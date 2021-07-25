@@ -102,6 +102,7 @@ MainTests::~MainTests()
 
 void MainTests::init()
 {
+    mainApp.reset();
     mainApp.reset(new MainAppThread());
     mainApp->start();
     mainApp->waitForStarted();
