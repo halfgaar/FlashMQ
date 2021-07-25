@@ -61,6 +61,8 @@ class ThreadData
     void wakeUpThread();
     void doKeepAliveCheck();
     void quit();
+    void publishStatsOnDollarTopic(std::vector<std::shared_ptr<ThreadData>> &threads);
+    void publishStat(const std::string &topic, uint64_t n);
 
 public:
     Settings settingsLocalCopy; // Is updated on reload, within the thread loop.
@@ -91,6 +93,7 @@ public:
     void queueQuit();
     void waitForQuit();
     void queuePasswdFileReload();
+    void queuePublishStatsOnDollarTopic(std::vector<std::shared_ptr<ThreadData>> &threads);
 
     int getNrOfClients() const;
 

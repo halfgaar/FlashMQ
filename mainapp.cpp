@@ -195,9 +195,8 @@ MainApp::MainApp(const std::string &configFilePath) :
     auto fPasswordFileReload = std::bind(&MainApp::queuePasswordFileReloadAllThreads, this);
     timer.addCallback(fPasswordFileReload, 2000, "Password file reload.");
 
-    auto fPublishStats = std::bind(&MainApp::publishStatsOnDollarTopic, this);
+    auto fPublishStats = std::bind(&MainApp::queuePublishStatsOnDollarTopic, this);
     timer.addCallback(fPublishStats, 10000, "Publish stats on $SYS");
-    publishStatsOnDollarTopic();
 
     if (settings->authPluginTimerPeriod > 0)
     {
@@ -340,44 +339,20 @@ void MainApp::setFuzzFile(const std::string &fuzzFilePath)
     this->fuzzFilePath = fuzzFilePath;
 }
 
-void MainApp::publishStatsOnDollarTopic()
+/**
+ * @brief MainApp::queuePublishStatsOnDollarTopic publishes the dollar topics, on a thread that has thread local authentication.
+ */
+void MainApp::queuePublishStatsOnDollarTopic()
 {
-    uint nrOfClients = 0;
-    uint64_t receivedMessageCountPerSecond = 0;
-    uint64_t receivedMessageCount = 0;
-    uint64_t sentMessageCountPerSecond = 0;
-    uint64_t sentMessageCount = 0;
+    std::lock_guard<std::mutex> locker(eventMutex);
 
-    for (std::shared_ptr<ThreadData> &thread : threads)
+    if (!threads.empty())
     {
-        nrOfClients += thread->getNrOfClients();
+        auto f = std::bind(&ThreadData::queuePublishStatsOnDollarTopic, threads.front().get(), threads);
+        taskQueue.push_front(f);
 
-        receivedMessageCountPerSecond += thread->getReceivedMessagePerSecond();
-        receivedMessageCount += thread->getReceivedMessageCount();
-
-        sentMessageCountPerSecond += thread->getSentMessagePerSecond();
-        sentMessageCount += thread->getSentMessageCount();
+        wakeUpThread();
     }
-
-    publishStat("$SYS/broker/clients/total", nrOfClients);
-
-    publishStat("$SYS/broker/load/messages/received/total", receivedMessageCount);
-    publishStat("$SYS/broker/load/messages/received/persecond", receivedMessageCountPerSecond);
-
-    publishStat("$SYS/broker/load/messages/sent/total", sentMessageCount);
-    publishStat("$SYS/broker/load/messages/sent/persecond", sentMessageCountPerSecond);
-
-    publishStat("$SYS/broker/retained messages/count", subscriptionStore->getRetainedMessageCount());
-}
-
-void MainApp::publishStat(const std::string &topic, uint64_t n)
-{
-    std::vector<std::string> subtopics;
-    splitTopic(topic, subtopics);
-    const std::string payload = std::to_string(n);
-    Publish p(topic, payload, 0);
-    subscriptionStore->queuePacketAtSubscribers(subtopics, p, true);
-    subscriptionStore->setRetainedMessage(topic, subtopics, payload, 0);
 }
 
 void MainApp::saveState()
@@ -603,6 +578,9 @@ void MainApp::start()
         t->start(&do_thread_work);
         threads.push_back(t);
     }
+
+    // Populate the $SYS topics, otherwise you have to wait until the timer expires.
+    threads.front()->queuePublishStatsOnDollarTopic(threads);
 
     uint next_thread_index = 0;
 

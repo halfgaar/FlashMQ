@@ -73,6 +73,62 @@ void ThreadData::quit()
     running = false;
 }
 
+/**
+ * @brief ThreadData::queuePublishStatsOnDollarTopic makes this thread publish the $SYS topics.
+ * @param threads
+ *
+ * We want to do that in a thread because all authentication state is thread local.
+ */
+void ThreadData::queuePublishStatsOnDollarTopic(std::vector<std::shared_ptr<ThreadData>> &threads)
+{
+    std::lock_guard<std::mutex> locker(taskQueueMutex);
+
+    auto f = std::bind(&ThreadData::publishStatsOnDollarTopic, this, threads);
+    taskQueue.push_front(f);
+
+    wakeUpThread();
+}
+
+void ThreadData::publishStatsOnDollarTopic(std::vector<std::shared_ptr<ThreadData>> &threads)
+{
+    uint nrOfClients = 0;
+    uint64_t receivedMessageCountPerSecond = 0;
+    uint64_t receivedMessageCount = 0;
+    uint64_t sentMessageCountPerSecond = 0;
+    uint64_t sentMessageCount = 0;
+
+    for (const std::shared_ptr<ThreadData> &thread : threads)
+    {
+        nrOfClients += thread->getNrOfClients();
+
+        receivedMessageCountPerSecond += thread->getReceivedMessagePerSecond();
+        receivedMessageCount += thread->getReceivedMessageCount();
+
+        sentMessageCountPerSecond += thread->getSentMessagePerSecond();
+        sentMessageCount += thread->getSentMessageCount();
+    }
+
+    publishStat("$SYS/broker/clients/total", nrOfClients);
+
+    publishStat("$SYS/broker/load/messages/received/total", receivedMessageCount);
+    publishStat("$SYS/broker/load/messages/received/persecond", receivedMessageCountPerSecond);
+
+    publishStat("$SYS/broker/load/messages/sent/total", sentMessageCount);
+    publishStat("$SYS/broker/load/messages/sent/persecond", sentMessageCountPerSecond);
+
+    publishStat("$SYS/broker/retained messages/count", subscriptionStore->getRetainedMessageCount());
+}
+
+void ThreadData::publishStat(const std::string &topic, uint64_t n)
+{
+    std::vector<std::string> subtopics;
+    splitTopic(topic, subtopics);
+    const std::string payload = std::to_string(n);
+    Publish p(topic, payload, 0);
+    subscriptionStore->queuePacketAtSubscribers(subtopics, p, true);
+    subscriptionStore->setRetainedMessage(topic, subtopics, payload, 0);
+}
+
 void ThreadData::giveClient(std::shared_ptr<Client> client)
 {
     clients_by_fd_mutex.lock();
