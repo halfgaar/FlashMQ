@@ -24,16 +24,13 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 
 void CallbackEntry::updateExectedAt()
 {
-    this->lastExecuted = currentMSecsSinceEpoch();
+    this->lastExecuted = std::chrono::steady_clock::now();
 }
 
 uint64_t CallbackEntry::getNextCallMs() const
 {
-    int64_t elapsedSinceLastCall = currentMSecsSinceEpoch() - lastExecuted;
-    if (elapsedSinceLastCall < 0) // Correct for clock drift
-        elapsedSinceLastCall = 0;
-
-    int64_t newDelay = this->interval - elapsedSinceLastCall;
+    const std::chrono::milliseconds elapsedSinceLastCall = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - lastExecuted);
+    int64_t newDelay = this->interval - elapsedSinceLastCall.count();
     if (newDelay < 0)
         newDelay = 0;
     return newDelay;

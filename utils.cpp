@@ -294,14 +294,6 @@ bool startsWith(const std::string &s, const std::string &needle)
     return s.find(needle) == 0;
 }
 
-int64_t currentMSecsSinceEpoch()
-{
-    struct timeval te;
-    gettimeofday(&te, NULL);
-    int64_t milliseconds = te.tv_sec*1000LL + te.tv_usec/1000;
-    return milliseconds;
-}
-
 std::string getSecureRandomString(const ssize_t len)
 {
     std::vector<unsigned char> buf(len);

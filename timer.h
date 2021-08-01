@@ -29,7 +29,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 
 struct CallbackEntry
 {
-    uint64_t lastExecuted = currentMSecsSinceEpoch(); // assume the first one executed to avoid instantly calling it.
+    std::chrono::time_point<std::chrono::steady_clock> lastExecuted = std::chrono::steady_clock::now();
     uint64_t interval = 0;
     std::function<void ()> f = nullptr;
     std::string name;
