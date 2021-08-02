@@ -294,6 +294,10 @@ AuthResult Authentication::aclCheck(const std::string &clientid, const std::stri
 
     if (pluginVersion == PluginVersion::MosquittoV2)
     {
+        // We have to do this, because Mosquitto plugin v2 has no notion of checking subscribes.
+        if (access == AclAccess::subscribe)
+            return AuthResult::success;
+
         int result = acl_check_v2(pluginData, clientid.c_str(), username.c_str(), topic.c_str(), static_cast<int>(access));
         AuthResult result_ = static_cast<AuthResult>(result);
 
@@ -545,6 +549,10 @@ AuthResult Authentication::aclCheckFromMosquittoAclFile(const std::string &clien
     assert(access != AclAccess::none);
 
     if (this->mosquittoAclFile.empty())
+        return AuthResult::success;
+
+    // We have to do this because the Mosquitto ACL file has no notion of checking subscribes.
+    if (access == AclAccess::subscribe)
         return AuthResult::success;
 
     AclGrant ag = access == AclAccess::write ? AclGrant::Write : AclGrant::Read;
