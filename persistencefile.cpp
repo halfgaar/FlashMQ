@@ -268,6 +268,8 @@ void PersistenceFile::openWrite(const std::string &versionString)
         throw std::runtime_error(formatString("Can't open '%s': %s", filePathTemp.c_str(), strerror(errno)));
     }
 
+    chmod(filePathTemp.c_str(), S_IRUSR | S_IWUSR);
+
     openMode = FileMode::write;
 
     writeCheck(buf.data(), 1, MAGIC_STRING_LENGH, f);
