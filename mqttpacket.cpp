@@ -518,7 +518,7 @@ void MqttPacket::handlePublish()
 
     if (!isValidUtf8(topic, true))
     {
-        logger->logf(LOG_WARNING, "Client '%s' published a message with invalid UTF8 or +/# in it. Dropping.", sender->repr().c_str());
+        logger->logf(LOG_WARNING, "Client '%s' published a message with invalid UTF8 or $/+/# in it. Dropping.", sender->repr().c_str());
         return;
     }
 
