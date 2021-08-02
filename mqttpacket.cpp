@@ -446,7 +446,7 @@ void MqttPacket::handleSubscribe()
         splitTopic(topic, *subtopics);
         if (authentication.aclCheck(sender->getClientId(), sender->getUsername(), topic, *subtopics, AclAccess::subscribe, qos, false) == AuthResult::success)
         {
-            logger->logf(LOG_SUBSCRIBE, "Client '%s' subscribed to '%s'", sender->repr().c_str(), topic.c_str());
+            logger->logf(LOG_SUBSCRIBE, "Client '%s' subscribed to '%s' QoS %d", sender->repr().c_str(), topic.c_str(), qos);
             sender->getThreadData()->getSubscriptionStore()->addSubscription(sender, topic, *subtopics, qos);
             subs_reponse_codes.push_back(qos);
         }
