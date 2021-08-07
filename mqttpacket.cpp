@@ -195,7 +195,8 @@ void MqttPacket::handle()
     {
         if (!sender->getAuthenticated())
         {
-            throw ProtocolError("Non-connect packet from non-authenticated client.");
+            logger->logf(LOG_WARNING, "Non-connect packet (%d) from non-authenticated client. Dropping packet.", packetType);
+            return;
         }
     }
 
