@@ -212,13 +212,17 @@ void SubscriptionStore::registerClientAndKickExistingOne(std::shared_ptr<Client>
     {
         session = session_it->second;
 
-        if (session && !session->clientDisconnected())
+        if (session)
         {
             std::shared_ptr<Client> cl = session->makeSharedClient();
-            logger->logf(LOG_NOTICE, "Disconnecting existing client with id '%s'", cl->getClientId().c_str());
-            cl->setReadyForDisconnect();
-            cl->getThreadData()->removeClient(cl);
-            cl->markAsDisconnecting();
+
+            if (cl)
+            {
+                logger->logf(LOG_NOTICE, "Disconnecting existing client with id '%s'", cl->getClientId().c_str());
+                cl->setReadyForDisconnect();
+                cl->getThreadData()->removeClient(cl);
+                cl->markAsDisconnecting();
+            }
         }
     }
 
@@ -255,10 +259,9 @@ void SubscriptionStore::publishNonRecursively(const MqttPacket &packet, const st
 {
     for (const Subscription &sub : subscribers)
     {
-        std::weak_ptr<Session> session_weak = sub.session;
-        if (!session_weak.expired()) // Shared pointer expires when session has been cleaned by 'clean session' connect.
+        const std::shared_ptr<Session> session = sub.session.lock();
+        if (session) // Shared pointer expires when session has been cleaned by 'clean session' connect.
         {
-            const std::shared_ptr<Session> session = session_weak.lock();
             session->writePacket(packet, sub.qos, false, count);
         }
     }
@@ -469,7 +472,8 @@ int SubscriptionNode::cleanSubscriptions()
     auto it = subscribers.begin();
     while (it != subscribers.end())
     {
-        if (it->sessionGone())
+        std::shared_ptr<Session> ses = it->session.lock();
+        if (!ses)
         {
             Logger::getInstance()->logf(LOG_DEBUG, "Removing empty spot in subscribers vector");
             it = subscribers.erase(it);
@@ -539,9 +543,10 @@ void SubscriptionStore::getSubscriptions(SubscriptionNode *this_node, const std:
 {
     for (const Subscription &node : this_node->getSubscribers())
     {
-        if (!node.sessionGone())
+        std::shared_ptr<Session> ses = node.session.lock();
+        if (ses)
         {
-            SubscriptionForSerializing sub(node.session.lock()->getClientId(), node.qos);
+            SubscriptionForSerializing sub(ses->getClientId(), node.qos);
             outputList[composedTopic].push_back(sub);
         }
     }
@@ -702,18 +707,13 @@ bool Subscription::operator==(const Subscription &rhs) const
     const std::shared_ptr<Session> lhs_ses = session.lock();
     const std::shared_ptr<Session> rhs_ses = rhs.session.lock();
 
-    return lhs_ses->getClientId() == rhs_ses->getClientId();
+    return lhs_ses && rhs_ses && lhs_ses->getClientId() == rhs_ses->getClientId();
 }
 
 void Subscription::reset()
 {
     session.reset();
     qos = 0;
-}
-
-bool Subscription::sessionGone() const
-{
-    return session.expired();
 }
 
 void RetainedMessageNode::addPayload(const std::string &topic, const std::string &payload, char qos, int64_t &totalCount)

@@ -66,7 +66,6 @@ public:
     std::unique_ptr<Session> getCopy() const;
 
     const std::string &getClientId() const { return client_id; }
-    bool clientDisconnected() const;
     std::shared_ptr<Client> makeSharedClient() const;
     void assignActiveConnection(std::shared_ptr<Client> &client);
     void writePacket(const MqttPacket &packet, char max_qos, bool retain, uint64_t &count);

@@ -90,11 +90,14 @@ std::unique_ptr<Session> Session::getCopy() const
     return s;
 }
 
-bool Session::clientDisconnected() const
-{
-    return client.expired();
-}
-
+/**
+ * @brief Session::makeSharedClient get the client of the session, or a null when it has no active current client.
+ * @return Returns shared_ptr<Client>, which can contain null when the client has disconnected.
+ *
+ * The lock() operation is atomic and therefore is the only way to get the current active client without race condition, because
+ * typically, this method is called from other client's threads to perform writes, so you have to check validity after
+ * obtaining the shared pointer.
+ */
 std::shared_ptr<Client> Session::makeSharedClient() const
 {
     return client.lock();
@@ -126,9 +129,10 @@ void Session::writePacket(const MqttPacket &packet, char max_qos, bool retain, u
     {
         if (qos == 0)
         {
-            if (!clientDisconnected())
+            std::shared_ptr<Client> c = makeSharedClient();
+
+            if (c)
             {
-                std::shared_ptr<Client> c = makeSharedClient();
                 c->writeMqttPacketAndBlameThisClient(packet, qos);
                 count++;
             }
@@ -150,9 +154,9 @@ void Session::writePacket(const MqttPacket &packet, char max_qos, bool retain, u
             std::shared_ptr<MqttPacket> copyPacket = qosPacketQueue.queuePacket(packet, nextPacketId);
             locker.unlock();
 
-            if (!clientDisconnected())
+            std::shared_ptr<Client> c = makeSharedClient();
+            if (c)
             {
-                std::shared_ptr<Client> c = makeSharedClient();
                 c->writeMqttPacketAndBlameThisClient(*copyPacket.get(), qos);
                 copyPacket->setDuplicate(); // Any dealings with this packet from here will be a duplicate.
                 count++;
@@ -183,9 +187,9 @@ uint64_t Session::sendPendingQosMessages()
 {
     uint64_t count = 0;
 
-    if (!clientDisconnected())
+    std::shared_ptr<Client> c = makeSharedClient();
+    if (c)
     {
-        std::shared_ptr<Client> c = makeSharedClient();
         std::lock_guard<std::mutex> locker(qosQueueMutex);
         for (const std::shared_ptr<MqttPacket> &qosMessage : qosPacketQueue)
         {
@@ -223,7 +227,7 @@ bool Session::hasExpired(int expireAfterSeconds)
 {
     std::chrono::seconds expireAfter(expireAfterSeconds);
     std::chrono::time_point<std::chrono::steady_clock> now = std::chrono::steady_clock::now();
-    return clientDisconnected() && (lastTouched + expireAfter) < now;
+    return client.expired() && (lastTouched + expireAfter) < now;
 }
 
 void Session::addIncomingQoS2MessageId(uint16_t packet_id)

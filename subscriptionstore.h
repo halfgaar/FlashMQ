@@ -39,7 +39,6 @@ struct Subscription
     char qos;
     bool operator==(const Subscription &rhs) const;
     void reset();
-    bool sessionGone() const;
 };
 
 class SubscriptionNode
