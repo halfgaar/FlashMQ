@@ -46,9 +46,15 @@ void SubscriptionNode::addSubscriber(const std::shared_ptr<Session> &subscriber,
 
     // I'll have to decide whether to keep the subscriber as a vector. Vectors are
     // fast, and relatively, you don't often add subscribers.
-    if (std::find(subscribers.begin(), subscribers.end(), sub) == subscribers.end())
+    auto subscriber_it = std::find(subscribers.begin(), subscribers.end(), sub);
+    if (subscriber_it == subscribers.end())
     {
         subscribers.push_back(sub);
+    }
+    else
+    {
+        Subscription &existingSub = *subscriber_it;
+        existingSub = sub;
     }
 }
 
