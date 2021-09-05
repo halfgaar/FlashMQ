@@ -121,6 +121,7 @@ public:
     void removeExpiredSessionsClients(int expireSessionsAfterSeconds);
 
     int64_t getRetainedMessageCount() const;
+    uint64_t getSessionCount() const;
 
     void saveRetainedMessages(const std::string &filePath);
     void loadRetainedMessages(const std::string &filePath);

@@ -523,6 +523,11 @@ int64_t SubscriptionStore::getRetainedMessageCount() const
     return retainedMessageCount;
 }
 
+uint64_t SubscriptionStore::getSessionCount() const
+{
+    return sessionsByIdConst.size();
+}
+
 void SubscriptionStore::getRetainedMessages(RetainedMessageNode *this_node, std::vector<RetainedMessage> &outputList) const
 {
     for(const RetainedMessage &rm : this_node->retainedMessages)
