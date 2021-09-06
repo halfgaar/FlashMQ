@@ -210,7 +210,7 @@ MainApp::MainApp(const std::string &configFilePath) :
         subscriptionStore->loadSessionsAndSubscriptions(settings->getSessionsDBFile());
     }
 
-    auto fSaveState = std::bind(&MainApp::saveState, this);
+    auto fSaveState = std::bind(&MainApp::saveStateInThread, this);
     timer.addCallback(fSaveState, 900000, "Save state.");
 }
 
@@ -355,8 +355,31 @@ void MainApp::queuePublishStatsOnDollarTopic()
     }
 }
 
+/**
+ * @brief MainApp::saveStateInThread starts a thread for disk IO, because file IO is not async.
+ */
+void MainApp::saveStateInThread()
+{
+    // Prevent queueing it again when it's still running.
+    std::unique_lock<std::mutex> locker(saveStateMutex, std::try_to_lock);
+    if (!locker.owns_lock())
+        return;
+
+    // Join previous instances.
+    if (saveStateThread.joinable())
+        saveStateThread.join();
+
+    auto f = std::bind(&MainApp::saveState, this);
+    saveStateThread = std::thread(f);
+
+    pthread_t native = saveStateThread.native_handle();
+    pthread_setname_np(native, "SaveState");
+}
+
 void MainApp::saveState()
 {
+    std::lock_guard<std::mutex> lg(saveStateMutex);
+
     try
     {
         if (!settings->storageDir.empty())
@@ -366,6 +389,8 @@ void MainApp::saveState()
 
             const std::string sessionsDBPath = settings->getSessionsDBFile();
             subscriptionStore->saveSessionsAndSubscriptions(sessionsDBPath);
+
+            logger->logf(LOG_INFO, "Saving states done");
         }
     }
     catch(std::exception &ex)
@@ -669,6 +694,9 @@ void MainApp::start()
     }
 
     saveState();
+
+    if (saveStateThread.joinable())
+        saveStateThread.join();
 }
 
 void MainApp::quit()

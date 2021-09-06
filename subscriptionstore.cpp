@@ -634,7 +634,7 @@ void SubscriptionStore::saveSessionsAndSubscriptions(const std::string &filePath
     logger->logf(LOG_INFO, "Saving sessions and subscriptions to '%s'", filePath.c_str());
 
     RWLockGuard lock_guard(&subscriptionsRwlock);
-    lock_guard.wrlock();
+    lock_guard.rdlock();
 
     // First copy the sessions...
 
