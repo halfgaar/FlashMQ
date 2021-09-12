@@ -144,7 +144,11 @@ void Session::writePacket(const MqttPacket &packet, char max_qos, bool retain, u
             const size_t totalQosPacketsInTransit = qosPacketQueue.size() + incomingQoS2MessageIds.size() + outgoingQoS2MessageIds.size();
             if (totalQosPacketsInTransit >= MAX_QOS_MSG_PENDING_PER_CLIENT || (qosPacketQueue.getByteSize() >= MAX_QOS_BYTES_PENDING_PER_CLIENT && qosPacketQueue.size() > 0))
             {
-                logger->logf(LOG_WARNING, "Dropping QoS message for client '%s', because its QoS buffers were full.", client_id.c_str());
+                if (QoSLogPrintedAtId != nextPacketId)
+                {
+                    logger->logf(LOG_WARNING, "Dropping QoS message(s) for client '%s', because its QoS buffers were full.", client_id.c_str());
+                    QoSLogPrintedAtId = nextPacketId;
+                }
                 return;
             }
             nextPacketId++;

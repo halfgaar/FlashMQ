@@ -48,6 +48,7 @@ class Session
     std::set<uint16_t> outgoingQoS2MessageIds;
     std::mutex qosQueueMutex;
     uint16_t nextPacketId = 0;
+    uint16_t QoSLogPrintedAtId = 0;
     std::chrono::time_point<std::chrono::steady_clock> lastTouched = std::chrono::steady_clock::now();
     Logger *logger = Logger::getInstance();
     int64_t getSessionRelativeAgeInMs() const;
