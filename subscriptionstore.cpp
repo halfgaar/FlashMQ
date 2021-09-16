@@ -443,9 +443,10 @@ int SubscriptionNode::cleanSubscriptions()
     auto childrenIt = children.begin();
     while(childrenIt != children.end())
     {
-        subscribersLeftInChildren += childrenIt->second->cleanSubscriptions();
+        int n = childrenIt->second->cleanSubscriptions();
+        subscribersLeftInChildren += n;
 
-        if (subscribersLeftInChildren > 0)
+        if (n > 0)
             childrenIt++;
         else
         {
