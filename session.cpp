@@ -67,6 +67,10 @@ void Session::setSessionTouch(int64_t ageInMs)
  */
 Session::Session(const Session &other)
 {
+    // Only the QoS data is modified by worker threads (vs (locked) timed events), so it could change during copying, because
+    // it gets called from a separate thread.
+    std::unique_lock<std::mutex> locker(qosQueueMutex);
+
     this->username = other.username;
     this->client_id = other.client_id;
     this->incomingQoS2MessageIds = other.incomingQoS2MessageIds;
@@ -236,17 +240,21 @@ bool Session::hasExpired(int expireAfterSeconds)
 
 void Session::addIncomingQoS2MessageId(uint16_t packet_id)
 {
+    std::unique_lock<std::mutex> locker(qosQueueMutex);
     incomingQoS2MessageIds.insert(packet_id);
 }
 
-bool Session::incomingQoS2MessageIdInTransit(uint16_t packet_id) const
+bool Session::incomingQoS2MessageIdInTransit(uint16_t packet_id)
 {
+    std::unique_lock<std::mutex> locker(qosQueueMutex);
     const auto it = incomingQoS2MessageIds.find(packet_id);
     return it != incomingQoS2MessageIds.end();
 }
 
 void Session::removeIncomingQoS2MessageId(u_int16_t packet_id)
 {
+    std::unique_lock<std::mutex> locker(qosQueueMutex);
+
 #ifndef NDEBUG
     logger->logf(LOG_DEBUG, "As QoS 2 receiver: publish released (PUBREL) for '%s', packet id '%d'. Left in queue: %d", client_id.c_str(), packet_id, incomingQoS2MessageIds.size());
 #endif
@@ -258,11 +266,14 @@ void Session::removeIncomingQoS2MessageId(u_int16_t packet_id)
 
 void Session::addOutgoingQoS2MessageId(uint16_t packet_id)
 {
+    std::unique_lock<std::mutex> locker(qosQueueMutex);
     outgoingQoS2MessageIds.insert(packet_id);
 }
 
 void Session::removeOutgoingQoS2MessageId(u_int16_t packet_id)
 {
+    std::unique_lock<std::mutex> locker(qosQueueMutex);
+
 #ifndef NDEBUG
     logger->logf(LOG_DEBUG, "As QoS 2 sender: publish complete (PUBCOMP) for '%s', packet id '%d'. Left in queue: %d", client_id.c_str(), packet_id, outgoingQoS2MessageIds.size());
 #endif

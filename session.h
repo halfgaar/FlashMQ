@@ -77,7 +77,7 @@ public:
     bool hasExpired(int expireAfterSeconds);
 
     void addIncomingQoS2MessageId(uint16_t packet_id);
-    bool incomingQoS2MessageIdInTransit(uint16_t packet_id) const;
+    bool incomingQoS2MessageIdInTransit(uint16_t packet_id);
     void removeIncomingQoS2MessageId(u_int16_t packet_id);
 
     void addOutgoingQoS2MessageId(uint16_t packet_id);
