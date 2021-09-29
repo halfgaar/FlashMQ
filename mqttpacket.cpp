@@ -425,6 +425,11 @@ void MqttPacket::handleSubscribe()
 
     uint16_t packet_id = readTwoBytesToUInt16();
 
+    if (packet_id == 0)
+    {
+        throw ProtocolError("Packet ID 0 when subscribing is invalid."); // [MQTT-2.3.1-1]
+    }
+
     Authentication &authentication = *ThreadAuth::getAuth();
 
     std::list<char> subs_reponse_codes;
@@ -477,6 +482,11 @@ void MqttPacket::handleUnsubscribe()
         throw ProtocolError("First LSB of first byte is wrong value for subscribe packet.");
 
     uint16_t packet_id = readTwoBytesToUInt16();
+
+    if (packet_id == 0)
+    {
+        throw ProtocolError("Packet ID 0 when unsubscribing is invalid."); // [MQTT-2.3.1-1]
+    }
 
     while (remainingAfterPos() > 0)
     {
@@ -533,6 +543,11 @@ void MqttPacket::handlePublish()
     {
         packet_id_pos = pos;
         packet_id = readTwoBytesToUInt16();
+
+        if (packet_id == 0)
+        {
+            throw ProtocolError("Packet ID 0 when publishing is invalid."); // [MQTT-2.3.1-1]
+        }
 
         if (qos == 1)
         {
