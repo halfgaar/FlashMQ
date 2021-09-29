@@ -183,7 +183,7 @@ void SessionsAndSubscriptionsDB::writeRowHeader()
 
 }
 
-void SessionsAndSubscriptionsDB::saveData(const std::list<std::unique_ptr<Session>> &sessions, const std::unordered_map<std::string, std::list<SubscriptionForSerializing>> &subscriptions)
+void SessionsAndSubscriptionsDB::saveData(const std::vector<std::unique_ptr<Session>> &sessions, const std::unordered_map<std::string, std::list<SubscriptionForSerializing>> &subscriptions)
 {
     if (!f)
         return;

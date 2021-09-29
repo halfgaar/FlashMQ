@@ -639,7 +639,8 @@ void SubscriptionStore::saveSessionsAndSubscriptions(const std::string &filePath
 
     // First copy the sessions...
 
-    std::list<std::unique_ptr<Session>> sessionCopies;
+    std::vector<std::unique_ptr<Session>> sessionCopies;
+    sessionCopies.reserve(sessionsByIdConst.size());
 
     for (const auto &pair : sessionsByIdConst)
     {
