@@ -492,6 +492,20 @@ int SubscriptionNode::cleanSubscriptions()
     return subscribers.size() + subscribersLeftInChildren;
 }
 
+void SubscriptionStore::removeSession(const std::string &clientid)
+{
+    RWLockGuard lock_guard(&subscriptionsRwlock);
+    lock_guard.wrlock();
+
+    logger->logf(LOG_DEBUG, "Removing session of client '%s'.", clientid.c_str());
+
+    auto session_it = sessionsById.begin();
+    if (session_it != sessionsById.end())
+    {
+        sessionsById.erase(session_it);
+    }
+}
+
 // This is not MQTT compliant, but the standard doesn't keep real world constraints into account.
 void SubscriptionStore::removeExpiredSessionsClients(int expireSessionsAfterSeconds)
 {

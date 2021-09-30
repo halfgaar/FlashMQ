@@ -49,11 +49,11 @@ Client::Client(int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, bool we
 
 Client::~Client()
 {
+    std::shared_ptr<SubscriptionStore> &store = getThreadData()->getSubscriptionStore();
+
     // Will payload can be empty, apparently.
     if (!will_topic.empty())
     {
-        std::shared_ptr<SubscriptionStore> &store = getThreadData()->getSubscriptionStore();
-
         Publish will(will_topic, will_payload, will_qos);
         will.retain = will_retain;
         const MqttPacket willPacket(will);
@@ -69,6 +69,12 @@ Client::~Client()
     if (epoll_ctl(threadData->epollfd, EPOLL_CTL_DEL, fd, NULL) != 0)
         logger->logf(LOG_ERR, "Removing fd %d of client '%s' from epoll produced error: %s", fd, repr().c_str(), strerror(errno));
     close(fd);
+
+    // MQTT-3.1.2-6
+    if (cleanSession)
+    {
+        store->removeSession(clientid);
+    }
 }
 
 bool Client::isSslAccepted() const

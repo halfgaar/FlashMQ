@@ -118,6 +118,7 @@ public:
 
     void setRetainedMessage(const std::string &topic, const std::vector<std::string> &subtopics, const std::string &payload, char qos);
 
+    void removeSession(const std::string &clientid);
     void removeExpiredSessionsClients(int expireSessionsAfterSeconds);
 
     int64_t getRetainedMessageCount() const;
