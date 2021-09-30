@@ -1,0 +1,16 @@
+[Unit]
+Description=FlashMQ MQTT server
+After=network.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+LimitNOFILE=1000000
+ExecStart=/usr/bin/FlashMQ --config-file /etc/flashmq/flashmq.conf
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target

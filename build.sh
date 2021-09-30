@@ -23,3 +23,4 @@ cd "$BUILD_DIR"
 
 cmake -DCMAKE_BUILD_TYPE="$BUILD_TYPE" "$thisdir"
 make
+cpack

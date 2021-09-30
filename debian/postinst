@@ -1,0 +1,13 @@
+#!/bin/bash -e
+
+if ! systemctl is-enabled --quiet flashmq.service; then
+  echo "Enabling FlashMQ systemd service."
+  systemctl enable flashmq.service
+fi
+
+if ! systemctl is-active --quiet flashmq.service; then
+  echo "FlashMQ is not running, so we're starting it."
+  systemctl start flashmq.service
+else
+  echo "FlashMQ is already running."
+fi

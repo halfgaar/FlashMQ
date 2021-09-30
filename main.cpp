@@ -88,9 +88,9 @@ int main(int argc, char *argv[])
         sse = "with SSE4.2 support";
 #endif
 #ifdef NDEBUG
-        logger->logf(LOG_NOTICE, "Starting FlashMQ version %s, release build %s.", VERSION, sse.c_str());
+        logger->logf(LOG_NOTICE, "Starting FlashMQ version %s, release build %s.", FLASHMQ_VERSION, sse.c_str());
 #else
-        logger->logf(LOG_NOTICE, "Starting FlashMQ version %s, debug build %s.", VERSION, sse.c_str());
+        logger->logf(LOG_NOTICE, "Starting FlashMQ version %s, debug build %s.", FLASHMQ_VERSION, sse.c_str());
 #endif
         mainApp->start();
     }

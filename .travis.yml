@@ -14,9 +14,25 @@ jobs:
     - name: "Ubuntu 20.04 | GCC"
       dist: focal
       compiler: gcc
+    - name: "Debian 11 | GCC"
+      dist: bullseye
+      compiler: gcc
+    - name: "Debian 11 | Clang"
+      dist: bullseye
+      compiler: clang
+    - name: "Debian 10 | GCC"
+      dist: buster
+      compiler: gcc
+    - name: "Debian 10 | Clang"
+      dist: buster
+      compiler: clang
 
 script:
 - set -e  # If any step reports a problem consider the whole build a failure
+- sudo apt update
+- sudo apt install -y shellcheck
+- shellcheck debian/post* debian/pre*
 - ./build.sh
 - ./FlashMQBuildRelease/FlashMQ --version
+- sudo dpkg -i ./FlashMQBuildRelease/*.deb
 - set +e  # Prevent Travis internals from breaking our build, see https://github.com/travis-ci/travis-ci/issues/891

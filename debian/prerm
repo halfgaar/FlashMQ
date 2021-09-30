@@ -1,0 +1,12 @@
+#!/bin/bash -e
+
+echo "Stopping FlashMQ systemd service"
+
+if systemctl is-active --quiet flashmq.service; then
+  systemctl stop flashmq.service
+fi
+
+if systemctl is-active --quiet flashmq.service; then
+  echo "FlashMQ failed to stop, according to systemctl."
+  exit 1
+fi

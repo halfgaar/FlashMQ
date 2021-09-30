@@ -1,9 +1,11 @@
 cmake_minimum_required(VERSION 3.5)
+cmake_policy(SET CMP0048 NEW)
 include(CheckCXXCompilerFlag)
 
-project(FlashMQ LANGUAGES CXX)
+project(FlashMQ VERSION 0.9.2 LANGUAGES CXX)
 
 add_definitions(-DOPENSSL_API_COMPAT=0x10100000L)
+add_definitions(-DFLASHMQ_VERSION=\"${PROJECT_VERSION}\")
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -95,3 +97,23 @@ add_executable(FlashMQ
     )
 
 target_link_libraries(FlashMQ pthread dl ssl crypto)
+
+install(TARGETS FlashMQ
+  RUNTIME DESTINATION "/usr/bin/")
+
+install(DIRECTORY DESTINATION "/var/lib/flashmq")
+install(DIRECTORY DESTINATION "/var/log/flashmq")
+install(FILES flashmq.conf DESTINATION "/etc/flashmq")
+install(FILES debian/flashmq.service DESTINATION "/lib/systemd/system")
+
+SET(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA "${CMAKE_CURRENT_SOURCE_DIR}/debian/conffiles;${CMAKE_CURRENT_SOURCE_DIR}/debian/preinst;${CMAKE_CURRENT_SOURCE_DIR}/debian/postinst;${CMAKE_CURRENT_SOURCE_DIR}/debian/postrm;${CMAKE_CURRENT_SOURCE_DIR}/debian/prerm")
+
+SET(CPACK_GENERATOR "DEB")
+SET(CPACK_DEBIAN_PACKAGE_MAINTAINER "Wiebe Cazemier <wiebe@halfgaar.net>")
+SET(CPACK_DEBIAN_PACKAGE_DESCRIPTION "Light-weight, high performance MQTT server capable of million+ messages per second.")
+SET(CPACK_PACKAGE_HOMEPAGE_URL "https://www.flashmq.org/")
+SET(CPACK_DEBIAN_PACKAGE_DEPENDS "libssl1.1 (>= 1.1.0)")
+SET(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
+SET(CPACK_PACKAGE_VERSION_MINOR ${PROJECT_VERSION_MINOR})
+SET(CPACK_PACKAGE_VERSION_PATCH ${PROJECT_VERSION_PATCH})
+INCLUDE(CPack)
