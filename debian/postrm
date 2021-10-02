@@ -2,5 +2,5 @@
 
 if [[ "$1" != "upgrade" ]]; then
   echo "Disabling FlashMQ systemd service"
-  systemctl disable flashmq.service
+  systemctl disable flashmq.service || echo "Ignoring..."
 fi
