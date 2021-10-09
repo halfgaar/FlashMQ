@@ -468,6 +468,12 @@ void MqttPacket::handleSubscribe()
         }
     }
 
+    // MQTT-3.8.3-3
+    if (subs_reponse_codes.empty())
+    {
+        throw ProtocolError("No topics specified to subscribe to.");
+    }
+
     SubAck subAck(packet_id, subs_reponse_codes);
     MqttPacket response(subAck);
     sender->writeMqttPacket(response);
