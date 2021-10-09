@@ -494,8 +494,12 @@ void MqttPacket::handleUnsubscribe()
         throw ProtocolError("Packet ID 0 when unsubscribing is invalid."); // [MQTT-2.3.1-1]
     }
 
+    int numberOfUnsubs = 0;
+
     while (remainingAfterPos() > 0)
     {
+        numberOfUnsubs++;
+
         uint16_t topicLength = readTwoBytesToUInt16();
         std::string topic(readBytes(topicLength), topicLength);
 
@@ -504,6 +508,12 @@ void MqttPacket::handleUnsubscribe()
 
         sender->getThreadData()->getSubscriptionStore()->removeSubscription(sender, topic);
         logger->logf(LOG_UNSUBSCRIBE, "Client '%s' unsubscribed from '%s'", sender->repr().c_str(), topic.c_str());
+    }
+
+    // MQTT-3.10.3-2
+    if (numberOfUnsubs == 0)
+    {
+        throw ProtocolError("No topics specified to unsubscribe to.");
     }
 
     UnsubAck unsubAck(packet_id);
