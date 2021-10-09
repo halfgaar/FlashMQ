@@ -3,7 +3,8 @@ QT -= gui
 QT += network
 QT += qmqtt
 
-DEFINES += TESTING
+DEFINES += TESTING \
+           "FLASHMQ_VERSION=\\\"0.0.0\\\""
 
 INCLUDEPATH += ..
 

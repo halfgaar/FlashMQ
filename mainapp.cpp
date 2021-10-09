@@ -415,7 +415,11 @@ void MainApp::initMainApp(int argc, char *argv[])
         {nullptr, 0, nullptr, 0}
     };
 
+#ifdef TESTING
+    const std::string defaultConfigFile = "/dummy/flashmq.org";
+#else
     const std::string defaultConfigFile = "/etc/flashmq/flashmq.conf";
+#endif
     std::string configFile;
 
     if (access(defaultConfigFile.c_str(), R_OK) == 0)
