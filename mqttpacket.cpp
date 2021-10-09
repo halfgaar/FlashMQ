@@ -621,6 +621,10 @@ void MqttPacket::handlePubRec()
  */
 void MqttPacket::handlePubRel()
 {
+    // MQTT-3.6.1-1, but why do we care, and only care for certain control packets?
+    if (first_byte & 0b1101)
+        throw ProtocolError("PUBREL first byte LSB must be 0010.");
+
     const uint16_t packet_id = readTwoBytesToUInt16();
     sender->getSession()->removeIncomingQoS2MessageId(packet_id);
 
