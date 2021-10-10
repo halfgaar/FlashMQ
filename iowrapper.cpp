@@ -399,7 +399,8 @@ ssize_t IoWrapper::readWebsocketAndOrSsl(int fd, void *buf, size_t nbytes, IoWra
                 {
                     std::string response = generateBadHttpRequestReponse(ex.what());
                     parentClient->writeText(response);
-                    parentClient->setDisconnectReason("Invalid websocket start");
+                    const std::string reason = formatString("Invalid websocket start: %s", ex.what());
+                    parentClient->setDisconnectReason(reason);
                     parentClient->setReadyForDisconnect();
                 }
             }
