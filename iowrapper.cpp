@@ -406,11 +406,11 @@ ssize_t IoWrapper::readWebsocketAndOrSsl(int fd, void *buf, size_t nbytes, IoWra
             }
             else
             {
-                n = websocketBytesToReadBuffer(buf, nbytes);
+                n = websocketBytesToReadBuffer(buf, nbytes, error);
 
                 if (n > 0)
                     *error = IoWrapResult::Success;
-                else if (n == 0)
+                else if (n == 0 && *error != IoWrapResult::Disconnected)
                     *error = IoWrapResult::Wouldblock;
             }
         }
@@ -426,7 +426,7 @@ ssize_t IoWrapper::readWebsocketAndOrSsl(int fd, void *buf, size_t nbytes, IoWra
  * @param nbytes
  * @return
  */
-ssize_t IoWrapper::websocketBytesToReadBuffer(void *buf, const size_t nbytes)
+ssize_t IoWrapper::websocketBytesToReadBuffer(void *buf, const size_t nbytes, IoWrapResult *error)
 {
     const ssize_t targetBufMaxSize = nbytes;
     ssize_t nbytesRead = 0;
@@ -523,6 +523,8 @@ ssize_t IoWrapper::websocketBytesToReadBuffer(void *buf, const size_t nbytes)
 
             if (incompleteWebsocketRead.frame_bytes_left <= websocketPendingBytes.usedBytes())
             {
+                logger->logf(LOG_INFO, "Ponging websocket");
+
                 // Constructing a new temporary buffer because I need the reponse in one frame for writeAsMuchOfBufAsWebsocketFrame().
                 std::vector<char> response(incompleteWebsocketRead.frame_bytes_left);
                 websocketPendingBytes.read(response.data(), response.size());
@@ -532,11 +534,35 @@ ssize_t IoWrapper::websocketBytesToReadBuffer(void *buf, const size_t nbytes)
                 parentClient->setReadyForWriting(true);
             }
         }
+        else if (incompleteWebsocketRead.opcode == WebsocketOpcode::Close)
+        {
+            // MUST be a 2-byte unsigned integer (in network byte order) representing a status code with value /code/ defined
+            if (incompleteWebsocketRead.frame_bytes_left <= websocketPendingBytes.usedBytes()
+                && incompleteWebsocketRead.frame_bytes_left >= 2)
+            {
+                const uint8_t msb = *websocketPendingBytes.tailPtr() ^ incompleteWebsocketRead.getNextMaskingByte();
+                websocketPendingBytes.advanceTail(1);
+                const uint8_t lsb = *websocketPendingBytes.tailPtr() ^ incompleteWebsocketRead.getNextMaskingByte();
+                websocketPendingBytes.advanceTail(1);
+
+                const uint16_t code = msb << 8 | lsb;
+
+                // An actual MQTT disconnect doesn't send websocket close frames, or perhaps after the MQTT
+                // disconnect when it doesn't matter anymore. So, when users close the tab or stuff like that,
+                // we can consider it a closed transport i.e. failed connection. This means will messages
+                // will be sent.
+                parentClient->setDisconnectReason(websocketCloseCodeToString(code));
+                *error = IoWrapResult::Disconnected;
+
+                // There may be a UTF8 string with a reason in the packet still, but ignoring that for now.
+                incompleteWebsocketRead.reset();
+            }
+        }
         else
         {
             // Specs: "MQTT Control Packets MUST be sent in WebSocket binary data frames. If any other type of data frame is
             // received the recipient MUST close the Network Connection [MQTT-6.0.0-1]".
-            throw ProtocolError("Websocket frames must be 'binary' or 'ping'");
+            throw ProtocolError(formatString("Websocket frames must be 'binary' or 'ping'. Received: %d", incompleteWebsocketRead.opcode));
         }
 
         if (!incompleteWebsocketRead.sillWorkingOnFrame())

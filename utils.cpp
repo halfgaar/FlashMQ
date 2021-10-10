@@ -633,3 +633,15 @@ std::string sockaddrToString(sockaddr *addr)
 
     return "[unknown address]";
 }
+
+const std::string websocketCloseCodeToString(uint16_t code)
+{
+    switch (code) {
+    case 1000:
+        return "Normal websocket close";
+    case 1001:
+        return "Browser navigating away from page";
+    default:
+        return formatString("Websocket status code %d", code);
+    }
+}

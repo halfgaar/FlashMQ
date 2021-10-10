@@ -115,7 +115,7 @@ class IoWrapper
 
     Logger *logger = Logger::getInstance();
 
-    ssize_t websocketBytesToReadBuffer(void *buf, const size_t nbytes);
+    ssize_t websocketBytesToReadBuffer(void *buf, const size_t nbytes, IoWrapResult *error);
     ssize_t readOrSslRead(int fd, void *buf, size_t nbytes, IoWrapResult *error);
     ssize_t writeOrSslWrite(int fd, const void *buf, size_t nbytes, IoWrapResult *error);
     ssize_t writeAsMuchOfBufAsWebsocketFrame(const void *buf, size_t nbytes, WebsocketOpcode opcode = WebsocketOpcode::Binary);

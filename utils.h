@@ -122,5 +122,7 @@ template<typename ex> void checkWritableDir(const std::string &path)
     }
 }
 
+const std::string websocketCloseCodeToString(uint16_t code);
+
 
 #endif // UTILS_H
