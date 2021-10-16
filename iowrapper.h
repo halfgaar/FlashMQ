@@ -118,7 +118,7 @@ class IoWrapper
     ssize_t websocketBytesToReadBuffer(void *buf, const size_t nbytes, IoWrapResult *error);
     ssize_t readOrSslRead(int fd, void *buf, size_t nbytes, IoWrapResult *error);
     ssize_t writeOrSslWrite(int fd, const void *buf, size_t nbytes, IoWrapResult *error);
-    ssize_t writeAsMuchOfBufAsWebsocketFrame(const void *buf, size_t nbytes, WebsocketOpcode opcode = WebsocketOpcode::Binary);
+    ssize_t writeAsMuchOfBufAsWebsocketFrame(const void *buf, const size_t nbytes, WebsocketOpcode opcode = WebsocketOpcode::Binary);
 public:
     IoWrapper(SSL *ssl, bool websocket, const size_t initialBufferSize, Client *parent);
     ~IoWrapper();
@@ -138,6 +138,8 @@ public:
 
     ssize_t readWebsocketAndOrSsl(int fd, void *buf, size_t nbytes, IoWrapResult *error);
     ssize_t writeWebsocketAndOrSsl(int fd, const void *buf, size_t nbytes, IoWrapResult *error);
+
+    void resetBuffersIfEligible();
 };
 
 #endif // IOWRAPPER_H

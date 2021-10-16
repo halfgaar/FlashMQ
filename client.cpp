@@ -315,6 +315,7 @@ std::string Client::getKeepAliveInfoString() const
 void Client::resetBuffersIfEligible()
 {
     readbuf.resetSizeIfEligable(initialBufferSize);
+    ioWrapper.resetBuffersIfEligible();
 
     // Write buffers are written to from other threads, and this resetting takes place from the Client's own thread, so we need to lock.
     std::lock_guard<std::mutex> locker(writeBufMutex);

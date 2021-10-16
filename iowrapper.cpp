@@ -579,27 +579,28 @@ ssize_t IoWrapper::websocketBytesToReadBuffer(void *buf, const size_t nbytes, Io
  * @param nbytes. The amount of bytes. Can be 0, for just an empty websocket frame.
  * @return
  */
-ssize_t IoWrapper::writeAsMuchOfBufAsWebsocketFrame(const void *buf, size_t nbytes, WebsocketOpcode opcode)
+ssize_t IoWrapper::writeAsMuchOfBufAsWebsocketFrame(const void *buf, const size_t nbytes, WebsocketOpcode opcode)
 {
     // We do allow pong frames to generate a zero payload packet, but for binary, that's not necessary.
     if (nbytes == 0 && opcode == WebsocketOpcode::Binary)
         return 0;
 
-    ssize_t nBytesReal = 0;
+    websocketWriteRemainder.ensureFreeSpace(nbytes + WEBSOCKET_MAX_SENDING_HEADER_SIZE, 131072);
+    const ssize_t nBytesReal = std::min<size_t>(nbytes, websocketWriteRemainder.freeSpace() - WEBSOCKET_MAX_SENDING_HEADER_SIZE);
 
     // We normally wrap each write in a frame, but if a previous one didn't fit in the system's write buffers, we're still working on it.
     if (websocketWriteRemainder.freeSpace() > WEBSOCKET_MAX_SENDING_HEADER_SIZE)
     {
         uint8_t extended_payload_length_num_bytes = 0;
         uint8_t payload_length = 0;
-        if (nbytes < 126)
-            payload_length = nbytes;
-        else if (nbytes >= 126 && nbytes <= 0xFFFF)
+        if (nBytesReal < 126)
+            payload_length = nBytesReal;
+        else if (nBytesReal >= 126 && nBytesReal <= 0xFFFF)
         {
             payload_length = 126;
             extended_payload_length_num_bytes = 2;
         }
-        else if (nbytes > 0xFFFF)
+        else if (nBytesReal > 0xFFFF)
         {
             payload_length = 127;
             extended_payload_length_num_bytes = 8;
@@ -613,7 +614,6 @@ ssize_t IoWrapper::writeAsMuchOfBufAsWebsocketFrame(const void *buf, size_t nbyt
         const int header_length = x + extended_payload_length_num_bytes;
 
         // This block writes the extended payload length.
-        nBytesReal = std::min<size_t>(nbytes, websocketWriteRemainder.freeSpace() - header_length);
         const uint64_t nbytes64 = nBytesReal;
         for (int z = extended_payload_length_num_bytes - 1; z >= 0; z--)
         {
@@ -666,4 +666,11 @@ ssize_t IoWrapper::writeWebsocketAndOrSsl(int fd, const void *buf, size_t nbytes
 
         return n;
     }
+}
+
+void IoWrapper::resetBuffersIfEligible()
+{
+    const size_t sz = websocket ? initialBufferSize : 0;
+    websocketPendingBytes.resetSizeIfEligable(sz),
+    websocketWriteRemainder.resetSizeIfEligable(sz);
 }
