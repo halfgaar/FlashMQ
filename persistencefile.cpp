@@ -120,7 +120,7 @@ void PersistenceFile::verifyHash()
     std::memset(md_from_disk, 0, HASH_SIZE);
 
     fseek(f, MAGIC_STRING_LENGH, SEEK_SET);
-    fread(md_from_disk, 1, HASH_SIZE, f);
+    readCheck(md_from_disk, 1, HASH_SIZE, f);
 
     unsigned int output_len = 0;
     unsigned char md_value[EVP_MAX_MD_SIZE];
@@ -294,7 +294,7 @@ void PersistenceFile::openRead()
     verifyHash();
     rewind(f);
 
-    fread(buf.data(), 1, MAGIC_STRING_LENGH, f);
+    readCheck(buf.data(), 1, MAGIC_STRING_LENGH, f);
     detectedVersionString = std::string(buf.data(), strlen(buf.data()));
 
     fseek(f, TOTAL_HEADER_SIZE, SEEK_SET);
