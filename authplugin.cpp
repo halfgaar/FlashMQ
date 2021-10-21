@@ -68,8 +68,6 @@ Authentication::Authentication(Settings &settings) :
 
 Authentication::~Authentication()
 {
-    cleanup();
-
     if (mosquittoDigestContext)
         EVP_MD_CTX_free(mosquittoDigestContext);
 }
@@ -186,7 +184,13 @@ void Authentication::cleanup()
     if (pluginVersion == PluginVersion::None)
         return;
 
+    logger->logf(LOG_INFO, "Cleaning up authentication.");
+
     securityCleanup(false);
+
+    UnscopedLock lock(initMutex);
+    if (settings.authPluginSerializeInit)
+        lock.lock();
 
     if (pluginVersion == PluginVersion::MosquittoV2)
     {
@@ -251,6 +255,10 @@ void Authentication::securityCleanup(bool reloading)
         return;
 
     initialized = false;
+
+    UnscopedLock lock(initMutex);
+    if (settings.authPluginSerializeInit)
+        lock.lock();
 
     if (pluginVersion == PluginVersion::MosquittoV2)
     {

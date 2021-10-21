@@ -160,6 +160,16 @@ void do_thread_work(ThreadData *threadData)
         }
         packetQueueIn.clear();
     }
+
+    try
+    {
+        logger->logf(LOG_NOTICE, "Thread %d doing auth cleanup.", threadData->threadnr);
+        threadData->cleanupAuthPlugin();
+    }
+    catch(std::exception &ex)
+    {
+        logger->logf(LOG_ERR, "Error cleaning auth back-end: %s", ex.what());
+    }
 }
 
 

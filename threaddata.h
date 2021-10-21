@@ -88,6 +88,7 @@ public:
     std::shared_ptr<SubscriptionStore> &getSubscriptionStore();
 
     void initAuthPlugin();
+    void cleanupAuthPlugin();
     void queueReload(std::shared_ptr<Settings> settings);
     void queueDoKeepAliveCheck();
     void queueQuit();

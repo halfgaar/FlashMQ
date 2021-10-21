@@ -200,7 +200,6 @@ void ThreadData::queueQuit()
 void ThreadData::waitForQuit()
 {
     thread.join();
-    authentication.cleanup();
 }
 
 void ThreadData::queuePasswdFileReload()
@@ -326,6 +325,11 @@ void ThreadData::initAuthPlugin()
     authentication.loadPlugin(settingsLocalCopy.authPluginPath);
     authentication.init();
     authentication.securityInit(false);
+}
+
+void ThreadData::cleanupAuthPlugin()
+{
+    authentication.cleanup();
 }
 
 void ThreadData::reload(std::shared_ptr<Settings> settings)
