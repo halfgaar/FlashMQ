@@ -313,6 +313,8 @@ AuthResult Authentication::aclCheck(const std::string &clientid, const std::stri
         {
             logger->logf(LOG_ERR, "ACL check by plugin returned error for topic '%s'. If it didn't log anything, we don't know what it was.", topic.c_str());
         }
+
+        return result_;
     }
     else if (pluginVersion == PluginVersion::FlashMQv1)
     {
@@ -362,6 +364,8 @@ AuthResult Authentication::unPwdCheck(const std::string &username, const std::st
         {
             logger->logf(LOG_ERR, "Username+password check by plugin returned error for user '%s'. If it didn't log anything, we don't know what it was.", username.c_str());
         }
+
+        return r;
     }
     else if (pluginVersion == PluginVersion::FlashMQv1)
     {
