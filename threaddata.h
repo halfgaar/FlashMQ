@@ -68,6 +68,7 @@ public:
     Settings settingsLocalCopy; // Is updated on reload, within the thread loop.
     Authentication authentication;
     bool running = true;
+    bool finished = false;
     std::thread thread;
     int threadnr = 0;
     int epollfd = 0;

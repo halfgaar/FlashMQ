@@ -170,6 +170,8 @@ void do_thread_work(ThreadData *threadData)
     {
         logger->logf(LOG_ERR, "Error cleaning auth back-end: %s", ex.what());
     }
+
+    threadData->finished = true;
 }
 
 
@@ -697,14 +699,36 @@ void MainApp::start()
 
     oneInstanceLock.unlock();
 
+    logger->logf(LOG_DEBUG, "Signaling threads to finish.");
     for(std::shared_ptr<ThreadData> &thread : threads)
     {
         thread->queueQuit();
     }
 
-    for(std::shared_ptr<ThreadData> &thread : threads)
+    logger->logf(LOG_DEBUG, "Waiting for threads to finish.");
+    int count = 0;
+    bool waitTimeExpired = false;
+    while(std::any_of(threads.begin(), threads.end(), [](std::shared_ptr<ThreadData> t){ return !t->finished; }))
     {
-        thread->waitForQuit();
+        if (count++ >= 5000)
+        {
+            waitTimeExpired = true;
+            break;
+        }
+        usleep(1000);
+    }
+
+    if (waitTimeExpired)
+    {
+        logger->logf(LOG_WARNING, "(Some) threads failed to terminate. Program will exit uncleanly. If you're using a plugin, it may not be thread-safe.");
+    }
+    else
+    {
+        for(std::shared_ptr<ThreadData> &thread : threads)
+        {
+            logger->logf(LOG_DEBUG, "Waiting for thread %d to join.", thread->threadnr);
+            thread->waitForQuit();
+        }
     }
 
     saveState();
