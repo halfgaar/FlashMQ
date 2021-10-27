@@ -57,6 +57,7 @@ add_executable(FlashMQ
     sessionsandsubscriptionsdb.h
     qospacketqueue.h
     threadauth.h
+    threadloop.h
 
     mainapp.cpp
     main.cpp
@@ -93,6 +94,7 @@ add_executable(FlashMQ
     sessionsandsubscriptionsdb.cpp
     qospacketqueue.cpp
     threadauth.cpp
+    threadloop.cpp
 
     )
 
