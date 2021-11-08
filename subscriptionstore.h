@@ -44,14 +44,14 @@ struct Subscription
 class SubscriptionNode
 {
     std::string subtopic;
-    std::vector<Subscription> subscribers;
+    std::unordered_map<std::string, Subscription> subscribers;
 
 public:
     SubscriptionNode(const std::string &subtopic);
     SubscriptionNode(const SubscriptionNode &node) = delete;
     SubscriptionNode(SubscriptionNode &&node) = delete;
 
-    std::vector<Subscription> &getSubscribers();
+    std::unordered_map<std::string, Subscription> &getSubscribers();
     const std::string &getSubtopic() const;
     void addSubscriber(const std::shared_ptr<Session> &subscriber, char qos);
     void removeSubscriber(const std::shared_ptr<Session> &subscriber);
@@ -94,7 +94,7 @@ class SubscriptionStore
 
     Logger *logger = Logger::getInstance();
 
-    void publishNonRecursively(const MqttPacket &packet, const std::vector<Subscription> &subscribers, uint64_t &count) const;
+    void publishNonRecursively(const MqttPacket &packet, const std::unordered_map<std::string, Subscription> &subscribers, uint64_t &count) const;
     void publishRecursively(std::vector<std::string>::const_iterator cur_subtopic_it, std::vector<std::string>::const_iterator end,
                             SubscriptionNode *this_node, const MqttPacket &packet, uint64_t &count) const;
     void getRetainedMessages(RetainedMessageNode *this_node, std::vector<RetainedMessage> &outputList) const;
