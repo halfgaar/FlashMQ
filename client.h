@@ -134,6 +134,8 @@ public:
     std::string getKeepAliveInfoString() const;
     void resetBuffersIfEligible();
 
+    void setCleanSession(bool val);
+
 #ifndef NDEBUG
     void setFakeUpgraded();
 #endif

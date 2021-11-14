@@ -56,6 +56,8 @@ class ThreadData
     uint64_t sentMessageCountPrevious = 0;
     std::chrono::time_point<std::chrono::steady_clock> sentMessagePreviousTime = std::chrono::steady_clock::now();
 
+    std::mutex clientsToRemoveMutex;
+    std::forward_list<std::weak_ptr<Client>> clientsQueuedForRemoving;
 
     void reload(std::shared_ptr<Settings> settings);
     void wakeUpThread();
@@ -63,6 +65,8 @@ class ThreadData
     void quit();
     void publishStatsOnDollarTopic(std::vector<std::shared_ptr<ThreadData>> &threads);
     void publishStat(const std::string &topic, uint64_t n);
+
+    void removeQueuedClients();
 
 public:
     Settings settingsLocalCopy; // Is updated on reload, within the thread loop.
@@ -84,8 +88,9 @@ public:
 
     void giveClient(std::shared_ptr<Client> client);
     std::shared_ptr<Client> getClient(int fd);
+    void removeClientQueued(const std::shared_ptr<Client> &client);
+    void removeClientQueued(int fd);
     void removeClient(std::shared_ptr<Client> client);
-    void removeClient(int fd);
     std::shared_ptr<SubscriptionStore> &getSubscriptionStore();
 
     void initAuthPlugin();

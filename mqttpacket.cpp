@@ -412,7 +412,7 @@ void MqttPacket::handleDisconnect()
     sender->setDisconnectReason("MQTT Disconnect received.");
     sender->markAsDisconnecting();
     sender->clearWill();
-    sender->getThreadData()->removeClient(sender);
+    sender->getThreadData()->removeClientQueued(sender);
 }
 
 void MqttPacket::handleSubscribe()

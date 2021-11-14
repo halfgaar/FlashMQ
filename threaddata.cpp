@@ -131,6 +131,36 @@ void ThreadData::publishStat(const std::string &topic, uint64_t n)
     subscriptionStore->setRetainedMessage(topic, subtopics, payload, 0);
 }
 
+void ThreadData::removeQueuedClients()
+{
+    std::vector<int> fds;
+    fds.reserve(1024); // 1024 is arbitrary...
+
+    {
+        std::lock_guard<std::mutex> lck2(clientsToRemoveMutex);
+
+        for (const std::weak_ptr<Client> &c : clientsQueuedForRemoving)
+        {
+            std::shared_ptr<Client> client = c.lock();
+            if (client)
+            {
+                int fd = client->getFd();
+                fds.push_back(fd);
+            }
+        }
+
+        clientsQueuedForRemoving.clear();
+    }
+
+    {
+        std::lock_guard<std::mutex> lck(clients_by_fd_mutex);
+        for(int fd : fds)
+        {
+            clients_by_fd.erase(fd);
+        }
+    }
+}
+
 void ThreadData::giveClient(std::shared_ptr<Client> client)
 {
     clients_by_fd_mutex.lock();
@@ -151,23 +181,68 @@ std::shared_ptr<Client> ThreadData::getClient(int fd)
     return this->clients_by_fd[fd];
 }
 
+void ThreadData::removeClientQueued(const std::shared_ptr<Client> &client)
+{
+    bool wakeUpNeeded = true;
+
+    {
+        std::lock_guard<std::mutex> locker(clientsToRemoveMutex);
+        wakeUpNeeded = clientsQueuedForRemoving.empty();
+        clientsQueuedForRemoving.push_front(client);
+    }
+
+    if (wakeUpNeeded)
+    {
+        auto f = std::bind(&ThreadData::removeQueuedClients, this);
+        std::lock_guard<std::mutex> lockertaskQueue(taskQueueMutex);
+        taskQueue.push_front(f);
+
+        wakeUpThread();
+    }
+}
+
+void ThreadData::removeClientQueued(int fd)
+{
+    bool wakeUpNeeded = true;
+    std::shared_ptr<Client> clientFound;
+
+    {
+        std::lock_guard<std::mutex> lck(clients_by_fd_mutex);
+        auto client_it = this->clients_by_fd.find(fd);
+        if (client_it != this->clients_by_fd.end())
+        {
+            clientFound = client_it->second;
+        }
+    }
+
+    if (clientFound)
+    {
+        {
+            std::lock_guard<std::mutex> locker(clientsToRemoveMutex);
+            wakeUpNeeded = clientsQueuedForRemoving.empty();
+            clientsQueuedForRemoving.push_front(clientFound);
+        }
+
+        if (wakeUpNeeded)
+        {
+            auto f = std::bind(&ThreadData::removeQueuedClients, this);
+            std::lock_guard<std::mutex> lockertaskQueue(taskQueueMutex);
+            taskQueue.push_front(f);
+
+            wakeUpThread();
+        }
+    }
+}
+
 void ThreadData::removeClient(std::shared_ptr<Client> client)
 {
+    // This function is only for same-thread calling.
+    assert(pthread_self() == thread.native_handle());
+
     client->markAsDisconnecting();
 
     std::lock_guard<std::mutex> lck(clients_by_fd_mutex);
     clients_by_fd.erase(client->getFd());
-}
-
-void ThreadData::removeClient(int fd)
-{
-    std::lock_guard<std::mutex> lck(clients_by_fd_mutex);
-    auto client_it = this->clients_by_fd.find(fd);
-    if (client_it != this->clients_by_fd.end())
-    {
-        client_it->second->markAsDisconnecting();
-        this->clients_by_fd.erase(fd);
-    }
 }
 
 std::shared_ptr<SubscriptionStore> &ThreadData::getSubscriptionStore()

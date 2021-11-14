@@ -222,7 +222,7 @@ void Client::writeMqttPacketAndBlameThisClient(const MqttPacket &packet, const c
     }
     catch (std::exception &ex)
     {
-        threadData->removeClient(fd);
+        threadData->removeClientQueued(fd);
     }
 }
 
@@ -320,6 +320,11 @@ void Client::resetBuffersIfEligible()
     // Write buffers are written to from other threads, and this resetting takes place from the Client's own thread, so we need to lock.
     std::lock_guard<std::mutex> locker(writeBufMutex);
     writebuf.resetSizeIfEligable(initialBufferSize);
+}
+
+void Client::setCleanSession(bool val)
+{
+    this->cleanSession = val;
 }
 
 #ifndef NDEBUG

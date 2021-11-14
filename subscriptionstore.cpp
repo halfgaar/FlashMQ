@@ -202,6 +202,7 @@ void SubscriptionStore::registerClientAndKickExistingOne(std::shared_ptr<Client>
     if (client->getClientId().empty())
         throw ProtocolError("Trying to store client without an ID.");
 
+    bool originalClientDemandsSessionDestruction = false;
     std::shared_ptr<Session> session;
     auto session_it = sessionsById.find(client->getClientId());
     if (session_it != sessionsById.end())
@@ -215,14 +216,22 @@ void SubscriptionStore::registerClientAndKickExistingOne(std::shared_ptr<Client>
             if (cl)
             {
                 logger->logf(LOG_NOTICE, "Disconnecting existing client with id '%s'", cl->getClientId().c_str());
+                cl->setDisconnectReason("Another client with this ID connected");
+
+                // We have to set session to false, because it's no longer up to the destruction of that client
+                // to destroy the session. We either do it in this function, or not at all.
+                originalClientDemandsSessionDestruction = cl->getCleanSession();
+                cl->setCleanSession(false);
+
                 cl->setReadyForDisconnect();
-                cl->getThreadData()->removeClient(cl);
+                cl->getThreadData()->removeClientQueued(cl);
                 cl->markAsDisconnecting();
             }
+
         }
     }
 
-    if (!session || client->getCleanSession())
+    if (!session || client->getCleanSession() || originalClientDemandsSessionDestruction)
     {
         session.reset(new Session());
 
