@@ -644,7 +644,7 @@ void MainApp::loadConfig()
 
     logger->setLogPath(settings->logPath);
     logger->queueReOpen();
-    logger->setFlags(settings->logDebug, settings->logSubscriptions);
+    logger->setFlags(settings->logDebug, settings->logSubscriptions, settings->quiet);
 
     setlimits();
 

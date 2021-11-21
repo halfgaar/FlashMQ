@@ -96,6 +96,7 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validKeys.insert("auth_plugin_serialize_auth_checks");
     validKeys.insert("auth_plugin_timer_period");
     validKeys.insert("log_file");
+    validKeys.insert("quiet");
     validKeys.insert("allow_unsafe_clientid_chars");
     validKeys.insert("allow_unsafe_username_chars");
     validKeys.insert("client_initial_buffer_size");
@@ -308,6 +309,12 @@ void ConfigFileParser::loadFile(bool test)
                 {
                     checkFileOrItsDirWritable(value);
                     tmpSettings->logPath = value;
+                }
+
+                if (key == "quiet")
+                {
+                    bool tmp = stringTruthiness(value);
+                    tmpSettings->quiet = tmp;
                 }
 
                 if (key == "allow_unsafe_clientid_chars")

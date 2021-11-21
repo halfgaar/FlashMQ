@@ -157,7 +157,7 @@ void Logger::setLogPath(const std::string &path)
     Logger::logPath = path;
 }
 
-void Logger::setFlags(bool logDebug, bool logSubscriptions)
+void Logger::setFlags(bool logDebug, bool logSubscriptions, bool quiet)
 {
     if (logDebug)
         curLogLevel |= LOG_DEBUG;
@@ -165,9 +165,14 @@ void Logger::setFlags(bool logDebug, bool logSubscriptions)
         curLogLevel &= ~LOG_DEBUG;
 
     if (logSubscriptions)
-        curLogLevel |= (LOG_UNSUBSCRIBE & LOG_SUBSCRIBE);
+        curLogLevel |= (LOG_UNSUBSCRIBE | LOG_SUBSCRIBE);
     else
-        curLogLevel &= ~(LOG_UNSUBSCRIBE & LOG_SUBSCRIBE);
+        curLogLevel &= ~(LOG_UNSUBSCRIBE | LOG_SUBSCRIBE);
+
+    if (!quiet)
+        curLogLevel |= (LOG_NOTICE | LOG_INFO);
+    else
+        curLogLevel &= ~(LOG_NOTICE | LOG_INFO);
 }
 
 void Logger::quit()

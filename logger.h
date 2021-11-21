@@ -75,7 +75,7 @@ public:
     void noLongerLogToStd();
 
     void setLogPath(const std::string &path);
-    void setFlags(bool logDebug, bool logSubscriptions);
+    void setFlags(bool logDebug, bool logSubscriptions, bool quiet);
 
     void quit();
 

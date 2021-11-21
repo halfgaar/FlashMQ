@@ -35,6 +35,7 @@ public:
     // Actual config options with their defaults.
     std::string authPluginPath;
     std::string logPath;
+    bool quiet = false;
     bool allowUnsafeClientidChars = false;
     bool allowUnsafeUsernameChars = false;
     bool authPluginSerializeInit = false;
