@@ -20,15 +20,65 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include <sstream>
 #include <iomanip>
 #include <string.h>
+#include <functional>
 
 #include "exceptions.h"
+#include "utils.h"
 
 Logger *Logger::instance = nullptr;
 std::string Logger::logPath = "";
 
-Logger::Logger()
+LogLine::LogLine(std::string &&line, bool alsoToStdOut) :
+    line(line),
+    alsoToStdOut(alsoToStdOut)
 {
 
+}
+
+LogLine::LogLine(const char *s, size_t len, bool alsoToStdOut) :
+    line(s, len),
+    alsoToStdOut(alsoToStdOut)
+{
+
+}
+
+LogLine::LogLine() :
+    alsoToStdOut(true)
+{
+
+}
+
+const char *LogLine::c_str() const
+{
+    return line.c_str();
+}
+
+bool LogLine::alsoLogToStdOut() const
+{
+    return alsoToStdOut;
+}
+
+Logger::Logger()
+{
+    memset(&linesPending, 1, sizeof(sem_t));
+    sem_init(&linesPending, 0, 0);
+
+    auto f = std::bind(&Logger::writeLog, this);
+    this->writerThread = std::thread(f, this);
+
+    pthread_t native = this->writerThread.native_handle();
+    pthread_setname_np(native, "LogWriter");
+}
+
+Logger::~Logger()
+{
+    if (file)
+    {
+        fclose(file);
+        file = nullptr;
+    }
+
+    sem_close(&linesPending);
 }
 
 std::string Logger::getLogLevelString(int level) const
@@ -71,10 +121,14 @@ void Logger::logf(int level, const char *str, ...)
     va_end(valist);
 }
 
+void Logger::queueReOpen()
+{
+    reload = true;
+    sem_post(&linesPending);
+}
+
 void Logger::reOpen()
 {
-    std::lock_guard<std::mutex> locker(logMutex);
-
     if (file)
     {
         fclose(file);
@@ -86,8 +140,7 @@ void Logger::reOpen()
 
     if ((file = fopen(logPath.c_str(), "a")) == nullptr)
     {
-        std::string msg(strerror(errno));
-        throw ConfigFileException("Error opening logfile: " + msg);
+        logf(LOG_ERR, "(Re)opening log file '%s' error: %s. Logging to stdout.", logPath.c_str(), strerror(errno));
     }
 }
 
@@ -106,8 +159,6 @@ void Logger::setLogPath(const std::string &path)
 
 void Logger::setFlags(bool logDebug, bool logSubscriptions)
 {
-    std::lock_guard<std::mutex> locker(logMutex);
-
     if (logDebug)
         curLogLevel |= LOG_DEBUG;
     else
@@ -119,12 +170,63 @@ void Logger::setFlags(bool logDebug, bool logSubscriptions)
         curLogLevel &= ~(LOG_UNSUBSCRIBE & LOG_SUBSCRIBE);
 }
 
+void Logger::quit()
+{
+    running = false;
+    sem_post(&linesPending);
+    writerThread.join();
+}
+
+void Logger::writeLog()
+{
+    LogLine line;
+    while(running)
+    {
+        sem_wait(&linesPending);
+
+        if (reload)
+        {
+            reOpen();
+        }
+
+        {
+            std::lock_guard<std::mutex> locker(logMutex);
+
+            if (lines.empty())
+                continue;
+
+            line = std::move(lines.front());
+            lines.pop();
+        }
+
+        if (this->file)
+        {
+            if (fputs(line.c_str(), this->file) < 0 ||
+                fputs("\n", this->file) < 0 ||
+                fflush(this->file) != 0)
+            {
+                alsoLogToStd = true;
+                fputs("Writing to log failed. Enabling stdout logger.", stderr);
+            }
+        }
+
+        if (!this->file || line.alsoLogToStdOut())
+        {
+            FILE *output = stdout;
+#ifdef TESTING
+            output = stderr; // the stdout interfers with Qt test XML output, so using stderr.
+#endif
+            fputs(line.c_str(), output);
+            fputs("\n", output);
+            fflush(output);
+        }
+    }
+}
+
 void Logger::logf(int level, const char *str, va_list valist)
 {
     if ((level & curLogLevel) == 0)
         return;
-
-    std::lock_guard<std::mutex> locker(logMutex);
 
     time_t time = std::time(nullptr);
     struct tm tm = *std::localtime(&time);
@@ -136,28 +238,21 @@ void Logger::logf(int level, const char *str, va_list valist)
     const std::string s = oss.str();
     const char *logfmtstring = s.c_str();
 
-    if (this->file)
+    char buf[512];
+
+    va_list valist2;
+    va_copy(valist2, valist);
+    vsnprintf(buf, 512, logfmtstring, valist);
+    size_t len = strlen(buf);
+    LogLine line(buf, len, alsoLogToStd);
+    va_end(valist2);
+
     {
-        va_list valist2;
-        va_copy(valist2, valist);
-        vfprintf(this->file, logfmtstring, valist2);
-        fprintf(this->file, "\n");
-        fflush(this->file);
-        va_end(valist2);
+        std::lock_guard<std::mutex> locker(logMutex);
+        lines.push(std::move(line));
     }
 
-    if (!this->file || alsoLogToStd)
-    {
-#ifdef TESTING
-        vfprintf(stderr, logfmtstring, valist); // the stdout interfers with Qt test XML output, so using stderr.
-        fprintf(stderr, "\n");
-        fflush(stderr);
-#else
-        vfprintf(stdout, logfmtstring, valist);
-        fprintf(stdout, "\n");
-        fflush(stdout);
-#endif
-    }
+    sem_post(&linesPending);
 }
 
 int logSslError(const char *str, size_t len, void *u)

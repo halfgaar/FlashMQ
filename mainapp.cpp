@@ -643,7 +643,7 @@ void MainApp::loadConfig()
         listeners = settings->listeners;
 
     logger->setLogPath(settings->logPath);
-    logger->reOpen();
+    logger->queueReOpen();
     logger->setFlags(settings->logDebug, settings->logSubscriptions);
 
     setlimits();

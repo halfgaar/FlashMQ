@@ -93,6 +93,7 @@ int main(int argc, char *argv[])
         logger->logf(LOG_NOTICE, "Starting FlashMQ version %s, debug build %s.", FLASHMQ_VERSION, sse.c_str());
 #endif
         mainApp->start();
+        logger->quit();
     }
     catch (ConfigFileException &ex)
     {
