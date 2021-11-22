@@ -445,5 +445,12 @@ void ConfigFileParser::loadFile(bool test)
     }
 }
 
+std::unique_ptr<Settings> ConfigFileParser::moveSettings()
+{
+    std::unique_ptr<Settings> tmp = std::move(settings);
+    settings.reset(new Settings);
+    return tmp;
+}
+
 
 

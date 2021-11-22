@@ -628,7 +628,7 @@ void MainApp::loadConfig()
     // Atomic loading, first test.
     confFileParser->loadFile(true);
     confFileParser->loadFile(false);
-    settings = std::move(confFileParser->settings);
+    settings = confFileParser->moveSettings();
 
     if (settings->listeners.empty())
     {
