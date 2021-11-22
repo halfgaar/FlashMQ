@@ -500,7 +500,7 @@ void SubscriptionStore::removeSession(const std::string &clientid)
 
     logger->logf(LOG_DEBUG, "Removing session of client '%s'.", clientid.c_str());
 
-    auto session_it = sessionsById.begin();
+    auto session_it = sessionsById.find(clientid);
     if (session_it != sessionsById.end())
     {
         sessionsById.erase(session_it);
