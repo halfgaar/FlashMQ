@@ -627,13 +627,13 @@ void SubscriptionStore::saveRetainedMessages(const std::string &filePath)
     logger->logf(LOG_INFO, "Saving retained messages to '%s'", filePath.c_str());
 
     std::vector<RetainedMessage> result;
-    result.reserve(retainedMessageCount);
 
-    // Create the list of messages under lock, and unlock right after.
-    RWLockGuard locker(&retainedMessagesRwlock);
-    locker.rdlock();
-    getRetainedMessages(&retainedMessagesRoot, result);
-    locker.unlock();
+    {
+        RWLockGuard locker(&retainedMessagesRwlock);
+        locker.rdlock();
+        result.reserve(retainedMessageCount);
+        getRetainedMessages(&retainedMessagesRoot, result);
+    }
 
     logger->logf(LOG_DEBUG, "Collected %ld retained messages to save.", result.size());
 
@@ -673,24 +673,23 @@ void SubscriptionStore::saveSessionsAndSubscriptions(const std::string &filePath
 {
     logger->logf(LOG_INFO, "Saving sessions and subscriptions to '%s'", filePath.c_str());
 
-    RWLockGuard lock_guard(&subscriptionsRwlock);
-    lock_guard.rdlock();
-
-    // First copy the sessions...
-
     std::vector<std::unique_ptr<Session>> sessionCopies;
-    sessionCopies.reserve(sessionsByIdConst.size());
-
-    for (const auto &pair : sessionsByIdConst)
-    {
-        const Session &org = *pair.second.get();
-        sessionCopies.push_back(org.getCopy());
-    }
-
     std::unordered_map<std::string, std::list<SubscriptionForSerializing>> subscriptionCopies;
-    getSubscriptions(&root, "", true, subscriptionCopies);
 
-    lock_guard.unlock();
+    {
+        RWLockGuard lock_guard(&subscriptionsRwlock);
+        lock_guard.rdlock();
+
+        sessionCopies.reserve(sessionsByIdConst.size());
+
+        for (const auto &pair : sessionsByIdConst)
+        {
+            const Session &org = *pair.second.get();
+            sessionCopies.push_back(org.getCopy());
+        }
+
+        getSubscriptions(&root, "", true, subscriptionCopies);
+    }
 
     // Then write the copies to disk, after having released the lock
 
