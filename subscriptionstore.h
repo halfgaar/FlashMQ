@@ -41,6 +41,15 @@ struct Subscription
     void reset();
 };
 
+struct ReceivingSubscriber
+{
+    const std::shared_ptr<Session> session;
+    const char qos;
+
+public:
+    ReceivingSubscriber(const std::shared_ptr<Session> &ses, char qos);
+};
+
 class SubscriptionNode
 {
     std::string subtopic;
@@ -94,9 +103,10 @@ class SubscriptionStore
 
     Logger *logger = Logger::getInstance();
 
-    void publishNonRecursively(const MqttPacket &packet, const std::unordered_map<std::string, Subscription> &subscribers, uint64_t &count) const;
+    void publishNonRecursively(const std::unordered_map<std::string, Subscription> &subscribers,
+                               std::forward_list<ReceivingSubscriber> &targetSessions) const;
     void publishRecursively(std::vector<std::string>::const_iterator cur_subtopic_it, std::vector<std::string>::const_iterator end,
-                            SubscriptionNode *this_node, const MqttPacket &packet, uint64_t &count) const;
+                            SubscriptionNode *this_node, std::forward_list<ReceivingSubscriber> &targetSessions) const;
     void getRetainedMessages(RetainedMessageNode *this_node, std::vector<RetainedMessage> &outputList) const;
     void getSubscriptions(SubscriptionNode *this_node, const std::string &composedTopic, bool root,
                           std::unordered_map<std::string, std::list<SubscriptionForSerializing>> &outputList) const;

@@ -22,6 +22,13 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "rwlockguard.h"
 #include "retainedmessagesdb.h"
 
+ReceivingSubscriber::ReceivingSubscriber(const std::shared_ptr<Session> &ses, char qos) :
+    session(ses),
+    qos(qos)
+{
+
+}
+
 SubscriptionNode::SubscriptionNode(const std::string &subtopic) :
     subtopic(subtopic)
 {
@@ -260,7 +267,8 @@ bool SubscriptionStore::sessionPresent(const std::string &clientid)
     return result;
 }
 
-void SubscriptionStore::publishNonRecursively(const MqttPacket &packet, const std::unordered_map<std::string, Subscription> &subscribers, uint64_t &count) const
+void SubscriptionStore::publishNonRecursively(const std::unordered_map<std::string, Subscription> &subscribers,
+                                              std::forward_list<ReceivingSubscriber> &targetSessions) const
 {
     for (auto &pair : subscribers)
     {
@@ -269,7 +277,8 @@ void SubscriptionStore::publishNonRecursively(const MqttPacket &packet, const st
         const std::shared_ptr<Session> session = sub.session.lock();
         if (session) // Shared pointer expires when session has been cleaned by 'clean session' connect.
         {
-            session->writePacket(packet, sub.qos, false, count);
+            ReceivingSubscriber x(session, sub.qos);
+            targetSessions.emplace_front(session, sub.qos);
         }
     }
 }
@@ -282,16 +291,16 @@ void SubscriptionStore::publishNonRecursively(const MqttPacket &packet, const st
  * @param packet
  * @param count as a reference (vs return value) because a return value introduces an extra call i.e. limits tail recursion optimization.
  *
- * As noted in the params section, this method was written so that it could be (somewhat) optimized for tail recursion by the kernel. If you refactor this,
+ * As noted in the params section, this method was written so that it could be (somewhat) optimized for tail recursion by the compiler. If you refactor this,
  * look at objdump --disassemble --demangle to see how many calls (not jumps) to itself are made and compare.
  */
 void SubscriptionStore::publishRecursively(std::vector<std::string>::const_iterator cur_subtopic_it, std::vector<std::string>::const_iterator end,
-                                           SubscriptionNode *this_node, const MqttPacket &packet, uint64_t &count) const
+                                           SubscriptionNode *this_node, std::forward_list<ReceivingSubscriber> &targetSessions) const
 {
     if (cur_subtopic_it == end) // This is the end of the topic path, so look for subscribers here.
     {
         if (this_node)
-            publishNonRecursively(packet, this_node->getSubscribers(), count);
+            publishNonRecursively(this_node->getSubscribers(), targetSessions);
         return;
     }
 
@@ -308,18 +317,18 @@ void SubscriptionStore::publishRecursively(std::vector<std::string>::const_itera
 
     if (this_node->childrenPound)
     {
-        publishNonRecursively(packet, this_node->childrenPound->getSubscribers(), count);
+        publishNonRecursively(this_node->childrenPound->getSubscribers(), targetSessions);
     }
 
     const auto &sub_node = this_node->children.find(cur_subtop);
     if (sub_node != this_node->children.end())
     {
-        publishRecursively(next_subtopic, end, sub_node->second.get(), packet, count);
+        publishRecursively(next_subtopic, end, sub_node->second.get(), targetSessions);
     }
 
     if (this_node->childrenPlus)
     {
-        publishRecursively(next_subtopic, end, this_node->childrenPlus.get(), packet, count);
+        publishRecursively(next_subtopic, end, this_node->childrenPlus.get(), targetSessions);
     }
 }
 
@@ -329,11 +338,19 @@ void SubscriptionStore::queuePacketAtSubscribers(const std::vector<std::string> 
 
     SubscriptionNode *startNode = dollar ? &rootDollar : &root;
 
-    RWLockGuard lock_guard(&subscriptionsRwlock);
-    lock_guard.rdlock();
-
     uint64_t count = 0;
-    publishRecursively(subtopics.begin(), subtopics.end(), startNode, packet, count);
+    std::forward_list<ReceivingSubscriber> subscriberSessions;
+
+    {
+        RWLockGuard lock_guard(&subscriptionsRwlock);
+        lock_guard.rdlock();
+        publishRecursively(subtopics.begin(), subtopics.end(), startNode, subscriberSessions);
+    }
+
+    for(const ReceivingSubscriber &x : subscriberSessions)
+    {
+        x.session->writePacket(packet, x.qos, false, count);
+    }
 
     std::shared_ptr<Client> sender = packet.getSender();
     if (sender)
