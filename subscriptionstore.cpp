@@ -144,12 +144,11 @@ void SubscriptionStore::addSubscription(std::shared_ptr<Client> &client, const s
         {
             const std::shared_ptr<Session> &ses = session_it->second;
             deepestNode->addSubscriber(ses, qos);
+            lock_guard.unlock();
             uint64_t count = giveClientRetainedMessages(ses, subtopics, qos);
             client->getThreadData()->incrementSentMessageCount(count);
         }
     }
-
-    lock_guard.unlock();
 }
 
 void SubscriptionStore::removeSubscription(std::shared_ptr<Client> &client, const std::string &topic)
