@@ -122,8 +122,7 @@ public:
 
     void queuePacketAtSubscribers(const std::vector<std::string> &subtopics, const MqttPacket &packet, bool dollar = false);
     void giveClientRetainedMessagesRecursively(std::vector<std::string>::const_iterator cur_subtopic_it, std::vector<std::string>::const_iterator end,
-                                               RetainedMessageNode *this_node, char max_qos, const std::shared_ptr<Session> &ses,
-                                               bool poundMode, uint64_t &count) const;
+                                               RetainedMessageNode *this_node, bool poundMode, std::forward_list<MqttPacket> &packetList) const;
     uint64_t giveClientRetainedMessages(const std::shared_ptr<Session> &ses, const std::vector<std::string> &subscribeSubtopics, char max_qos);
 
     void setRetainedMessage(const std::string &topic, const std::vector<std::string> &subtopics, const std::string &payload, char qos);

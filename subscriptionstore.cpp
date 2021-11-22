@@ -359,8 +359,8 @@ void SubscriptionStore::queuePacketAtSubscribers(const std::vector<std::string> 
 }
 
 void SubscriptionStore::giveClientRetainedMessagesRecursively(std::vector<std::string>::const_iterator cur_subtopic_it, std::vector<std::string>::const_iterator end,
-                                                              RetainedMessageNode *this_node, char max_qos, const std::shared_ptr<Session> &ses,
-                                                              bool poundMode, uint64_t &count) const
+                                                              RetainedMessageNode *this_node,
+                                                              bool poundMode, std::forward_list<MqttPacket> &packetList) const
 {
     if (cur_subtopic_it == end)
     {
@@ -368,15 +368,14 @@ void SubscriptionStore::giveClientRetainedMessagesRecursively(std::vector<std::s
         {
             Publish publish(rm.topic, rm.payload, rm.qos);
             publish.retain = true;
-            const MqttPacket packet(publish);
-            ses->writePacket(packet, max_qos, true, count);
+            packetList.emplace_front(publish);
         }
         if (poundMode)
         {
             for (auto &pair : this_node->children)
             {
                 std::unique_ptr<RetainedMessageNode> &child = pair.second;
-                giveClientRetainedMessagesRecursively(cur_subtopic_it, end, child.get(), max_qos, ses, poundMode, count);
+                giveClientRetainedMessagesRecursively(cur_subtopic_it, end, child.get(), poundMode, packetList);
             }
         }
 
@@ -393,7 +392,7 @@ void SubscriptionStore::giveClientRetainedMessagesRecursively(std::vector<std::s
         {
             std::unique_ptr<RetainedMessageNode> &child = pair.second;
             if (child) // I don't think it can ever be unset, but I'd rather avoid a crash.
-                giveClientRetainedMessagesRecursively(next_subtopic, end, child.get(), max_qos, ses, poundFound, count);
+                giveClientRetainedMessagesRecursively(next_subtopic, end, child.get(), poundFound, packetList);
         }
     }
     else
@@ -402,7 +401,7 @@ void SubscriptionStore::giveClientRetainedMessagesRecursively(std::vector<std::s
 
         if (children)
         {
-            giveClientRetainedMessagesRecursively(next_subtopic, end, children, max_qos, ses, false, count);
+            giveClientRetainedMessagesRecursively(next_subtopic, end, children, false, packetList);
         }
     }
 }
@@ -415,10 +414,18 @@ uint64_t SubscriptionStore::giveClientRetainedMessages(const std::shared_ptr<Ses
     if (!subscribeSubtopics.empty() && !subscribeSubtopics[0].empty() > 0 && subscribeSubtopics[0][0] == '$')
         startNode = &retainedMessagesRootDollar;
 
-    RWLockGuard locker(&retainedMessagesRwlock);
-    locker.rdlock();
+    std::forward_list<MqttPacket> packetList;
 
-    giveClientRetainedMessagesRecursively(subscribeSubtopics.begin(), subscribeSubtopics.end(), startNode, max_qos, ses, false, count);
+    {
+        RWLockGuard locker(&retainedMessagesRwlock);
+        locker.rdlock();
+        giveClientRetainedMessagesRecursively(subscribeSubtopics.begin(), subscribeSubtopics.end(), startNode, false, packetList);
+    }
+
+    for(const MqttPacket &packet : packetList)
+    {
+        ses->writePacket(packet, max_qos, true, count);
+    }
 
     return count;
 }
