@@ -82,6 +82,8 @@ public:
 
     void addOutgoingQoS2MessageId(uint16_t packet_id);
     void removeOutgoingQoS2MessageId(u_int16_t packet_id);
+
+    bool getCleanSession() const;
 };
 
 #endif // SESSION_H

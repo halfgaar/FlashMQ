@@ -282,3 +282,13 @@ void Session::removeOutgoingQoS2MessageId(u_int16_t packet_id)
     if (it != outgoingQoS2MessageIds.end())
         outgoingQoS2MessageIds.erase(it);
 }
+
+bool Session::getCleanSession() const
+{
+    auto c = client.lock();
+
+    if (!c)
+        return false;
+
+    return c->getCleanSession();
+}

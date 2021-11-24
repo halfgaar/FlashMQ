@@ -685,6 +685,11 @@ void SubscriptionStore::saveSessionsAndSubscriptions(const std::string &filePath
         for (const auto &pair : sessionsByIdConst)
         {
             const Session &org = *pair.second.get();
+
+            // Sessions created with clean session need to be destroyed when disconnecting, so no point in saving them.
+            if (org.getCleanSession())
+                continue;
+
             sessionCopies.push_back(org.getCopy());
         }
 
