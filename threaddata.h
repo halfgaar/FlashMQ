@@ -26,7 +26,6 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include <unordered_set>
 #include <unordered_map>
 #include <mutex>
-#include <shared_mutex>
 #include <functional>
 #include <chrono>
 
