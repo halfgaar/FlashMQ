@@ -538,12 +538,21 @@ void MainApp::start()
                     uint64_t eventfd_value = 0;
                     check<std::runtime_error>(read(cur_fd, &eventfd_value, sizeof(uint64_t)));
 
-                    std::lock_guard<std::mutex> locker(eventMutex);
-                    for(auto &f : taskQueue)
+                    std::forward_list<std::function<void()>> tasks;
+
+                    {
+                        std::lock_guard<std::mutex> locker(eventMutex);
+                        for (auto &f : taskQueue)
+                        {
+                            tasks.push_front(f);
+                        }
+                        taskQueue.clear();
+                    }
+
+                    for(auto &f : tasks)
                     {
                         f();
                     }
-                    taskQueue.clear();
                 }
             }
             catch (std::exception &ex)
