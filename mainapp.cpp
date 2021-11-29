@@ -150,7 +150,7 @@ std::list<ScopedSocket> MainApp::createListenSocket(const std::shared_ptr<Listen
             check<std::runtime_error>(fcntl(listen_fd, F_SETFL, flags | O_NONBLOCK ));
 
             check<std::runtime_error>(bind(listen_fd, bindAddr.p.get(), bindAddr.len));
-            check<std::runtime_error>(listen(listen_fd, 1024));
+            check<std::runtime_error>(listen(listen_fd, 32768));
 
             struct epoll_event ev;
             memset(&ev, 0, sizeof (struct epoll_event));
