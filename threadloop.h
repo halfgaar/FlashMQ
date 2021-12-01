@@ -21,7 +21,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "threaddata.h"
 #include "threadauth.h"
 
-#define MAX_EVENTS 1024
+#define MAX_EVENTS 65536
 
 void do_thread_work(ThreadData *threadData);
 
