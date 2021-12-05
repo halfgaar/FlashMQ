@@ -36,19 +36,25 @@ MainApp *MainApp::instance = nullptr;
 MainApp::MainApp(const std::string &configFilePath) :
     subscriptionStore(new SubscriptionStore())
 {
-    this->num_threads = get_nprocs();
-
-    if (num_threads <= 0)
-        throw std::runtime_error("Invalid number of CPUs: " + std::to_string(num_threads));
-
     epollFdAccept = check<std::runtime_error>(epoll_create(999));
     taskEventFd = eventfd(0, EFD_NONBLOCK);
 
     confFileParser.reset(new ConfigFileParser(configFilePath));
     loadConfig();
 
-    // TODO: override in conf possibility.
-    logger->logf(LOG_NOTICE, "%d CPUs are detected, making as many threads.", num_threads);
+    this->num_threads = get_nprocs();
+    if (settings->threadCount > 0)
+    {
+        this->num_threads = settings->threadCount;
+        logger->logf(LOG_NOTICE, "%d threads specified by 'thread_count'.", num_threads);
+    }
+    else
+    {
+        logger->logf(LOG_NOTICE, "%d CPUs are detected, making as many threads. Use 'thread_count' setting to override.", num_threads);
+    }
+
+    if (num_threads <= 0)
+        throw std::runtime_error("Invalid number of CPUs: " + std::to_string(num_threads));
 
     if (settings->expireSessionsAfterSeconds > 0)
     {

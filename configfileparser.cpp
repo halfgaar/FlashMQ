@@ -108,6 +108,7 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validKeys.insert("allow_anonymous");
     validKeys.insert("rlimit_nofile");
     validKeys.insert("expire_sessions_after_seconds");
+    validKeys.insert("thread_count");
     validKeys.insert("storage_dir");
 
     validListenKeys.insert("port");
@@ -427,6 +428,16 @@ void ConfigFileParser::loadFile(bool test)
                     rtrim(newPath, '/');
                     checkWritableDir<ConfigFileException>(newPath);
                     tmpSettings->storageDir = newPath;
+                }
+
+                if (key == "thread_count")
+                {
+                    int newVal = std::stoi(value);
+                    if (newVal < 0)
+                    {
+                        throw ConfigFileException(formatString("thread_count value '%d' is invalid. Valid values are 0 or higher. 0 means auto.", newVal));
+                    }
+                    tmpSettings->threadCount = newVal;
                 }
             }
         }
