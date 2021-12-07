@@ -137,8 +137,7 @@ void Session::writePacket(const MqttPacket &packet, char max_qos, bool retain, u
 
             if (c)
             {
-                c->writeMqttPacketAndBlameThisClient(packet, qos);
-                count++;
+                count += c->writeMqttPacketAndBlameThisClient(packet, qos);
             }
         }
         else if (qos > 0)
@@ -165,9 +164,8 @@ void Session::writePacket(const MqttPacket &packet, char max_qos, bool retain, u
             std::shared_ptr<Client> c = makeSharedClient();
             if (c)
             {
-                c->writeMqttPacketAndBlameThisClient(*copyPacket.get(), qos);
+                count += c->writeMqttPacketAndBlameThisClient(*copyPacket.get(), qos);
                 copyPacket->setDuplicate(); // Any dealings with this packet from here will be a duplicate.
-                count++;
             }
         }
     }
@@ -201,16 +199,15 @@ uint64_t Session::sendPendingQosMessages()
         std::lock_guard<std::mutex> locker(qosQueueMutex);
         for (const std::shared_ptr<MqttPacket> &qosMessage : qosPacketQueue)
         {
-            c->writeMqttPacketAndBlameThisClient(*qosMessage.get(), qosMessage->getQos());
+            count += c->writeMqttPacketAndBlameThisClient(*qosMessage.get(), qosMessage->getQos());
             qosMessage->setDuplicate(); // Any dealings with this packet from here will be a duplicate.
-            count++;
         }
 
         for (const uint16_t packet_id : outgoingQoS2MessageIds)
         {
             PubRel pubRel(packet_id);
             MqttPacket packet(pubRel);
-            c->writeMqttPacketAndBlameThisClient(packet, 2);
+            count += c->writeMqttPacketAndBlameThisClient(packet, 2);
         }
     }
 

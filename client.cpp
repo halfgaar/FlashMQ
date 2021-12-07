@@ -177,7 +177,7 @@ void Client::writeText(const std::string &text)
     setReadyForWriting(true);
 }
 
-void Client::writeMqttPacket(const MqttPacket &packet, const char qos)
+int Client::writeMqttPacket(const MqttPacket &packet, const char qos)
 {
     std::lock_guard<std::mutex> locker(writeBufMutex);
 
@@ -192,7 +192,7 @@ void Client::writeMqttPacket(const MqttPacket &packet, const char qos)
     // QoS packet are queued and limited elsewhere.
     if (packet.packetType == PacketType::PUBLISH && qos == 0 && packet.getSizeIncludingNonPresentHeader() > writebuf.freeSpace())
     {
-        return;
+        return 0;
     }
 
     writebuf.ensureFreeSpace(packet.getSizeIncludingNonPresentHeader());
@@ -211,19 +211,22 @@ void Client::writeMqttPacket(const MqttPacket &packet, const char qos)
         setReadyForDisconnect();
 
     setReadyForWriting(true);
+    return 1;
 }
 
 // Helper method to avoid the exception ending up at the sender of messages, which would then get disconnected.
-void Client::writeMqttPacketAndBlameThisClient(const MqttPacket &packet, const char qos)
+int Client::writeMqttPacketAndBlameThisClient(const MqttPacket &packet, const char qos)
 {
     try
     {
-        this->writeMqttPacket(packet, qos);
+        return this->writeMqttPacket(packet, qos);
     }
     catch (std::exception &ex)
     {
         threadData->removeClientQueued(fd);
     }
+
+    return 0;
 }
 
 // Ping responses are always the same, so hardcoding it for optimization.
