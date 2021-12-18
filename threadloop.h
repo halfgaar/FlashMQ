@@ -23,6 +23,24 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 
 #define MAX_EVENTS 65536
 
+#include "forward_declarations.h"
+
+class VectorClearGuard
+{
+    std::vector<MqttPacket> &v;
+public:
+    VectorClearGuard(std::vector<MqttPacket> &v) :
+        v(v)
+    {
+
+    }
+
+    ~VectorClearGuard()
+    {
+        v.clear();
+    }
+};
+
 void do_thread_work(ThreadData *threadData);
 
 

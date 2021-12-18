@@ -102,6 +102,7 @@ void do_thread_work(ThreadData *threadData)
                         }
                         if ((cur_ev.events & EPOLLIN) || ((cur_ev.events & EPOLLOUT) && client->getSslReadWantsWrite()))
                         {
+                            VectorClearGuard vectorClear(packetQueueIn);
                             bool readSuccess = client->readFdIntoBuffer();
                             client->bufferToMqttPackets(packetQueueIn, client);
 
@@ -110,6 +111,11 @@ void do_thread_work(ThreadData *threadData)
                                 client->setDisconnectReason("socket disconnect detected");
                                 threadData->removeClient(client);
                                 continue;
+                            }
+
+                            for (MqttPacket &packet : packetQueueIn)
+                            {
+                                packet.handle();
                             }
                         }
                         if ((cur_ev.events & EPOLLOUT) || ((cur_ev.events & EPOLLIN) && client->getSslWriteWantsRead()))
@@ -136,21 +142,6 @@ void do_thread_work(ThreadData *threadData)
                 }
             }
         }
-
-        for (MqttPacket &packet : packetQueueIn)
-        {
-            try
-            {
-                packet.handle();
-            }
-            catch (std::exception &ex)
-            {
-                packet.getSender()->setDisconnectReason(ex.what());
-                logger->logf(LOG_ERR, "MqttPacket handling error: %s. Removing client.", ex.what());
-                threadData->removeClient(packet.getSender());
-            }
-        }
-        packetQueueIn.clear();
     }
 
     try
