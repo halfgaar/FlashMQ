@@ -1,0 +1,36 @@
+name: Building
+on: [push]
+jobs:
+  compilation:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-20.04
+            friendly: clang
+            CXX: /usr/bin/clang++
+            aptpkg: clang
+          - os: ubuntu-20.04
+            friendly: gcc
+            CXX: /usr/bin/g++
+            aptpkg: build-essential
+          - os: ubuntu-18.04
+            friendly: clang
+            CXX: /usr/bin/clang++
+            aptpkg: clang
+          - os: ubuntu-18.04
+            friendly: gcc
+            CXX: /usr/bin/g++
+            aptpkg: build-essential
+    runs-on: ${{ matrix.os }}
+    name: "${{ matrix.os }}: ${{ matrix.friendly }}"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - run: sudo apt update
+      # Build prerequisites
+      - run: sudo apt install -y cmake libssl-dev ${{ matrix.aptpkg }}
+      # Building
+      - run: CXX="${{ matrix.CXX }}" ./build.sh
+      # Testing build results
+      - run: ./FlashMQBuildRelease/FlashMQ --version
+      - run: sudo dpkg -i ./FlashMQBuildRelease/*.deb
