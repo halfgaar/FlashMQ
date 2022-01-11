@@ -24,10 +24,6 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "utils.h"
 #include "threadauth.h"
 
-// We can void constant reallocation of space for parsed subtopics by using this. But, beware to only use it during handling of the current
-// packet. Don't access it for a stored packet, because then it will have changed.
-thread_local std::vector<std::string> gSubtopics;
-
 RemainingLength::RemainingLength()
 {
     memset(bytes, 0, 4);
@@ -110,8 +106,7 @@ MqttPacket::MqttPacket(const Publish &publish) :
     }
 
     this->topic = publish.topic;
-    this->subtopics = &gSubtopics;
-    splitTopic(this->topic, gSubtopics);
+    splitTopic(this->topic, subtopics);
 
     packetType = PacketType::PUBLISH;
     this->qos = publish.qos;
@@ -417,7 +412,6 @@ void MqttPacket::handleDisconnect()
 
 void MqttPacket::handleSubscribe()
 {
-    this->subtopics = &gSubtopics;
     const char firstByteFirstNibble = (first_byte & 0x0F);
 
     if (firstByteFirstNibble != 2)
@@ -449,11 +443,11 @@ void MqttPacket::handleSubscribe()
         if (qos > 2)
             throw ProtocolError("QoS is greater than 2, and/or reserved bytes in QoS field are not 0.");
 
-        splitTopic(topic, *subtopics);
-        if (authentication.aclCheck(sender->getClientId(), sender->getUsername(), topic, *subtopics, AclAccess::subscribe, qos, false) == AuthResult::success)
+        splitTopic(topic, subtopics);
+        if (authentication.aclCheck(sender->getClientId(), sender->getUsername(), topic, subtopics, AclAccess::subscribe, qos, false) == AuthResult::success)
         {
             logger->logf(LOG_SUBSCRIBE, "Client '%s' subscribed to '%s' QoS %d", sender->repr().c_str(), topic.c_str(), qos);
-            sender->getThreadData()->getSubscriptionStore()->addSubscription(sender, topic, *subtopics, qos);
+            sender->getThreadData()->getSubscriptionStore()->addSubscription(sender, topic, subtopics, qos);
             subs_reponse_codes.push_back(qos);
         }
         else
@@ -477,7 +471,6 @@ void MqttPacket::handleSubscribe()
     SubAck subAck(packet_id, subs_reponse_codes);
     MqttPacket response(subAck);
     sender->writeMqttPacket(response);
-    this->subtopics = nullptr;
 }
 
 void MqttPacket::handleUnsubscribe()
@@ -540,8 +533,7 @@ void MqttPacket::handlePublish()
         throw ProtocolError("Duplicate flag is set for QoS 0 packet. This is illegal.");
 
     topic = std::string(readBytes(variable_header_length), variable_header_length);
-    subtopics = &gSubtopics;
-    splitTopic(topic, gSubtopics);
+    splitTopic(topic, subtopics);
 
     if (!isValidUtf8(topic, true))
     {
@@ -593,12 +585,12 @@ void MqttPacket::handlePublish()
     payloadStart = pos;
 
     Authentication &authentication = *ThreadAuth::getAuth();
-    if (authentication.aclCheck(sender->getClientId(), sender->getUsername(), topic, *subtopics, AclAccess::write, qos, retain) == AuthResult::success)
+    if (authentication.aclCheck(sender->getClientId(), sender->getUsername(), topic, subtopics, AclAccess::write, qos, retain) == AuthResult::success)
     {
         if (retain)
         {
             std::string payload(readBytes(payloadLen), payloadLen);
-            sender->getThreadData()->getSubscriptionStore()->setRetainedMessage(topic, *subtopics, payload, qos);
+            sender->getThreadData()->getSubscriptionStore()->setRetainedMessage(topic, subtopics, payload, qos);
         }
 
         // Set dup flag to 0, because that must not be propagated [MQTT-3.3.1-3].
@@ -607,9 +599,8 @@ void MqttPacket::handlePublish()
         first_byte = bites[0];
 
         // For the existing clients, we can just write the same packet back out, with our small alterations.
-        sender->getThreadData()->getSubscriptionStore()->queuePacketAtSubscribers(*subtopics, *this);
+        sender->getThreadData()->getSubscriptionStore()->queuePacketAtSubscribers(subtopics, *this);
     }
-    this->subtopics = nullptr;
 }
 
 void MqttPacket::handlePubAck()
@@ -767,7 +758,7 @@ const std::string &MqttPacket::getTopic() const
  * @brief MqttPacket::getSubtopics returns a pointer to the parsed subtopics. Use with care!
  * @return a pointer to a vector of subtopics that will be overwritten the next packet!
  */
-const std::vector<std::string> *MqttPacket::getSubtopics() const
+const std::vector<std::string> &MqttPacket::getSubtopics() const
 {
     return this->subtopics;
 }

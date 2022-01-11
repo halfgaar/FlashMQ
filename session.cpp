@@ -129,7 +129,7 @@ void Session::writePacket(const MqttPacket &packet, char max_qos, bool retain, u
     Authentication *_auth = ThreadAuth::getAuth();
     assert(_auth);
     Authentication &auth = *_auth;
-    if (auth.aclCheck(client_id, username, packet.getTopic(), *packet.getSubtopics(), AclAccess::read, qos, retain) == AuthResult::success)
+    if (auth.aclCheck(client_id, username, packet.getTopic(), packet.getSubtopics(), AclAccess::read, qos, retain) == AuthResult::success)
     {
         if (qos == 0)
         {
