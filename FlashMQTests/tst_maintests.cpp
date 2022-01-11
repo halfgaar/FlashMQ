@@ -77,6 +77,7 @@ private slots:
     void test_retained();
     void test_retained_changed();
     void test_retained_removed();
+    void test_retained_tree();
 
     void test_packet_bigger_than_one_doubling();
     void test_very_big_packet();
@@ -441,6 +442,42 @@ void MainTests::test_retained_removed()
     testContext.waitReceiverReceived(0);
 
     QVERIFY2(testContext.receivedMessages.empty(), "We erased the retained message. We shouldn't have received any.");
+}
+
+/**
+ * @brief MainTests::test_retained_tree tests a bug I found, where '+/+' yields different results than '#', where it should be the same.
+ */
+void MainTests::test_retained_tree()
+{
+    TwoClientTestContext testContext;
+
+    QByteArray payload = "We are testing";
+    const QString topic1 = "TopicA/B";
+    const QString topic2 = "Topic/C";
+    const QString topic3 = "TopicB/C";
+    const QStringList topics {topic1, topic2, topic3};
+
+    testContext.connectSender();
+    testContext.publish(topic1, payload, true);
+    testContext.publish(topic2, payload, true);
+    testContext.publish(topic3, payload, true);
+
+    testContext.connectReceiver();
+    testContext.subscribeReceiver("+/+");
+    testContext.waitReceiverReceived(1);
+
+    QCOMPARE(testContext.receivedMessages.count(), topics.count());
+
+    for (const QString &s : topics)
+    {
+        bool r = std::any_of(testContext.receivedMessages.begin(), testContext.receivedMessages.end(), [&](QMQTT::Message &msg)
+        {
+            return msg.topic() == s && msg.payload() == payload;
+        });
+
+        QVERIFY2(r, formatString("%s not found in retained messages.", s.toStdString().c_str()).c_str());
+    }
+
 }
 
 void MainTests::test_packet_bigger_than_one_doubling()
