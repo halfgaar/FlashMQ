@@ -1,5 +1,6 @@
 # FlashMQ
-[![Build Status](https://travis-ci.com/halfgaar/FlashMQ.svg?branch=master)](https://travis-ci.com/halfgaar/FlashMQ)
+![compilation](https://github.com/halfgaar/FlashMQ/actions/workflows/building.yml/badge.svg)
+![linting](https://github.com/halfgaar/FlashMQ/actions/workflows/linting.yml/badge.svg)
 
 FlashMQ is a high-performance, light-weight MQTT broker/server, designed to take good advantage of multi-CPU environments.
 
