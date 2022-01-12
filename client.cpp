@@ -354,17 +354,16 @@ void Client::setReadyForWriting(bool val)
     if (ioWrapper.getSslReadWantsWrite())
         val = true;
 
+    // This looks a bit like a race condition, but all calls to this method should be under lock of writeBufMutex, so it should be OK.
     if (val == this->readyForWriting)
         return;
 
     readyForWriting = val;
+
     struct epoll_event ev;
     memset(&ev, 0, sizeof (struct epoll_event));
     ev.data.fd = fd;
-    if (readyForReading)
-        ev.events |= EPOLLIN;
-    if (readyForWriting)
-        ev.events |= EPOLLOUT;
+    ev.events = readyForReading*EPOLLIN | readyForWriting*EPOLLOUT;
     check<std::runtime_error>(epoll_ctl(threadData->epollfd, EPOLL_CTL_MOD, fd, &ev));
 }
 
@@ -378,18 +377,23 @@ void Client::setReadyForReading(bool val)
     if (disconnecting)
         return;
 
+    // This looks a bit like a race condition, but all calls to this method are from a threads's event loop, so we should be OK.
     if (val == this->readyForReading)
         return;
 
     readyForReading = val;
+
     struct epoll_event ev;
     memset(&ev, 0, sizeof (struct epoll_event));
     ev.data.fd = fd;
-    if (readyForReading)
-        ev.events |= EPOLLIN;
-    if (readyForWriting)
-        ev.events |= EPOLLOUT;
-    check<std::runtime_error>(epoll_ctl(threadData->epollfd, EPOLL_CTL_MOD, fd, &ev));
+
+    {
+        // Because setReadyForWriting is always called onder writeBufMutex, this prevents readiness race conditions.
+        std::lock_guard<std::mutex> locker(writeBufMutex);
+
+        ev.events = readyForReading*EPOLLIN | readyForWriting*EPOLLOUT;
+        check<std::runtime_error>(epoll_ctl(threadData->epollfd, EPOLL_CTL_MOD, fd, &ev));
+    }
 }
 
 bool Client::bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn, std::shared_ptr<Client> &sender)
