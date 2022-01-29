@@ -651,3 +651,18 @@ const std::string websocketCloseCodeToString(uint16_t code)
         return formatString("Websocket status code %d", code);
     }
 }
+
+const std::string protocolVersionString(ProtocolVersion p)
+{
+    switch (p)
+    {
+    case ProtocolVersion::None:
+        return "none";
+    case ProtocolVersion::Mqtt31:
+        return "3.1";
+    case ProtocolVersion::Mqtt311:
+        return "3.1.1";
+    default:
+        return "unknown";
+    }
+}

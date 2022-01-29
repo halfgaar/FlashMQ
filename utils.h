@@ -33,6 +33,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 
 #include "cirbuf.h"
 #include "bindaddr.h"
+#include "types.h"
 
 template<typename T> int check(int rc)
 {
@@ -123,6 +124,8 @@ template<typename ex> void checkWritableDir(const std::string &path)
 }
 
 const std::string websocketCloseCodeToString(uint16_t code);
+
+const std::string protocolVersionString(ProtocolVersion p);
 
 
 #endif // UTILS_H
