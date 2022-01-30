@@ -15,7 +15,7 @@ public:
     void erase(const uint16_t packet_id);
     size_t size() const;
     size_t getByteSize() const;
-    std::shared_ptr<MqttPacket> queuePacket(const MqttPacket &p, uint16_t id);
+    std::shared_ptr<MqttPacket> queuePacket(const MqttPacket &p, uint16_t id, char new_max_qos);
     std::shared_ptr<MqttPacket> queuePacket(const Publish &pub, uint16_t id);
 
     std::list<std::shared_ptr<MqttPacket>>::const_iterator begin() const;

@@ -120,7 +120,7 @@ public:
     void registerClientAndKickExistingOne(std::shared_ptr<Client> &client);
     bool sessionPresent(const std::string &clientid);
 
-    void queuePacketAtSubscribers(const std::vector<std::string> &subtopics, const MqttPacket &packet, bool dollar = false);
+    void queuePacketAtSubscribers(const std::vector<std::string> &subtopics, MqttPacket &packet, bool dollar = false);
     void giveClientRetainedMessagesRecursively(std::vector<std::string>::const_iterator cur_subtopic_it, std::vector<std::string>::const_iterator end,
                                                RetainedMessageNode *this_node, bool poundMode, std::forward_list<MqttPacket> &packetList) const;
     uint64_t giveClientRetainedMessages(const std::shared_ptr<Session> &ses, const std::vector<std::string> &subscribeSubtopics, char max_qos);

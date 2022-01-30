@@ -44,11 +44,11 @@ size_t QoSPacketQueue::getByteSize() const
  * @param id
  * @return the packet copy.
  */
-std::shared_ptr<MqttPacket> QoSPacketQueue::queuePacket(const MqttPacket &p, uint16_t id)
+std::shared_ptr<MqttPacket> QoSPacketQueue::queuePacket(const MqttPacket &p, uint16_t id, char new_max_qos)
 {
     assert(p.getQos() > 0);
 
-    std::shared_ptr<MqttPacket> copyPacket = p.getCopy();
+    std::shared_ptr<MqttPacket> copyPacket = p.getCopy(new_max_qos);
     copyPacket->setPacketId(id);
     queue.push_back(copyPacket);
     qosQueueBytes += copyPacket->getTotalMemoryFootprint();

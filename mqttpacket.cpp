@@ -48,11 +48,69 @@ MqttPacket::MqttPacket(CirBuf &buf, size_t packet_len, size_t fixed_header_lengt
  * @brief MqttPacket::getCopy (using default copy constructor and resetting some selected fields) is easier than using the copy constructor
  *        publically, because then I have to keep maintaining a functioning copy constructor for each new field I add.
  * @return a shared pointer because that's typically how we need it; we only need to copy it if we pass it around as shared resource.
+ *
+ * The idea is that because a packet with QoS is longer than one without, we just copy as much as possible if both packets have the same QoS.
+ *
+ * Note that there can be two types of packets: one with the fixed header (including remaining length), and one without. The latter we could be
+ * more clever about, but I'm forgoing that right now. Their use is mostly for retained messages.
+ *
+ * Also note that some fields are undeterminstic in the copy: dup, retain and packetid for instance. Sometimes they come from the original,
+ * sometimes not. The current planned usage is that those fields will either ONLY or NEVER be used in the copy, so it doesn't matter what I do
+ * with them here. I may reconsider.
  */
-std::shared_ptr<MqttPacket> MqttPacket::getCopy() const
+std::shared_ptr<MqttPacket> MqttPacket::getCopy(char new_max_qos) const
 {
+    assert(packetType == PacketType::PUBLISH);
+
+    // You're not supposed to copy a duplicate packet. The only packets that get the dup flag, should not be copied AGAIN. This
+    // has to do with the Session::writePacket() and Session::sendPendingQosMessages() logic.
+    assert((first_byte & 0b00001000) == 0);
+
+    if (qos > 0 && new_max_qos == 0)
+    {
+        // if shrinking the packet doesn't alter the amount of bytes in the 'remaining length' part of the header, we can
+        // just memmove+shrink the packet. This is because the packet id always is two bytes before the payload, so we just move the payload
+        // over it. When testing 100M copies, it went from 21000 ms to 10000 ms. In other words, about 100 µs to 200 µs per copy.
+        // There is an elaborate unit test to test this optimization.
+        if ((fixed_header_length == 2 && bites.size() < 125))
+        {
+            // I don't know yet if this is true, but I don't want to forget when I implemenet MQTT5.
+            assert(sender && sender->getProtocolVersion() <= ProtocolVersion::Mqtt311);
+
+            std::shared_ptr<MqttPacket> p(new MqttPacket(*this));
+            p->sender.reset();
+
+            if (payloadLen > 0)
+                std::memmove(&p->bites[packet_id_pos], &p->bites[packet_id_pos+2], payloadLen);
+            p->bites.erase(p->bites.end() - 2, p->bites.end());
+            p->packet_id_pos = 0;
+            p->payloadStart -= 2;
+            if (pos > p->bites.size()) // pos can possible be set elsewhere, so we only set it back if it was after the payload.
+                p->pos -= 2;
+            p->packet_id = 0;
+
+            // Clear QoS bits from the header.
+            p->first_byte &= 0b11111001;
+            p->bites[0] = p->first_byte;
+
+            assert((p->bites[1] & 0b10000000) == 0); // when there is an MSB, I musn't get rid of it.
+            assert(p->bites[1] > 3); // There has to be a remaining value after subtracting 2.
+
+            p->bites[1] -= 2; // Reduce the value in the 'remaining length' part of the header.
+
+            return p;
+        }
+
+        Publish pub(topic, getPayloadCopy(), new_max_qos);
+        pub.retain = getRetain();
+        std::shared_ptr<MqttPacket> copyPacket(new MqttPacket(pub));
+        return copyPacket;
+    }
+
     std::shared_ptr<MqttPacket> copyPacket(new MqttPacket(*this));
     copyPacket->sender.reset();
+    if (qos != new_max_qos)
+        copyPacket->setQos(new_max_qos);
     return copyPacket;
 }
 
@@ -773,11 +831,11 @@ size_t MqttPacket::getTotalMemoryFootprint()
  * @return
  *
  * It's necessary sometimes, but it's against FlashMQ's concept of not parsing the payload. Normally, you can just write out
- * the whole byte array that is a packet to subscribers. No need to copy and such.
+ * the whole byte array of an original packet to subscribers. No need to copy and such.
  *
- * I created it for saving QoS packages in the db file.
+ * But, as stated, sometimes it's necessary.
  */
-std::string MqttPacket::getPayloadCopy()
+std::string MqttPacket::getPayloadCopy() const
 {
     assert(payloadStart > 0);
     assert(pos <= bites.size());
@@ -796,6 +854,23 @@ size_t MqttPacket::getSizeIncludingNonPresentHeader() const
     }
 
     return total;
+}
+
+void MqttPacket::setQos(const char new_qos)
+{
+    // You can't change to a QoS level that would remove the packet identifier.
+    assert((qos == 0 && new_qos == 0) || (qos > 0 && new_qos > 0));
+    assert(new_qos > 0 && packet_id_pos > 0);
+
+    qos = new_qos;
+    first_byte &= 0b11111001;
+    first_byte |= (qos << 1);
+
+    if (fixed_header_length > 0)
+    {
+        pos = 0;
+        writeByte(first_byte);
+    }
 }
 
 const std::string &MqttPacket::getTopic() const
@@ -886,6 +961,31 @@ size_t MqttPacket::remainingAfterPos()
     return bites.size() - pos;
 }
 
+bool MqttPacket::getRetain() const
+{
+    return (first_byte & 0b00000001);
+}
+
+/**
+ * @brief MqttPacket::setRetain set the retain bit in the first byte. I think I only need this in tests, because existing subscribers don't get retain=1,
+ * so handlePublish() clears it. But I needed it to be set in testing.
+ *
+ * Publishing of the retained messages goes through the MqttPacket(Publish) constructor, hence this setRetain() isn't necessary for that.
+ */
+void MqttPacket::setRetain()
+{
+#ifndef TESTING
+    assert(false);
+#endif
+
+    first_byte |= 0b00000001;
+
+    if (fixed_header_length > 0)
+    {
+        pos = 0;
+        writeByte(first_byte);
+    }
+}
 
 void MqttPacket::readIntoBuf(CirBuf &buf) const
 {

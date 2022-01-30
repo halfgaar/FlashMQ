@@ -127,7 +127,8 @@ void ThreadData::publishStat(const std::string &topic, uint64_t n)
     splitTopic(topic, subtopics);
     const std::string payload = std::to_string(n);
     Publish p(topic, payload, 0);
-    subscriptionStore->queuePacketAtSubscribers(subtopics, p, true);
+    MqttPacket pack(p);
+    subscriptionStore->queuePacketAtSubscribers(subtopics, pack, true);
     subscriptionStore->setRetainedMessage(topic, subtopics, payload, 0);
 }
 

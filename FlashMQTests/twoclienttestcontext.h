@@ -34,11 +34,13 @@ private slots:
 
 public:
     explicit TwoClientTestContext(QObject *parent = nullptr);
-    void publish(const QString &topic, const QByteArray &payload, bool retain = false);
+    void publish(const QString &topic, const QByteArray &payload);
+    void publish(const QString &topic, const QByteArray &payload, bool retain);
+    void publish(const QString &topic, const QByteArray &payload, const quint8 qos, bool retain);
     void connectSender();
     void connectReceiver();
     void disconnectReceiver();
-    void subscribeReceiver(const QString &topic);
+    void subscribeReceiver(const QString &topic, const quint8 qos = 0);
     void waitReceiverReceived(int count);
     void onClientError(const QMQTT::ClientError error);
 

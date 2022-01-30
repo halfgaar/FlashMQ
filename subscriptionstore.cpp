@@ -331,7 +331,7 @@ void SubscriptionStore::publishRecursively(std::vector<std::string>::const_itera
     }
 }
 
-void SubscriptionStore::queuePacketAtSubscribers(const std::vector<std::string> &subtopics, const MqttPacket &packet, bool dollar)
+void SubscriptionStore::queuePacketAtSubscribers(const std::vector<std::string> &subtopics, MqttPacket &packet, bool dollar)
 {
     assert(subtopics.size() > 0);
 
@@ -346,9 +346,10 @@ void SubscriptionStore::queuePacketAtSubscribers(const std::vector<std::string> 
         publishRecursively(subtopics.begin(), subtopics.end(), startNode, subscriberSessions);
     }
 
+    std::shared_ptr<MqttPacket> possibleQos0Copy;
     for(const ReceivingSubscriber &x : subscriberSessions)
     {
-        x.session->writePacket(packet, x.qos, false, count);
+        x.session->writePacket(packet, x.qos, possibleQos0Copy, count);
     }
 
     std::shared_ptr<Client> sender = packet.getSender();
@@ -422,9 +423,10 @@ uint64_t SubscriptionStore::giveClientRetainedMessages(const std::shared_ptr<Ses
         giveClientRetainedMessagesRecursively(subscribeSubtopics.begin(), subscribeSubtopics.end(), startNode, false, packetList);
     }
 
-    for(const MqttPacket &packet : packetList)
+    std::shared_ptr<MqttPacket> possibleQos0Copy;
+    for(MqttPacket &packet : packetList)
     {
-        ses->writePacket(packet, max_qos, true, count);
+        ses->writePacket(packet, max_qos, possibleQos0Copy, count);
     }
 
     return count;

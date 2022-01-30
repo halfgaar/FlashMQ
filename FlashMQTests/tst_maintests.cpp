@@ -102,6 +102,15 @@ private slots:
 
     void testSavingSessions();
 
+    void testCopyPacket();
+
+    void testDowngradeQoSOnSubscribeQos2to2();
+    void testDowngradeQoSOnSubscribeQos2to1();
+    void testDowngradeQoSOnSubscribeQos2to0();
+    void testDowngradeQoSOnSubscribeQos1to1();
+    void testDowngradeQoSOnSubscribeQos1to0();
+    void testDowngradeQoSOnSubscribeQos0to0();
+
 };
 
 MainTests::MainTests()
@@ -1027,7 +1036,9 @@ void MainTests::testSavingSessions()
 
         std::shared_ptr<Session> c1ses = c1->getSession();
         c1.reset();
-        c1ses->writePacket(publish, 1, false, count);
+        MqttPacket publishPacket(publish);
+        std::shared_ptr<MqttPacket> possibleQos0Copy;
+        c1ses->writePacket(publishPacket, 1, possibleQos0Copy, count);
 
         store->saveSessionsAndSubscriptions("/tmp/flashmqtests_sessions.db");
 
@@ -1090,6 +1101,145 @@ void MainTests::testSavingSessions()
         QVERIFY2(false, ex.what());
     }
 }
+
+void testCopyPacketHelper(const std::string &topic, char from_qos, char to_qos, bool retain)
+{
+    assert(to_qos <= from_qos);
+
+    Logger::getInstance()->setFlags(false, false, true);
+
+    std::shared_ptr<Settings> settings(new Settings());
+    settings->logDebug = false;
+    std::shared_ptr<SubscriptionStore> store(new SubscriptionStore());
+    std::shared_ptr<ThreadData> t(new ThreadData(0, store, settings));
+
+    // Kind of a hack...
+    Authentication auth(*settings.get());
+    ThreadAuth::assign(&auth);
+
+    std::shared_ptr<Client> dummyClient(new Client(0, t, nullptr, false, nullptr, settings, false));
+    dummyClient->setClientProperties(ProtocolVersion::Mqtt311, "qostestclient", "user1", true, 60, false);
+    store->registerClientAndKickExistingOne(dummyClient);
+
+    uint16_t packetid = 66;
+    for (int len = 0; len < 150; len++ )
+    {
+        const uint16_t pack_id = packetid++;
+
+        std::vector<MqttPacket> parsedPackets;
+
+        const std::string payloadOne = getSecureRandomString(len);
+        Publish pubOne(topic, payloadOne, from_qos);
+        pubOne.retain = retain;
+        MqttPacket stagingPacketOne(pubOne);
+        if (from_qos > 0)
+            stagingPacketOne.setPacketId(pack_id);
+        CirBuf stagingBufOne(1024);
+        stagingPacketOne.readIntoBuf(stagingBufOne);
+
+        MqttPacket::bufferToMqttPackets(stagingBufOne, parsedPackets, dummyClient);
+        QVERIFY(parsedPackets.size() == 1);
+        MqttPacket parsedPacketOne = std::move(parsedPackets.front());
+        parsedPacketOne.handlePublish();
+        if (retain) // A normal handled packet always has retain=0, so I force setting it here.
+            parsedPacketOne.setRetain();
+        QCOMPARE(stagingPacketOne.getTopic(), parsedPacketOne.getTopic());
+        QCOMPARE(stagingPacketOne.getPayloadCopy(), parsedPacketOne.getPayloadCopy());
+
+        std::shared_ptr<MqttPacket> copiedPacketOne = parsedPacketOne.getCopy(to_qos);
+
+        QCOMPARE(payloadOne, copiedPacketOne->getPayloadCopy());
+
+        // Now compare the written buffer of our copied packet to one that was written with our known good reference packet.
+
+        Publish pubReference(topic, payloadOne, to_qos);
+        pubReference.retain = retain;
+        MqttPacket packetReference(pubReference);
+        if (to_qos > 0)
+            packetReference.setPacketId(pack_id);
+        CirBuf bufOfReference(1024);
+        CirBuf bufOfCopied(1024);
+        packetReference.readIntoBuf(bufOfReference);
+        copiedPacketOne->readIntoBuf(bufOfCopied);
+        QVERIFY2(bufOfCopied == bufOfReference, formatString("Failure on length %d for topic %s, from qos %d to qos %d, retain: %d.",
+                                                             len, topic.c_str(), from_qos, to_qos, retain).c_str());
+    }
+}
+
+/**
+ * @brief MainTests::testCopyPacket tests the actual bytes of a copied that would be written to a client.
+ *
+ * This is specifically to test the optimiziations in getCopy(). It indirectly also tests packet parsing.
+ */
+void MainTests::testCopyPacket()
+{
+    for (int retain = 0; retain < 2; retain++)
+    {
+        testCopyPacketHelper("John/McLane", 0, 0, retain);
+        testCopyPacketHelper("Ben/Sisko", 1, 1, retain);
+        testCopyPacketHelper("Rebecca/Bunch", 2, 2, retain);
+
+        testCopyPacketHelper("Buffy/Slayer", 1, 0, retain);
+        testCopyPacketHelper("Sarah/Connor", 2, 0, retain);
+        testCopyPacketHelper("Susan/Mayer", 2, 1, retain);
+    }
+}
+
+void testDowngradeQoSOnSubscribeHelper(const char pub_qos, const char sub_qos)
+{
+    TwoClientTestContext testContext;
+
+    const QString topic("Star/Trek");
+    const QByteArray payload("Captain Kirk");
+
+    testContext.connectSender();
+    testContext.connectReceiver();
+
+    testContext.subscribeReceiver(topic, sub_qos);
+    testContext.publish(topic, payload, pub_qos, false);
+
+    testContext.waitReceiverReceived(1);
+
+    QCOMPARE(testContext.receivedMessages.length(), 1);
+    QMQTT::Message &recv = testContext.receivedMessages.first();
+
+    const char expected_qos = std::min<const char>(pub_qos, sub_qos);
+    QVERIFY2(recv.qos() == expected_qos, formatString("Failure: received QoS is %d. Published is %d. Subscribed as %d. Expected QoS is %d",
+                                                      recv.qos(), pub_qos, sub_qos, expected_qos).c_str());
+    QVERIFY(recv.topic() == topic);
+    QVERIFY(recv.payload() == payload);
+}
+
+void MainTests::testDowngradeQoSOnSubscribeQos2to2()
+{
+    testDowngradeQoSOnSubscribeHelper(2, 2);
+}
+
+void MainTests::testDowngradeQoSOnSubscribeQos2to1()
+{
+    testDowngradeQoSOnSubscribeHelper(2, 1);
+}
+
+void MainTests::testDowngradeQoSOnSubscribeQos2to0()
+{
+    testDowngradeQoSOnSubscribeHelper(2, 0);
+}
+
+void MainTests::testDowngradeQoSOnSubscribeQos1to1()
+{
+    testDowngradeQoSOnSubscribeHelper(1, 1);
+}
+
+void MainTests::testDowngradeQoSOnSubscribeQos1to0()
+{
+    testDowngradeQoSOnSubscribeHelper(1, 0);
+}
+
+void MainTests::testDowngradeQoSOnSubscribeQos0to0()
+{
+    testDowngradeQoSOnSubscribeHelper(0, 0);
+}
+
 
 int main(int argc, char *argv[])
 {

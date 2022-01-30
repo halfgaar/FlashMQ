@@ -56,7 +56,7 @@ Client::~Client()
     {
         Publish will(will_topic, will_payload, will_qos);
         will.retain = will_retain;
-        const MqttPacket willPacket(will);
+        MqttPacket willPacket(will);
 
         const std::vector<std::string> subtopics = splitToVector(will_topic, '/');
         store->queuePacketAtSubscribers(subtopics, willPacket);
@@ -180,7 +180,7 @@ void Client::writeText(const std::string &text)
     setReadyForWriting(true);
 }
 
-int Client::writeMqttPacket(const MqttPacket &packet, const char qos)
+int Client::writeMqttPacket(const MqttPacket &packet)
 {
     std::lock_guard<std::mutex> locker(writeBufMutex);
 
@@ -193,7 +193,7 @@ int Client::writeMqttPacket(const MqttPacket &packet, const char qos)
 
     // And drop a publish when it doesn't fit, even after resizing. This means we do allow pings. And
     // QoS packet are queued and limited elsewhere.
-    if (packet.packetType == PacketType::PUBLISH && qos == 0 && packet.getSizeIncludingNonPresentHeader() > writebuf.freeSpace())
+    if (packet.packetType == PacketType::PUBLISH && packet.getQos() == 0 && packet.getSizeIncludingNonPresentHeader() > writebuf.freeSpace())
     {
         return 0;
     }
@@ -208,11 +208,11 @@ int Client::writeMqttPacket(const MqttPacket &packet, const char qos)
 }
 
 // Helper method to avoid the exception ending up at the sender of messages, which would then get disconnected.
-int Client::writeMqttPacketAndBlameThisClient(const MqttPacket &packet, const char qos)
+int Client::writeMqttPacketAndBlameThisClient(const MqttPacket &packet)
 {
     try
     {
-        return this->writeMqttPacket(packet, qos);
+        return this->writeMqttPacket(packet);
     }
     catch (std::exception &ex)
     {

@@ -121,8 +121,8 @@ public:
 
     void writeText(const std::string &text);
     void writePingResp();
-    int writeMqttPacket(const MqttPacket &packet, const char qos = 0);
-    int writeMqttPacketAndBlameThisClient(const MqttPacket &packet, const char qos);
+    int writeMqttPacket(const MqttPacket &packet);
+    int writeMqttPacketAndBlameThisClient(const MqttPacket &packet);
     bool writeBufIntoFd();
     bool readyForDisconnecting() const { return disconnectWhenBytesWritten && writebuf.usedBytes() == 0; }
 

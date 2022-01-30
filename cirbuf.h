@@ -60,6 +60,8 @@ public:
 
     void write(const void *buf, size_t count);
     void read(void *buf, const size_t count);
+
+    bool operator==(const CirBuf &other) const;
 };
 
 #endif // CIRBUF_H

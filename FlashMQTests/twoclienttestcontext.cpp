@@ -35,12 +35,22 @@ TwoClientTestContext::TwoClientTestContext(QObject *parent) : QObject(parent)
     connect(receiver.data(), &QMQTT::Client::error, this, &TwoClientTestContext::onClientError);
 }
 
+void TwoClientTestContext::publish(const QString &topic, const QByteArray &payload)
+{
+    publish(topic, payload, 0, false);
+}
+
 void TwoClientTestContext::publish(const QString &topic, const QByteArray &payload, bool retain)
+{
+    publish(topic, payload, 0, retain);
+}
+
+void TwoClientTestContext::publish(const QString &topic, const QByteArray &payload, const quint8 qos, bool retain)
 {
     QMQTT::Message msg;
     msg.setTopic(topic);
     msg.setRetain(retain);
-    msg.setQos(0);
+    msg.setQos(qos);
     msg.setPayload(payload);
     sender->publish(msg);
 }
@@ -71,9 +81,9 @@ void TwoClientTestContext::disconnectReceiver()
     waiter.exec();
 }
 
-void TwoClientTestContext::subscribeReceiver(const QString &topic)
+void TwoClientTestContext::subscribeReceiver(const QString &topic, const quint8 qos)
 {
-    receiver->subscribe(topic);
+    receiver->subscribe(topic, qos);
 
     QEventLoop waiter;
     QTimer timeout;

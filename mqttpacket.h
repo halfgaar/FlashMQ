@@ -80,7 +80,7 @@ public:
 
     MqttPacket(MqttPacket &&other) = default;
 
-    std::shared_ptr<MqttPacket> getCopy() const;
+    std::shared_ptr<MqttPacket> getCopy(char new_max_qos) const;
 
     // Constructor for outgoing packets. These may not allocate room for the fixed header, because we don't (always) know the length in advance.
     MqttPacket(const ConnAck &connAck);
@@ -109,6 +109,7 @@ public:
     size_t getSizeIncludingNonPresentHeader() const;
     const std::vector<char> &getBites() const { return bites; }
     char getQos() const { return qos; }
+    void setQos(const char new_qos);
     const std::string &getTopic() const;
     const std::vector<std::string> &getSubtopics() const;
     std::shared_ptr<Client> getSender() const;
@@ -120,8 +121,10 @@ public:
     uint16_t getPacketId() const;
     void setDuplicate();
     size_t getTotalMemoryFootprint();
-    std::string getPayloadCopy();
     void readIntoBuf(CirBuf &buf) const;
+    std::string getPayloadCopy() const;
+    bool getRetain() const;
+    void setRetain();
 };
 
 #endif // MQTTPACKET_H

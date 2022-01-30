@@ -252,3 +252,22 @@ void CirBuf::read(void *buf, const size_t count)
     assert(_packet_len == 0);
     assert(i == static_cast<int>(count));
 }
+
+/**
+ * @brief CirBuf::operator == simplistic comparision. It doesn't take the fact that it's circular into account.
+ * @param other
+ * @return
+ *
+ * It was created for unit testing. read() and write() are non-const, so taking the circular properties into account
+ * would need more/duplicate code that I don't need at this point.
+ */
+bool CirBuf::operator==(const CirBuf &other) const
+{
+#ifdef NDEBUG
+    throw std::exception(); // you can't use it in release builds, because new buffers aren't zeroed.
+#endif
+
+    return tail == 0 && other.tail == 0
+           && usedBytes() == other.usedBytes()
+           && std::memcmp(buf, other.buf, size) == 0;
+}

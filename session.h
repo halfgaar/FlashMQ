@@ -48,11 +48,14 @@ class Session
     std::set<uint16_t> outgoingQoS2MessageIds;
     std::mutex qosQueueMutex;
     uint16_t nextPacketId = 0;
+    uint16_t qosInFlightCounter = 0;
     uint16_t QoSLogPrintedAtId = 0;
     std::chrono::time_point<std::chrono::steady_clock> lastTouched = std::chrono::steady_clock::now();
     Logger *logger = Logger::getInstance();
     int64_t getSessionRelativeAgeInMs() const;
     void setSessionTouch(int64_t ageInMs);
+    bool requiresPacketRetransmission() const;
+    void increasePacketId();
 
     Session(const Session &other);
 public:
@@ -69,7 +72,7 @@ public:
     const std::string &getClientId() const { return client_id; }
     std::shared_ptr<Client> makeSharedClient() const;
     void assignActiveConnection(std::shared_ptr<Client> &client);
-    void writePacket(const MqttPacket &packet, char max_qos, bool retain, uint64_t &count);
+    void writePacket(MqttPacket &packet, char max_qos, std::shared_ptr<MqttPacket> &downgradedQos0PacketCopy, uint64_t &count);
     void clearQosMessage(uint16_t packet_id);
     uint64_t sendPendingQosMessages();
     void touch(std::chrono::time_point<std::chrono::steady_clock> val);
