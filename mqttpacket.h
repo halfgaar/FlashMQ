@@ -92,6 +92,8 @@ public:
     MqttPacket(const PubComp &pubComp);
     MqttPacket(const PubRel &pubRel);
 
+    static void bufferToMqttPackets(CirBuf &buf, std::vector<MqttPacket> &packetQueueIn, std::shared_ptr<Client> &sender);
+
     void handle();
     void handleConnect();
     void handleDisconnect();
@@ -119,6 +121,7 @@ public:
     void setDuplicate();
     size_t getTotalMemoryFootprint();
     std::string getPayloadCopy();
+    void readIntoBuf(CirBuf &buf) const;
 };
 
 #endif // MQTTPACKET_H

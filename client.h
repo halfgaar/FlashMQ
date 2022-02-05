@@ -104,7 +104,7 @@ public:
     void startOrContinueSslAccept();
     void markAsDisconnecting();
     bool readFdIntoBuffer();
-    bool bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn, std::shared_ptr<Client> &sender);
+    void bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn, std::shared_ptr<Client> &sender);
     void setClientProperties(ProtocolVersion protocolVersion, const std::string &clientId, const std::string username, bool connectPacketSeen, uint16_t keepalive, bool cleanSession);
     void setWill(const std::string &topic, const std::string &payload, bool retain, char qos);
     void clearWill();

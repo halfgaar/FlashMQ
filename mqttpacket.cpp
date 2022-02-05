@@ -181,6 +181,55 @@ MqttPacket::MqttPacket(const PubRel &pubRel) :
     pubCommonConstruct(pubRel.packet_id, PacketType::PUBREL, 0b0010);
 }
 
+void MqttPacket::bufferToMqttPackets(CirBuf &buf, std::vector<MqttPacket> &packetQueueIn, std::shared_ptr<Client> &sender)
+{
+    while (buf.usedBytes() >= MQTT_HEADER_LENGH)
+    {
+        // Determine the packet length by decoding the variable length
+        int remaining_length_i = 1; // index of 'remaining length' field is one after start.
+        uint fixed_header_length = 1;
+        size_t multiplier = 1;
+        size_t packet_length = 0;
+        unsigned char encodedByte = 0;
+        do
+        {
+            fixed_header_length++;
+
+            if (fixed_header_length > 5)
+                throw ProtocolError("Packet signifies more than 5 bytes in variable length header. Invalid.");
+
+            // This happens when you only don't have all the bytes that specify the remaining length.
+            if (fixed_header_length > buf.usedBytes())
+                return;
+
+            encodedByte = buf.peakAhead(remaining_length_i++);
+            packet_length += (encodedByte & 127) * multiplier;
+            multiplier *= 128;
+            if (multiplier > 128*128*128*128)
+                throw ProtocolError("Malformed Remaining Length.");
+        }
+        while ((encodedByte & 128) != 0);
+        packet_length += fixed_header_length;
+
+        if (sender && !sender->getAuthenticated() && packet_length >= 1024*1024)
+        {
+            throw ProtocolError("An unauthenticated client sends a packet of 1 MB or bigger? Probably it's just random bytes.");
+        }
+
+        if (packet_length > ABSOLUTE_MAX_PACKET_SIZE)
+        {
+            throw ProtocolError("A client sends a packet claiming to be bigger than the maximum MQTT allows.");
+        }
+
+        if (packet_length <= buf.usedBytes())
+        {
+            packetQueueIn.emplace_back(buf, packet_length, fixed_header_length, sender);
+        }
+        else
+            break;
+    }
+}
+
 void MqttPacket::handle()
 {
     if (packetType == PacketType::Reserved)
@@ -835,6 +884,23 @@ uint16_t MqttPacket::readTwoBytesToUInt16()
 size_t MqttPacket::remainingAfterPos()
 {
     return bites.size() - pos;
+}
+
+
+void MqttPacket::readIntoBuf(CirBuf &buf) const
+{
+    buf.ensureFreeSpace(getSizeIncludingNonPresentHeader());
+
+    if (!containsFixedHeader())
+    {
+        assert(remainingLength.len > 0);
+
+        buf.headPtr()[0] = getFirstByte();
+        buf.advanceHead(1);
+        buf.write(remainingLength.bytes, remainingLength.len);
+    }
+
+    buf.write(bites.data(), bites.size());
 }
 
 
