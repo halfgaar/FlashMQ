@@ -66,9 +66,12 @@ Client::~Client()
         disconnectReason = "not specified";
 
     logger->logf(LOG_NOTICE, "Removing client '%s'. Reason(s): %s", repr().c_str(), disconnectReason.c_str());
-    if (epoll_ctl(threadData->epollfd, EPOLL_CTL_DEL, fd, NULL) != 0)
-        logger->logf(LOG_ERR, "Removing fd %d of client '%s' from epoll produced error: %s", fd, repr().c_str(), strerror(errno));
-    close(fd);
+    if (fd > 0) // this check is essentially for testing, when working with a dummy fd.
+    {
+        if (epoll_ctl(threadData->epollfd, EPOLL_CTL_DEL, fd, NULL) != 0)
+            logger->logf(LOG_ERR, "Removing fd %d of client '%s' from epoll produced error: %s", fd, repr().c_str(), strerror(errno));
+        close(fd);
+    }
 
     // MQTT-3.1.2-6
     if (cleanSession)
@@ -338,6 +341,11 @@ void Client::setReadyForWriting(bool val)
         return;
 #endif
 
+#ifdef TESTING
+    if (fd == 0)
+        return;
+#endif
+
     if (disconnecting)
         return;
 
@@ -361,6 +369,11 @@ void Client::setReadyForReading(bool val)
 {
 #ifndef NDEBUG
     if (fuzzMode)
+        return;
+#endif
+
+#ifdef TESTING
+    if (fd == 0)
         return;
 #endif
 

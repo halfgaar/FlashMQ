@@ -62,10 +62,10 @@ public:
     ~MainTests();
 
 private slots:
-    void init();
-    void cleanup();
+    void init(); // will be called before each test function is executed
+    void cleanup(); // will be called after every test function.
 
-    void cleanupTestCase();
+    void cleanupTestCase(); // will be called after the last test function was executed.
 
     void test_circbuf();
     void test_circbuf_unwrapped_doubling();
@@ -1091,6 +1091,20 @@ void MainTests::testSavingSessions()
     }
 }
 
-QTEST_GUILESS_MAIN(MainTests)
+int main(int argc, char *argv[])
+{
+    QCoreApplication app(argc, argv);
+    app.setAttribute(Qt::AA_Use96Dpi, true);
+    MainTests tc;
+
+    QTEST_SET_MAIN_SOURCE_PATH;
+
+    // You can more easily debug tests (in case of crashes) by running directly, instead of called as slots by Qt.
+    //tc.init();
+    //tc.testCopyPacket();
+    //return 0;
+
+    return QTest::qExec(&tc, argc, argv);
+}
 
 #include "tst_maintests.moc"
