@@ -61,7 +61,11 @@ class MainApp
     int taskEventFd = -1;
     std::mutex eventMutex;
     Timer timer;
+
+    // We need to keep a settings copy as well as a shared pointer, depending on threads, queueing of config reloads, etc.
     std::shared_ptr<Settings> settings;
+    Settings settingsLocalCopy;
+
     std::list<std::shared_ptr<Listener>> listeners;
     std::mutex quitMutex;
     std::string fuzzFilePath;

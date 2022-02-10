@@ -644,6 +644,8 @@ void MainApp::loadConfig()
     confFileParser->loadFile(true);
     confFileParser->loadFile(false);
     settings = confFileParser->moveSettings();
+    settingsLocalCopy = *settings.get();
+    ThreadAuth::assignSettings(&settingsLocalCopy);
 
     if (settings->listeners.empty())
     {

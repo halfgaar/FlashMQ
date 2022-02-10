@@ -23,7 +23,9 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 
 std::chrono::time_point<std::chrono::steady_clock> appStartTime = std::chrono::steady_clock::now();
 
-Session::Session()
+Session::Session() :
+    maxQosMsgPending(ThreadAuth::getSettings()->maxQosMsgPendingPerClient),
+    maxQosBytesPending(ThreadAuth::getSettings()->maxQosBytesPendingPerClient)
 {
 
 }
@@ -181,7 +183,7 @@ void Session::writePacket(MqttPacket &packet, char max_qos, std::shared_ptr<Mqtt
                 std::unique_lock<std::mutex> locker(qosQueueMutex);
 
                 const size_t totalQosPacketsInTransit = qosPacketQueue.size() + incomingQoS2MessageIds.size() + outgoingQoS2MessageIds.size();
-                if (totalQosPacketsInTransit >= MAX_QOS_MSG_PENDING_PER_CLIENT || (qosPacketQueue.getByteSize() >= MAX_QOS_BYTES_PENDING_PER_CLIENT && qosPacketQueue.size() > 0))
+                if (totalQosPacketsInTransit >= maxQosMsgPending || (qosPacketQueue.getByteSize() >= maxQosBytesPending && qosPacketQueue.size() > 0))
                 {
                     if (QoSLogPrintedAtId != nextPacketId)
                     {

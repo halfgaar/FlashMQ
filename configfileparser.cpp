@@ -110,6 +110,8 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validKeys.insert("expire_sessions_after_seconds");
     validKeys.insert("thread_count");
     validKeys.insert("storage_dir");
+    validKeys.insert("max_qos_msg_pending_per_client");
+    validKeys.insert("max_qos_bytes_pending_per_client");
 
     validListenKeys.insert("port");
     validListenKeys.insert("protocol");
@@ -438,6 +440,26 @@ void ConfigFileParser::loadFile(bool test)
                         throw ConfigFileException(formatString("thread_count value '%d' is invalid. Valid values are 0 or higher. 0 means auto.", newVal));
                     }
                     tmpSettings->threadCount = newVal;
+                }
+
+                if (key == "max_qos_msg_pending_per_client")
+                {
+                    int newVal = std::stoi(value);
+                    if (newVal < 32 || newVal > 65530)
+                    {
+                        throw ConfigFileException(formatString("max_qos_msg_pending_per_client value '%d' is invalid. Valid values between 32 and 65530.", newVal));
+                    }
+                    tmpSettings->maxQosMsgPendingPerClient = newVal;
+                }
+
+                if (key == "max_qos_bytes_pending_per_client")
+                {
+                    int newVal = std::stoi(value);
+                    if (newVal < 4096)
+                    {
+                        throw ConfigFileException(formatString("max_qos_bytes_pending_per_client value '%d' is invalid. Valid values are 4096 or higher.", newVal));
+                    }
+                    tmpSettings->maxQosBytesPendingPerClient = newVal;
                 }
             }
         }

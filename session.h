@@ -28,10 +28,6 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "sessionsandsubscriptionsdb.h"
 #include "qospacketqueue.h"
 
-// TODO make settings. But, num of packets can't exceed 65536, because the counter is 16 bit.
-#define MAX_QOS_MSG_PENDING_PER_CLIENT 32
-#define MAX_QOS_BYTES_PENDING_PER_CLIENT 4096
-
 class Session
 {
 #ifdef TESTING
@@ -52,6 +48,9 @@ class Session
     uint16_t QoSLogPrintedAtId = 0;
     std::chrono::time_point<std::chrono::steady_clock> lastTouched = std::chrono::steady_clock::now();
     Logger *logger = Logger::getInstance();
+    const size_t maxQosMsgPending = 0;
+    const size_t maxQosBytesPending = 0;
+
     int64_t getSessionRelativeAgeInMs() const;
     void setSessionTouch(int64_t ageInMs);
     bool requiresPacketRetransmission() const;
