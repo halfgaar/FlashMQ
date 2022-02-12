@@ -56,8 +56,8 @@ public:
     int authPluginTimerPeriod = 60;
     std::string storageDir;
     int threadCount = 0;
-    int maxQosMsgPendingPerClient = 512;
-    int maxQosBytesPendingPerClient = 65536;
+    uint maxQosMsgPendingPerClient = 512;
+    uint maxQosBytesPendingPerClient = 65536;
     std::list<std::shared_ptr<Listener>> listeners; // Default one is created later, when none are defined.
 
     AuthOptCompatWrap &getAuthOptsCompat();
