@@ -30,6 +30,8 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "logger.h"
 #include "threadglobals.h"
 #include "threadloop.h"
+#include "authplugin.h"
+#include "threadglobals.h"
 
 MainApp *MainApp::instance = nullptr;
 
@@ -432,6 +434,9 @@ void MainApp::start()
             std::vector<MqttPacket> packetQueueIn;
             std::vector<std::string> subtopics;
 
+            Authentication auth(settingsLocalCopy);
+            ThreadGlobals::assign(&auth);
+
             std::shared_ptr<ThreadData> threaddata(new ThreadData(0, subscriptionStore, settings));
 
             std::shared_ptr<Client> client(new Client(fd, threaddata, nullptr, fuzzWebsockets, nullptr, settings, true));
@@ -484,7 +489,8 @@ void MainApp::start()
     }
 
     // Populate the $SYS topics, otherwise you have to wait until the timer expires.
-    threads.front()->queuePublishStatsOnDollarTopic(threads);
+    if (!threads.empty())
+        threads.front()->queuePublishStatsOnDollarTopic(threads);
 
     uint next_thread_index = 0;
 
