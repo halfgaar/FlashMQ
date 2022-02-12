@@ -19,7 +19,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #define THREADLOOP_H
 
 #include "threaddata.h"
-#include "threadauth.h"
+#include "threadglobals.h"
 
 #define MAX_EVENTS 65536
 

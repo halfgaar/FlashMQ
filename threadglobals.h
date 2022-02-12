@@ -1,12 +1,11 @@
-#ifndef THREADAUTH_H
-#define THREADAUTH_H
+#ifndef THREADGLOBALS_H
+#define THREADGLOBALS_H
 
 #include "forward_declarations.h"
 
 class Authentication;
 
-// TODO: rename, this is no longer just auth, but thread local globals.
-class ThreadAuth
+class ThreadGlobals
 {
     static thread_local Authentication *auth;
     static thread_local ThreadData *threadData;
@@ -22,4 +21,4 @@ public:
     static Settings *getSettings();
 };
 
-#endif // THREADAUTH_H
+#endif // THREADGLOBALS_H

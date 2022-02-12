@@ -28,7 +28,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include <openssl/err.h>
 
 #include "logger.h"
-#include "threadauth.h"
+#include "threadglobals.h"
 #include "threadloop.h"
 
 MainApp *MainApp::instance = nullptr;
@@ -645,7 +645,7 @@ void MainApp::loadConfig()
     confFileParser->loadFile(false);
     settings = confFileParser->moveSettings();
     settingsLocalCopy = *settings.get();
-    ThreadAuth::assignSettings(&settingsLocalCopy);
+    ThreadGlobals::assignSettings(&settingsLocalCopy);
 
     if (settings->listeners.empty())
     {

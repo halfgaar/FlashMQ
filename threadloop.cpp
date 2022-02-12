@@ -20,9 +20,9 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 void do_thread_work(ThreadData *threadData)
 {
     int epoll_fd = threadData->epollfd;
-    ThreadAuth::assign(&threadData->authentication);
-    ThreadAuth::assignThreadData(threadData);
-    ThreadAuth::assignSettings(&threadData->settingsLocalCopy);
+    ThreadGlobals::assign(&threadData->authentication);
+    ThreadGlobals::assignThreadData(threadData);
+    ThreadGlobals::assignSettings(&threadData->settingsLocalCopy);
 
     struct epoll_event events[MAX_EVENTS];
     memset(&events, 0, sizeof (struct epoll_event)*MAX_EVENTS);

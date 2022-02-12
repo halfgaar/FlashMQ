@@ -22,7 +22,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include <cassert>
 
 #include "utils.h"
-#include "threadauth.h"
+#include "threadglobals.h"
 
 RemainingLength::RemainingLength()
 {
@@ -460,7 +460,7 @@ void MqttPacket::handleConnect()
         bool accessGranted = false;
         std::string denyLogMsg;
 
-        Authentication &authentication = *ThreadAuth::getAuth();
+        Authentication &authentication = *ThreadGlobals::getAuth();
 
         if (!user_name_flag && settings.allowAnonymous)
         {
@@ -531,7 +531,7 @@ void MqttPacket::handleSubscribe()
         throw ProtocolError("Packet ID 0 when subscribing is invalid."); // [MQTT-2.3.1-1]
     }
 
-    Authentication &authentication = *ThreadAuth::getAuth();
+    Authentication &authentication = *ThreadGlobals::getAuth();
 
     std::list<char> subs_reponse_codes;
     while (remainingAfterPos() > 0)
@@ -691,7 +691,7 @@ void MqttPacket::handlePublish()
     payloadLen = remainingAfterPos();
     payloadStart = pos;
 
-    Authentication &authentication = *ThreadAuth::getAuth();
+    Authentication &authentication = *ThreadGlobals::getAuth();
     if (authentication.aclCheck(sender->getClientId(), sender->getUsername(), topic, subtopics, AclAccess::write, qos, retain) == AuthResult::success)
     {
         if (retain)
