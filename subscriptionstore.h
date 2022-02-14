@@ -110,6 +110,7 @@ class SubscriptionStore
     void getRetainedMessages(RetainedMessageNode *this_node, std::vector<RetainedMessage> &outputList) const;
     void getSubscriptions(SubscriptionNode *this_node, const std::string &composedTopic, bool root,
                           std::unordered_map<std::string, std::list<SubscriptionForSerializing>> &outputList) const;
+    void countSubscriptions(SubscriptionNode *this_node, int64_t &count) const;
 
     SubscriptionNode *getDeepestNode(const std::string &topic, const std::vector<std::string> &subtopics);
 public:
@@ -132,6 +133,7 @@ public:
 
     int64_t getRetainedMessageCount() const;
     uint64_t getSessionCount() const;
+    int64_t getSubscriptionCount();
 
     void saveRetainedMessages(const std::string &filePath);
     void loadRetainedMessages(const std::string &filePath);

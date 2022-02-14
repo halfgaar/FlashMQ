@@ -569,6 +569,19 @@ uint64_t SubscriptionStore::getSessionCount() const
     return sessionsByIdConst.size();
 }
 
+int64_t SubscriptionStore::getSubscriptionCount()
+{
+    int64_t count = 0;
+
+    RWLockGuard lock_guard(&subscriptionsRwlock);
+    lock_guard.rdlock();
+
+    countSubscriptions(&root, count);
+    countSubscriptions(&rootDollar, count);
+
+    return count;
+}
+
 void SubscriptionStore::getRetainedMessages(RetainedMessageNode *this_node, std::vector<RetainedMessage> &outputList) const
 {
     for(const RetainedMessage &rm : this_node->retainedMessages)
@@ -621,6 +634,35 @@ void SubscriptionStore::getSubscriptions(SubscriptionNode *this_node, const std:
     {
         const std::string topicAtNextLevel = root ? "#" : composedTopic + "/#";
         getSubscriptions(this_node->childrenPound.get(), topicAtNextLevel, false, outputList);
+    }
+}
+
+void SubscriptionStore::countSubscriptions(SubscriptionNode *this_node, int64_t &count) const
+{
+    for (auto &pair : this_node->getSubscribers())
+    {
+        const Subscription &node = pair.second;
+        std::shared_ptr<Session> ses = node.session.lock();
+        if (ses)
+        {
+            count++;
+        }
+    }
+
+    for (auto &pair : this_node->children)
+    {
+        SubscriptionNode *node = pair.second.get();
+        countSubscriptions(node, count);
+    }
+
+    if (this_node->childrenPlus)
+    {
+        countSubscriptions(this_node->childrenPlus.get(), count);
+    }
+
+    if (this_node->childrenPound)
+    {
+        countSubscriptions(this_node->childrenPound.get(), count);
     }
 }
 

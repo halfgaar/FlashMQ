@@ -119,6 +119,8 @@ void ThreadData::publishStatsOnDollarTopic(std::vector<std::shared_ptr<ThreadDat
     publishStat("$SYS/broker/retained messages/count", subscriptionStore->getRetainedMessageCount());
 
     publishStat("$SYS/broker/sessions/total", subscriptionStore->getSessionCount());
+
+    publishStat("$SYS/broker/subscriptions/count", subscriptionStore->getSubscriptionCount());
 }
 
 void ThreadData::publishStat(const std::string &topic, uint64_t n)
