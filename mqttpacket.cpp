@@ -70,7 +70,7 @@ std::shared_ptr<MqttPacket> MqttPacket::getCopy(char new_max_qos) const
     {
         // if shrinking the packet doesn't alter the amount of bytes in the 'remaining length' part of the header, we can
         // just memmove+shrink the packet. This is because the packet id always is two bytes before the payload, so we just move the payload
-        // over it. When testing 100M copies, it went from 21000 ms to 10000 ms. In other words, about 100 µs to 200 µs per copy.
+        // over it. When testing 100M copies, it went from 21000 ms to 10000 ms. In other words, about 200 ns to 100 ns per copy.
         // There is an elaborate unit test to test this optimization.
         if ((fixed_header_length == 2 && bites.size() < 125))
         {
