@@ -108,16 +108,16 @@ void do_thread_work(ThreadData *threadData)
                             bool readSuccess = client->readFdIntoBuffer();
                             client->bufferToMqttPackets(packetQueueIn, client);
 
+                            for (MqttPacket &packet : packetQueueIn)
+                            {
+                                packet.handle();
+                            }
+
                             if (!readSuccess)
                             {
                                 client->setDisconnectReason("socket disconnect detected");
                                 threadData->removeClient(client);
                                 continue;
-                            }
-
-                            for (MqttPacket &packet : packetQueueIn)
-                            {
-                                packet.handle();
                             }
                         }
                         if ((cur_ev.events & EPOLLOUT) || ((cur_ev.events & EPOLLIN) && client->getSslWriteWantsRead()))
