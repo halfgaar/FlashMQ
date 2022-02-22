@@ -231,7 +231,7 @@ void Session::writePacket(MqttPacket &packet, char max_qos, std::shared_ptr<Mqtt
 
                 qosInFlightCounter++;
                 assert(c); // with requiresRetransmission==false, there must be a client.
-                c->writeMqttPacketAndBlameThisClient(packet);
+                count += c->writeMqttPacketAndBlameThisClient(packet);
             }
         }
     }
