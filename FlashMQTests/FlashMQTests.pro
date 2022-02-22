@@ -49,6 +49,7 @@ SOURCES +=  tst_maintests.cpp \
     ../qospacketqueue.cpp \
     ../threadglobals.cpp \
     ../threadloop.cpp \
+    ../publishcopyfactory.cpp \
     mainappthread.cpp \
     twoclienttestcontext.cpp
 
@@ -90,6 +91,7 @@ HEADERS += \
     ../qospacketqueue.h \
     ../threadglobals.h \
     ../threadloop.h \
+    ../publishcopyfactory.h \
     mainappthread.h \
     twoclienttestcontext.h
 

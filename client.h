@@ -37,6 +37,8 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "types.h"
 #include "iowrapper.h"
 
+#include "publishcopyfactory.h"
+
 #define MQTT_HEADER_LENGH 2
 
 
@@ -122,6 +124,7 @@ public:
     void writeText(const std::string &text);
     void writePingResp();
     int writeMqttPacket(const MqttPacket &packet);
+    int writeMqttPacketAndBlameThisClient(PublishCopyFactory &copyFactory, char max_qos, uint16_t packet_id);
     int writeMqttPacketAndBlameThisClient(const MqttPacket &packet);
     bool writeBufIntoFd();
     bool readyForDisconnecting() const { return disconnectWhenBytesWritten && writebuf.usedBytes() == 0; }

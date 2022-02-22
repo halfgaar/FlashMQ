@@ -27,6 +27,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "logger.h"
 #include "sessionsandsubscriptionsdb.h"
 #include "qospacketqueue.h"
+#include "publishcopyfactory.h"
 
 class Session
 {
@@ -39,7 +40,7 @@ class Session
     std::weak_ptr<Client> client;
     std::string client_id;
     std::string username;
-    QoSPacketQueue qosPacketQueue;
+    QoSPublishQueue qosPacketQueue;
     std::set<uint16_t> incomingQoS2MessageIds;
     std::set<uint16_t> outgoingQoS2MessageIds;
     std::mutex qosQueueMutex;
@@ -69,7 +70,7 @@ public:
     const std::string &getClientId() const { return client_id; }
     std::shared_ptr<Client> makeSharedClient() const;
     void assignActiveConnection(std::shared_ptr<Client> &client);
-    void writePacket(MqttPacket &packet, char max_qos, std::shared_ptr<MqttPacket> &downgradedQos0PacketCopy, uint64_t &count);
+    void writePacket(PublishCopyFactory &copyFactory, const char max_qos, uint64_t &count);
     void clearQosMessage(uint16_t packet_id);
     uint64_t sendPendingQosMessages();
     void touch(std::chrono::time_point<std::chrono::steady_clock> val);

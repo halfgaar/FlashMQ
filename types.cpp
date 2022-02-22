@@ -46,7 +46,7 @@ size_t SubAck::getLengthWithoutFixedHeader() const
     return result;
 }
 
-Publish::Publish(const std::string &topic, const std::string payload, char qos) :
+Publish::Publish(const std::string &topic, const std::string &payload, char qos) :
     topic(topic),
     payload(payload),
     qos(qos)

@@ -822,11 +822,6 @@ void MqttPacket::setDuplicate()
     }
 }
 
-size_t MqttPacket::getTotalMemoryFootprint()
-{
-    return bites.size() + sizeof(MqttPacket);
-}
-
 /**
  * @brief MqttPacket::getPayloadCopy takes part of the vector of bytes and returns it as a string.
  * @return

@@ -33,7 +33,7 @@ private slots:
     void onReceiverReceived(const QMQTT::Message& message);
 
 public:
-    explicit TwoClientTestContext(QObject *parent = nullptr);
+    explicit TwoClientTestContext(int clientNr = 0, QObject *parent = nullptr);
     void publish(const QString &topic, const QByteArray &payload);
     void publish(const QString &topic, const QByteArray &payload, bool retain);
     void publish(const QString &topic, const QByteArray &payload, const quint8 qos, bool retain);

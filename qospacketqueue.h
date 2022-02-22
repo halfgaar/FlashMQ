@@ -5,21 +5,39 @@
 
 #include "forward_declarations.h"
 #include "types.h"
+#include "publishcopyfactory.h"
 
-class QoSPacketQueue
+/**
+ * @brief The QueuedPublish class wraps the publish with a packet id.
+ *
+ * We don't want to store the packet id in the Publish object, because the packet id is determined/tracked per client/session.
+ */
+class QueuedPublish
 {
-    std::list<std::shared_ptr<MqttPacket>> queue; // Using list because it's easiest to maintain order [MQTT-4.6.0-6]
+    Publish publish;
+    uint16_t packet_id = 0;
+public:
+    QueuedPublish(Publish &&publish, uint16_t packet_id);
+
+    size_t getApproximateMemoryFootprint() const;
+    uint16_t getPacketId() const;
+    const Publish &getPublish() const;
+};
+
+class QoSPublishQueue
+{
+    std::list<QueuedPublish> queue; // Using list because it's easiest to maintain order [MQTT-4.6.0-6]
     ssize_t qosQueueBytes = 0;
 
 public:
     void erase(const uint16_t packet_id);
     size_t size() const;
     size_t getByteSize() const;
-    std::shared_ptr<MqttPacket> queuePacket(const MqttPacket &p, uint16_t id, char new_max_qos);
-    std::shared_ptr<MqttPacket> queuePacket(const Publish &pub, uint16_t id);
+    void queuePublish(PublishCopyFactory &copyFactory, uint16_t id, char new_max_qos);
+    void queuePublish(Publish &&pub, uint16_t id);
 
-    std::list<std::shared_ptr<MqttPacket>>::const_iterator begin() const;
-    std::list<std::shared_ptr<MqttPacket>>::const_iterator end() const;
+    std::list<QueuedPublish>::const_iterator begin() const;
+    std::list<QueuedPublish>::const_iterator end() const;
 };
 
 #endif // QOSPACKETQUEUE_H

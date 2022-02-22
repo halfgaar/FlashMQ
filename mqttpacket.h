@@ -120,7 +120,6 @@ public:
     void setPacketId(uint16_t packet_id);
     uint16_t getPacketId() const;
     void setDuplicate();
-    size_t getTotalMemoryFootprint();
     void readIntoBuf(CirBuf &buf) const;
     std::string getPayloadCopy() const;
     bool getRetain() const;

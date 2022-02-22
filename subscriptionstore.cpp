@@ -21,6 +21,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 
 #include "rwlockguard.h"
 #include "retainedmessagesdb.h"
+#include "publishcopyfactory.h"
 
 ReceivingSubscriber::ReceivingSubscriber(const std::shared_ptr<Session> &ses, char qos) :
     session(ses),
@@ -346,10 +347,10 @@ void SubscriptionStore::queuePacketAtSubscribers(const std::vector<std::string> 
         publishRecursively(subtopics.begin(), subtopics.end(), startNode, subscriberSessions);
     }
 
-    std::shared_ptr<MqttPacket> possibleQos0Copy;
+    PublishCopyFactory copyFactory(packet);
     for(const ReceivingSubscriber &x : subscriberSessions)
     {
-        x.session->writePacket(packet, x.qos, possibleQos0Copy, count);
+        x.session->writePacket(copyFactory, x.qos, count);
     }
 
     std::shared_ptr<Client> sender = packet.getSender();
@@ -425,8 +426,8 @@ uint64_t SubscriptionStore::giveClientRetainedMessages(const std::shared_ptr<Ses
 
     for(MqttPacket &packet : packetList)
     {
-        std::shared_ptr<MqttPacket> possibleQos0Copy;
-        ses->writePacket(packet, max_qos, possibleQos0Copy, count);
+        PublishCopyFactory copyFactory(packet);
+        ses->writePacket(copyFactory, max_qos, count);
     }
 
     return count;

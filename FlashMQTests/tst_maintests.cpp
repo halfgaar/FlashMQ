@@ -111,6 +111,8 @@ private slots:
     void testDowngradeQoSOnSubscribeQos1to0();
     void testDowngradeQoSOnSubscribeQos0to0();
 
+    void testNotMessingUpQosLevels();
+
 };
 
 MainTests::MainTests()
@@ -1037,8 +1039,8 @@ void MainTests::testSavingSessions()
         std::shared_ptr<Session> c1ses = c1->getSession();
         c1.reset();
         MqttPacket publishPacket(publish);
-        std::shared_ptr<MqttPacket> possibleQos0Copy;
-        c1ses->writePacket(publishPacket, 1, possibleQos0Copy, count);
+        PublishCopyFactory fac(publishPacket);
+        c1ses->writePacket(fac, 1, count);
 
         store->saveSessionsAndSubscriptions("/tmp/flashmqtests_sessions.db");
 
@@ -1239,6 +1241,71 @@ void MainTests::testDowngradeQoSOnSubscribeQos1to0()
 void MainTests::testDowngradeQoSOnSubscribeQos0to0()
 {
     testDowngradeQoSOnSubscribeHelper(0, 0);
+}
+
+/**
+ * @brief MainTests::testNotMessingUpQosLevels was divised because we optimize by preventing packet copies. This entails changing the vector of the original
+ * incoming packet, resulting in possibly changing values like QoS levels for later subscribers.
+ */
+void MainTests::testNotMessingUpQosLevels()
+{
+    const QString topic = "HK7c1MFu6kdT69fWY";
+    const QByteArray payload = "M4XK2LZ2Smaazba8RobZOgoe6CENxCll";
+
+    TwoClientTestContext testContextSender;
+    TwoClientTestContext testContextReceiver1(1);
+    TwoClientTestContext testContextReceiver2(2);
+    TwoClientTestContext testContextReceiver3(3);
+    TwoClientTestContext testContextReceiver4(4);
+    TwoClientTestContext testContextReceiver5(5);
+
+    testContextReceiver1.connectReceiver();
+    testContextReceiver1.subscribeReceiver(topic, 0);
+
+    testContextReceiver2.connectReceiver();
+    testContextReceiver2.subscribeReceiver(topic, 1);
+
+    testContextReceiver3.connectReceiver();
+    testContextReceiver3.subscribeReceiver(topic, 2);
+
+    testContextReceiver4.connectReceiver();
+    testContextReceiver4.subscribeReceiver(topic, 1);
+
+    testContextReceiver5.connectReceiver();
+    testContextReceiver5.subscribeReceiver(topic, 0);
+
+    testContextSender.connectSender();
+    testContextSender.publish(topic, payload, 2, false);
+
+    testContextReceiver1.waitReceiverReceived(1);
+    testContextReceiver2.waitReceiverReceived(1);
+    testContextReceiver3.waitReceiverReceived(1);
+    testContextReceiver4.waitReceiverReceived(1);
+    testContextReceiver5.waitReceiverReceived(1);
+
+    QCOMPARE(testContextReceiver1.receivedMessages.count(), 1);
+    QCOMPARE(testContextReceiver2.receivedMessages.count(), 1);
+    QCOMPARE(testContextReceiver3.receivedMessages.count(), 1);
+    QCOMPARE(testContextReceiver4.receivedMessages.count(), 1);
+    QCOMPARE(testContextReceiver5.receivedMessages.count(), 1);
+
+    QCOMPARE(testContextReceiver1.receivedMessages.first().qos(), 0);
+    QCOMPARE(testContextReceiver2.receivedMessages.first().qos(), 1);
+    QCOMPARE(testContextReceiver3.receivedMessages.first().qos(), 2);
+    QCOMPARE(testContextReceiver4.receivedMessages.first().qos(), 1);
+    QCOMPARE(testContextReceiver5.receivedMessages.first().qos(), 0);
+
+    QCOMPARE(testContextReceiver1.receivedMessages.first().payload(), payload);
+    QCOMPARE(testContextReceiver2.receivedMessages.first().payload(), payload);
+    QCOMPARE(testContextReceiver3.receivedMessages.first().payload(), payload);
+    QCOMPARE(testContextReceiver4.receivedMessages.first().payload(), payload);
+    QCOMPARE(testContextReceiver5.receivedMessages.first().payload(), payload);
+
+    QCOMPARE(testContextReceiver1.receivedMessages.first().id(), 0);
+    QCOMPARE(testContextReceiver2.receivedMessages.first().id(), 1);
+    QCOMPARE(testContextReceiver3.receivedMessages.first().id(), 1);
+    QCOMPARE(testContextReceiver4.receivedMessages.first().id(), 1);
+    QCOMPARE(testContextReceiver5.receivedMessages.first().id(), 0);
 }
 
 

@@ -58,6 +58,7 @@ add_executable(FlashMQ
     qospacketqueue.h
     threadglobals.h
     threadloop.h
+    publishcopyfactory.h
 
     mainapp.cpp
     main.cpp
@@ -95,6 +96,7 @@ add_executable(FlashMQ
     qospacketqueue.cpp
     threadglobals.cpp
     threadloop.cpp
+    publishcopyfactory.cpp
 
     )
 

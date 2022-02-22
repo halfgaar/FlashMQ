@@ -101,7 +101,7 @@ public:
     std::string payload;
     char qos = 0;
     bool retain = false; // Note: existing subscribers don't get publishes of retained messages with retain=1. [MQTT-3.3.1-9]
-    Publish(const std::string &topic, const std::string payload, char qos);
+    Publish(const std::string &topic, const std::string &payload, char qos);
     size_t getLengthWithoutFixedHeader() const;
 };
 

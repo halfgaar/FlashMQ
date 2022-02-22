@@ -101,8 +101,7 @@ Session::Session(const Session &other)
     this->nextPacketId = other.nextPacketId;
     this->lastTouched = other.lastTouched;
 
-    // To be fully correct, we should copy the individual packets, but copying sessions is only done for saving them, and I know
-    // that no member of MqttPacket changes in the QoS process, so we can just keep the shared pointer to the original.
+    // TODO: see git history for a change here. We now copy the whole queued publish. Do we want to address that?
     this->qosPacketQueue = other.qosPacketQueue;
 }
 
@@ -145,33 +144,25 @@ void Session::assignActiveConnection(std::shared_ptr<Client> &client)
  * @param retain. Keep MQTT-3.3.1-9 in mind: existing subscribers don't get retain=1 on packets.
  * @param count. Reference value is updated. It's for statistics.
  */
-void Session::writePacket(MqttPacket &packet, char max_qos, std::shared_ptr<MqttPacket> &downgradedQos0PacketCopy, uint64_t &count)
+void Session::writePacket(PublishCopyFactory &copyFactory, const char max_qos, uint64_t &count)
 {
     assert(max_qos <= 2);
-    const char effectiveQos = std::min<char>(packet.getQos(), max_qos);
+
+    const char effectiveQos = copyFactory.getEffectiveQos(max_qos);
 
     const Settings *settings = ThreadGlobals::getSettings();
 
     Authentication *_auth = ThreadGlobals::getAuth();
     assert(_auth);
     Authentication &auth = *_auth;
-    if (auth.aclCheck(client_id, username, packet.getTopic(), packet.getSubtopics(), AclAccess::read, effectiveQos, packet.getRetain()) == AuthResult::success)
+    if (auth.aclCheck(client_id, username, copyFactory.getTopic(), copyFactory.getSubtopics(), AclAccess::read, effectiveQos, copyFactory.getRetain()) == AuthResult::success)
     {
         std::shared_ptr<Client> c = makeSharedClient();
         if (effectiveQos == 0)
         {
             if (c)
             {
-                const MqttPacket *packetToSend = &packet;
-
-                if (max_qos < packet.getQos())
-                {
-                    if (!downgradedQos0PacketCopy)
-                        downgradedQos0PacketCopy = packet.getCopy(max_qos);
-                    packetToSend = downgradedQos0PacketCopy.get();
-                }
-
-                count += c->writeMqttPacketAndBlameThisClient(*packetToSend);
+                count += c->writeMqttPacketAndBlameThisClient(copyFactory, effectiveQos, 0);
             }
         }
         else if (effectiveQos > 0)
@@ -195,12 +186,12 @@ void Session::writePacket(MqttPacket &packet, char max_qos, std::shared_ptr<Mqtt
                 }
 
                 increasePacketId();
-                std::shared_ptr<MqttPacket> copyPacket = qosPacketQueue.queuePacket(packet, nextPacketId, effectiveQos);
+
+                qosPacketQueue.queuePublish(copyFactory, nextPacketId, effectiveQos);
 
                 if (c)
                 {
-                    count += c->writeMqttPacketAndBlameThisClient(*copyPacket.get());
-                    copyPacket->setDuplicate(); // Any dealings with this packet from here will be a duplicate.
+                    count += c->writeMqttPacketAndBlameThisClient(copyFactory, effectiveQos, nextPacketId);
                 }
             }
             else
@@ -224,14 +215,9 @@ void Session::writePacket(MqttPacket &packet, char max_qos, std::shared_ptr<Mqtt
 
                 increasePacketId();
 
-                // This changes the packet ID and QoS of the incoming packet for each subscriber, but because we don't store that packet anywhere,
-                // that should be fine.
-                packet.setPacketId(nextPacketId);
-                packet.setQos(effectiveQos);
-
                 qosInFlightCounter++;
                 assert(c); // with requiresRetransmission==false, there must be a client.
-                count += c->writeMqttPacketAndBlameThisClient(packet);
+                count += c->writeMqttPacketAndBlameThisClient(copyFactory, effectiveQos, nextPacketId);
             }
         }
     }
@@ -267,10 +253,12 @@ uint64_t Session::sendPendingQosMessages()
     if (c)
     {
         std::lock_guard<std::mutex> locker(qosQueueMutex);
-        for (const std::shared_ptr<MqttPacket> &qosMessage : qosPacketQueue)
+        for (const QueuedPublish &queuedPublish : qosPacketQueue)
         {
-            count += c->writeMqttPacketAndBlameThisClient(*qosMessage.get());
-            qosMessage->setDuplicate(); // Any dealings with this packet from here will be a duplicate.
+            MqttPacket p(queuedPublish.getPublish());
+            p.setDuplicate();
+
+            count += c->writeMqttPacketAndBlameThisClient(p);
         }
 
         for (const uint16_t packet_id : outgoingQoS2MessageIds)

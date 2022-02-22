@@ -207,6 +207,21 @@ int Client::writeMqttPacket(const MqttPacket &packet)
     return 1;
 }
 
+int Client::writeMqttPacketAndBlameThisClient(PublishCopyFactory &copyFactory, char max_qos, uint16_t packet_id)
+{
+    MqttPacket &p = copyFactory.getOptimumPacket(max_qos);
+
+    if (p.getQos() > 0)
+    {
+        // This may change the packet ID and QoS of the incoming packet for each subscriber, but because we don't store that packet anywhere,
+        // that should be fine.
+        p.setPacketId(packet_id);
+        p.setQos(max_qos);
+    }
+
+    return writeMqttPacketAndBlameThisClient(p);
+}
+
 // Helper method to avoid the exception ending up at the sender of messages, which would then get disconnected.
 int Client::writeMqttPacketAndBlameThisClient(const MqttPacket &packet)
 {

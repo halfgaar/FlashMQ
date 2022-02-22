@@ -116,7 +116,7 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV1()
 
                 Publish pub(topic, payload, qos);
                 logger->logf(LOG_DEBUG, "Loaded QoS %d message for topic '%s'.", pub.qos, pub.topic.c_str());
-                ses->qosPacketQueue.queuePacket(pub, id);
+                ses->qosPacketQueue.queuePublish(std::move(pub), id);
             }
 
             const uint32_t nrOfIncomingPacketIds = readUint32(eofFound);
@@ -215,23 +215,24 @@ void SessionsAndSubscriptionsDB::saveData(const std::vector<std::unique_ptr<Sess
         size_t qosPacketsCounted = 0;
         writeUint32(qosPacketsExpected);
 
-        for (const std::shared_ptr<MqttPacket> &p: ses->qosPacketQueue)
+        for (const QueuedPublish &p: ses->qosPacketQueue)
         {
-            logger->logf(LOG_DEBUG, "Saving QoS %d message for topic '%s'.", p->getQos(), p->getTopic().c_str());
+            const Publish &pub = p.getPublish();
+
+            logger->logf(LOG_DEBUG, "Saving QoS %d message for topic '%s'.", pub.qos, pub.topic.c_str());
 
             qosPacketsCounted++;
 
-            writeUint16(p->getPacketId());
+            writeUint16(p.getPacketId());
 
-            writeUint32(p->getTopic().length());
-            std::string payload = p->getPayloadCopy();
-            writeUint32(payload.size());
+            writeUint32(pub.topic.length());
+            writeUint32(pub.payload.size());
 
-            const char qos = p->getQos();
+            const char qos = pub.qos;
             writeCheck(&qos, 1, 1, f);
 
-            writeCheck(p->getTopic().c_str(), 1, p->getTopic().length(), f);
-            writeCheck(payload.c_str(), 1, payload.length(), f);
+            writeCheck(pub.topic.c_str(), 1, pub.topic.length(), f);
+            writeCheck(pub.payload.c_str(), 1, pub.payload.length(), f);
         }
 
         assert(qosPacketsExpected == qosPacketsCounted);

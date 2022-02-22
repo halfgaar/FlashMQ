@@ -22,14 +22,14 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 
 // TODO: port to QMqttClient that newer Qts now have?
 
-TwoClientTestContext::TwoClientTestContext(QObject *parent) : QObject(parent)
+TwoClientTestContext::TwoClientTestContext(int clientNr, QObject *parent) : QObject(parent)
 {
     QHostInfo targetHostInfo = QHostInfo::fromName("localhost");
     QHostAddress targetHost(targetHostInfo.addresses().first());
     sender.reset(new QMQTT::Client(targetHost));
-    sender->setClientId("Sender");
+    sender->setClientId(QString("Sender%1").arg(clientNr));
     receiver.reset(new QMQTT::Client(targetHost));
-    receiver->setClientId("Receiver");
+    receiver->setClientId(QString("Receiver%1").arg(clientNr));
 
     connect(sender.data(), &QMQTT::Client::error, this, &TwoClientTestContext::onClientError);
     connect(receiver.data(), &QMQTT::Client::error, this, &TwoClientTestContext::onClientError);

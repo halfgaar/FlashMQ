@@ -4,16 +4,39 @@
 
 #include "mqttpacket.h"
 
-void QoSPacketQueue::erase(const uint16_t packet_id)
+QueuedPublish::QueuedPublish(Publish &&publish, uint16_t packet_id) :
+    publish(std::move(publish)),
+    packet_id(packet_id)
+{
+
+}
+
+uint16_t QueuedPublish::getPacketId() const
+{
+    return this->packet_id;
+}
+
+const Publish &QueuedPublish::getPublish() const
+{
+    return publish;
+}
+
+size_t QueuedPublish::getApproximateMemoryFootprint() const
+{
+    return publish.topic.length() + publish.payload.length();
+}
+
+
+void QoSPublishQueue::erase(const uint16_t packet_id)
 {
     auto it = queue.begin();
     auto end = queue.end();
     while (it != end)
     {
-        std::shared_ptr<MqttPacket> &p = *it;
-        if (p->getPacketId() == packet_id)
+        QueuedPublish &p = *it;
+        if (p.getPacketId() == packet_id)
         {
-            size_t mem = p->getTotalMemoryFootprint();
+            size_t mem = p.getApproximateMemoryFootprint();
             qosQueueBytes -= mem;
             assert(qosQueueBytes >= 0);
             if (qosQueueBytes < 0) // Should not happen, but correcting a hypothetical bug is fine for this purpose.
@@ -28,50 +51,40 @@ void QoSPacketQueue::erase(const uint16_t packet_id)
     }
 }
 
-size_t QoSPacketQueue::size() const
+size_t QoSPublishQueue::size() const
 {
     return queue.size();
 }
 
-size_t QoSPacketQueue::getByteSize() const
+size_t QoSPublishQueue::getByteSize() const
 {
     return qosQueueBytes;
 }
 
-/**
- * @brief QoSPacketQueue::queuePacket makes a copy of the packet because it has state for the receiver in question.
- * @param p
- * @param id
- * @return the packet copy.
- */
-std::shared_ptr<MqttPacket> QoSPacketQueue::queuePacket(const MqttPacket &p, uint16_t id, char new_max_qos)
+void QoSPublishQueue::queuePublish(PublishCopyFactory &copyFactory, uint16_t id, char new_max_qos)
 {
-    assert(p.getQos() > 0);
+    assert(new_max_qos > 0);
+    assert(id > 0);
 
-    std::shared_ptr<MqttPacket> copyPacket = p.getCopy(new_max_qos);
-    copyPacket->setPacketId(id);
-    queue.push_back(copyPacket);
-    qosQueueBytes += copyPacket->getTotalMemoryFootprint();
-    return copyPacket;
+    Publish pub = copyFactory.getPublish();
+    queue.emplace_back(std::move(pub), id);
+    qosQueueBytes += queue.back().getApproximateMemoryFootprint();
 }
 
-std::shared_ptr<MqttPacket> QoSPacketQueue::queuePacket(const Publish &pub, uint16_t id)
+void QoSPublishQueue::queuePublish(Publish &&pub, uint16_t id)
 {
-    assert(pub.qos > 0);
+    assert(id > 0);
 
-    std::shared_ptr<MqttPacket> copyPacket(new MqttPacket(pub));
-    copyPacket->setPacketId(id);
-    queue.push_back(copyPacket);
-    qosQueueBytes += copyPacket->getTotalMemoryFootprint();
-    return copyPacket;
+    queue.emplace_back(std::move(pub), id);
+    qosQueueBytes += queue.back().getApproximateMemoryFootprint();
 }
 
-std::list<std::shared_ptr<MqttPacket>>::const_iterator QoSPacketQueue::begin() const
+std::list<QueuedPublish>::const_iterator QoSPublishQueue::begin() const
 {
     return queue.cbegin();
 }
 
-std::list<std::shared_ptr<MqttPacket>>::const_iterator QoSPacketQueue::end() const
+std::list<QueuedPublish>::const_iterator QoSPublishQueue::end() const
 {
     return queue.cend();
 }
