@@ -1155,6 +1155,7 @@ void testCopyPacketHelper(const std::string &topic, char from_qos, char to_qos, 
         Publish pubReference(topic, payloadOne, to_qos);
         pubReference.retain = retain;
         MqttPacket packetReference(pubReference);
+        QCOMPARE(packetReference.getQos(), copiedPacketOne->getQos());
         if (to_qos > 0)
             packetReference.setPacketId(pack_id);
         CirBuf bufOfReference(1024);

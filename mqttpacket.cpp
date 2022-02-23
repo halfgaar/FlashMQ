@@ -84,6 +84,7 @@ std::shared_ptr<MqttPacket> MqttPacket::getCopy(char new_max_qos) const
                 std::memmove(&p->bites[packet_id_pos], &p->bites[packet_id_pos+2], payloadLen);
             p->bites.erase(p->bites.end() - 2, p->bites.end());
             p->packet_id_pos = 0;
+            p->qos = 0;
             p->payloadStart -= 2;
             if (pos > p->bites.size()) // pos can possible be set elsewhere, so we only set it back if it was after the payload.
                 p->pos -= 2;
@@ -120,7 +121,7 @@ MqttPacket::MqttPacket(const ConnAck &connAck) :
 {
     fixed_header_length = 2;
     packetType = PacketType::CONNACK;
-    char first_byte = static_cast<char>(packetType) << 4;
+    first_byte = static_cast<char>(packetType) << 4;
     writeByte(first_byte);
     writeByte(2); // length is always 2.
     writeByte(connAck.session_present & 0b00000001); // all connect-ack flags are 0, except session-present. [MQTT-3.2.2.1]
@@ -989,6 +990,8 @@ void MqttPacket::setRetain()
 
 void MqttPacket::readIntoBuf(CirBuf &buf) const
 {
+    assert(packetType != PacketType::PUBLISH || (first_byte & 0b00000110) >> 1 == qos);
+
     buf.ensureFreeSpace(getSizeIncludingNonPresentHeader());
 
     if (!containsFixedHeader())
@@ -998,6 +1001,10 @@ void MqttPacket::readIntoBuf(CirBuf &buf) const
         buf.headPtr()[0] = getFirstByte();
         buf.advanceHead(1);
         buf.write(remainingLength.bytes, remainingLength.len);
+    }
+    else
+    {
+        assert(bites.data()[0] == first_byte);
     }
 
     buf.write(bites.data(), bites.size());
