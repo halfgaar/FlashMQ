@@ -406,8 +406,8 @@ void ConfigFileParser::loadFile(bool test)
 
                 if (key == "expire_sessions_after_seconds")
                 {
-                    int64_t newVal = std::stoi(value);
-                    if (newVal < 0 || (newVal > 0 && newVal <= 300)) // 0 means disable
+                    uint32_t newVal = std::stoi(value);
+                    if (newVal > 0 && newVal <= 300) // 0 means disable
                     {
                         throw ConfigFileException(formatString("expire_sessions_after_seconds value '%d' is invalid. Valid values are 0, or 300 or higher.", newVal));
                     }

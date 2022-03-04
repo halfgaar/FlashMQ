@@ -46,6 +46,8 @@ class Session
     std::mutex qosQueueMutex;
     uint16_t nextPacketId = 0;
     uint16_t qosInFlightCounter = 0;
+    uint32_t sessionExpiryInterval = 0;
+    uint16_t maxQosMsgPending;
     uint16_t QoSLogPrintedAtId = 0;
     std::chrono::time_point<std::chrono::steady_clock> lastTouched = std::chrono::steady_clock::now();
     Logger *logger = Logger::getInstance();
@@ -75,7 +77,7 @@ public:
     uint64_t sendPendingQosMessages();
     void touch(std::chrono::time_point<std::chrono::steady_clock> val);
     void touch();
-    bool hasExpired(int expireAfterSeconds);
+    bool hasExpired() const;
 
     void addIncomingQoS2MessageId(uint16_t packet_id);
     bool incomingQoS2MessageIdInTransit(uint16_t packet_id);
@@ -85,6 +87,8 @@ public:
     void removeOutgoingQoS2MessageId(u_int16_t packet_id);
 
     bool getCleanSession() const;
+
+    void setSessionProperties(uint16_t maxQosPackets, uint32_t sessionExpiryInterval);
 };
 
 #endif // SESSION_H

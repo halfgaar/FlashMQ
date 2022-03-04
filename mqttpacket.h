@@ -63,7 +63,9 @@ class MqttPacket
     void writeUint16(uint16_t x);
     void writeBytes(const char *b, size_t len);
     uint16_t readTwoBytesToUInt16();
+    uint32_t readFourBytesToUint32();
     size_t remainingAfterPos();
+    size_t decodeVariableByteIntAtPos();
 
     void calculateRemainingLength();
     void pubCommonConstruct(const uint16_t packet_id, PacketType packetType, uint8_t firstByteDefaultBits = 0);

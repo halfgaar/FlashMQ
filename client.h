@@ -52,7 +52,8 @@ class Client
     ProtocolVersion protocolVersion = ProtocolVersion::None;
 
     const size_t initialBufferSize = 0;
-    const size_t maxPacketSize = 0;
+    uint32_t maxPacketSize = 0;
+    uint16_t maxTopicAliases = 0;
 
     IoWrapper ioWrapper;
     std::string transportStr;
@@ -108,6 +109,8 @@ public:
     bool readFdIntoBuffer();
     void bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn, std::shared_ptr<Client> &sender);
     void setClientProperties(ProtocolVersion protocolVersion, const std::string &clientId, const std::string username, bool connectPacketSeen, uint16_t keepalive, bool cleanSession);
+    void setClientProperties(ProtocolVersion protocolVersion, const std::string &clientId, const std::string username, bool connectPacketSeen, uint16_t keepalive,
+                             bool cleanSession, uint32_t maxPacketSize, uint16_t maxTopicAliases);
     void setWill(const std::string &topic, const std::string &payload, bool retain, char qos);
     void clearWill();
     void setAuthenticated(bool value) { authenticated = value;}

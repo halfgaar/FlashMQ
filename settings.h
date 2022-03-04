@@ -52,11 +52,11 @@ public:
     std::string mosquittoAclFile;
     bool allowAnonymous = false;
     int rlimitNoFile = 1000000;
-    uint64_t expireSessionsAfterSeconds = 1209600;
+    uint32_t expireSessionsAfterSeconds = 1209600;
     int authPluginTimerPeriod = 60;
     std::string storageDir;
     int threadCount = 0;
-    uint maxQosMsgPendingPerClient = 512;
+    uint16_t maxQosMsgPendingPerClient = 512;
     uint maxQosBytesPendingPerClient = 65536;
     std::list<std::shared_ptr<Listener>> listeners; // Default one is created later, when none are defined.
 

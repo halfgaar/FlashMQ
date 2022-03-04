@@ -713,7 +713,7 @@ void MainApp::queueCleanup()
 {
     std::lock_guard<std::mutex> locker(eventMutex);
 
-    auto f = std::bind(&SubscriptionStore::removeExpiredSessionsClients, subscriptionStore.get(), settings->expireSessionsAfterSeconds);
+    auto f = std::bind(&SubscriptionStore::removeExpiredSessionsClients, subscriptionStore.get());
     taskQueue.push_front(f);
 
     wakeUpThread();

@@ -20,12 +20,17 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "session.h"
 #include "client.h"
 #include "threadglobals.h"
+#include "threadglobals.h"
 
 std::chrono::time_point<std::chrono::steady_clock> appStartTime = std::chrono::steady_clock::now();
 
 Session::Session()
 {
+    const Settings &settings = *ThreadGlobals::getSettings();
 
+    // Sessions also get defaults from the handleConnect() method, but when you create sessions elsewhere, we do need some sensible defaults.
+    this->maxQosMsgPending = settings.maxQosMsgPendingPerClient;
+    this->sessionExpiryInterval = settings.expireSessionsAfterSeconds;
 }
 
 int64_t Session::getProgramStartedAtUnixTimestamp()
@@ -174,7 +179,7 @@ void Session::writePacket(PublishCopyFactory &copyFactory, const char max_qos, u
                 std::unique_lock<std::mutex> locker(qosQueueMutex);
 
                 const size_t totalQosPacketsInTransit = qosPacketQueue.size() + incomingQoS2MessageIds.size() + outgoingQoS2MessageIds.size();
-                if (totalQosPacketsInTransit >= settings->maxQosMsgPendingPerClient
+                if (totalQosPacketsInTransit >= maxQosMsgPending
                     || (qosPacketQueue.getByteSize() >= settings->maxQosBytesPendingPerClient && qosPacketQueue.size() > 0))
                 {
                     if (QoSLogPrintedAtId != nextPacketId)
@@ -286,9 +291,9 @@ void Session::touch()
     lastTouched = std::chrono::steady_clock::now();
 }
 
-bool Session::hasExpired(int expireAfterSeconds)
+bool Session::hasExpired() const
 {
-    std::chrono::seconds expireAfter(expireAfterSeconds);
+    std::chrono::seconds expireAfter(sessionExpiryInterval);
     std::chrono::time_point<std::chrono::steady_clock> now = std::chrono::steady_clock::now();
     return client.expired() && (lastTouched + expireAfter) < now;
 }
@@ -346,4 +351,10 @@ bool Session::getCleanSession() const
         return false;
 
     return c->getCleanSession();
+}
+
+void Session::setSessionProperties(uint16_t maxQosPackets, uint32_t sessionExpiryInterval)
+{
+    this->maxQosMsgPending = maxQosPackets;
+    this->sessionExpiryInterval = sessionExpiryInterval;
 }

@@ -119,6 +119,7 @@ public:
     void addSubscription(std::shared_ptr<Client> &client, const std::string &topic, const std::vector<std::string> &subtopics, char qos);
     void removeSubscription(std::shared_ptr<Client> &client, const std::string &topic);
     void registerClientAndKickExistingOne(std::shared_ptr<Client> &client);
+    void registerClientAndKickExistingOne(std::shared_ptr<Client> &client, uint16_t maxQosPackets, uint32_t sessionExpiryInterval);
     bool sessionPresent(const std::string &clientid);
 
     void queuePacketAtSubscribers(const std::vector<std::string> &subtopics, MqttPacket &packet, bool dollar = false);
@@ -129,7 +130,7 @@ public:
     void setRetainedMessage(const std::string &topic, const std::vector<std::string> &subtopics, const std::string &payload, char qos);
 
     void removeSession(const std::string &clientid);
-    void removeExpiredSessionsClients(int expireSessionsAfterSeconds);
+    void removeExpiredSessionsClients();
 
     int64_t getRetainedMessageCount() const;
     uint64_t getSessionCount() const;

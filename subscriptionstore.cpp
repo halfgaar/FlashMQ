@@ -22,6 +22,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "rwlockguard.h"
 #include "retainedmessagesdb.h"
 #include "publishcopyfactory.h"
+#include "threadglobals.h"
 
 ReceivingSubscriber::ReceivingSubscriber(const std::shared_ptr<Session> &ses, char qos) :
     session(ses),
@@ -200,8 +201,14 @@ void SubscriptionStore::removeSubscription(std::shared_ptr<Client> &client, cons
 
 }
 
-// Removes an existing client when it already exists [MQTT-3.1.4-2].
 void SubscriptionStore::registerClientAndKickExistingOne(std::shared_ptr<Client> &client)
+{
+    const Settings *settings = ThreadGlobals::getSettings();
+    registerClientAndKickExistingOne(client, settings->maxQosMsgPendingPerClient, settings->expireSessionsAfterSeconds);
+}
+
+// Removes an existing client when it already exists [MQTT-3.1.4-2].
+void SubscriptionStore::registerClientAndKickExistingOne(std::shared_ptr<Client> &client, uint16_t maxQosPackets, uint32_t sessionExpiryInterval)
 {
     RWLockGuard lock_guard(&subscriptionsRwlock);
     lock_guard.wrlock();
@@ -247,6 +254,7 @@ void SubscriptionStore::registerClientAndKickExistingOne(std::shared_ptr<Client>
 
     session->assignActiveConnection(client);
     client->assignSession(session);
+    session->setSessionProperties(maxQosPackets, sessionExpiryInterval);
     uint64_t count = session->sendPendingQosMessages();
     client->getThreadData()->incrementSentMessageCount(count);
 }
@@ -533,8 +541,12 @@ void SubscriptionStore::removeSession(const std::string &clientid)
     }
 }
 
-// This is not MQTT compliant, but the standard doesn't keep real world constraints into account.
-void SubscriptionStore::removeExpiredSessionsClients(int expireSessionsAfterSeconds)
+/**
+ * @brief SubscriptionStore::removeExpiredSessionsClients removes expired sessions.
+ *
+ * For Mqtt3 this is non-standard, but the standard doesn't keep real world constraints into account.
+ */
+void SubscriptionStore::removeExpiredSessionsClients()
 {
     RWLockGuard lock_guard(&subscriptionsRwlock);
     lock_guard.wrlock();
@@ -546,7 +558,7 @@ void SubscriptionStore::removeExpiredSessionsClients(int expireSessionsAfterSeco
     {
         std::shared_ptr<Session> &session = session_it->second;
 
-        if (session->hasExpired(expireSessionsAfterSeconds))
+        if (session->hasExpired())
         {
             logger->logf(LOG_DEBUG, "Removing expired session from store %s", session->getClientId().c_str());
             session_it = sessionsById.erase(session_it);

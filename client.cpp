@@ -25,6 +25,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 
 #include "logger.h"
 #include "utils.h"
+#include "threadglobals.h"
 
 Client::Client(int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, bool websocket, struct sockaddr *addr, std::shared_ptr<Settings> settings, bool fuzzMode) :
     fd(fd),
@@ -422,12 +423,24 @@ void Client::bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn, std::sh
 
 void Client::setClientProperties(ProtocolVersion protocolVersion, const std::string &clientId, const std::string username, bool connectPacketSeen, uint16_t keepalive, bool cleanSession)
 {
+    const Settings *settings = ThreadGlobals::getSettings();
+
+    setClientProperties(protocolVersion, clientId, username, connectPacketSeen, keepalive, cleanSession,
+                        settings->maxPacketSize, 0);
+}
+
+
+void Client::setClientProperties(ProtocolVersion protocolVersion, const std::string &clientId, const std::string username, bool connectPacketSeen, uint16_t keepalive,
+                                 bool cleanSession, uint32_t maxPacketSize, uint16_t maxTopicAliases)
+{
     this->protocolVersion = protocolVersion;
     this->clientid = clientId;
     this->username = username;
     this->connectPacketSeen = connectPacketSeen;
     this->keepalive = keepalive;
     this->cleanSession = cleanSession;
+    this->maxPacketSize = maxPacketSize;
+    this->maxTopicAliases = maxTopicAliases;
 }
 
 void Client::setWill(const std::string &topic, const std::string &payload, bool retain, char qos)

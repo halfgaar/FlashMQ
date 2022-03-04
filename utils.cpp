@@ -662,6 +662,8 @@ const std::string protocolVersionString(ProtocolVersion p)
         return "3.1";
     case ProtocolVersion::Mqtt311:
         return "3.1.1";
+    case ProtocolVersion::Mqtt5:
+        return "5.0";
     default:
         return "unknown";
     }

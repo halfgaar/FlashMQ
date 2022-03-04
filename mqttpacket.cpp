@@ -321,7 +321,7 @@ void MqttPacket::handleConnect()
 
     uint16_t variable_header_length = readTwoBytesToUInt16();
 
-    const Settings &settings = sender->getThreadData()->settingsLocalCopy;
+    const Settings &settings = *ThreadGlobals::getSettings();
 
     if (variable_header_length == 4 || variable_header_length == 6)
     {
@@ -330,9 +330,12 @@ void MqttPacket::handleConnect()
 
         char protocol_level = readByte();
 
-        if (magic_marker == "MQTT" && protocol_level == 0x04)
+        if (magic_marker == "MQTT")
         {
-            protocolVersion = ProtocolVersion::Mqtt311;
+            if (protocol_level == 0x04)
+                protocolVersion = ProtocolVersion::Mqtt311;
+            if (protocol_level == 0x05)
+                protocolVersion = ProtocolVersion::Mqtt5;
         }
         else if (magic_marker == "MQIsdp" && protocol_level == 0x03)
         {
@@ -366,6 +369,54 @@ void MqttPacket::handleConnect()
             throw ProtocolError("Invalid QoS for will.");
 
         uint16_t keep_alive = readTwoBytesToUInt16();
+
+        uint16_t max_qos_packets = settings.maxQosMsgPendingPerClient;
+        uint32_t session_expire = settings.expireSessionsAfterSeconds > 0 ? settings.expireSessionsAfterSeconds : std::numeric_limits<uint32_t>::max();
+        uint32_t max_packet_size = settings.maxPacketSize;
+        uint16_t max_topic_aliases = 0;
+        bool request_response_information = false;
+        bool request_problem_information = false;
+
+        if (protocolVersion == ProtocolVersion::Mqtt5)
+        {
+            const size_t proplen = decodeVariableByteIntAtPos();
+            const size_t prop_end_at = pos + proplen;
+
+            while (pos < prop_end_at)
+            {
+                const Mqtt5Properties prop = static_cast<Mqtt5Properties>(readByte());
+
+                switch (prop)
+                {
+                case Mqtt5Properties::SessionExpiryInterval:
+                    session_expire = std::min<uint32_t>(readFourBytesToUint32(), session_expire);
+                    break;
+                case Mqtt5Properties::ReceiveMaximum:
+                    max_qos_packets = std::min<int16_t>(readTwoBytesToUInt16(), max_qos_packets);
+                    break;
+                case Mqtt5Properties::MaximumPacketSize:
+                    max_packet_size = std::min<uint32_t>(readFourBytesToUint32(), max_packet_size);
+                    break;
+                case Mqtt5Properties::TopicAliasMaximum:
+                    max_topic_aliases = readTwoBytesToUInt16();
+                    break;
+                case Mqtt5Properties::RequestResponseInformation:
+                    request_response_information = !!readByte();
+                    break;
+                case Mqtt5Properties::RequestProblemInformation:
+                    request_problem_information = !!readByte();
+                    break;
+                case Mqtt5Properties::UserProperty:
+                    break;
+                case Mqtt5Properties::AuthenticationMethod:
+                    break;
+                case Mqtt5Properties::AuthenticationData:
+                    break;
+                default:
+                    throw ProtocolError("Invalid connect property.");
+                }
+            }
+        }
 
         uint16_t client_id_length = readTwoBytesToUInt16();
         std::string client_id(readBytes(client_id_length), client_id_length);
@@ -442,7 +493,7 @@ void MqttPacket::handleConnect()
             client_id = getSecureRandomString(23);
         }
 
-        sender->setClientProperties(protocolVersion, client_id, username, true, keep_alive, clean_session);
+        sender->setClientProperties(protocolVersion, client_id, username, true, keep_alive, clean_session, max_packet_size, max_topic_aliases);
         sender->setWill(will_topic, will_payload, will_retain, will_qos);
 
         bool accessGranted = false;
@@ -475,7 +526,7 @@ void MqttPacket::handleConnect()
             sender->writeMqttPacket(response);
             logger->logf(LOG_NOTICE, "Client '%s' logged in successfully", sender->repr().c_str());
 
-            subscriptionStore->registerClientAndKickExistingOne(sender);
+            subscriptionStore->registerClientAndKickExistingOne(sender, max_qos_packets, session_expire);
         }
         else
         {
@@ -921,9 +972,43 @@ uint16_t MqttPacket::readTwoBytesToUInt16()
     return i;
 }
 
+uint32_t MqttPacket::readFourBytesToUint32()
+{
+    if (pos + 4 > bites.size())
+        throw ProtocolError("Invalid packet: header specifies invalid length.");
+
+    const uint8_t a = bites[pos++];
+    const uint8_t b = bites[pos++];
+    const uint8_t c = bites[pos++];
+    const uint8_t d = bites[pos++];
+    uint32_t i = (a << 24) | (b << 16) | (c << 8) | d;
+    return i;
+}
+
 size_t MqttPacket::remainingAfterPos()
 {
     return bites.size() - pos;
+}
+
+size_t MqttPacket::decodeVariableByteIntAtPos()
+{
+    uint64_t multiplier = 1;
+    size_t value = 0;
+    uint8_t encodedByte = 0;
+    do
+    {
+        if (pos >= bites.size())
+            throw ProtocolError("Variable byte int length goes out of packet. Corrupt.");
+
+        encodedByte = bites[pos++];
+        value += (encodedByte & 127) * multiplier;
+        multiplier *= 128;
+        if (multiplier > 128*128*128*128)
+            throw ProtocolError("Malformed Remaining Length.");
+    }
+    while ((encodedByte & 128) != 0);
+
+    return value;
 }
 
 bool MqttPacket::getRetain() const
