@@ -59,6 +59,7 @@ add_executable(FlashMQ
     threadglobals.h
     threadloop.h
     publishcopyfactory.h
+    variablebyteint.h
 
     mainapp.cpp
     main.cpp
@@ -97,6 +98,7 @@ add_executable(FlashMQ
     threadglobals.cpp
     threadloop.cpp
     publishcopyfactory.cpp
+    variablebyteint.cpp
 
     )
 

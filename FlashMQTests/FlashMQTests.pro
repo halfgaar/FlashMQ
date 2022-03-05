@@ -50,6 +50,7 @@ SOURCES +=  tst_maintests.cpp \
     ../threadglobals.cpp \
     ../threadloop.cpp \
     ../publishcopyfactory.cpp \
+    ../variablebyteint.cpp \
     mainappthread.cpp \
     twoclienttestcontext.cpp
 
@@ -92,6 +93,7 @@ HEADERS += \
     ../threadglobals.h \
     ../threadloop.h \
     ../publishcopyfactory.h \
+    ../variablebyteint.h \
     mainappthread.h \
     twoclienttestcontext.h
 

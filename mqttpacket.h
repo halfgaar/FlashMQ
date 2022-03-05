@@ -33,13 +33,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "logger.h"
 #include "mainapp.h"
 
-struct RemainingLength
-{
-    char bytes[4];
-    int len = 0;
-public:
-    RemainingLength();
-};
+#include "variablebyteint.h"
 
 class MqttPacket
 {
@@ -51,7 +45,7 @@ class MqttPacket
     std::vector<std::string> subtopics;
     std::vector<char> bites;
     size_t fixed_header_length = 0; // if 0, this packet does not contain the bytes of the fixed header.
-    RemainingLength remainingLength;
+    VariableByteInt remainingLength;
     char qos = 0;
     std::shared_ptr<Client> sender;
     char first_byte = 0;
@@ -115,8 +109,6 @@ public:
     std::shared_ptr<Client> getSender() const;
     void setSender(const std::shared_ptr<Client> &value);
     bool containsFixedHeader() const;
-    char getFirstByte() const;
-    RemainingLength getRemainingLength() const;
     void setPacketId(uint16_t packet_id);
     uint16_t getPacketId() const;
     void setDuplicate();

@@ -24,11 +24,6 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "utils.h"
 #include "threadglobals.h"
 
-RemainingLength::RemainingLength()
-{
-    memset(bytes, 0, 4);
-}
-
 // constructor for parsing incoming packets
 MqttPacket::MqttPacket(CirBuf &buf, size_t packet_len, size_t fixed_header_length, std::shared_ptr<Client> &sender) :
     bites(packet_len),
@@ -760,27 +755,7 @@ void MqttPacket::handlePubComp()
 void MqttPacket::calculateRemainingLength()
 {
     assert(fixed_header_length == 0); // because you're not supposed to call this on packet that we already know the length of.
-
-    size_t x = bites.size();
-
-    do
-    {
-        if (remainingLength.len > 4)
-            throw std::runtime_error("Calculated remaining length is longer than 4 bytes.");
-
-        char encodedByte = x % 128;
-        x = x / 128;
-        if (x > 0)
-            encodedByte = encodedByte | 128;
-        remainingLength.bytes[remainingLength.len++] = encodedByte;
-    }
-    while(x > 0);
-}
-
-RemainingLength MqttPacket::getRemainingLength() const
-{
-    assert(remainingLength.len > 0);
-    return remainingLength;
+    this->remainingLength = bites.size();
 }
 
 void MqttPacket::setPacketId(uint16_t packet_id)
@@ -846,7 +821,7 @@ size_t MqttPacket::getSizeIncludingNonPresentHeader() const
     if (fixed_header_length == 0)
     {
         total++;
-        total += remainingLength.len;
+        total += remainingLength.getLen();
     }
 
     return total;
@@ -897,11 +872,6 @@ void MqttPacket::setSender(const std::shared_ptr<Client> &value)
 bool MqttPacket::containsFixedHeader() const
 {
     return fixed_header_length > 0;
-}
-
-char MqttPacket::getFirstByte() const
-{
-    return first_byte;
 }
 
 char *MqttPacket::readBytes(size_t length)
@@ -991,11 +961,9 @@ void MqttPacket::readIntoBuf(CirBuf &buf) const
 
     if (!containsFixedHeader())
     {
-        assert(remainingLength.len > 0);
-
-        buf.headPtr()[0] = getFirstByte();
+        buf.headPtr()[0] = first_byte;
         buf.advanceHead(1);
-        buf.write(remainingLength.bytes, remainingLength.len);
+        remainingLength.readIntoBuf(buf);
     }
     else
     {
