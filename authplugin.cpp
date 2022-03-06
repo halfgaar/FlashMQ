@@ -417,7 +417,8 @@ void Authentication::loadMosquittoPasswordFile()
     try
     {
         std::ifstream infile(this->mosquittoPasswordFile, std::ios::in);
-        std::unique_ptr<std::unordered_map<std::string, MosquittoPasswordFileEntry>> passwordEntries_tmp(new std::unordered_map<std::string, MosquittoPasswordFileEntry>());
+        std::unique_ptr<std::unordered_map<std::string, MosquittoPasswordFileEntry>> passwordEntries_tmp =
+                std::make_unique<std::unordered_map<std::string, MosquittoPasswordFileEntry>>();
 
         for(std::string line; getline(infile, line ); )
         {

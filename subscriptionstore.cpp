@@ -122,7 +122,7 @@ SubscriptionNode *SubscriptionStore::getDeepestNode(const std::string &topic, co
 
         if (!node)
         {
-            node.reset(new SubscriptionNode(subtopic));
+            node = std::make_unique<SubscriptionNode>(subtopic);
         }
         deepestNode = node.get();
     }
@@ -240,7 +240,7 @@ void SubscriptionStore::registerClientAndKickExistingOne(std::shared_ptr<Client>
 
     if (!session || client->getCleanSession() || originalClientDemandsSessionDestruction)
     {
-        session.reset(new Session());
+        session = std::make_shared<Session>();
 
         sessionsById[client->getClientId()] = session;
     }
@@ -448,7 +448,7 @@ void SubscriptionStore::setRetainedMessage(const std::string &topic, const std::
 
         if (!selectedChildren)
         {
-            selectedChildren.reset(new RetainedMessageNode());
+            selectedChildren = std::make_unique<RetainedMessageNode>();
         }
         deepestNode = selectedChildren.get();
     }

@@ -14,7 +14,7 @@ AclNode *AclNode::getChildren(const std::string &subtopic, bool registerPattern)
 
     if (!node)
     {
-        node.reset(new AclNode());
+        node = std::make_unique<AclNode>();
 
         if (registerPattern)
         {
@@ -44,7 +44,7 @@ const AclNode *AclNode::getChildren(const std::string &subtopic) const
 AclNode *AclNode::getChildrenPlus()
 {
     if (!childrenPlus)
-        childrenPlus.reset(new AclNode());
+        childrenPlus = std::make_unique<AclNode>();
 
     return childrenPlus.get();
 }

@@ -88,7 +88,7 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV1()
             readCheck(buf.data(), 1, clientIdLength, f);
             std::string clientId(buf.data(), clientIdLength);
 
-            std::shared_ptr<Session> ses(new Session());
+            std::shared_ptr<Session> ses = std::make_shared<Session>();
             result.sessions.push_back(ses);
             ses->username = username;
             ses->client_id = clientId;

@@ -121,7 +121,7 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validListenKeys.insert("inet4_bind_address");
     validListenKeys.insert("inet6_bind_address");
 
-    settings.reset(new Settings());
+    settings = std::make_unique<Settings>();
 }
 
 void ConfigFileParser::loadFile(bool test)
@@ -202,7 +202,7 @@ void ConfigFileParser::loadFile(bool test)
 
     ConfigParseLevel curParseLevel = ConfigParseLevel::Root;
     std::shared_ptr<Listener> curListener;
-    std::unique_ptr<Settings> tmpSettings(new Settings);
+    std::unique_ptr<Settings> tmpSettings = std::make_unique<Settings>();
 
     // Then once we know the config file is valid, process it.
     for (std::string &line : lines)
@@ -215,7 +215,7 @@ void ConfigFileParser::loadFile(bool test)
             if (matches[1].str() == "listen")
             {
                 curParseLevel = ConfigParseLevel::Listen;
-                curListener.reset(new Listener);
+                curListener = std::make_shared<Listener>();
             }
             else
             {
@@ -481,7 +481,7 @@ void ConfigFileParser::loadFile(bool test)
 std::unique_ptr<Settings> ConfigFileParser::moveSettings()
 {
     std::unique_ptr<Settings> tmp = std::move(settings);
-    settings.reset(new Settings);
+    settings = std::make_unique<Settings>();
     return tmp;
 }
 

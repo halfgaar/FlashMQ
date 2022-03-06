@@ -83,7 +83,7 @@ void Listener::loadCertAndKeyFromConfig()
 
     if (!sslctx)
     {
-        sslctx.reset(new SslCtxManager());
+        sslctx = std::make_unique<SslCtxManager>();
         SSL_CTX_set_options(sslctx->get(), SSL_OP_NO_SSLv3); // TODO: config option
         SSL_CTX_set_options(sslctx->get(), SSL_OP_NO_TLSv1); // TODO: config option
     }
