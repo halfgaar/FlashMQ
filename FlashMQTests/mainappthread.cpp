@@ -53,6 +53,6 @@ void MainAppThread::waitForStarted()
         QThread::msleep(10);
 
         if (n++ > 500)
-            throw new std::runtime_error("Waiting for app to start failed.");
+            throw std::runtime_error("Waiting for app to start failed.");
     }
 }

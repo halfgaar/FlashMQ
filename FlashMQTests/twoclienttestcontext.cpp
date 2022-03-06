@@ -134,7 +134,7 @@ void TwoClientTestContext::onClientError(const QMQTT::ClientError error)
         errStr = "Socket timeout";
 
     QString msg = QString("Client %1 error code: %2 (%3). Initiated delayed reconnect.\n").arg(_sender->clientId()).arg(error).arg(errStr);
-    throw new std::runtime_error(msg.toStdString());
+    throw std::runtime_error(msg.toStdString());
 }
 
 void TwoClientTestContext::onReceiverReceived(const QMQTT::Message &message)
