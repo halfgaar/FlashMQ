@@ -119,7 +119,7 @@ public:
     void addSubscription(std::shared_ptr<Client> &client, const std::string &topic, const std::vector<std::string> &subtopics, char qos);
     void removeSubscription(std::shared_ptr<Client> &client, const std::string &topic);
     void registerClientAndKickExistingOne(std::shared_ptr<Client> &client);
-    void registerClientAndKickExistingOne(std::shared_ptr<Client> &client, uint16_t maxQosPackets, uint32_t sessionExpiryInterval);
+    void registerClientAndKickExistingOne(std::shared_ptr<Client> &client, bool clean_start, uint16_t maxQosPackets, uint32_t sessionExpiryInterval);
     bool sessionPresent(const std::string &clientid);
 
     void queuePacketAtSubscribers(const std::vector<std::string> &subtopics, MqttPacket &packet, bool dollar = false);

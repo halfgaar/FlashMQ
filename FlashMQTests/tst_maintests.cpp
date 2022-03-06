@@ -1001,15 +1001,15 @@ void MainTests::testSavingSessions()
         ThreadGlobals::assign(&auth);
 
         std::shared_ptr<Client> c1(new Client(0, t, nullptr, false, nullptr, settings, false));
-        c1->setClientProperties(ProtocolVersion::Mqtt311, "c1", "user1", true, 60, false);
-        store->registerClientAndKickExistingOne(c1);
+        c1->setClientProperties(ProtocolVersion::Mqtt311, "c1", "user1", true, 60);
+        store->registerClientAndKickExistingOne(c1, false, 512, 120);
         c1->getSession()->touch();
         c1->getSession()->addIncomingQoS2MessageId(2);
         c1->getSession()->addIncomingQoS2MessageId(3);
 
         std::shared_ptr<Client> c2(new Client(0, t, nullptr, false, nullptr, settings, false));
-        c2->setClientProperties(ProtocolVersion::Mqtt311, "c2", "user2", true, 60, false);
-        store->registerClientAndKickExistingOne(c2);
+        c2->setClientProperties(ProtocolVersion::Mqtt311, "c2", "user2", true, 60);
+        store->registerClientAndKickExistingOne(c2, false, 512, 120);
         c2->getSession()->touch();
         c2->getSession()->addOutgoingQoS2MessageId(55);
         c2->getSession()->addOutgoingQoS2MessageId(66);
@@ -1120,8 +1120,8 @@ void testCopyPacketHelper(const std::string &topic, char from_qos, char to_qos, 
     ThreadGlobals::assign(&auth);
 
     std::shared_ptr<Client> dummyClient(new Client(0, t, nullptr, false, nullptr, settings, false));
-    dummyClient->setClientProperties(ProtocolVersion::Mqtt311, "qostestclient", "user1", true, 60, false);
-    store->registerClientAndKickExistingOne(dummyClient);
+    dummyClient->setClientProperties(ProtocolVersion::Mqtt311, "qostestclient", "user1", true, 60);
+    store->registerClientAndKickExistingOne(dummyClient, false, 512, 120);
 
     uint16_t packetid = 66;
     for (int len = 0; len < 150; len++ )

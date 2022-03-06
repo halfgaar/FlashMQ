@@ -204,11 +204,11 @@ void SubscriptionStore::removeSubscription(std::shared_ptr<Client> &client, cons
 void SubscriptionStore::registerClientAndKickExistingOne(std::shared_ptr<Client> &client)
 {
     const Settings *settings = ThreadGlobals::getSettings();
-    registerClientAndKickExistingOne(client, settings->maxQosMsgPendingPerClient, settings->expireSessionsAfterSeconds);
+    registerClientAndKickExistingOne(client, true, settings->maxQosMsgPendingPerClient, settings->expireSessionsAfterSeconds);
 }
 
 // Removes an existing client when it already exists [MQTT-3.1.4-2].
-void SubscriptionStore::registerClientAndKickExistingOne(std::shared_ptr<Client> &client, uint16_t maxQosPackets, uint32_t sessionExpiryInterval)
+void SubscriptionStore::registerClientAndKickExistingOne(std::shared_ptr<Client> &client, bool clean_start, uint16_t maxQosPackets, uint32_t sessionExpiryInterval)
 {
     RWLockGuard lock_guard(&subscriptionsRwlock);
     lock_guard.wrlock();
@@ -216,7 +216,6 @@ void SubscriptionStore::registerClientAndKickExistingOne(std::shared_ptr<Client>
     if (client->getClientId().empty())
         throw ProtocolError("Trying to store client without an ID.");
 
-    bool originalClientDemandsSessionDestruction = false;
     std::shared_ptr<Session> session;
     auto session_it = sessionsById.find(client->getClientId());
     if (session_it != sessionsById.end())
@@ -232,11 +231,6 @@ void SubscriptionStore::registerClientAndKickExistingOne(std::shared_ptr<Client>
                 logger->logf(LOG_NOTICE, "Disconnecting existing client with id '%s'", cl->getClientId().c_str());
                 cl->setDisconnectReason("Another client with this ID connected");
 
-                // We have to set session to false, because it's no longer up to the destruction of that client
-                // to destroy the session. We either do it in this function, or not at all.
-                originalClientDemandsSessionDestruction = cl->getCleanSession();
-                cl->setCleanSession(false);
-
                 cl->setReadyForDisconnect();
                 cl->getThreadData()->removeClientQueued(cl);
                 cl->markAsDisconnecting();
@@ -245,7 +239,7 @@ void SubscriptionStore::registerClientAndKickExistingOne(std::shared_ptr<Client>
         }
     }
 
-    if (!session || client->getCleanSession() || originalClientDemandsSessionDestruction)
+    if (!session || session->getDestroyOnDisconnect())
     {
         session = std::make_shared<Session>();
 
@@ -254,7 +248,7 @@ void SubscriptionStore::registerClientAndKickExistingOne(std::shared_ptr<Client>
 
     session->assignActiveConnection(client);
     client->assignSession(session);
-    session->setSessionProperties(maxQosPackets, sessionExpiryInterval);
+    session->setSessionProperties(maxQosPackets, sessionExpiryInterval, clean_start, client->getProtocolVersion());
     uint64_t count = session->sendPendingQosMessages();
     client->getThreadData()->incrementSentMessageCount(count);
 }
@@ -744,7 +738,7 @@ void SubscriptionStore::saveSessionsAndSubscriptions(const std::string &filePath
             const Session &org = *pair.second.get();
 
             // Sessions created with clean session need to be destroyed when disconnecting, so no point in saving them.
-            if (org.getCleanSession())
+            if (org.getDestroyOnDisconnect())
                 continue;
 
             sessionCopies.push_back(org.getCopy());

@@ -76,8 +76,7 @@ bool Session::requiresPacketRetransmission() const
     if (client->getProtocolVersion() < ProtocolVersion::Mqtt311)
         return true;
 
-    // TODO: for MQTT5, the rules are different.
-    return !client->getCleanSession();
+    return !destroyOnDisconnect;
 }
 
 void Session::increasePacketId()
@@ -343,18 +342,30 @@ void Session::removeOutgoingQoS2MessageId(u_int16_t packet_id)
         outgoingQoS2MessageIds.erase(it);
 }
 
-bool Session::getCleanSession() const
+/**
+ * @brief Session::getDestroyOnDisconnect
+ * @return
+ *
+ * MQTT5: Setting Clean Start to 1 and a Session Expiry Interval of 0, is equivalent to setting CleanSession to 1 in the MQTT Specification Version 3.1.1.
+ */
+bool Session::getDestroyOnDisconnect() const
 {
-    auto c = client.lock();
-
-    if (!c)
-        return false;
-
-    return c->getCleanSession();
+    return destroyOnDisconnect;
 }
 
-void Session::setSessionProperties(uint16_t maxQosPackets, uint32_t sessionExpiryInterval)
+void Session::setSessionProperties(uint16_t maxQosPackets, uint32_t sessionExpiryInterval, bool clean_start, ProtocolVersion protocol_version)
 {
     this->maxQosMsgPending = maxQosPackets;
     this->sessionExpiryInterval = sessionExpiryInterval;
+
+    if (protocol_version <= ProtocolVersion::Mqtt311 && clean_start)
+        destroyOnDisconnect = true;
+    else
+        destroyOnDisconnect = sessionExpiryInterval == 0;
 }
+
+uint32_t Session::getSessionExpiryInterval() const
+{
+    return this->sessionExpiryInterval;
+}
+

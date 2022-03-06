@@ -74,7 +74,6 @@ class Client
     std::string clientid;
     std::string username;
     uint16_t keepalive = 0;
-    bool cleanSession = false;
 
     std::string will_topic;
     std::string will_payload;
@@ -108,9 +107,9 @@ public:
     void markAsDisconnecting();
     bool readFdIntoBuffer();
     void bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn, std::shared_ptr<Client> &sender);
-    void setClientProperties(ProtocolVersion protocolVersion, const std::string &clientId, const std::string username, bool connectPacketSeen, uint16_t keepalive, bool cleanSession);
+    void setClientProperties(ProtocolVersion protocolVersion, const std::string &clientId, const std::string username, bool connectPacketSeen, uint16_t keepalive);
     void setClientProperties(ProtocolVersion protocolVersion, const std::string &clientId, const std::string username, bool connectPacketSeen, uint16_t keepalive,
-                             bool cleanSession, uint32_t maxPacketSize, uint16_t maxTopicAliases);
+                             uint32_t maxPacketSize, uint16_t maxTopicAliases);
     void setWill(const std::string &topic, const std::string &payload, bool retain, char qos);
     void clearWill();
     void setAuthenticated(bool value) { authenticated = value;}
@@ -119,7 +118,6 @@ public:
     std::shared_ptr<ThreadData> getThreadData() { return threadData; }
     std::string &getClientId() { return this->clientid; }
     const std::string &getUsername() const { return this->username; }
-    bool getCleanSession() { return cleanSession; }
     void assignSession(std::shared_ptr<Session> &session);
     std::shared_ptr<Session> getSession();
     void setDisconnectReason(const std::string &reason);
@@ -139,8 +137,6 @@ public:
     bool keepAliveExpired();
     std::string getKeepAliveInfoString() const;
     void resetBuffersIfEligible();
-
-    void setCleanSession(bool val);
 
 #ifndef NDEBUG
     void setFakeUpgraded();

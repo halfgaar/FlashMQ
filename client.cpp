@@ -75,7 +75,7 @@ Client::~Client()
     }
 
     // MQTT-3.1.2-6
-    if (cleanSession)
+    if (session->getDestroyOnDisconnect())
     {
         store->removeSession(clientid);
     }
@@ -286,9 +286,9 @@ bool Client::writeBufIntoFd()
 
 std::string Client::repr()
 {
-    std::string s = formatString("[ClientID='%s', username='%s', fd=%d, keepalive=%ds, transport='%s', address='%s', cleanses=%d, prot=%s]",
+    std::string s = formatString("[ClientID='%s', username='%s', fd=%d, keepalive=%ds, transport='%s', address='%s', prot=%s]",
                                  clientid.c_str(), username.c_str(), fd, keepalive, this->transportStr.c_str(), this->address.c_str(),
-                                 cleanSession, protocolVersionString(protocolVersion).c_str());
+                                 protocolVersionString(protocolVersion).c_str());
     return s;
 }
 
@@ -332,11 +332,6 @@ void Client::resetBuffersIfEligible()
     // Write buffers are written to from other threads, and this resetting takes place from the Client's own thread, so we need to lock.
     std::lock_guard<std::mutex> locker(writeBufMutex);
     writebuf.resetSizeIfEligable(initialBufferSize);
-}
-
-void Client::setCleanSession(bool val)
-{
-    this->cleanSession = val;
 }
 
 #ifndef NDEBUG
@@ -421,24 +416,22 @@ void Client::bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn, std::sh
     setReadyForReading(readbuf.freeSpace() > 0);
 }
 
-void Client::setClientProperties(ProtocolVersion protocolVersion, const std::string &clientId, const std::string username, bool connectPacketSeen, uint16_t keepalive, bool cleanSession)
+void Client::setClientProperties(ProtocolVersion protocolVersion, const std::string &clientId, const std::string username, bool connectPacketSeen, uint16_t keepalive)
 {
     const Settings *settings = ThreadGlobals::getSettings();
 
-    setClientProperties(protocolVersion, clientId, username, connectPacketSeen, keepalive, cleanSession,
-                        settings->maxPacketSize, 0);
+    setClientProperties(protocolVersion, clientId, username, connectPacketSeen, keepalive, settings->maxPacketSize, 0);
 }
 
 
 void Client::setClientProperties(ProtocolVersion protocolVersion, const std::string &clientId, const std::string username, bool connectPacketSeen, uint16_t keepalive,
-                                 bool cleanSession, uint32_t maxPacketSize, uint16_t maxTopicAliases)
+                                 uint32_t maxPacketSize, uint16_t maxTopicAliases)
 {
     this->protocolVersion = protocolVersion;
     this->clientid = clientId;
     this->username = username;
     this->connectPacketSeen = connectPacketSeen;
     this->keepalive = keepalive;
-    this->cleanSession = cleanSession;
     this->maxPacketSize = maxPacketSize;
     this->maxTopicAliases = maxTopicAliases;
 }

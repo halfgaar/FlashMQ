@@ -49,6 +49,7 @@ class Session
     uint32_t sessionExpiryInterval = 0;
     uint16_t maxQosMsgPending;
     uint16_t QoSLogPrintedAtId = 0;
+    bool destroyOnDisconnect = false;
     std::chrono::time_point<std::chrono::steady_clock> lastTouched = std::chrono::steady_clock::now();
     Logger *logger = Logger::getInstance();
 
@@ -86,9 +87,10 @@ public:
     void addOutgoingQoS2MessageId(uint16_t packet_id);
     void removeOutgoingQoS2MessageId(u_int16_t packet_id);
 
-    bool getCleanSession() const;
+    bool getDestroyOnDisconnect() const;
 
-    void setSessionProperties(uint16_t maxQosPackets, uint32_t sessionExpiryInterval);
+    void setSessionProperties(uint16_t maxQosPackets, uint32_t sessionExpiryInterval, bool clean_start, ProtocolVersion protocol_version);
+    uint32_t getSessionExpiryInterval() const;
 };
 
 #endif // SESSION_H

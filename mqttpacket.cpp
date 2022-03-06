@@ -363,7 +363,7 @@ void MqttPacket::handleConnect()
         bool will_retain = !!(flagByte & 0b00100000);
         char will_qos = (flagByte & 0b00011000) >> 3;
         bool will_flag = !!(flagByte & 0b00000100);
-        bool clean_session = !!(flagByte & 0b00000010);
+        bool clean_start = !!(flagByte & 0b00000010);
 
         if (will_qos > 2)
             throw ProtocolError("Invalid QoS for will.");
@@ -467,9 +467,9 @@ void MqttPacket::handleConnect()
             logger->logf(LOG_ERR, "ClientID '%s' has + or # in the id and 'allow_unsafe_clientid_chars' is false.", client_id.c_str());
             validClientId = false;
         }
-        else if (!clean_session && client_id.empty())
+        else if (!clean_start && client_id.empty())
         {
-            logger->logf(LOG_ERR, "ClientID empty and clean session 0, which is incompatible");
+            logger->logf(LOG_ERR, "ClientID empty and clean start 0, which is incompatible");
             validClientId = false;
         }
         else if (protocolVersion < ProtocolVersion::Mqtt311 && client_id.empty())
@@ -493,7 +493,7 @@ void MqttPacket::handleConnect()
             client_id = getSecureRandomString(23);
         }
 
-        sender->setClientProperties(protocolVersion, client_id, username, true, keep_alive, clean_session, max_packet_size, max_topic_aliases);
+        sender->setClientProperties(protocolVersion, client_id, username, true, keep_alive, max_packet_size, max_topic_aliases);
         sender->setWill(will_topic, will_payload, will_retain, will_qos);
 
         bool accessGranted = false;
@@ -518,7 +518,7 @@ void MqttPacket::handleConnect()
 
         if (accessGranted)
         {
-            bool sessionPresent = protocolVersion >= ProtocolVersion::Mqtt311 && !clean_session && subscriptionStore->sessionPresent(client_id);
+            bool sessionPresent = protocolVersion >= ProtocolVersion::Mqtt311 && !clean_start && subscriptionStore->sessionPresent(client_id);
 
             sender->setAuthenticated(true);
             ConnAck connAck(ConnAckReturnCodes::Accepted, sessionPresent);
@@ -526,7 +526,7 @@ void MqttPacket::handleConnect()
             sender->writeMqttPacket(response);
             logger->logf(LOG_NOTICE, "Client '%s' logged in successfully", sender->repr().c_str());
 
-            subscriptionStore->registerClientAndKickExistingOne(sender, max_qos_packets, session_expire);
+            subscriptionStore->registerClientAndKickExistingOne(sender, clean_start, max_qos_packets, session_expire);
         }
         else
         {
