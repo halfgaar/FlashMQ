@@ -60,6 +60,7 @@ class MqttPacket
     char *readBytes(size_t length);
     char readByte();
     void writeByte(char b);
+    void writeUint16(uint16_t x);
     void writeBytes(const char *b, size_t len);
     uint16_t readTwoBytesToUInt16();
     size_t remainingAfterPos();
