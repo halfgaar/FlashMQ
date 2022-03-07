@@ -60,6 +60,7 @@ add_executable(FlashMQ
     threadloop.h
     publishcopyfactory.h
     variablebyteint.h
+    mqtt5properties.h
 
     mainapp.cpp
     main.cpp
@@ -99,6 +100,7 @@ add_executable(FlashMQ
     threadloop.cpp
     publishcopyfactory.cpp
     variablebyteint.cpp
+    mqtt5properties.cpp
 
     )
 

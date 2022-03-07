@@ -26,6 +26,7 @@ class MqttPacket;
 class SubscriptionStore;
 class Session;
 class Settings;
+class Mqtt5PropertyBuilder;
 
 
 #endif // FORWARD_DECLARATIONS_H

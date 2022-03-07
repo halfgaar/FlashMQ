@@ -110,17 +110,20 @@ std::shared_ptr<MqttPacket> MqttPacket::getCopy(char new_max_qos) const
     return copyPacket;
 }
 
-// This constructor cheats and doesn't use calculateRemainingLength, because it's always the same. It allocates enough space in the vector.
 MqttPacket::MqttPacket(const ConnAck &connAck) :
-    bites(connAck.getLengthWithoutFixedHeader() + 2)
+    bites(connAck.getLengthWithoutFixedHeader())
 {
-    fixed_header_length = 2;
     packetType = PacketType::CONNACK;
     first_byte = static_cast<char>(packetType) << 4;
-    writeByte(first_byte);
-    writeByte(2); // length is always 2.
     writeByte(connAck.session_present & 0b00000001); // all connect-ack flags are 0, except session-present. [MQTT-3.2.2.1]
-    writeByte(static_cast<char>(connAck.return_code));
+    writeByte(connAck.return_code);
+
+    if (connAck.protocol_version >= ProtocolVersion::Mqtt5)
+    {
+        writeProperties(connAck.propertyBuilder);
+    }
+
+    calculateRemainingLength();
 }
 
 MqttPacket::MqttPacket(const SubAck &subAck) :
@@ -343,7 +346,10 @@ void MqttPacket::handleConnect()
         }
         else
         {
-            ConnAck connAck(ConnAckReturnCodes::UnacceptableProtocolVersion);
+            // The specs are unclear when to use the version 3 codes or version 5 codes.
+            ProtocolVersion fuzzyProtocolVersion = protocol_level < 0x05 ? ProtocolVersion::Mqtt31 : ProtocolVersion::Mqtt5;
+
+            ConnAck connAck(fuzzyProtocolVersion, ReasonCodes::UnsupportedProtocolVersion);
             MqttPacket response(connAck);
             sender->setReadyForDisconnect();
             sender->writeMqttPacket(response);
@@ -398,7 +404,7 @@ void MqttPacket::handleConnect()
                     max_packet_size = std::min<uint32_t>(readFourBytesToUint32(), max_packet_size);
                     break;
                 case Mqtt5Properties::TopicAliasMaximum:
-                    max_topic_aliases = readTwoBytesToUInt16();
+                    max_topic_aliases = std::min<uint16_t>(readTwoBytesToUInt16(), max_topic_aliases);
                     break;
                 case Mqtt5Properties::RequestResponseInformation:
                     request_response_information = !!readByte();
@@ -451,7 +457,7 @@ void MqttPacket::handleConnect()
         // The specs don't really say what to do when client id not UTF8, so including here.
         if (!isValidUtf8(client_id) || !isValidUtf8(username) || !isValidUtf8(password) || !isValidUtf8(will_topic))
         {
-            ConnAck connAck(ConnAckReturnCodes::MalformedUsernameOrPassword);
+            ConnAck connAck(protocolVersion, ReasonCodes::BadUserNameOrPassword);
             MqttPacket response(connAck);
             sender->setReadyForDisconnect();
             sender->writeMqttPacket(response);
@@ -480,7 +486,7 @@ void MqttPacket::handleConnect()
 
         if (!validClientId)
         {
-            ConnAck connAck(ConnAckReturnCodes::ClientIdRejected);
+            ConnAck connAck(protocolVersion, ReasonCodes::ClientIdentifierNotValid);
             MqttPacket response(connAck);
             sender->setDisconnectReason("Invalid clientID");
             sender->setReadyForDisconnect();
@@ -488,9 +494,11 @@ void MqttPacket::handleConnect()
             return;
         }
 
+        bool clientIdGenerated = false;
         if (client_id.empty())
         {
             client_id = getSecureRandomString(23);
+            clientIdGenerated = true;
         }
 
         sender->setClientProperties(protocolVersion, client_id, username, true, keep_alive, max_packet_size, max_topic_aliases);
@@ -521,7 +529,22 @@ void MqttPacket::handleConnect()
             bool sessionPresent = protocolVersion >= ProtocolVersion::Mqtt311 && !clean_start && subscriptionStore->sessionPresent(client_id);
 
             sender->setAuthenticated(true);
-            ConnAck connAck(ConnAckReturnCodes::Accepted, sessionPresent);
+            ConnAck connAck(protocolVersion, ReasonCodes::Success, sessionPresent);
+
+            if (protocolVersion >= ProtocolVersion::Mqtt5)
+            {
+                connAck.propertyBuilder = std::make_shared<Mqtt5PropertyBuilder>();
+                connAck.propertyBuilder->writeSessionExpiry(session_expire);
+                connAck.propertyBuilder->writeReceiveMax(max_qos_packets);
+                connAck.propertyBuilder->writeRetainAvailable(1);
+                connAck.propertyBuilder->writeMaxPacketSize(max_packet_size);
+                if (clientIdGenerated)
+                    connAck.propertyBuilder->writeAssignedClientId(client_id);
+                connAck.propertyBuilder->writeMaxTopicAliases(max_topic_aliases);
+                connAck.propertyBuilder->writeWildcardSubscriptionAvailable(1);
+                connAck.propertyBuilder->writeSharedSubscriptionAvailable(0);
+            }
+
             MqttPacket response(connAck);
             sender->writeMqttPacket(response);
             logger->logf(LOG_NOTICE, "Client '%s' logged in successfully", sender->repr().c_str());
@@ -530,7 +553,7 @@ void MqttPacket::handleConnect()
         }
         else
         {
-            ConnAck connDeny(ConnAckReturnCodes::NotAuthorized, false);
+            ConnAck connDeny(protocolVersion, ReasonCodes::NotAuthorized, false);
             MqttPacket response(connDeny);
             sender->setDisconnectReason("Access denied");
             sender->setReadyForDisconnect();
@@ -958,6 +981,23 @@ void MqttPacket::writeBytes(const char *b, size_t len)
 
     memcpy(&bites[pos], b, len);
     pos += len;
+}
+
+void MqttPacket::writeProperties(const std::shared_ptr<Mqtt5PropertyBuilder> &properties)
+{
+    if (!properties)
+        writeByte(0);
+    else
+    {
+        writeVariableByteInt(properties->getVarInt());
+        const std::vector<char> &b = properties->getBites();
+        writeBytes(b.data(), b.size());
+    }
+}
+
+void MqttPacket::writeVariableByteInt(const VariableByteInt &v)
+{
+    writeBytes(v.data(), v.getLen());
 }
 
 uint16_t MqttPacket::readTwoBytesToUInt16()

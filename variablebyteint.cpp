@@ -34,3 +34,8 @@ uint8_t VariableByteInt::getLen() const
 {
     return len;
 }
+
+const char *VariableByteInt::data() const
+{
+    return &bytes[0];
+}

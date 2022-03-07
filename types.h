@@ -21,6 +21,9 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "stdint.h"
 #include <list>
 #include <string>
+#include <memory>
+
+#include "forward_declarations.h"
 
 enum class PacketType
 {
@@ -83,6 +86,9 @@ enum class Mqtt5Properties
     SharedSubscriptionAvailable = 42
 };
 
+/**
+ * @brief The ConnAckReturnCodes enum are for MQTT3
+ */
 enum class ConnAckReturnCodes
 {
     Accepted = 0,
@@ -93,13 +99,67 @@ enum class ConnAckReturnCodes
     NotAuthorized = 5
 };
 
+/**
+ * @brief The ReasonCodes enum are for MQTT5.
+ */
+enum class ReasonCodes
+{
+    Success = 0,
+    GrantedQoS0 = 0,
+    GrantedQoS1 = 1,
+    GrantedQoS2 = 2,
+    DisconnectWithWill = 4,
+    NoMatchingSubscribers = 16,
+    NoSubscriptionExisted = 17,
+    ContinueAuthentication = 24,
+    ReAuthenticate = 25,
+    UnspecifiedError = 128,
+    MalformedPacket = 129,
+    ProtocolError = 130,
+    ImplementationSpecificError = 131,
+    UnsupportedProtocolVersion = 132,
+    ClientIdentifierNotValid = 133,
+    BadUserNameOrPassword = 134,
+    NotAuthorized = 135,
+    ServerUnavailable = 136,
+    ServerBusy = 137,
+    Banned = 138,
+    ServerShuttingDown = 139,
+    BadAuthenticationMethod = 140,
+    KeepAliveTimeout = 141,
+    SessionTakenOver = 142,
+    TopicFilterInvalid = 143,
+    TopicNameInvalid = 144,
+    PacketIdentifierInUse = 145,
+    ReceiveMaximumExceeded = 147,
+    TopicAliasInvalid = 148,
+    PacketTooLarge = 149,
+    MessageRateTooHigh = 150,
+    QuoteExceeded = 151,
+    AdministrativeAction = 152,
+    PayloadFormatInvalid = 153,
+    RetainNotSupported = 154,
+    QosNotSupported = 155,
+    UseAnotherServer = 156,
+    ServerMoved = 157,
+    SharedSubscriptionsNotSupported = 158,
+    ConnectionRateExceeded = 159,
+    MaximumConnectTime = 160,
+    SubscriptionIdentifiersNotSupported = 161,
+    WildcardSubscriptionsNotSupported = 162
+};
+
 class ConnAck
 {
 public:
-    ConnAck(ConnAckReturnCodes return_code, bool session_present=false);
-    ConnAckReturnCodes return_code;
+    ConnAck(const ProtocolVersion protVersion, ReasonCodes return_code, bool session_present=false);
+
+    const ProtocolVersion protocol_version;
+    uint8_t return_code;
     bool session_present = false;
-    size_t getLengthWithoutFixedHeader() const { return 2;} // size of connack is always the same
+    std::shared_ptr<Mqtt5PropertyBuilder> propertyBuilder;
+
+    size_t getLengthWithoutFixedHeader() const;
 };
 
 enum class SubAckReturnCodes

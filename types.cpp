@@ -18,14 +18,66 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "cassert"
 
 #include "types.h"
+#include "mqtt5properties.h"
 
-ConnAck::ConnAck(ConnAckReturnCodes return_code, bool session_present) :
-    return_code(return_code),
+ConnAck::ConnAck(const ProtocolVersion protVersion, ReasonCodes return_code, bool session_present) :
+    protocol_version(protVersion),
     session_present(session_present)
 {
-    // [MQTT-3.2.2-4]
-    if (return_code > ConnAckReturnCodes::Accepted)
-        session_present = false;
+
+    if (this->protocol_version <= ProtocolVersion::Mqtt311)
+    {
+        ConnAckReturnCodes mqtt3_return = ConnAckReturnCodes::Accepted;
+
+        switch (return_code)
+        {
+        case ReasonCodes::Success:
+            mqtt3_return = ConnAckReturnCodes::Accepted;
+            break;
+        case ReasonCodes::UnsupportedProtocolVersion:
+            mqtt3_return = ConnAckReturnCodes::UnacceptableProtocolVersion;
+            break;
+        case ReasonCodes::ClientIdentifierNotValid:
+            mqtt3_return = ConnAckReturnCodes::ClientIdRejected;
+            break;
+        case ReasonCodes::ServerUnavailable:
+            mqtt3_return = ConnAckReturnCodes::ServerUnavailable;
+            break;
+        case ReasonCodes::BadUserNameOrPassword:
+            mqtt3_return = ConnAckReturnCodes::MalformedUsernameOrPassword;
+            break;
+        case ReasonCodes::NotAuthorized:
+            mqtt3_return = ConnAckReturnCodes::NotAuthorized;
+        default:
+            assert(false);
+        }
+
+        // [MQTT-3.2.2-4]
+        if (mqtt3_return > ConnAckReturnCodes::Accepted)
+            session_present = false;
+
+        this->return_code = static_cast<uint8_t>(mqtt3_return);
+    }
+    else
+    {
+        this->return_code = static_cast<uint8_t>(return_code);
+
+        // MQTT-3.2.2-6
+        if (this->return_code > 0)
+            session_present = false;
+    }
+}
+
+size_t ConnAck::getLengthWithoutFixedHeader() const
+{
+    size_t result = 2;
+
+    if (this->protocol_version >= ProtocolVersion::Mqtt5)
+    {
+        const size_t proplen = propertyBuilder ? propertyBuilder->getLength() : 1;
+        result += proplen;
+    }
+    return result;
 }
 
 SubAck::SubAck(uint16_t packet_id, const std::list<char> &subs_qos_reponses) :

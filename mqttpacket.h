@@ -34,6 +34,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "mainapp.h"
 
 #include "variablebyteint.h"
+#include "mqtt5properties.h"
 
 class MqttPacket
 {
@@ -62,6 +63,8 @@ class MqttPacket
     void writeByte(char b);
     void writeUint16(uint16_t x);
     void writeBytes(const char *b, size_t len);
+    void writeProperties(const std::shared_ptr<Mqtt5PropertyBuilder> &properties);
+    void writeVariableByteInt(const VariableByteInt &v);
     uint16_t readTwoBytesToUInt16();
     uint32_t readFourBytesToUint32();
     size_t remainingAfterPos();
