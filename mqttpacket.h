@@ -82,11 +82,13 @@ public:
 
     std::shared_ptr<MqttPacket> getCopy(char new_max_qos) const;
 
+    size_t getRequiredSizeForPublish(const ProtocolVersion protocolVersion, const Publish &publish) const;
+
     // Constructor for outgoing packets. These may not allocate room for the fixed header, because we don't (always) know the length in advance.
     MqttPacket(const ConnAck &connAck);
     MqttPacket(const SubAck &subAck);
     MqttPacket(const UnsubAck &unsubAck);
-    MqttPacket(const Publish &publish);
+    MqttPacket(const ProtocolVersion protocolVersion, const Publish &publish);
     MqttPacket(const PubAck &pubAck);
     MqttPacket(const PubRec &pubRec);
     MqttPacket(const PubComp &pubComp);

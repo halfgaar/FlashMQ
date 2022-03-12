@@ -29,7 +29,12 @@ public:
     void writeAssignedClientId(const std::string &clientid);
     void writeMaxTopicAliases(uint16_t val);
     void writeWildcardSubscriptionAvailable(uint8_t val);
+    void writeSubscriptionIdentifiersAvailable(uint8_t val);
     void writeSharedSubscriptionAvailable(uint8_t val);
+    void writeContentType(const std::string &format);
+    void writePayloadFormatIndicator(uint8_t val);
+    void writeMessageExpiryInterval(uint32_t val);
+    void writeResponseTopic(const std::string &str);
 };
 
 #endif // MQTT5PROPERTIES_H

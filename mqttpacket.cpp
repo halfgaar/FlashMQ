@@ -152,16 +152,29 @@ MqttPacket::MqttPacket(const UnsubAck &unsubAck) :
     calculateRemainingLength();
 }
 
-MqttPacket::MqttPacket(const Publish &publish) :
-    bites(publish.getLengthWithoutFixedHeader())
+size_t MqttPacket::getRequiredSizeForPublish(const ProtocolVersion protocolVersion, const Publish &publish) const
+{
+    size_t result = publish.getLengthWithoutFixedHeader();
+    if (protocolVersion >= ProtocolVersion::Mqtt5)
+    {
+        const size_t proplen = publish.propertyBuilder ? publish.propertyBuilder->getLength() : 1;
+        result += proplen;
+    }
+    return result;
+}
+
+MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, const Publish &publish) :
+    bites(getRequiredSizeForPublish(protocolVersion, publish))
 {
     if (publish.topic.length() > 0xFFFF)
     {
         throw ProtocolError("Topic path too long.");
     }
 
+    this->protocolVersion = protocolVersion;
+
     this->topic = publish.topic;
-    splitTopic(this->topic, subtopics);
+    splitTopic(this->topic, subtopics); // TODO: I think I can make this conditional, because the (planned) use will already have used the subtopics.
 
     packetType = PacketType::PUBLISH;
     this->qos = publish.qos;
@@ -178,6 +191,12 @@ MqttPacket::MqttPacket(const Publish &publish) :
         packet_id_pos = pos;
         char zero[2];
         writeBytes(zero, 2);
+    }
+
+    if (protocolVersion >= ProtocolVersion::Mqtt5)
+    {
+        // TODO: first write a new expiry interval into propertybuilder.
+        writeProperties(publish.propertyBuilder);
     }
 
     payloadStart = pos;
@@ -429,16 +448,65 @@ void MqttPacket::handleConnect()
 
         std::string username;
         std::string password;
-        std::string will_topic;
-        std::string will_payload;
+
+        Publish willpublish;
+        willpublish.qos = will_qos;
+        willpublish.retain = will_retain;
 
         if (will_flag)
         {
+            if (protocolVersion == ProtocolVersion::Mqtt5)
+            {
+                willpublish.propertyBuilder = std::make_shared<Mqtt5PropertyBuilder>();
+
+                const size_t proplen = decodeVariableByteIntAtPos();
+                const size_t prop_end_at = pos + proplen;
+
+                while (pos < prop_end_at)
+                {
+                    const Mqtt5Properties prop = static_cast<Mqtt5Properties>(readByte());
+
+                    switch (prop)
+                    {
+                    case Mqtt5Properties::WillDelayInterval:
+                        willpublish.will_delay = readFourBytesToUint32();
+                        break;
+                    case Mqtt5Properties::PayloadFormatIndicator:
+                        willpublish.propertyBuilder->writePayloadFormatIndicator(readByte());
+                        break;
+                    case Mqtt5Properties::ContentType:
+                    {
+                        const uint16_t len = readTwoBytesToUInt16();
+                        const std::string contentType(readBytes(len), len);
+                        willpublish.propertyBuilder->writeContentType(contentType);
+                        break;
+                    }
+                    case Mqtt5Properties::ResponseTopic:
+                    {
+                        const uint16_t len = readTwoBytesToUInt16();
+                        const std::string responseTopic(readBytes(len), len);
+                        willpublish.propertyBuilder->writeResponseTopic(responseTopic);
+                        break;
+                    }
+                    case Mqtt5Properties::MessageExpiryInterval:
+                    {
+                        willpublish.createdAt = std::chrono::steady_clock::now();
+                        uint32_t expiresAfter = readFourBytesToUint32();
+                        willpublish.expiresAfter = std::chrono::seconds(expiresAfter);
+                        break;
+                    }
+                    default:
+                        break;
+                        //throw ProtocolError("Invalid will property in connect.");
+                    }
+                }
+            }
+
             uint16_t will_topic_length = readTwoBytesToUInt16();
-            will_topic = std::string(readBytes(will_topic_length), will_topic_length);
+            willpublish.topic = std::string(readBytes(will_topic_length), will_topic_length);
 
             uint16_t will_payload_length = readTwoBytesToUInt16();
-            will_payload = std::string(readBytes(will_payload_length), will_payload_length);
+            willpublish.payload = std::string(readBytes(will_payload_length), will_payload_length);
         }
         if (user_name_flag)
         {
@@ -455,7 +523,7 @@ void MqttPacket::handleConnect()
         }
 
         // The specs don't really say what to do when client id not UTF8, so including here.
-        if (!isValidUtf8(client_id) || !isValidUtf8(username) || !isValidUtf8(password) || !isValidUtf8(will_topic))
+        if (!isValidUtf8(client_id) || !isValidUtf8(username) || !isValidUtf8(password) || !isValidUtf8(willpublish.topic))
         {
             ConnAck connAck(protocolVersion, ReasonCodes::BadUserNameOrPassword);
             MqttPacket response(connAck);
@@ -502,7 +570,7 @@ void MqttPacket::handleConnect()
         }
 
         sender->setClientProperties(protocolVersion, client_id, username, true, keep_alive, max_packet_size, max_topic_aliases);
-        sender->setWill(will_topic, will_payload, will_retain, will_qos);
+        sender->setWill(std::move(willpublish));
 
         bool accessGranted = false;
         std::string denyLogMsg;
@@ -542,6 +610,7 @@ void MqttPacket::handleConnect()
                     connAck.propertyBuilder->writeAssignedClientId(client_id);
                 connAck.propertyBuilder->writeMaxTopicAliases(max_topic_aliases);
                 connAck.propertyBuilder->writeWildcardSubscriptionAvailable(1);
+                connAck.propertyBuilder->writeSubscriptionIdentifiersAvailable(0);
                 connAck.propertyBuilder->writeSharedSubscriptionAvailable(0);
             }
 

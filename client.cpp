@@ -53,7 +53,7 @@ Client::~Client()
     std::shared_ptr<SubscriptionStore> &store = getThreadData()->getSubscriptionStore();
 
     // Will payload can be empty, apparently.
-    if (!will_topic.empty())
+    if (willPublish)
     {
         Publish will(will_topic, will_payload, will_qos);
         will.retain = will_retain;
@@ -436,12 +436,10 @@ void Client::setClientProperties(ProtocolVersion protocolVersion, const std::str
     this->maxTopicAliases = maxTopicAliases;
 }
 
-void Client::setWill(const std::string &topic, const std::string &payload, bool retain, char qos)
+void Client::setWill(Publish &&willPublish)
 {
-    this->will_topic = topic;
-    this->will_payload = payload;
-    this->will_retain = retain;
-    this->will_qos = qos;
+    this->willPublish = std::make_shared<Publish>(std::move(willPublish));
+    // TODO: also session. Or only the session?
 }
 
 void Client::assignSession(std::shared_ptr<Session> &session)

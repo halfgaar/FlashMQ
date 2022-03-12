@@ -59,9 +59,34 @@ void Mqtt5PropertyBuilder::writeWildcardSubscriptionAvailable(uint8_t val)
     writeUint8(Mqtt5Properties::WildcardSubscriptionAvailable, val);
 }
 
+void Mqtt5PropertyBuilder::writeSubscriptionIdentifiersAvailable(uint8_t val)
+{
+    writeUint8(Mqtt5Properties::SubscriptionIdentifierAvailable, val);
+}
+
 void Mqtt5PropertyBuilder::writeSharedSubscriptionAvailable(uint8_t val)
 {
     writeUint8(Mqtt5Properties::SharedSubscriptionAvailable, val);
+}
+
+void Mqtt5PropertyBuilder::writeContentType(const std::string &format)
+{
+    writeStr(Mqtt5Properties::ContentType, format);
+}
+
+void Mqtt5PropertyBuilder::writePayloadFormatIndicator(uint8_t val)
+{
+    writeUint8(Mqtt5Properties::PayloadFormatIndicator, val);
+}
+
+void Mqtt5PropertyBuilder::writeMessageExpiryInterval(uint32_t val)
+{
+    writeUint32(Mqtt5Properties::MessageExpiryInterval, val);
+}
+
+void Mqtt5PropertyBuilder::writeResponseTopic(const std::string &str)
+{
+    writeStr(Mqtt5Properties::ResponseTopic, str);
 }
 
 void Mqtt5PropertyBuilder::writeUint32(Mqtt5Properties prop, const uint32_t x)
