@@ -55,12 +55,7 @@ Client::~Client()
     // Will payload can be empty, apparently.
     if (willPublish)
     {
-        Publish will(will_topic, will_payload, will_qos);
-        will.retain = will_retain;
-        MqttPacket willPacket(will);
-
-        const std::vector<std::string> subtopics = splitToVector(will_topic, '/');
-        store->queuePacketAtSubscribers(subtopics, willPacket);
+        store->queueWillMessage(willPublish);
     }
 
     if (disconnectReason.empty())
@@ -210,17 +205,17 @@ int Client::writeMqttPacket(const MqttPacket &packet)
 
 int Client::writeMqttPacketAndBlameThisClient(PublishCopyFactory &copyFactory, char max_qos, uint16_t packet_id)
 {
-    MqttPacket &p = copyFactory.getOptimumPacket(max_qos);
+    MqttPacket *p = copyFactory.getOptimumPacket(max_qos, this->protocolVersion);
 
-    if (p.getQos() > 0)
+    if (p->getQos() > 0)
     {
         // This may change the packet ID and QoS of the incoming packet for each subscriber, but because we don't store that packet anywhere,
         // that should be fine.
-        p.setPacketId(packet_id);
-        p.setQos(max_qos);
+        p->setPacketId(packet_id);
+        p->setQos(max_qos);
     }
 
-    return writeMqttPacketAndBlameThisClient(p);
+    return writeMqttPacketAndBlameThisClient(*p);
 }
 
 // Helper method to avoid the exception ending up at the sender of messages, which would then get disconnected.
@@ -461,9 +456,8 @@ void Client::setDisconnectReason(const std::string &reason)
 
 void Client::clearWill()
 {
-    will_topic.clear();
-    will_payload.clear();
-    will_retain = false;
-    will_qos = 0;
+    willPublish.reset();
+    // TODO: the session too? I still need to make that 'send will when session ends' thing.
+
 }
 

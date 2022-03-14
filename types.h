@@ -23,6 +23,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include <string>
 #include <memory>
 #include <chrono>
+#include <vector>
 
 #include "forward_declarations.h"
 
@@ -192,6 +193,7 @@ class Publish
 {
 public:
     std::string topic;
+    std::vector<std::string> subtopics;
     std::string payload;
     char qos = 0;
     bool retain = false; // Note: existing subscribers don't get publishes of retained messages with retain=1. [MQTT-3.3.1-9]
@@ -200,9 +202,10 @@ public:
     std::chrono::seconds expiresAfter;
     std::shared_ptr<Mqtt5PropertyBuilder> propertyBuilder;
 
-    Publish();
+    Publish() = default;
     Publish(const std::string &topic, const std::string &payload, char qos);
     size_t getLengthWithoutFixedHeader() const;
+    void setClientSpecificProperties();
 };
 
 class PubAck

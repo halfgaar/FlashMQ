@@ -125,13 +125,11 @@ void ThreadData::publishStatsOnDollarTopic(std::vector<std::shared_ptr<ThreadDat
 
 void ThreadData::publishStat(const std::string &topic, uint64_t n)
 {
-    std::vector<std::string> subtopics;
-    splitTopic(topic, subtopics);
     const std::string payload = std::to_string(n);
     Publish p(topic, payload, 0);
-    MqttPacket pack(p);
-    subscriptionStore->queuePacketAtSubscribers(subtopics, pack, true);
-    subscriptionStore->setRetainedMessage(topic, subtopics, payload, 0);
+    PublishCopyFactory factory(&p);
+    subscriptionStore->queuePacketAtSubscribers(factory, true);
+    subscriptionStore->setRetainedMessage(topic, factory.getSubtopics(), payload, 0);
 }
 
 void ThreadData::removeQueuedClients()

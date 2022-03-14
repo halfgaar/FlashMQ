@@ -147,7 +147,7 @@ void SubscriptionStore::addSubscription(std::shared_ptr<Client> &client, const s
             const std::shared_ptr<Session> &ses = session_it->second;
             deepestNode->addSubscriber(ses, qos);
             lock_guard.unlock();
-            uint64_t count = giveClientRetainedMessages(ses, subtopics, qos);
+            uint64_t count = giveClientRetainedMessages(client, ses, subtopics, qos);
             client->getThreadData()->incrementSentMessageCount(count);
         }
     }
@@ -269,6 +269,33 @@ bool SubscriptionStore::sessionPresent(const std::string &clientid)
     return result;
 }
 
+void SubscriptionStore::sendQueuedWillMessages()
+{
+    // TODO: walk the list
+
+    std::lock_guard<std::mutex>(this->pendingWillsMutex);
+}
+
+void SubscriptionStore::queueWillMessage(std::shared_ptr<Publish> &willMessage)
+{
+    if (willMessage->will_delay == 0)
+    {
+        PublishCopyFactory factory(willMessage.get());
+        queuePacketAtSubscribers(factory);
+        return;
+    }
+
+    /* TODO
+    auto delay_compare = [](std::weak_ptr<Publish> &a, std::shared_ptr<Publish> &b)
+    {
+        return true;
+    };
+    std::lock_guard<std::mutex>(this->pendingWillsMutex);
+    auto pos = std::upper_bound(this->pendingWillMessages.begin(), this->pendingWillMessages.end(), willMessage, delay_compare);
+    this->pendingWillMessages.insert(pos, willMessage);
+    */
+}
+
 void SubscriptionStore::publishNonRecursively(const std::unordered_map<std::string, Subscription> &subscribers,
                                               std::forward_list<ReceivingSubscriber> &targetSessions) const
 {
@@ -334,52 +361,51 @@ void SubscriptionStore::publishRecursively(std::vector<std::string>::const_itera
     }
 }
 
-void SubscriptionStore::queuePacketAtSubscribers(const std::vector<std::string> &subtopics, MqttPacket &packet, bool dollar)
+void SubscriptionStore::queuePacketAtSubscribers(PublishCopyFactory &copyFactory, bool dollar)
 {
-    assert(subtopics.size() > 0);
-
     SubscriptionNode *startNode = dollar ? &rootDollar : &root;
 
     uint64_t count = 0;
     std::forward_list<ReceivingSubscriber> subscriberSessions;
 
     {
+        const std::vector<std::string> &subtopics = copyFactory.getSubtopics();
         RWLockGuard lock_guard(&subscriptionsRwlock);
         lock_guard.rdlock();
         publishRecursively(subtopics.begin(), subtopics.end(), startNode, subscriberSessions);
     }
 
-    PublishCopyFactory copyFactory(packet);
     for(const ReceivingSubscriber &x : subscriberSessions)
     {
         x.session->writePacket(copyFactory, x.qos, count);
     }
 
-    std::shared_ptr<Client> sender = packet.getSender();
+    std::shared_ptr<Client> sender = copyFactory.getSender();
     if (sender)
     {
         sender->getThreadData()->incrementSentMessageCount(count);
     }
 }
 
-void SubscriptionStore::giveClientRetainedMessagesRecursively(std::vector<std::string>::const_iterator cur_subtopic_it, std::vector<std::string>::const_iterator end,
-                                                              RetainedMessageNode *this_node,
+void SubscriptionStore::giveClientRetainedMessagesRecursively(ProtocolVersion protocolVersion, std::vector<std::string>::const_iterator cur_subtopic_it,
+                                                              std::vector<std::string>::const_iterator end, RetainedMessageNode *this_node,
                                                               bool poundMode, std::forward_list<MqttPacket> &packetList) const
 {
     if (cur_subtopic_it == end)
     {
         for(const RetainedMessage &rm : this_node->retainedMessages)
         {
+            // TODO: set the still to make 'split topic' to false
             Publish publish(rm.topic, rm.payload, rm.qos);
             publish.retain = true;
-            packetList.emplace_front(publish);
+            packetList.emplace_front(protocolVersion, publish);
         }
         if (poundMode)
         {
             for (auto &pair : this_node->children)
             {
                 std::unique_ptr<RetainedMessageNode> &child = pair.second;
-                giveClientRetainedMessagesRecursively(cur_subtopic_it, end, child.get(), poundMode, packetList);
+                giveClientRetainedMessagesRecursively(protocolVersion, cur_subtopic_it, end, child.get(), poundMode, packetList);
             }
         }
 
@@ -396,7 +422,7 @@ void SubscriptionStore::giveClientRetainedMessagesRecursively(std::vector<std::s
         {
             std::unique_ptr<RetainedMessageNode> &child = pair.second;
             if (child) // I don't think it can ever be unset, but I'd rather avoid a crash.
-                giveClientRetainedMessagesRecursively(next_subtopic, end, child.get(), poundFound, packetList);
+                giveClientRetainedMessagesRecursively(protocolVersion, next_subtopic, end, child.get(), poundFound, packetList);
         }
     }
     else
@@ -405,12 +431,13 @@ void SubscriptionStore::giveClientRetainedMessagesRecursively(std::vector<std::s
 
         if (children)
         {
-            giveClientRetainedMessagesRecursively(next_subtopic, end, children, false, packetList);
+            giveClientRetainedMessagesRecursively(protocolVersion, next_subtopic, end, children, false, packetList);
         }
     }
 }
 
-uint64_t SubscriptionStore::giveClientRetainedMessages(const std::shared_ptr<Session> &ses, const std::vector<std::string> &subscribeSubtopics, char max_qos)
+uint64_t SubscriptionStore::giveClientRetainedMessages(const std::shared_ptr<Client> &client, const std::shared_ptr<Session> &ses,
+                                                       const std::vector<std::string> &subscribeSubtopics, char max_qos)
 {
     uint64_t count = 0;
 
@@ -423,12 +450,12 @@ uint64_t SubscriptionStore::giveClientRetainedMessages(const std::shared_ptr<Ses
     {
         RWLockGuard locker(&retainedMessagesRwlock);
         locker.rdlock();
-        giveClientRetainedMessagesRecursively(subscribeSubtopics.begin(), subscribeSubtopics.end(), startNode, false, packetList);
+        giveClientRetainedMessagesRecursively(client->getProtocolVersion(), subscribeSubtopics.begin(), subscribeSubtopics.end(), startNode, false, packetList);
     }
 
     for(MqttPacket &packet : packetList)
     {
-        PublishCopyFactory copyFactory(packet);
+        PublishCopyFactory copyFactory(&packet);
         ses->writePacket(copyFactory, max_qos, count);
     }
 

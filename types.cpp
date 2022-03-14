@@ -48,6 +48,7 @@ ConnAck::ConnAck(const ProtocolVersion protVersion, ReasonCodes return_code, boo
             break;
         case ReasonCodes::NotAuthorized:
             mqtt3_return = ConnAckReturnCodes::NotAuthorized;
+            break;
         default:
             assert(false);
         }
@@ -114,6 +115,11 @@ size_t Publish::getLengthWithoutFixedHeader() const
         result += 2;
 
     return result;
+}
+
+void Publish::setClientSpecificProperties()
+{
+    // TODO. Expires at?
 }
 
 PubAck::PubAck(uint16_t packet_id) :

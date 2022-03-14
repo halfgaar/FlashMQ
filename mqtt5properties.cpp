@@ -6,27 +6,35 @@
 
 Mqtt5PropertyBuilder::Mqtt5PropertyBuilder()
 {
-    bites.reserve(128);
+    genericBytes.reserve(128);
+    clientSpecificBytes.reserve(128);
 }
 
-size_t Mqtt5PropertyBuilder::getLength() const
+size_t Mqtt5PropertyBuilder::getLength()
 {
-    return length.getLen() + bites.size();
+    length = genericBytes.size() + clientSpecificBytes.size();
+    return length.getLen() + genericBytes.size() + clientSpecificBytes.size();
 }
 
-const VariableByteInt &Mqtt5PropertyBuilder::getVarInt() const
+const VariableByteInt &Mqtt5PropertyBuilder::getVarInt()
 {
+    length = genericBytes.size() + clientSpecificBytes.size();
     return length;
 }
 
-const std::vector<char> &Mqtt5PropertyBuilder::getBites() const
+const std::vector<char> &Mqtt5PropertyBuilder::getGenericBytes() const
 {
-    return bites;
+    return genericBytes;
+}
+
+const std::vector<char> &Mqtt5PropertyBuilder::getclientSpecificBytes() const
+{
+    return clientSpecificBytes;
 }
 
 void Mqtt5PropertyBuilder::writeSessionExpiry(uint32_t val)
 {
-    writeUint32(Mqtt5Properties::SessionExpiryInterval, val);
+    writeUint32(Mqtt5Properties::SessionExpiryInterval, val, genericBytes);
 }
 
 void Mqtt5PropertyBuilder::writeReceiveMax(uint16_t val)
@@ -41,7 +49,7 @@ void Mqtt5PropertyBuilder::writeRetainAvailable(uint8_t val)
 
 void Mqtt5PropertyBuilder::writeMaxPacketSize(uint32_t val)
 {
-    writeUint32(Mqtt5Properties::MaximumPacketSize, val);
+    writeUint32(Mqtt5Properties::MaximumPacketSize, val, genericBytes);
 }
 
 void Mqtt5PropertyBuilder::writeAssignedClientId(const std::string &clientid)
@@ -81,7 +89,7 @@ void Mqtt5PropertyBuilder::writePayloadFormatIndicator(uint8_t val)
 
 void Mqtt5PropertyBuilder::writeMessageExpiryInterval(uint32_t val)
 {
-    writeUint32(Mqtt5Properties::MessageExpiryInterval, val);
+    writeUint32(Mqtt5Properties::MessageExpiryInterval, val, clientSpecificBytes);
 }
 
 void Mqtt5PropertyBuilder::writeResponseTopic(const std::string &str)
@@ -89,49 +97,46 @@ void Mqtt5PropertyBuilder::writeResponseTopic(const std::string &str)
     writeStr(Mqtt5Properties::ResponseTopic, str);
 }
 
-void Mqtt5PropertyBuilder::writeUint32(Mqtt5Properties prop, const uint32_t x)
+void Mqtt5PropertyBuilder::writeUint32(Mqtt5Properties prop, const uint32_t x, std::vector<char> &target)
 {
-    size_t pos = bites.size();
+    size_t pos = target.size();
     const size_t newSize = pos + 5;
-    bites.resize(newSize);
-    this->length = newSize;
+    target.resize(newSize);
 
     const uint8_t a = static_cast<uint8_t>(x >> 24);
     const uint8_t b = static_cast<uint8_t>(x >> 16);
     const uint8_t c = static_cast<uint8_t>(x >> 8);
     const uint8_t d = static_cast<uint8_t>(x);
 
-    bites[pos++] = static_cast<uint8_t>(prop);
-    bites[pos++] = a;
-    bites[pos++] = b;
-    bites[pos++] = c;
-    bites[pos] = d;
+    target[pos++] = static_cast<uint8_t>(prop);
+    target[pos++] = a;
+    target[pos++] = b;
+    target[pos++] = c;
+    target[pos] = d;
 }
 
 void Mqtt5PropertyBuilder::writeUint16(Mqtt5Properties prop, const uint16_t x)
 {
-    size_t pos = bites.size();
+    size_t pos = genericBytes.size();
     const size_t newSize = pos + 3;
-    bites.resize(newSize);
-    this->length = newSize;
+    genericBytes.resize(newSize);
 
     const uint8_t a = static_cast<uint8_t>(x >> 8);
     const uint8_t b = static_cast<uint8_t>(x);
 
-    bites[pos++] = static_cast<uint8_t>(prop);
-    bites[pos++] = a;
-    bites[pos] = b;
+    genericBytes[pos++] = static_cast<uint8_t>(prop);
+    genericBytes[pos++] = a;
+    genericBytes[pos] = b;
 }
 
 void Mqtt5PropertyBuilder::writeUint8(Mqtt5Properties prop, const uint8_t x)
 {
-    size_t pos = bites.size();
+    size_t pos = genericBytes.size();
     const size_t newSize = pos + 2;
-    bites.resize(newSize);
-    this->length = newSize;
+    genericBytes.resize(newSize);
 
-    bites[pos++] = static_cast<uint8_t>(prop);
-    bites[pos] = x;
+    genericBytes[pos++] = static_cast<uint8_t>(prop);
+    genericBytes[pos] = x;
 }
 
 void Mqtt5PropertyBuilder::writeStr(Mqtt5Properties prop, const std::string &str)
@@ -141,18 +146,17 @@ void Mqtt5PropertyBuilder::writeStr(Mqtt5Properties prop, const std::string &str
 
     const uint16_t strlen = str.length();
 
-    size_t pos = bites.size();
+    size_t pos = genericBytes.size();
     const size_t newSize = pos + strlen + 2;
-    bites.resize(newSize);
-    this->length = newSize;
+    genericBytes.resize(newSize);
 
     const uint8_t a = static_cast<uint8_t>(strlen >> 8);
     const uint8_t b = static_cast<uint8_t>(strlen);
 
-    bites[pos++] = static_cast<uint8_t>(prop);
-    bites[pos++] = a;
-    bites[pos++] = b;
+    genericBytes[pos++] = static_cast<uint8_t>(prop);
+    genericBytes[pos++] = a;
+    genericBytes[pos++] = b;
 
-    std::memcpy(&bites[pos], str.c_str(), strlen);
+    std::memcpy(&genericBytes[pos], str.c_str(), strlen);
 }
 

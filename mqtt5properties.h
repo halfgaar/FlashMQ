@@ -8,19 +8,21 @@
 
 class Mqtt5PropertyBuilder
 {
-    std::vector<char> bites;
+    std::vector<char> genericBytes;
+    std::vector<char> clientSpecificBytes; // only relevant for publishes
     VariableByteInt length;
 
-    void writeUint32(Mqtt5Properties prop, const uint32_t x);
+    void writeUint32(Mqtt5Properties prop, const uint32_t x, std::vector<char> &target);
     void writeUint16(Mqtt5Properties prop, const uint16_t x);
     void writeUint8(Mqtt5Properties prop, const uint8_t x);
     void writeStr(Mqtt5Properties prop, const std::string &str);
 public:
     Mqtt5PropertyBuilder();
 
-    size_t getLength() const;
-    const VariableByteInt &getVarInt() const;
-    const std::vector<char> &getBites() const;
+    size_t getLength();
+    const VariableByteInt &getVarInt();
+    const std::vector<char> &getGenericBytes() const;
+    const std::vector<char> &getclientSpecificBytes() const;
 
     void writeSessionExpiry(uint32_t val);
     void writeReceiveMax(uint16_t val);

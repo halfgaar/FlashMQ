@@ -101,12 +101,18 @@ class SubscriptionStore
     RetainedMessageNode retainedMessagesRootDollar;
     int64_t retainedMessageCount = 0;
 
+    std::mutex pendingWillsMutex;
+    std::list<std::weak_ptr<Publish>> pendingWillMessages;
+
     Logger *logger = Logger::getInstance();
 
     void publishNonRecursively(const std::unordered_map<std::string, Subscription> &subscribers,
                                std::forward_list<ReceivingSubscriber> &targetSessions) const;
     void publishRecursively(std::vector<std::string>::const_iterator cur_subtopic_it, std::vector<std::string>::const_iterator end,
                             SubscriptionNode *this_node, std::forward_list<ReceivingSubscriber> &targetSessions) const;
+    void giveClientRetainedMessagesRecursively(ProtocolVersion protocolVersion, std::vector<std::string>::const_iterator cur_subtopic_it,
+                                               std::vector<std::string>::const_iterator end, RetainedMessageNode *this_node, bool poundMode,
+                                               std::forward_list<MqttPacket> &packetList) const;
     void getRetainedMessages(RetainedMessageNode *this_node, std::vector<RetainedMessage> &outputList) const;
     void getSubscriptions(SubscriptionNode *this_node, const std::string &composedTopic, bool root,
                           std::unordered_map<std::string, std::list<SubscriptionForSerializing>> &outputList) const;
@@ -122,10 +128,11 @@ public:
     void registerClientAndKickExistingOne(std::shared_ptr<Client> &client, bool clean_start, uint16_t maxQosPackets, uint32_t sessionExpiryInterval);
     bool sessionPresent(const std::string &clientid);
 
-    void queuePacketAtSubscribers(const std::vector<std::string> &subtopics, MqttPacket &packet, bool dollar = false);
-    void giveClientRetainedMessagesRecursively(std::vector<std::string>::const_iterator cur_subtopic_it, std::vector<std::string>::const_iterator end,
-                                               RetainedMessageNode *this_node, bool poundMode, std::forward_list<MqttPacket> &packetList) const;
-    uint64_t giveClientRetainedMessages(const std::shared_ptr<Session> &ses, const std::vector<std::string> &subscribeSubtopics, char max_qos);
+    void sendQueuedWillMessages();
+    void queueWillMessage(std::shared_ptr<Publish> &willMessage);
+    void queuePacketAtSubscribers(PublishCopyFactory &copyFactory, bool dollar = false);
+    uint64_t giveClientRetainedMessages(const std::shared_ptr<Client> &client, const std::shared_ptr<Session> &ses,
+                                        const std::vector<std::string> &subscribeSubtopics, char max_qos);
 
     void setRetainedMessage(const std::string &topic, const std::vector<std::string> &subtopics, const std::string &payload, char qos);
 

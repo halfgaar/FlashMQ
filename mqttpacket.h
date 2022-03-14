@@ -42,12 +42,10 @@ class MqttPacket
     friend class MainTests;
 #endif
 
-    std::string topic;
-    std::vector<std::string> subtopics;
     std::vector<char> bites;
+    Publish publish;
     size_t fixed_header_length = 0; // if 0, this packet does not contain the bytes of the fixed header.
     VariableByteInt remainingLength;
-    char qos = 0;
     std::shared_ptr<Client> sender;
     char first_byte = 0;
     size_t pos = 0;
@@ -88,7 +86,7 @@ public:
     MqttPacket(const ConnAck &connAck);
     MqttPacket(const SubAck &subAck);
     MqttPacket(const UnsubAck &unsubAck);
-    MqttPacket(const ProtocolVersion protocolVersion, const Publish &publish);
+    MqttPacket(const ProtocolVersion protocolVersion, Publish &_publish);
     MqttPacket(const PubAck &pubAck);
     MqttPacket(const PubRec &pubRec);
     MqttPacket(const PubComp &pubComp);
@@ -110,8 +108,9 @@ public:
 
     size_t getSizeIncludingNonPresentHeader() const;
     const std::vector<char> &getBites() const { return bites; }
-    char getQos() const { return qos; }
+    char getQos() const { return publish.qos; }
     void setQos(const char new_qos);
+    ProtocolVersion getProtocolVersion() const { return protocolVersion;}
     const std::string &getTopic() const;
     const std::vector<std::string> &getSubtopics() const;
     std::shared_ptr<Client> getSender() const;
@@ -124,6 +123,7 @@ public:
     std::string getPayloadCopy() const;
     bool getRetain() const;
     void setRetain();
+    Publish *getPublish();
 };
 
 #endif // MQTTPACKET_H

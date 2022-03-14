@@ -848,7 +848,7 @@ void MainTests::testPacketInt16Parse()
     for (const uint16_t id : tests)
     {
         Publish pub("hallo", "content", 1);
-        MqttPacket packet(pub);
+        MqttPacket packet(ProtocolVersion::Mqtt311, pub);
         packet.setPacketId(id);
         packet.pos -= 2;
         uint16_t idParsed = packet.readTwoBytesToUInt16();
@@ -1038,8 +1038,8 @@ void MainTests::testSavingSessions()
 
         std::shared_ptr<Session> c1ses = c1->getSession();
         c1.reset();
-        MqttPacket publishPacket(publish);
-        PublishCopyFactory fac(publishPacket);
+        MqttPacket publishPacket(ProtocolVersion::Mqtt311, publish);
+        PublishCopyFactory fac(&publishPacket);
         c1ses->writePacket(fac, 1, count);
 
         store->saveSessionsAndSubscriptions("/tmp/flashmqtests_sessions.db");
@@ -1133,7 +1133,7 @@ void testCopyPacketHelper(const std::string &topic, char from_qos, char to_qos, 
         const std::string payloadOne = getSecureRandomString(len);
         Publish pubOne(topic, payloadOne, from_qos);
         pubOne.retain = retain;
-        MqttPacket stagingPacketOne(pubOne);
+        MqttPacket stagingPacketOne(ProtocolVersion::Mqtt311, pubOne);
         if (from_qos > 0)
             stagingPacketOne.setPacketId(pack_id);
         CirBuf stagingBufOne(1024);
@@ -1156,7 +1156,7 @@ void testCopyPacketHelper(const std::string &topic, char from_qos, char to_qos, 
 
         Publish pubReference(topic, payloadOne, to_qos);
         pubReference.retain = retain;
-        MqttPacket packetReference(pubReference);
+        MqttPacket packetReference(ProtocolVersion::Mqtt311, pubReference);
         QCOMPARE(packetReference.getQos(), copiedPacketOne->getQos());
         if (to_qos > 0)
             packetReference.setPacketId(pack_id);

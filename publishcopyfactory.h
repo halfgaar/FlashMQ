@@ -11,25 +11,32 @@
  *
  * The idea is that certain incoming packets can just be written to the receiving client as-is, without constructing a new one. We do have to change the bytes
  * where the QoS is stored, so we keep track of the original.
+ *
+ * Ownership info: object of this type are never copied or transferred, so the internal pointers come from (near) the same scope these objects
+ * are created from.
  */
 class PublishCopyFactory
 {
-    MqttPacket &packet;
+    MqttPacket *packet = nullptr;
+    Publish *publish = nullptr;
+    std::unique_ptr<MqttPacket> oneShotPacket;
     const char orgQos;
     std::shared_ptr<MqttPacket> downgradedQos0PacketCopy;
 
-    // TODO: constructed mqtt3 packet and mqtt5 packet
+    // TODO: constructed mqtt3 packet and mqtt5 packet?
 public:
-    PublishCopyFactory(MqttPacket &packet);
+    PublishCopyFactory(MqttPacket *packet);
+    PublishCopyFactory(Publish *publish);
     PublishCopyFactory(const PublishCopyFactory &other) = delete;
     PublishCopyFactory(PublishCopyFactory &&other) = delete;
 
-    MqttPacket &getOptimumPacket(char max_qos);
+    MqttPacket *getOptimumPacket(char max_qos, ProtocolVersion protocolVersion);
     char getEffectiveQos(char max_qos) const;
     const std::string &getTopic() const;
-    const std::vector<std::string> &getSubtopics() const;
+    const std::vector<std::string> &getSubtopics();
     bool getRetain() const;
-    Publish getPublish() const;
+    Publish getNewPublish() const;
+    std::shared_ptr<Client> getSender();
 };
 
 #endif // PUBLISHCOPYFACTORY_H
