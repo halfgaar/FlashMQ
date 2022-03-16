@@ -215,9 +215,9 @@ void SessionsAndSubscriptionsDB::saveData(const std::vector<std::unique_ptr<Sess
         size_t qosPacketsCounted = 0;
         writeUint32(qosPacketsExpected);
 
-        for (QueuedPublish &p: ses->qosPacketQueue)
+        for (const QueuedPublish &p: ses->qosPacketQueue)
         {
-            Publish &pub = p.getPublish();
+            const Publish &pub = p.getPublish();
 
             logger->logf(LOG_DEBUG, "Saving QoS %d message for topic '%s'.", pub.qos, pub.topic.c_str());
 

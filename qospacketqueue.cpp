@@ -16,7 +16,7 @@ uint16_t QueuedPublish::getPacketId() const
     return this->packet_id;
 }
 
-Publish &QueuedPublish::getPublish()
+const Publish &QueuedPublish::getPublish() const
 {
     return publish;
 }
@@ -79,12 +79,12 @@ void QoSPublishQueue::queuePublish(Publish &&pub, uint16_t id)
     qosQueueBytes += queue.back().getApproximateMemoryFootprint();
 }
 
-std::list<QueuedPublish>::iterator QoSPublishQueue::begin()
+std::list<QueuedPublish>::const_iterator QoSPublishQueue::begin() const
 {
     return queue.begin();
 }
 
-std::list<QueuedPublish>::iterator QoSPublishQueue::end()
+std::list<QueuedPublish>::const_iterator QoSPublishQueue::end() const
 {
     return queue.end();
 }

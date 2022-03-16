@@ -43,7 +43,7 @@ class MqttPacket
 #endif
 
     std::vector<char> bites;
-    Publish publish;
+    Publish publishData;
     size_t fixed_header_length = 0; // if 0, this packet does not contain the bytes of the fixed header.
     VariableByteInt remainingLength;
     std::shared_ptr<Client> sender;
@@ -80,13 +80,13 @@ public:
 
     std::shared_ptr<MqttPacket> getCopy(char new_max_qos) const;
 
-    size_t getRequiredSizeForPublish(const ProtocolVersion protocolVersion, const Publish &publish) const;
+    size_t getRequiredSizeForPublish(const ProtocolVersion protocolVersion, const Publish &publishData) const;
 
     // Constructor for outgoing packets. These may not allocate room for the fixed header, because we don't (always) know the length in advance.
     MqttPacket(const ConnAck &connAck);
     MqttPacket(const SubAck &subAck);
     MqttPacket(const UnsubAck &unsubAck);
-    MqttPacket(const ProtocolVersion protocolVersion, Publish &_publish);
+    MqttPacket(const ProtocolVersion protocolVersion, const Publish &_publish);
     MqttPacket(const PubAck &pubAck);
     MqttPacket(const PubRec &pubRec);
     MqttPacket(const PubComp &pubComp);
@@ -108,7 +108,7 @@ public:
 
     size_t getSizeIncludingNonPresentHeader() const;
     const std::vector<char> &getBites() const { return bites; }
-    char getQos() const { return publish.qos; }
+    char getQos() const { return publishData.qos; }
     void setQos(const char new_qos);
     ProtocolVersion getProtocolVersion() const { return protocolVersion;}
     const std::string &getTopic() const;

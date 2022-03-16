@@ -257,7 +257,7 @@ uint64_t Session::sendPendingQosMessages()
     if (c)
     {
         std::lock_guard<std::mutex> locker(qosQueueMutex);
-        for (QueuedPublish &queuedPublish : qosPacketQueue)
+        for (const QueuedPublish &queuedPublish : qosPacketQueue)
         {
             MqttPacket p(c->getProtocolVersion(), queuedPublish.getPublish());
             p.setDuplicate();

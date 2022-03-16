@@ -61,7 +61,7 @@ std::shared_ptr<MqttPacket> MqttPacket::getCopy(char new_max_qos) const
     // has to do with the Session::writePacket() and Session::sendPendingQosMessages() logic.
     assert((first_byte & 0b00001000) == 0);
 
-    if (publish.qos > 0 && new_max_qos == 0)
+    if (publishData.qos > 0 && new_max_qos == 0)
     {
         // if shrinking the packet doesn't alter the amount of bytes in the 'remaining length' part of the header, we can
         // just memmove+shrink the packet. This is because the packet id always is two bytes before the payload, so we just move the payload
@@ -79,7 +79,7 @@ std::shared_ptr<MqttPacket> MqttPacket::getCopy(char new_max_qos) const
                 std::memmove(&p->bites[packet_id_pos], &p->bites[packet_id_pos+2], payloadLen);
             p->bites.erase(p->bites.end() - 2, p->bites.end());
             p->packet_id_pos = 0;
-            p->publish.qos = 0;
+            p->publishData.qos = 0;
             p->payloadStart -= 2;
             if (pos > p->bites.size()) // pos can possible be set elsewhere, so we only set it back if it was after the payload.
                 p->pos -= 2;
@@ -97,7 +97,7 @@ std::shared_ptr<MqttPacket> MqttPacket::getCopy(char new_max_qos) const
             return p;
         }
 
-        Publish pub(publish.topic, getPayloadCopy(), new_max_qos);
+        Publish pub(publishData.topic, getPayloadCopy(), new_max_qos);
         pub.retain = getRetain();
         std::shared_ptr<MqttPacket> copyPacket(new MqttPacket(ProtocolVersion::Mqtt311, pub)); // TODO: don't hard-code the protocol version.
         return copyPacket;
@@ -105,7 +105,7 @@ std::shared_ptr<MqttPacket> MqttPacket::getCopy(char new_max_qos) const
 
     std::shared_ptr<MqttPacket> copyPacket(new MqttPacket(*this));
     copyPacket->sender.reset();
-    if (publish.qos != new_max_qos)
+    if (publishData.qos != new_max_qos)
         copyPacket->setQos(new_max_qos);
     return copyPacket;
 }
@@ -163,29 +163,29 @@ size_t MqttPacket::getRequiredSizeForPublish(const ProtocolVersion protocolVersi
     return result;
 }
 
-MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, Publish &_publish) :
+MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, const Publish &_publish) :
     bites(getRequiredSizeForPublish(protocolVersion, _publish))
 {
-    if (publish.topic.length() > 0xFFFF)
+    if (publishData.topic.length() > 0xFFFF)
     {
         throw ProtocolError("Topic path too long.");
     }
 
     this->protocolVersion = protocolVersion;
 
-    this->publish.topic = _publish.topic;
-    splitTopic(this->publish.topic, this->publish.subtopics); // TODO: I think I can make this conditional, because the (planned) use will already have used the subtopics.
+    this->publishData.topic = _publish.topic;
+    splitTopic(this->publishData.topic, this->publishData.subtopics); // TODO: I think I can make this conditional, because the (planned) use will already have used the subtopics.
 
     packetType = PacketType::PUBLISH;
-    this->publish.qos = _publish.qos;
+    this->publishData.qos = _publish.qos;
     first_byte = static_cast<char>(packetType) << 4;
     first_byte |= (_publish.qos << 1);
     first_byte |= (static_cast<char>(_publish.retain) & 0b00000001);
 
-    writeUint16(publish.topic.length());
-    writeBytes(publish.topic.c_str(), publish.topic.length());
+    writeUint16(publishData.topic.length());
+    writeBytes(publishData.topic.c_str(), publishData.topic.length());
 
-    if (publish.qos)
+    if (publishData.qos)
     {
         // Reserve the space for the packet id, which will be assigned later.
         packet_id_pos = pos;
@@ -769,22 +769,22 @@ void MqttPacket::handlePublish()
 
     if (qos > 2)
         throw ProtocolError("QoS 3 is a protocol violation.");
-    this->publish.qos = qos;
+    this->publishData.qos = qos;
 
     if (qos == 0 && dup)
         throw ProtocolError("Duplicate flag is set for QoS 0 packet. This is illegal.");
 
-    publish.topic = std::string(readBytes(variable_header_length), variable_header_length);
-    splitTopic(publish.topic, publish.subtopics);
+    publishData.topic = std::string(readBytes(variable_header_length), variable_header_length);
+    splitTopic(publishData.topic, publishData.subtopics);
 
-    if (!isValidUtf8(publish.topic, true))
+    if (!isValidUtf8(publishData.topic, true))
     {
         logger->logf(LOG_WARNING, "Client '%s' published a message with invalid UTF8 or $/+/# in it. Dropping.", sender->repr().c_str());
         return;
     }
 
 #ifndef NDEBUG
-    logger->logf(LOG_DEBUG, "Publish received, topic '%s'. QoS=%d. Retain=%d, dup=%d", publish.topic.c_str(), qos, retain, dup);
+    logger->logf(LOG_DEBUG, "Publish received, topic '%s'. QoS=%d. Retain=%d, dup=%d", publishData.topic.c_str(), qos, retain, dup);
 #endif
 
     sender->getThreadData()->incrementReceivedMessageCount();
@@ -831,23 +831,23 @@ void MqttPacket::handlePublish()
         while (pos < prop_end_at)
         {
             const Mqtt5Properties prop = static_cast<Mqtt5Properties>(readByte());
-            publish.propertyBuilder = std::make_shared<Mqtt5PropertyBuilder>();
+            publishData.propertyBuilder = std::make_shared<Mqtt5PropertyBuilder>();
 
             switch (prop)
             {
             case Mqtt5Properties::PayloadFormatIndicator:
-                publish.propertyBuilder->writePayloadFormatIndicator(readByte());
+                publishData.propertyBuilder->writePayloadFormatIndicator(readByte());
                 break;
             case Mqtt5Properties::MessageExpiryInterval:
-                publish.createdAt = std::chrono::steady_clock::now();
-                publish.expiresAfter = std::chrono::seconds(readFourBytesToUint32());
+                publishData.createdAt = std::chrono::steady_clock::now();
+                publishData.expiresAfter = std::chrono::seconds(readFourBytesToUint32());
             case Mqtt5Properties::TopicAlias:
                 break;
             case Mqtt5Properties::ResponseTopic:
             {
                 const uint16_t len = readTwoBytesToUInt16();
                 const std::string responseTopic(readBytes(len), len);
-                publish.propertyBuilder->writeResponseTopic(responseTopic);
+                publishData.propertyBuilder->writeResponseTopic(responseTopic);
                 break;
             }
             case Mqtt5Properties::CorrelationData:
@@ -860,7 +860,7 @@ void MqttPacket::handlePublish()
             {
                 const uint16_t len = readTwoBytesToUInt16();
                 const std::string contentType(readBytes(len), len);
-                publish.propertyBuilder->writeContentType(contentType);
+                publishData.propertyBuilder->writeContentType(contentType);
                 break;
             }
             default:
@@ -873,12 +873,12 @@ void MqttPacket::handlePublish()
     payloadStart = pos;
 
     Authentication &authentication = *ThreadGlobals::getAuth();
-    if (authentication.aclCheck(sender->getClientId(), sender->getUsername(), publish.topic, publish.subtopics, AclAccess::write, qos, retain) == AuthResult::success)
+    if (authentication.aclCheck(sender->getClientId(), sender->getUsername(), publishData.topic, publishData.subtopics, AclAccess::write, qos, retain) == AuthResult::success)
     {
         if (retain)
         {
             std::string payload(readBytes(payloadLen), payloadLen);
-            sender->getThreadData()->getSubscriptionStore()->setRetainedMessage(publish.topic, publish.subtopics, payload, qos);
+            sender->getThreadData()->getSubscriptionStore()->setRetainedMessage(publishData.topic, publishData.subtopics, payload, qos);
         }
 
         // Set dup flag to 0, because that must not be propagated [MQTT-3.3.1-3].
@@ -948,7 +948,7 @@ void MqttPacket::setPacketId(uint16_t packet_id)
     assert(fixed_header_length == 0 || first_byte == bites[0]);
     assert(packet_id_pos > 0);
     assert(packetType == PacketType::PUBLISH);
-    assert(publish.qos > 0);
+    assert(publishData.qos > 0);
 
     this->packet_id = packet_id;
     pos = packet_id_pos;
@@ -957,7 +957,7 @@ void MqttPacket::setPacketId(uint16_t packet_id)
 
 uint16_t MqttPacket::getPacketId() const
 {
-    assert(publish.qos > 0);
+    assert(publishData.qos > 0);
     return packet_id;
 }
 
@@ -965,7 +965,7 @@ uint16_t MqttPacket::getPacketId() const
 void MqttPacket::setDuplicate()
 {
     assert(packetType == PacketType::PUBLISH);
-    assert(publish.qos > 0);
+    assert(publishData.qos > 0);
     assert(fixed_header_length == 0 || first_byte == bites[0]);
 
     first_byte |= 0b00001000;
@@ -1010,12 +1010,12 @@ size_t MqttPacket::getSizeIncludingNonPresentHeader() const
 void MqttPacket::setQos(const char new_qos)
 {
     // You can't change to a QoS level that would remove the packet identifier.
-    assert((publish.qos == 0 && new_qos == 0) || (publish.qos > 0 && new_qos > 0));
+    assert((publishData.qos == 0 && new_qos == 0) || (publishData.qos > 0 && new_qos > 0));
     assert(new_qos > 0 && packet_id_pos > 0);
 
-    publish.qos = new_qos;
+    publishData.qos = new_qos;
     first_byte &= 0b11111001;
-    first_byte |= (publish.qos << 1);
+    first_byte |= (publishData.qos << 1);
 
     if (fixed_header_length > 0)
     {
@@ -1026,7 +1026,7 @@ void MqttPacket::setQos(const char new_qos)
 
 const std::string &MqttPacket::getTopic() const
 {
-    return this->publish.topic;
+    return this->publishData.topic;
 }
 
 /**
@@ -1035,7 +1035,7 @@ const std::string &MqttPacket::getTopic() const
  */
 const std::vector<std::string> &MqttPacket::getSubtopics() const
 {
-    return this->publish.subtopics;
+    return this->publishData.subtopics;
 }
 
 
@@ -1200,15 +1200,15 @@ void MqttPacket::setRetain()
 
 Publish *MqttPacket::getPublish()
 {
-    if (payloadLen > 0 && publish.payload.empty())
-        publish.payload = getPayloadCopy();
+    if (payloadLen > 0 && publishData.payload.empty())
+        publishData.payload = getPayloadCopy();
 
-    return &publish;
+    return &publishData;
 }
 
 void MqttPacket::readIntoBuf(CirBuf &buf) const
 {
-    assert(packetType != PacketType::PUBLISH || (first_byte & 0b00000110) >> 1 == publish.qos);
+    assert(packetType != PacketType::PUBLISH || (first_byte & 0b00000110) >> 1 == publishData.qos);
 
     buf.ensureFreeSpace(getSizeIncludingNonPresentHeader());
 

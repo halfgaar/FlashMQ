@@ -21,7 +21,7 @@ public:
 
     size_t getApproximateMemoryFootprint() const;
     uint16_t getPacketId() const;
-    Publish &getPublish();
+    const Publish &getPublish() const;
 };
 
 class QoSPublishQueue
@@ -36,8 +36,8 @@ public:
     void queuePublish(PublishCopyFactory &copyFactory, uint16_t id, char new_max_qos);
     void queuePublish(Publish &&pub, uint16_t id);
 
-    std::list<QueuedPublish>::iterator begin();
-    std::list<QueuedPublish>::iterator end();
+    std::list<QueuedPublish>::const_iterator begin() const;
+    std::list<QueuedPublish>::const_iterator end() const;
 };
 
 #endif // QOSPACKETQUEUE_H
