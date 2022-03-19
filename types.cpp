@@ -100,7 +100,7 @@ size_t SubAck::getLengthWithoutFixedHeader() const
     return result;
 }
 
-Publish::Publish(const std::string &topic, const std::string &payload, char qos) :
+PublishBase::PublishBase(const std::string &topic, const std::string &payload, char qos) :
     topic(topic),
     payload(payload),
     qos(qos)
@@ -108,7 +108,7 @@ Publish::Publish(const std::string &topic, const std::string &payload, char qos)
 
 }
 
-size_t Publish::getLengthWithoutFixedHeader() const
+size_t PublishBase::getLengthWithoutFixedHeader() const
 {
     int result = topic.length() + payload.length() + 2;
 
@@ -122,11 +122,23 @@ size_t Publish::getLengthWithoutFixedHeader() const
  * @brief Publish::setClientSpecificProperties generates the properties byte array for one client. You're supposed to call it before any publish.
  *
  */
-void Publish::setClientSpecificProperties()
+void PublishBase::setClientSpecificProperties()
 {
     if (propertyBuilder)
         propertyBuilder->clearClientSpecificBytes();
     // TODO. Expires at?
+}
+
+Publish::Publish(const Publish &other) :
+    PublishBase(other)
+{
+
+}
+
+Publish::Publish(const std::string &topic, const std::string &payload, char qos) :
+    PublishBase(topic, payload, qos)
+{
+
 }
 
 PubAck::PubAck(uint16_t packet_id) :

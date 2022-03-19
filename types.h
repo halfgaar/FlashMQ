@@ -189,11 +189,13 @@ public:
     size_t getLengthWithoutFixedHeader() const;
 };
 
-class Publish
+/**
+ * @brief The PublishBase class was incepted to have an easy default copy constuctor that doesn't copy all fields.
+ */
+class PublishBase
 {
 public:
     std::string topic;
-    std::vector<std::string> subtopics;
     std::string payload;
     char qos = 0;
     bool retain = false; // Note: existing subscribers don't get publishes of retained messages with retain=1. [MQTT-3.3.1-9]
@@ -203,10 +205,20 @@ public:
     std::chrono::seconds expiresAfter;
     std::shared_ptr<Mqtt5PropertyBuilder> propertyBuilder;
 
-    Publish() = default;
-    Publish(const std::string &topic, const std::string &payload, char qos);
+    PublishBase() = default;
+    PublishBase(const std::string &topic, const std::string &payload, char qos);
     size_t getLengthWithoutFixedHeader() const;
     void setClientSpecificProperties();
+};
+
+class Publish : public PublishBase
+{
+public:
+    std::vector<std::string> subtopics;
+
+    Publish() = default;
+    Publish(const Publish &other);
+    Publish(const std::string &topic, const std::string &payload, char qos);
 };
 
 class PubAck
