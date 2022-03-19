@@ -910,11 +910,6 @@ void MqttPacket::setDuplicate()
 /**
  * @brief MqttPacket::getPayloadCopy takes part of the vector of bytes and returns it as a string.
  * @return
- *
- * It's necessary sometimes, but it's against FlashMQ's concept of not parsing the payload. Normally, you can just write out
- * the whole byte array of an original packet to subscribers. No need to copy and such.
- *
- * But, as stated, sometimes it's necessary.
  */
 std::string MqttPacket::getPayloadCopy() const
 {
@@ -1128,12 +1123,12 @@ void MqttPacket::setRetain()
     }
 }
 
-Publish *MqttPacket::getPublishData()
+const Publish &MqttPacket::getPublishData()
 {
     if (payloadLen > 0 && publishData.payload.empty())
         publishData.payload = getPayloadCopy();
 
-    return &publishData;
+    return publishData;
 }
 
 void MqttPacket::readIntoBuf(CirBuf &buf) const

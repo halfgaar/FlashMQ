@@ -121,7 +121,7 @@ public:
     std::string getPayloadCopy() const;
     bool getRetain() const;
     void setRetain();
-    Publish *getPublishData();
+    const Publish &getPublishData();
 };
 
 #endif // MQTTPACKET_H

@@ -19,8 +19,6 @@ PublishCopyFactory::PublishCopyFactory(Publish *publish) :
 
 MqttPacket *PublishCopyFactory::getOptimumPacket(const char max_qos, const ProtocolVersion protocolVersion)
 {
-    // TODO: cache idea: a set of constructed packets per branch in this code, witn an int identifier.
-
     if (packet)
     {
         if (packet->getProtocolVersion() == protocolVersion && orgQos == max_qos)
@@ -34,12 +32,12 @@ MqttPacket *PublishCopyFactory::getOptimumPacket(const char max_qos, const Proto
 
         if (!cachedPack)
         {
-            Publish *orgPublish = packet->getPublishData();
-            orgPublish->splitTopic = false;
-            orgPublish->qos = max_qos;
+            Publish newPublish(packet->getPublishData());
+            newPublish.splitTopic = false;
+            newPublish.qos = max_qos;
             if (protocolVersion >= ProtocolVersion::Mqtt5)
-                orgPublish->setClientSpecificProperties();
-            cachedPack = std::make_unique<MqttPacket>(protocolVersion, *orgPublish);
+                newPublish.setClientSpecificProperties();
+            cachedPack = std::make_unique<MqttPacket>(protocolVersion, newPublish);
         }
 
         return cachedPack.get();
@@ -100,11 +98,13 @@ Publish PublishCopyFactory::getNewPublish() const
 
     if (packet)
     {
-        Publish p(*packet->getPublishData());
+        Publish p(packet->getPublishData());
+        p.qos = orgQos;
         return p;
     }
 
     Publish p(*publish);
+    p.qos = orgQos;
     return p;
 }
 

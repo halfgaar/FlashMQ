@@ -19,6 +19,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 
 #include "types.h"
 #include "mqtt5properties.h"
+#include "mqttpacket.h"
 
 ConnAck::ConnAck(const ProtocolVersion protVersion, ReasonCodes return_code, bool session_present) :
     protocol_version(protVersion),
