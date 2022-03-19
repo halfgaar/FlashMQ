@@ -78,8 +78,6 @@ public:
 
     MqttPacket(MqttPacket &&other) = default;
 
-    std::shared_ptr<MqttPacket> getCopy(char new_max_qos) const;
-
     size_t getRequiredSizeForPublish(const ProtocolVersion protocolVersion, const Publish &publishData) const;
 
     // Constructor for outgoing packets. These may not allocate room for the fixed header, because we don't (always) know the length in advance.
@@ -123,7 +121,7 @@ public:
     std::string getPayloadCopy() const;
     bool getRetain() const;
     void setRetain();
-    Publish *getPublish();
+    Publish *getPublishData();
 };
 
 #endif // MQTTPACKET_H

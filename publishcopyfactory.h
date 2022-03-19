@@ -5,6 +5,7 @@
 
 #include "forward_declarations.h"
 #include "types.h"
+#include "unordered_map"
 
 /**
  * @brief The PublishCopyFactory class is for managing copies of an incoming publish, including sometimes not making copies at all.
@@ -21,16 +22,14 @@ class PublishCopyFactory
     Publish *publish = nullptr;
     std::unique_ptr<MqttPacket> oneShotPacket;
     const char orgQos;
-    std::shared_ptr<MqttPacket> downgradedQos0PacketCopy;
-
-    // TODO: constructed mqtt3 packet and mqtt5 packet?
+    std::unordered_map<uint8_t, std::unique_ptr<MqttPacket>> constructedPacketCache;
 public:
     PublishCopyFactory(MqttPacket *packet);
     PublishCopyFactory(Publish *publish);
     PublishCopyFactory(const PublishCopyFactory &other) = delete;
     PublishCopyFactory(PublishCopyFactory &&other) = delete;
 
-    MqttPacket *getOptimumPacket(char max_qos, ProtocolVersion protocolVersion);
+    MqttPacket *getOptimumPacket(const char max_qos, const ProtocolVersion protocolVersion);
     char getEffectiveQos(char max_qos) const;
     const std::string &getTopic() const;
     const std::vector<std::string> &getSubtopics();

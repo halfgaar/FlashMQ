@@ -117,9 +117,14 @@ size_t Publish::getLengthWithoutFixedHeader() const
     return result;
 }
 
+/**
+ * @brief Publish::setClientSpecificProperties generates the properties byte array for one client. You're supposed to call it before any publish.
+ *
+ */
 void Publish::setClientSpecificProperties()
 {
-    propertyBuilder->clearClientSpecificBytes();
+    if (propertyBuilder)
+        propertyBuilder->clearClientSpecificBytes();
     // TODO. Expires at?
 }
 

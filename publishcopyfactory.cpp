@@ -17,36 +17,39 @@ PublishCopyFactory::PublishCopyFactory(Publish *publish) :
 
 }
 
-MqttPacket *PublishCopyFactory::getOptimumPacket(char max_qos, ProtocolVersion protocolVersion)
+MqttPacket *PublishCopyFactory::getOptimumPacket(const char max_qos, const ProtocolVersion protocolVersion)
 {
     // TODO: cache idea: a set of constructed packets per branch in this code, witn an int identifier.
 
     if (packet)
     {
-        // TODO: some flag on packet 'containsClientSpecificStuff'
-        if (max_qos == 0 && max_qos < packet->getQos() && packet->getProtocolVersion() == protocolVersion && protocolVersion <= ProtocolVersion::Mqtt311)
+        if (packet->getProtocolVersion() == protocolVersion && orgQos == max_qos)
         {
-            // TODO: getCopy now also makes packets with Publish objects. I think I only want to do that here.
-
-            if (!downgradedQos0PacketCopy)
-                downgradedQos0PacketCopy = packet->getCopy(max_qos); // TODO: getCopy perhaps std::unique_ptr
-            assert(downgradedQos0PacketCopy->getQos() == 0);
-            return downgradedQos0PacketCopy.get();
-        }
-        else if (packet->getProtocolVersion() >= ProtocolVersion::Mqtt5 || protocolVersion >= ProtocolVersion::Mqtt5)
-        {
-            Publish *pub = packet->getPublish();
-            pub->setClientSpecificProperties(); // TODO
-            this->oneShotPacket = std::make_unique<MqttPacket>(protocolVersion, *pub);
-            return this->oneShotPacket.get();
+            assert(orgQos == packet->getQos());
+            return packet;
         }
 
-        return packet;
+        const int cache_key = (static_cast<uint8_t>(protocolVersion) * 10) + max_qos;
+        std::unique_ptr<MqttPacket> &cachedPack = constructedPacketCache[cache_key];
+
+        if (!cachedPack)
+        {
+            Publish *orgPublish = packet->getPublishData();
+            orgPublish->splitTopic = false;
+            orgPublish->qos = max_qos;
+            if (protocolVersion >= ProtocolVersion::Mqtt5)
+                orgPublish->setClientSpecificProperties();
+            cachedPack = std::make_unique<MqttPacket>(protocolVersion, *orgPublish);
+        }
+
+        return cachedPack.get();
     }
 
+    // Getting a packet of a Publish object happens on will messages and SYS topics and maybe some others. It's low traffic, anyway.
     assert(publish);
 
-    publish->setClientSpecificProperties();
+    if (protocolVersion >= ProtocolVersion::Mqtt5)
+        publish->setClientSpecificProperties();
     this->oneShotPacket = std::make_unique<MqttPacket>(protocolVersion, *publish);
     return this->oneShotPacket.get();
 }
@@ -92,11 +95,12 @@ bool PublishCopyFactory::getRetain() const
 
 Publish PublishCopyFactory::getNewPublish() const
 {
-    assert(packet->getQos() > 0); // We only need to construct new publishes for QoS. If you're doing it elsewhere, it's a bug.
+    assert(packet->getQos() > 0);
+    assert(orgQos > 0); // We only need to construct new publishes for QoS. If you're doing it elsewhere, it's a bug.
 
     if (packet)
     {
-        Publish p(*packet->getPublish());
+        Publish p(*packet->getPublishData());
         return p;
     }
 
