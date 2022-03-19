@@ -57,6 +57,8 @@ class MainTests : public QObject
 
     QScopedPointer<MainAppThread> mainApp;
 
+    void testParsePacketHelper(const std::string &topic, char from_qos, bool retain);
+
 public:
     MainTests();
     ~MainTests();
@@ -102,7 +104,7 @@ private slots:
 
     void testSavingSessions();
 
-    void testCopyPacket();
+    void testParsePacket();
 
     void testDowngradeQoSOnSubscribeQos2to2();
     void testDowngradeQoSOnSubscribeQos2to1();
@@ -1104,10 +1106,8 @@ void MainTests::testSavingSessions()
     }
 }
 
-void testCopyPacketHelper(const std::string &topic, char from_qos, char to_qos, bool retain)
+void MainTests::testParsePacketHelper(const std::string &topic, char from_qos, bool retain)
 {
-    assert(to_qos <= from_qos);
-
     Logger::getInstance()->setFlags(false, false, true);
 
     std::shared_ptr<Settings> settings(new Settings());
@@ -1145,48 +1145,29 @@ void testCopyPacketHelper(const std::string &topic, char from_qos, char to_qos, 
         parsedPacketOne.handlePublish();
         if (retain) // A normal handled packet always has retain=0, so I force setting it here.
             parsedPacketOne.setRetain();
+
         QCOMPARE(stagingPacketOne.getTopic(), parsedPacketOne.getTopic());
         QCOMPARE(stagingPacketOne.getPayloadCopy(), parsedPacketOne.getPayloadCopy());
-
-        /*
-        std::shared_ptr<MqttPacket> copiedPacketOne = parsedPacketOne.getCopy(to_qos);
-
-        QCOMPARE(payloadOne, copiedPacketOne->getPayloadCopy());
-
-        // Now compare the written buffer of our copied packet to one that was written with our known good reference packet.
-
-        Publish pubReference(topic, payloadOne, to_qos);
-        pubReference.retain = retain;
-        MqttPacket packetReference(ProtocolVersion::Mqtt311, pubReference);
-        QCOMPARE(packetReference.getQos(), copiedPacketOne->getQos());
-        if (to_qos > 0)
-            packetReference.setPacketId(pack_id);
-        CirBuf bufOfReference(1024);
-        CirBuf bufOfCopied(1024);
-        packetReference.readIntoBuf(bufOfReference);
-        copiedPacketOne->readIntoBuf(bufOfCopied);
-        QVERIFY2(bufOfCopied == bufOfReference, formatString("Failure on length %d for topic %s, from qos %d to qos %d, retain: %d.",
-                                                             len, topic.c_str(), from_qos, to_qos, retain).c_str());
-        */
+        QCOMPARE(stagingPacketOne.getRetain(), parsedPacketOne.getRetain());
+        QCOMPARE(stagingPacketOne.getQos(), parsedPacketOne.getQos());
+        QCOMPARE(stagingPacketOne.first_byte, parsedPacketOne.first_byte);
     }
 }
 
 /**
- * @brief MainTests::testCopyPacket tests the actual bytes of a copied that would be written to a client.
- *
- * This is specifically to test the optimiziations in getCopy(). It indirectly also tests packet parsing.
+ * @brief MainTests::testCopyPacket tests the actual bytes of a published packet that would be written to a client.
  */
-void MainTests::testCopyPacket()
+void MainTests::testParsePacket()
 {
     for (int retain = 0; retain < 2; retain++)
     {
-        testCopyPacketHelper("John/McLane", 0, 0, retain);
-        testCopyPacketHelper("Ben/Sisko", 1, 1, retain);
-        testCopyPacketHelper("Rebecca/Bunch", 2, 2, retain);
+        testParsePacketHelper("John/McLane", 0, retain);
+        testParsePacketHelper("Ben/Sisko", 1, retain);
+        testParsePacketHelper("Rebecca/Bunch", 2, retain);
 
-        testCopyPacketHelper("Buffy/Slayer", 1, 0, retain);
-        testCopyPacketHelper("Sarah/Connor", 2, 0, retain);
-        testCopyPacketHelper("Susan/Mayer", 2, 1, retain);
+        testParsePacketHelper("Buffy/Slayer", 1, retain);
+        testParsePacketHelper("Sarah/Connor", 2, retain);
+        testParsePacketHelper("Susan/Mayer", 2, retain);
     }
 }
 
