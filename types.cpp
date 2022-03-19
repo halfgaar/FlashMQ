@@ -119,6 +119,7 @@ size_t Publish::getLengthWithoutFixedHeader() const
 
 void Publish::setClientSpecificProperties()
 {
+    propertyBuilder->clearClientSpecificBytes();
     // TODO. Expires at?
 }
 

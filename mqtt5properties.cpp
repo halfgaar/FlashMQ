@@ -32,6 +32,11 @@ const std::vector<char> &Mqtt5PropertyBuilder::getclientSpecificBytes() const
     return clientSpecificBytes;
 }
 
+void Mqtt5PropertyBuilder::clearClientSpecificBytes()
+{
+    clientSpecificBytes.clear();
+}
+
 void Mqtt5PropertyBuilder::writeSessionExpiry(uint32_t val)
 {
     writeUint32(Mqtt5Properties::SessionExpiryInterval, val, genericBytes);

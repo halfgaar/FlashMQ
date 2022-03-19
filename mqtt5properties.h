@@ -23,6 +23,7 @@ public:
     const VariableByteInt &getVarInt();
     const std::vector<char> &getGenericBytes() const;
     const std::vector<char> &getclientSpecificBytes() const;
+    void clearClientSpecificBytes();
 
     void writeSessionExpiry(uint32_t val);
     void writeReceiveMax(uint16_t val);

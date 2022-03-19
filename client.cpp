@@ -207,6 +207,8 @@ int Client::writeMqttPacketAndBlameThisClient(PublishCopyFactory &copyFactory, c
 {
     MqttPacket *p = copyFactory.getOptimumPacket(max_qos, this->protocolVersion);
 
+    assert(p->getQos() <= max_qos);
+
     if (p->getQos() > 0)
     {
         // This may change the packet ID and QoS of the incoming packet for each subscriber, but because we don't store that packet anywhere,

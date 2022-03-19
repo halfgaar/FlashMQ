@@ -195,7 +195,6 @@ MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, const Publish &_pu
 
     if (protocolVersion >= ProtocolVersion::Mqtt5)
     {
-        // TODO: first write a new expiry interval into propertybuilder.
         writeProperties(_publish.propertyBuilder);
     }
 
