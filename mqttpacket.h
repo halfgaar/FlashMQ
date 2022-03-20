@@ -122,6 +122,7 @@ public:
     bool getRetain() const;
     void setRetain();
     const Publish &getPublishData();
+    bool containsClientSpecificProperties() const;
 };
 
 #endif // MQTTPACKET_H

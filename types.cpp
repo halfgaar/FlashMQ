@@ -126,7 +126,18 @@ void PublishBase::setClientSpecificProperties()
 {
     if (propertyBuilder)
         propertyBuilder->clearClientSpecificBytes();
-    // TODO. Expires at?
+
+    auto now = std::chrono::steady_clock::now();
+    std::chrono::seconds newExpiresAfter = std::chrono::duration_cast<std::chrono::seconds>(now - createdAt);
+
+    if (newExpiresAfter.count() > 0)
+        propertyBuilder->writeMessageExpiryInterval(newExpiresAfter.count());
+}
+
+bool PublishBase::hasExpired() const
+{
+    auto now = std::chrono::steady_clock::now();
+    return (createdAt + expiresAfter) > now;
 }
 
 Publish::Publish(const Publish &other) :

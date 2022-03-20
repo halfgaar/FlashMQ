@@ -152,7 +152,7 @@ void Mqtt5PropertyBuilder::writeStr(Mqtt5Properties prop, const std::string &str
     const uint16_t strlen = str.length();
 
     size_t pos = genericBytes.size();
-    const size_t newSize = pos + strlen + 2;
+    const size_t newSize = pos + strlen + 3;
     genericBytes.resize(newSize);
 
     const uint8_t a = static_cast<uint8_t>(strlen >> 8);

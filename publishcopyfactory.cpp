@@ -21,7 +21,16 @@ MqttPacket *PublishCopyFactory::getOptimumPacket(const char max_qos, const Proto
 {
     if (packet)
     {
-        // TODO: you can't do this when there are client specific mqtt5 properties
+        if (packet->containsClientSpecificProperties())
+        {
+            Publish newPublish(packet->getPublishData());
+            newPublish.splitTopic = false;
+            newPublish.qos = max_qos;
+            newPublish.setClientSpecificProperties();
+            this->oneShotPacket = std::make_unique<MqttPacket>(protocolVersion, newPublish);
+            return this->oneShotPacket.get();
+        }
+
         if (packet->getProtocolVersion() == protocolVersion && orgQos == max_qos)
         {
             assert(orgQos == packet->getQos());

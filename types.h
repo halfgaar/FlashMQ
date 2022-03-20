@@ -67,7 +67,7 @@ enum class Mqtt5Properties
     SubscriptionIdentifier = 11,
     SessionExpiryInterval = 17,
     AssignedClientIdentifier = 18,
-    ServerKeepAlive = 13,
+    ServerKeepAlive = 19,
     AuthenticationMethod = 21,
     AuthenticationData = 22,
     RequestProblemInformation = 23,
@@ -203,12 +203,13 @@ public:
     bool splitTopic = true;
     std::chrono::time_point<std::chrono::steady_clock> createdAt;
     std::chrono::seconds expiresAfter;
-    std::shared_ptr<Mqtt5PropertyBuilder> propertyBuilder;
+    std::shared_ptr<Mqtt5PropertyBuilder> propertyBuilder; // Only contains data for sending, not receiving
 
     PublishBase() = default;
     PublishBase(const std::string &topic, const std::string &payload, char qos);
     size_t getLengthWithoutFixedHeader() const;
     void setClientSpecificProperties();
+    bool hasExpired() const;
 };
 
 class Publish : public PublishBase

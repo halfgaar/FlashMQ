@@ -33,6 +33,7 @@ MqttPacket::MqttPacket(CirBuf &buf, size_t packet_len, size_t fixed_header_lengt
     assert(packet_len > 0);
     buf.read(bites.data(), packet_len);
 
+    protocolVersion = sender->getProtocolVersion();
     first_byte = bites[0];
     unsigned char _packetType = (first_byte & 0xF0) >> 4;
     packetType = (PacketType)_packetType;
@@ -758,10 +759,12 @@ void MqttPacket::handlePublish()
         const size_t proplen = decodeVariableByteIntAtPos();
         const size_t prop_end_at = pos + proplen;
 
+        if (proplen > 0)
+            publishData.propertyBuilder = std::make_shared<Mqtt5PropertyBuilder>();
+
         while (pos < prop_end_at)
         {
             const Mqtt5Properties prop = static_cast<Mqtt5Properties>(readByte());
-            publishData.propertyBuilder = std::make_shared<Mqtt5PropertyBuilder>();
 
             switch (prop)
             {
@@ -1129,6 +1132,21 @@ const Publish &MqttPacket::getPublishData()
         publishData.payload = getPayloadCopy();
 
     return publishData;
+}
+
+bool MqttPacket::containsClientSpecificProperties() const
+{
+    assert(packetType == PacketType::PUBLISH);
+
+    if (protocolVersion <= ProtocolVersion::Mqtt311 || !publishData.propertyBuilder)
+        return false;
+
+    if (publishData.createdAt.time_since_epoch().count() == 0) // TODO: better
+    {
+        return true;
+    }
+
+    return false;
 }
 
 void MqttPacket::readIntoBuf(CirBuf &buf) const
