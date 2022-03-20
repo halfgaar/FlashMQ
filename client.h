@@ -116,6 +116,7 @@ public:
     std::shared_ptr<ThreadData> getThreadData() { return threadData; }
     std::string &getClientId() { return this->clientid; }
     const std::string &getUsername() const { return this->username; }
+    std::shared_ptr<Publish> &getWill() { return this->willPublish; }
     void assignSession(std::shared_ptr<Session> &session);
     std::shared_ptr<Session> getSession();
     void setDisconnectReason(const std::string &reason);

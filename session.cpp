@@ -138,6 +138,7 @@ void Session::assignActiveConnection(std::shared_ptr<Client> &client)
     this->client = client;
     this->client_id = client->getClientId();
     this->username = client->getUsername();
+    this->willPublish = client->getWill();
 }
 
 /**
@@ -292,9 +293,22 @@ void Session::touch()
 
 bool Session::hasExpired() const
 {
+    if (!client.expired())
+        return false;
+
     std::chrono::seconds expireAfter(sessionExpiryInterval);
     std::chrono::time_point<std::chrono::steady_clock> now = std::chrono::steady_clock::now();
-    return client.expired() && (lastTouched + expireAfter) < now;
+    return (lastTouched + expireAfter) < now;
+}
+
+void Session::clearWill()
+{
+    this->willPublish.reset();
+}
+
+std::shared_ptr<Publish> &Session::getWill()
+{
+    return this->willPublish;
 }
 
 void Session::addIncomingQoS2MessageId(uint16_t packet_id)

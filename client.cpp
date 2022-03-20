@@ -436,7 +436,6 @@ void Client::setClientProperties(ProtocolVersion protocolVersion, const std::str
 void Client::setWill(Publish &&willPublish)
 {
     this->willPublish = std::make_shared<Publish>(std::move(willPublish));
-    // TODO: also session. Or only the session?
 }
 
 void Client::assignSession(std::shared_ptr<Session> &session)
@@ -459,7 +458,6 @@ void Client::setDisconnectReason(const std::string &reason)
 void Client::clearWill()
 {
     willPublish.reset();
-    // TODO: the session too? I still need to make that 'send will when session ends' thing.
-
+    session->clearWill();
 }
 

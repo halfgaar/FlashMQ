@@ -51,6 +51,7 @@ class Session
     uint16_t QoSLogPrintedAtId = 0;
     bool destroyOnDisconnect = false;
     std::chrono::time_point<std::chrono::steady_clock> lastTouched = std::chrono::steady_clock::now();
+    std::shared_ptr<Publish> willPublish;
     Logger *logger = Logger::getInstance();
 
     int64_t getSessionRelativeAgeInMs() const;
@@ -79,6 +80,8 @@ public:
     void touch(std::chrono::time_point<std::chrono::steady_clock> val);
     void touch();
     bool hasExpired() const;
+    void clearWill();
+    std::shared_ptr<Publish> &getWill();
 
     void addIncomingQoS2MessageId(uint16_t packet_id);
     bool incomingQoS2MessageIdInTransit(uint16_t packet_id);

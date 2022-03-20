@@ -222,6 +222,8 @@ public:
     Publish(const std::string &topic, const std::string &payload, char qos);
 };
 
+bool WillDelayCompare(const std::shared_ptr<Publish> &a, const std::weak_ptr<Publish> &b);
+
 class PubAck
 {
 public:

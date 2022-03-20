@@ -104,7 +104,7 @@ void Timer::process()
 
     while (running)
     {
-        logger->logf(LOG_DEBUG, "Timer sleeping for %d ms until event '%s' or callbacks are added.", sleeptime, callbacks.front().name.c_str());
+        //logger->logf(LOG_DEBUG, "Timer sleeping for %d ms until event '%s' or callbacks are added.", sleeptime, callbacks.front().name.c_str());
         int num_fds = epoll_wait(this->epollfd, events, MAX_TIMER_EVENTS, sleeptime);
 
         if (!running)

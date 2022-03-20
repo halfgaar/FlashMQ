@@ -62,9 +62,9 @@ MainApp::MainApp(const std::string &configFilePath) :
     if (settings->expireSessionsAfterSeconds > 0)
     {
         auto f = std::bind(&MainApp::queueCleanup, this);
-        const uint64_t derrivedSessionCheckInterval = std::max<uint64_t>((settings->expireSessionsAfterSeconds)*1000*2, 600000);
-        const uint64_t sessionCheckInterval = std::min<uint64_t>(derrivedSessionCheckInterval, 86400000);
-        timer.addCallback(f, sessionCheckInterval, "session expiration");
+        //const uint64_t derrivedSessionCheckInterval = std::max<uint64_t>((settings->expireSessionsAfterSeconds)*1000*2, 600000);
+        //const uint64_t sessionCheckInterval = std::min<uint64_t>(derrivedSessionCheckInterval, 86400000);
+        timer.addCallback(f, 10000, "session expiration");
     }
 
     auto fKeepAlive = std::bind(&MainApp::queueKeepAliveCheckAtAllThreads, this);
@@ -90,6 +90,9 @@ MainApp::MainApp(const std::string &configFilePath) :
 
     auto fSaveState = std::bind(&MainApp::saveStateInThread, this);
     timer.addCallback(fSaveState, 900000, "Save state.");
+
+    auto fSendPendingWills = std::bind(&MainApp::queueSendQueuedWills, this);
+    timer.addCallback(fSendPendingWills, 2000, "Publish pending wills.");
 }
 
 MainApp::~MainApp()
@@ -252,6 +255,34 @@ void MainApp::saveStateInThread()
 
     pthread_t native = saveStateThread.native_handle();
     pthread_setname_np(native, "SaveState");
+}
+
+void MainApp::queueSendQueuedWills()
+{
+    std::lock_guard<std::mutex> locker(eventMutex);
+
+    if (!threads.empty())
+    {
+        std::shared_ptr<ThreadData> t = threads[nextThreadForTasks++ % threads.size()];
+        auto f = std::bind(&ThreadData::queueSendingQueuedWills, t.get());
+        taskQueue.push_front(f);
+
+        wakeUpThread();
+    }
+}
+
+void MainApp::queueRemoveExpiredSessions()
+{
+    std::lock_guard<std::mutex> locker(eventMutex);
+
+    if (!threads.empty())
+    {
+        std::shared_ptr<ThreadData> t = threads[nextThreadForTasks++ % threads.size()];
+        auto f = std::bind(&ThreadData::queueRemoveExpiredSessions, t.get());
+        taskQueue.push_front(f);
+
+        wakeUpThread();
+    }
 }
 
 void MainApp::saveState()
@@ -713,7 +744,7 @@ void MainApp::queueCleanup()
 {
     std::lock_guard<std::mutex> locker(eventMutex);
 
-    auto f = std::bind(&SubscriptionStore::removeExpiredSessionsClients, subscriptionStore.get());
+    auto f = std::bind(&MainApp::queueRemoveExpiredSessions, this);
     taskQueue.push_front(f);
 
     wakeUpThread();

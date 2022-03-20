@@ -89,6 +89,26 @@ void ThreadData::queuePublishStatsOnDollarTopic(std::vector<std::shared_ptr<Thre
     wakeUpThread();
 }
 
+void ThreadData::queueSendingQueuedWills()
+{
+    std::lock_guard<std::mutex> locker(taskQueueMutex);
+
+    auto f = std::bind(&ThreadData::sendQueuedWills, this);
+    taskQueue.push_front(f);
+
+    wakeUpThread();
+}
+
+void ThreadData::queueRemoveExpiredSessions()
+{
+    std::lock_guard<std::mutex> locker(taskQueueMutex);
+
+    auto f = std::bind(&ThreadData::removeExpiredSessions, this);
+    taskQueue.push_front(f);
+
+    wakeUpThread();
+}
+
 void ThreadData::publishStatsOnDollarTopic(std::vector<std::shared_ptr<ThreadData>> &threads)
 {
     uint nrOfClients = 0;
@@ -130,6 +150,16 @@ void ThreadData::publishStat(const std::string &topic, uint64_t n)
     PublishCopyFactory factory(&p);
     subscriptionStore->queuePacketAtSubscribers(factory, true);
     subscriptionStore->setRetainedMessage(topic, factory.getSubtopics(), payload, 0);
+}
+
+void ThreadData::sendQueuedWills()
+{
+    subscriptionStore->sendQueuedWillMessages();
+}
+
+void ThreadData::removeExpiredSessions()
+{
+    subscriptionStore->removeExpiredSessionsClients();
 }
 
 void ThreadData::removeQueuedClients()

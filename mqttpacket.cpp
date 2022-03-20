@@ -401,6 +401,7 @@ void MqttPacket::handleConnect()
                     {
                     case Mqtt5Properties::WillDelayInterval:
                         willpublish.will_delay = readFourBytesToUint32();
+                        willpublish.createdAt = std::chrono::steady_clock::now();
                         break;
                     case Mqtt5Properties::PayloadFormatIndicator:
                         willpublish.propertyBuilder->writePayloadFormatIndicator(readByte());
@@ -504,7 +505,9 @@ void MqttPacket::handleConnect()
         }
 
         sender->setClientProperties(protocolVersion, client_id, username, true, keep_alive, max_packet_size, max_topic_aliases);
-        sender->setWill(std::move(willpublish));
+
+        if (will_flag)
+            sender->setWill(std::move(willpublish));
 
         bool accessGranted = false;
         std::string denyLogMsg;
@@ -594,6 +597,27 @@ void MqttPacket::handleSubscribe()
     if (packet_id == 0)
     {
         throw ProtocolError("Packet ID 0 when subscribing is invalid."); // [MQTT-2.3.1-1]
+    }
+
+    if (protocolVersion == ProtocolVersion::Mqtt5)
+    {
+        const size_t proplen = decodeVariableByteIntAtPos();
+        const size_t prop_end_at = pos + proplen;
+
+        while (pos < prop_end_at)
+        {
+            const Mqtt5Properties prop = static_cast<Mqtt5Properties>(readByte());
+
+            switch (prop)
+            {
+            case Mqtt5Properties::SubscriptionIdentifier:
+                break;
+            case Mqtt5Properties::UserProperty:
+                break;
+            default:
+                throw ProtocolError("Invalid subscribe property.");
+            }
+        }
     }
 
     Authentication &authentication = *ThreadGlobals::getAuth();

@@ -104,6 +104,8 @@ class SubscriptionStore
     std::mutex pendingWillsMutex;
     std::list<std::weak_ptr<Publish>> pendingWillMessages;
 
+    std::chrono::time_point<std::chrono::steady_clock> lastTreeCleanup;
+
     Logger *logger = Logger::getInstance();
 
     void publishNonRecursively(const std::unordered_map<std::string, Subscription> &subscribers,
@@ -119,6 +121,8 @@ class SubscriptionStore
     void countSubscriptions(SubscriptionNode *this_node, int64_t &count) const;
 
     SubscriptionNode *getDeepestNode(const std::string &topic, const std::vector<std::string> &subtopics);
+
+    void purgeEmptyWills();
 public:
     SubscriptionStore();
 

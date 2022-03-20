@@ -269,15 +269,50 @@ bool SubscriptionStore::sessionPresent(const std::string &clientid)
     return result;
 }
 
+/**
+ * @brief SubscriptionStore::purgeEmptyWills doesn't lock a mutex, because it's a helper for elsewhere.
+ */
+void SubscriptionStore::purgeEmptyWills()
+{
+    auto it = pendingWillMessages.begin();
+    while (it != pendingWillMessages.end())
+    {
+        std::shared_ptr<Publish> p = (*it).lock();
+        if (!p)
+        {
+            it = pendingWillMessages.erase(it);
+        }
+    }
+}
+
 void SubscriptionStore::sendQueuedWillMessages()
 {
-    // TODO: walk the list
-
     std::lock_guard<std::mutex>(this->pendingWillsMutex);
+
+    auto it = pendingWillMessages.begin();
+    while (it != pendingWillMessages.end())
+    {
+        std::shared_ptr<Publish> p = (*it).lock();
+        if (p)
+        {
+            if (p->createdAt + std::chrono::seconds(p->will_delay) > std::chrono::steady_clock::now())
+                break;
+
+            logger->logf(LOG_DEBUG, "Sending delayed will on topic '%s'.", p->topic.c_str() );
+            PublishCopyFactory factory(p.get());
+            queuePacketAtSubscribers(factory);
+        }
+        it = pendingWillMessages.erase(it);
+    }
 }
 
 void SubscriptionStore::queueWillMessage(std::shared_ptr<Publish> &willMessage)
 {
+    if (!willMessage)
+        return;
+
+    logger->logf(LOG_DEBUG, "Queueing will on topic '%s', with delay %d seconds.", willMessage->topic.c_str(), willMessage->will_delay );
+
     if (willMessage->will_delay == 0)
     {
         PublishCopyFactory factory(willMessage.get());
@@ -285,15 +320,9 @@ void SubscriptionStore::queueWillMessage(std::shared_ptr<Publish> &willMessage)
         return;
     }
 
-    /* TODO
-    auto delay_compare = [](std::weak_ptr<Publish> &a, std::shared_ptr<Publish> &b)
-    {
-        return true;
-    };
     std::lock_guard<std::mutex>(this->pendingWillsMutex);
-    auto pos = std::upper_bound(this->pendingWillMessages.begin(), this->pendingWillMessages.end(), willMessage, delay_compare);
+    auto pos = std::upper_bound(this->pendingWillMessages.begin(), this->pendingWillMessages.end(), willMessage, WillDelayCompare);
     this->pendingWillMessages.insert(pos, willMessage);
-    */
 }
 
 void SubscriptionStore::publishNonRecursively(const std::unordered_map<std::string, Subscription> &subscribers,
@@ -569,10 +598,10 @@ void SubscriptionStore::removeSession(const std::string &clientid)
  */
 void SubscriptionStore::removeExpiredSessionsClients()
 {
+    logger->logf(LOG_DEBUG, "Cleaning out old sessions");
+
     RWLockGuard lock_guard(&subscriptionsRwlock);
     lock_guard.wrlock();
-
-    logger->logf(LOG_NOTICE, "Cleaning out old sessions");
 
     auto session_it = sessionsById.begin();
     while (session_it != sessionsById.end())
@@ -582,15 +611,24 @@ void SubscriptionStore::removeExpiredSessionsClients()
         if (session->hasExpired())
         {
             logger->logf(LOG_DEBUG, "Removing expired session from store %s", session->getClientId().c_str());
+            std::shared_ptr<Publish> &will = session->getWill();
+            if (will)
+            {
+                will->will_delay = 0;
+                queueWillMessage(will);
+            }
             session_it = sessionsById.erase(session_it);
         }
         else
             session_it++;
     }
 
-    logger->logf(LOG_NOTICE, "Rebuilding subscription tree");
-
-    root.cleanSubscriptions();
+    if (lastTreeCleanup + std::chrono::minutes(30) < std::chrono::steady_clock::now())
+    {
+        logger->logf(LOG_NOTICE, "Rebuilding subscription tree");
+        root.cleanSubscriptions();
+        lastTreeCleanup = std::chrono::steady_clock::now();
+    }
 }
 
 int64_t SubscriptionStore::getRetainedMessageCount() const
