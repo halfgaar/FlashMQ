@@ -82,7 +82,8 @@ size_t ConnAck::getLengthWithoutFixedHeader() const
     return result;
 }
 
-SubAck::SubAck(uint16_t packet_id, const std::list<char> &subs_qos_reponses) :
+SubAck::SubAck(const ProtocolVersion protVersion, uint16_t packet_id, const std::list<char> &subs_qos_reponses) :
+    protocol_version(protVersion),
     packet_id(packet_id)
 {
     assert(!subs_qos_reponses.empty());
@@ -97,6 +98,12 @@ size_t SubAck::getLengthWithoutFixedHeader() const
 {
     size_t result = responses.size();
     result += 2; // Packet ID
+
+    if (this->protocol_version >= ProtocolVersion::Mqtt5)
+    {
+        const size_t proplen = propertyBuilder ? propertyBuilder->getLength() : 1;
+        result += proplen;
+    }
     return result;
 }
 

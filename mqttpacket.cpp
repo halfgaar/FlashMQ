@@ -63,6 +63,11 @@ MqttPacket::MqttPacket(const SubAck &subAck) :
     first_byte = static_cast<char>(packetType) << 4;
     writeUint16(subAck.packet_id);
 
+    if (subAck.protocol_version >= ProtocolVersion::Mqtt5)
+    {
+        writeProperties(subAck.propertyBuilder);
+    }
+
     std::vector<char> returnList;
     for (SubAckReturnCodes code : subAck.responses)
     {
@@ -665,7 +670,7 @@ void MqttPacket::handleSubscribe()
         throw ProtocolError("No topics specified to subscribe to.");
     }
 
-    SubAck subAck(packet_id, subs_reponse_codes);
+    SubAck subAck(this->protocolVersion, packet_id, subs_reponse_codes);
     MqttPacket response(subAck);
     sender->writeMqttPacket(response);
 }

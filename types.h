@@ -175,9 +175,12 @@ enum class SubAckReturnCodes
 class SubAck
 {
 public:
+    const ProtocolVersion protocol_version;
     uint16_t packet_id;
     std::list<SubAckReturnCodes> responses;
-    SubAck(uint16_t packet_id, const std::list<char> &subs_qos_reponses);
+    std::shared_ptr<Mqtt5PropertyBuilder> propertyBuilder;
+
+    SubAck(const ProtocolVersion protVersion, uint16_t packet_id, const std::list<char> &subs_qos_reponses);
     size_t getLengthWithoutFixedHeader() const;
 };
 
