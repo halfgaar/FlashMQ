@@ -69,10 +69,13 @@ Client::~Client()
         close(fd);
     }
 
-    // MQTT-3.1.2-6
     if (session->getDestroyOnDisconnect())
     {
-        store->removeSession(clientid);
+        store->removeSession(session);
+    }
+    else
+    {
+        store->queueSessionRemoval(session);
     }
 }
 

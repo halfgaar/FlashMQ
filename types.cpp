@@ -134,12 +134,6 @@ void PublishBase::setClientSpecificProperties()
         propertyBuilder->writeMessageExpiryInterval(newExpiresAfter.count());
 }
 
-bool PublishBase::hasExpired() const
-{
-    auto now = std::chrono::steady_clock::now();
-    return (createdAt + expiresAfter) > now;
-}
-
 Publish::Publish(const Publish &other) :
     PublishBase(other)
 {

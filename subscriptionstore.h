@@ -84,6 +84,17 @@ class RetainedMessageNode
     RetainedMessageNode *getChildren(const std::string &subtopic) const;
 };
 
+class QueuedSessionRemoval
+{
+    std::weak_ptr<Session> session;
+    std::chrono::time_point<std::chrono::steady_clock> expiresAt;
+
+public:
+    QueuedSessionRemoval(const std::shared_ptr<Session> &session);
+    std::chrono::time_point<std::chrono::steady_clock> getExpiresAt() const;
+    std::shared_ptr<Session> getSession() const;
+};
+
 class SubscriptionStore
 {
 #ifdef TESTING
@@ -95,6 +106,9 @@ class SubscriptionStore
     pthread_rwlock_t subscriptionsRwlock = PTHREAD_RWLOCK_INITIALIZER;
     std::unordered_map<std::string, std::shared_ptr<Session>> sessionsById;
     const std::unordered_map<std::string, std::shared_ptr<Session>> &sessionsByIdConst;
+
+    std::mutex queuedSessionRemovalsMutex;
+    std::list<QueuedSessionRemoval> queuedSessionRemovals;
 
     pthread_rwlock_t retainedMessagesRwlock = PTHREAD_RWLOCK_INITIALIZER;
     RetainedMessageNode retainedMessagesRoot;
@@ -121,8 +135,6 @@ class SubscriptionStore
     void countSubscriptions(SubscriptionNode *this_node, int64_t &count) const;
 
     SubscriptionNode *getDeepestNode(const std::string &topic, const std::vector<std::string> &subtopics);
-
-    void purgeEmptyWills();
 public:
     SubscriptionStore();
 
@@ -133,14 +145,14 @@ public:
     bool sessionPresent(const std::string &clientid);
 
     void sendQueuedWillMessages();
-    void queueWillMessage(std::shared_ptr<Publish> &willMessage);
+    void queueWillMessage(std::shared_ptr<Publish> &willMessage, bool forceNow = false);
     void queuePacketAtSubscribers(PublishCopyFactory &copyFactory, bool dollar = false);
     uint64_t giveClientRetainedMessages(const std::shared_ptr<Client> &client, const std::shared_ptr<Session> &ses,
                                         const std::vector<std::string> &subscribeSubtopics, char max_qos);
 
     void setRetainedMessage(const std::string &topic, const std::vector<std::string> &subtopics, const std::string &payload, char qos);
 
-    void removeSession(const std::string &clientid);
+    void removeSession(const std::shared_ptr<Session> &session);
     void removeExpiredSessionsClients();
 
     int64_t getRetainedMessageCount() const;
@@ -152,6 +164,8 @@ public:
 
     void saveSessionsAndSubscriptions(const std::string &filePath);
     void loadSessionsAndSubscriptions(const std::string &filePath);
+
+    void queueSessionRemoval(const std::shared_ptr<Session> &session);
 };
 
 #endif // SUBSCRIPTIONSTORE_H

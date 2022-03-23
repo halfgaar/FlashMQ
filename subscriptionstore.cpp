@@ -269,24 +269,9 @@ bool SubscriptionStore::sessionPresent(const std::string &clientid)
     return result;
 }
 
-/**
- * @brief SubscriptionStore::purgeEmptyWills doesn't lock a mutex, because it's a helper for elsewhere.
- */
-void SubscriptionStore::purgeEmptyWills()
-{
-    auto it = pendingWillMessages.begin();
-    while (it != pendingWillMessages.end())
-    {
-        std::shared_ptr<Publish> p = (*it).lock();
-        if (!p)
-        {
-            it = pendingWillMessages.erase(it);
-        }
-    }
-}
-
 void SubscriptionStore::sendQueuedWillMessages()
 {
+    const auto now = std::chrono::steady_clock::now();
     std::lock_guard<std::mutex>(this->pendingWillsMutex);
 
     auto it = pendingWillMessages.begin();
@@ -295,7 +280,7 @@ void SubscriptionStore::sendQueuedWillMessages()
         std::shared_ptr<Publish> p = (*it).lock();
         if (p)
         {
-            if (p->createdAt + std::chrono::seconds(p->will_delay) > std::chrono::steady_clock::now())
+            if (p->createdAt + std::chrono::seconds(p->will_delay) > now)
                 break;
 
             logger->logf(LOG_DEBUG, "Sending delayed will on topic '%s'.", p->topic.c_str() );
@@ -306,14 +291,15 @@ void SubscriptionStore::sendQueuedWillMessages()
     }
 }
 
-void SubscriptionStore::queueWillMessage(std::shared_ptr<Publish> &willMessage)
+void SubscriptionStore::queueWillMessage(std::shared_ptr<Publish> &willMessage, bool forceNow)
 {
     if (!willMessage)
         return;
 
-    logger->logf(LOG_DEBUG, "Queueing will on topic '%s', with delay %d seconds.", willMessage->topic.c_str(), willMessage->will_delay );
+    const int delay = forceNow ? 0 : willMessage->will_delay;
+    logger->logf(LOG_DEBUG, "Queueing will on topic '%s', with delay %d seconds.", willMessage->topic.c_str(), delay );
 
-    if (willMessage->will_delay == 0)
+    if (delay == 0)
     {
         PublishCopyFactory factory(willMessage.get());
         queuePacketAtSubscribers(factory);
@@ -577,12 +563,19 @@ int SubscriptionNode::cleanSubscriptions()
     return subscribers.size() + subscribersLeftInChildren;
 }
 
-void SubscriptionStore::removeSession(const std::string &clientid)
+void SubscriptionStore::removeSession(const std::shared_ptr<Session> &session)
 {
+    const std::string &clientid = session->getClientId();
+    logger->logf(LOG_DEBUG, "Removing session of client '%s'.", clientid.c_str());
+
+    std::shared_ptr<Publish> &will = session->getWill();
+    if (will)
+    {
+        queueWillMessage(will, true);
+    }
+
     RWLockGuard lock_guard(&subscriptionsRwlock);
     lock_guard.wrlock();
-
-    logger->logf(LOG_DEBUG, "Removing session of client '%s'.", clientid.c_str());
 
     auto session_it = sessionsById.find(clientid);
     if (session_it != sessionsById.end())
@@ -600,35 +593,57 @@ void SubscriptionStore::removeExpiredSessionsClients()
 {
     logger->logf(LOG_DEBUG, "Cleaning out old sessions");
 
-    RWLockGuard lock_guard(&subscriptionsRwlock);
-    lock_guard.wrlock();
+    const std::chrono::time_point<std::chrono::steady_clock> now = std::chrono::steady_clock::now();
 
-    auto session_it = sessionsById.begin();
-    while (session_it != sessionsById.end())
     {
-        std::shared_ptr<Session> &session = session_it->second;
+        std::lock_guard<std::mutex>(this->queuedSessionRemovalsMutex);
 
-        if (session->hasExpired())
+        auto it = queuedSessionRemovals.begin();
+        while (it != queuedSessionRemovals.end())
         {
-            logger->logf(LOG_DEBUG, "Removing expired session from store %s", session->getClientId().c_str());
-            std::shared_ptr<Publish> &will = session->getWill();
-            if (will)
+            QueuedSessionRemoval &qsr = *it;
+            std::shared_ptr<Session> session = (*it).getSession();
+            if (session)
             {
-                will->will_delay = 0;
-                queueWillMessage(will);
+                if (qsr.getExpiresAt() > now)
+                {
+                    logger->logf(LOG_DEBUG, "Breaking from sorted list of queued session removals. %d left in the future.", queuedSessionRemovals.size());
+                    break;
+                }
+
+                // A session could have been picked up again, so we have to verify its expiration status.
+                if (session->hasExpired())
+                {
+                    removeSession(session);
+                }
             }
-            session_it = sessionsById.erase(session_it);
+            it = queuedSessionRemovals.erase(it);
         }
-        else
-            session_it++;
     }
 
-    if (lastTreeCleanup + std::chrono::minutes(30) < std::chrono::steady_clock::now())
+    if (lastTreeCleanup + std::chrono::minutes(30) < now)
     {
+        RWLockGuard lock_guard(&subscriptionsRwlock);
+        lock_guard.wrlock();
+
         logger->logf(LOG_NOTICE, "Rebuilding subscription tree");
         root.cleanSubscriptions();
-        lastTreeCleanup = std::chrono::steady_clock::now();
+        lastTreeCleanup = now;
     }
+}
+
+void SubscriptionStore::queueSessionRemoval(const std::shared_ptr<Session> &session)
+{
+    QueuedSessionRemoval qsr(session);
+
+    auto comp = [](const QueuedSessionRemoval &a, const QueuedSessionRemoval &b)
+    {
+        return a.getExpiresAt() < b.getExpiresAt();
+    };
+
+    std::lock_guard<std::mutex>(this->queuedSessionRemovalsMutex);
+    auto pos = std::upper_bound(this->queuedSessionRemovals.begin(), this->queuedSessionRemovals.end(), qsr, comp);
+    this->queuedSessionRemovals.insert(pos, qsr);
 }
 
 int64_t SubscriptionStore::getRetainedMessageCount() const
@@ -926,4 +941,21 @@ RetainedMessageNode *RetainedMessageNode::getChildren(const std::string &subtopi
     if (it != children.end())
         return it->second.get();
     return nullptr;
+}
+
+QueuedSessionRemoval::QueuedSessionRemoval(const std::shared_ptr<Session> &session) :
+    session(session),
+    expiresAt(std::chrono::steady_clock::now() + std::chrono::seconds(session->getSessionExpiryInterval()))
+{
+
+}
+
+std::chrono::time_point<std::chrono::steady_clock> QueuedSessionRemoval::getExpiresAt() const
+{
+    return this->expiresAt;
+}
+
+std::shared_ptr<Session> QueuedSessionRemoval::getSession() const
+{
+    return session.lock();
 }

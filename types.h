@@ -209,7 +209,6 @@ public:
     PublishBase(const std::string &topic, const std::string &payload, char qos);
     size_t getLengthWithoutFixedHeader() const;
     void setClientSpecificProperties();
-    bool hasExpired() const;
 };
 
 class Publish : public PublishBase
