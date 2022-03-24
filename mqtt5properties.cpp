@@ -108,6 +108,11 @@ void Mqtt5PropertyBuilder::writeUserProperty(const std::string &key, const std::
     write2Str(Mqtt5Properties::UserProperty, key, value);
 }
 
+void Mqtt5PropertyBuilder::writeCorrelationData(const std::string &correlationData)
+{
+    writeStr(Mqtt5Properties::CorrelationData, correlationData);
+}
+
 void Mqtt5PropertyBuilder::writeUint32(Mqtt5Properties prop, const uint32_t x, std::vector<char> &target)
 {
     size_t pos = target.size();

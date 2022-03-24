@@ -40,6 +40,7 @@ public:
     void writeMessageExpiryInterval(uint32_t val);
     void writeResponseTopic(const std::string &str);
     void writeUserProperty(const std::string &key, const std::string &value);
+    void writeCorrelationData(const std::string &correlationData);
 };
 
 #endif // MQTT5PROPERTIES_H

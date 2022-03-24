@@ -449,7 +449,8 @@ void MqttPacket::handleConnect()
                     case Mqtt5Properties::CorrelationData:
                     {
                         const uint16_t len = readTwoBytesToUInt16();
-                        readBytes(len);
+                        const std::string correlationData(readBytes(len), len);
+                        publishData.propertyBuilder->writeCorrelationData(correlationData);
                         break;
                     }
                     case Mqtt5Properties::UserProperty:
@@ -640,9 +641,16 @@ void MqttPacket::handleSubscribe()
             switch (prop)
             {
             case Mqtt5Properties::SubscriptionIdentifier:
+                decodeVariableByteIntAtPos();
                 break;
             case Mqtt5Properties::UserProperty:
+            {
+                const uint16_t len = readTwoBytesToUInt16();
+                readBytes(len);
+                const uint16_t len2 = readTwoBytesToUInt16();
+                readBytes(len2);
                 break;
+            }
             default:
                 throw ProtocolError("Invalid subscribe property.");
             }
@@ -839,7 +847,8 @@ void MqttPacket::handlePublish()
             case Mqtt5Properties::CorrelationData:
             {
                 const uint16_t len = readTwoBytesToUInt16();
-                readBytes(len);
+                const std::string correlationData(readBytes(len), len);
+                publishData.propertyBuilder->writeCorrelationData(correlationData);
                 break;
             }
             case Mqtt5Properties::UserProperty:
