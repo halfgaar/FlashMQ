@@ -815,7 +815,14 @@ void MqttPacket::handlePublish()
             case Mqtt5Properties::CorrelationData:
                 break;
             case Mqtt5Properties::UserProperty:
+            {
+                const uint16_t lenKey = readTwoBytesToUInt16();
+                const std::string userPropKey(readBytes(lenKey), lenKey);
+                const uint16_t lenVal = readTwoBytesToUInt16();
+                const std::string userPropVal(readBytes(lenVal), lenVal);
+                publishData.propertyBuilder->writeUserProperty(userPropKey, userPropVal);
                 break;
+            }
             case Mqtt5Properties::SubscriptionIdentifier:
                 break;
             case Mqtt5Properties::ContentType:

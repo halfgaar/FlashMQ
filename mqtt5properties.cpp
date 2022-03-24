@@ -1,6 +1,7 @@
 #include "mqtt5properties.h"
 
 #include "cstring"
+#include "vector"
 
 #include "exceptions.h"
 
@@ -102,6 +103,11 @@ void Mqtt5PropertyBuilder::writeResponseTopic(const std::string &str)
     writeStr(Mqtt5Properties::ResponseTopic, str);
 }
 
+void Mqtt5PropertyBuilder::writeUserProperty(const std::string &key, const std::string &value)
+{
+    write2Str(Mqtt5Properties::UserProperty, key, value);
+}
+
 void Mqtt5PropertyBuilder::writeUint32(Mqtt5Properties prop, const uint32_t x, std::vector<char> &target)
 {
     size_t pos = target.size();
@@ -163,5 +169,35 @@ void Mqtt5PropertyBuilder::writeStr(Mqtt5Properties prop, const std::string &str
     genericBytes[pos++] = b;
 
     std::memcpy(&genericBytes[pos], str.c_str(), strlen);
+}
+
+void Mqtt5PropertyBuilder::write2Str(Mqtt5Properties prop, const std::string &one, const std::string &two)
+{
+    size_t pos = genericBytes.size();
+    const size_t newSize = pos + one.length() + two.length() + 5;
+    genericBytes.resize(newSize);
+
+    genericBytes[pos++] = static_cast<uint8_t>(prop);
+
+    std::vector<const std::string*> strings;
+    strings.push_back(&one);
+    strings.push_back(&two);
+
+    for (const std::string *str : strings)
+    {
+        if (str->length() > 0xFFFF)
+            throw ProtocolError("String too long.");
+
+        const uint16_t strlen = str->length();
+
+        const uint8_t a = static_cast<uint8_t>(strlen >> 8);
+        const uint8_t b = static_cast<uint8_t>(strlen);
+
+        genericBytes[pos++] = a;
+        genericBytes[pos++] = b;
+
+        std::memcpy(&genericBytes[pos], str->c_str(), strlen);
+        pos += strlen;
+    }
 }
 

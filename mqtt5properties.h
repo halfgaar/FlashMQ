@@ -16,6 +16,7 @@ class Mqtt5PropertyBuilder
     void writeUint16(Mqtt5Properties prop, const uint16_t x);
     void writeUint8(Mqtt5Properties prop, const uint8_t x);
     void writeStr(Mqtt5Properties prop, const std::string &str);
+    void write2Str(Mqtt5Properties prop, const std::string &one, const std::string &two);
 public:
     Mqtt5PropertyBuilder();
 
@@ -38,6 +39,7 @@ public:
     void writePayloadFormatIndicator(uint8_t val);
     void writeMessageExpiryInterval(uint32_t val);
     void writeResponseTopic(const std::string &str);
+    void writeUserProperty(const std::string &key, const std::string &value);
 };
 
 #endif // MQTT5PROPERTIES_H
