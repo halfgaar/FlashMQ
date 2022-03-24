@@ -837,7 +837,11 @@ void MqttPacket::handlePublish()
                 break;
             }
             case Mqtt5Properties::CorrelationData:
+            {
+                const uint16_t len = readTwoBytesToUInt16();
+                readBytes(len);
                 break;
+            }
             case Mqtt5Properties::UserProperty:
             {
                 const uint16_t lenKey = readTwoBytesToUInt16();
@@ -848,7 +852,10 @@ void MqttPacket::handlePublish()
                 break;
             }
             case Mqtt5Properties::SubscriptionIdentifier:
+            {
+                decodeVariableByteIntAtPos();
                 break;
+            }
             case Mqtt5Properties::ContentType:
             {
                 const uint16_t len = readTwoBytesToUInt16();
