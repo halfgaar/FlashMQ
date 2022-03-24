@@ -368,11 +368,25 @@ void MqttPacket::handleConnect()
                     request_problem_information = !!readByte();
                     break;
                 case Mqtt5Properties::UserProperty:
+                {
+                    const uint16_t len = readTwoBytesToUInt16();
+                    readBytes(len);
+                    const uint16_t len2 = readTwoBytesToUInt16();
+                    readBytes(len2);
                     break;
+                }
                 case Mqtt5Properties::AuthenticationMethod:
+                {
+                    const uint16_t len = readTwoBytesToUInt16();
+                    readBytes(len);
                     break;
+                }
                 case Mqtt5Properties::AuthenticationData:
+                {
+                    const uint16_t len = readTwoBytesToUInt16();
+                    readBytes(len);
                     break;
+                }
                 default:
                     throw ProtocolError("Invalid connect property.");
                 }
@@ -433,9 +447,19 @@ void MqttPacket::handleConnect()
                         break;
                     }
                     case Mqtt5Properties::CorrelationData:
+                    {
+                        const uint16_t len = readTwoBytesToUInt16();
+                        readBytes(len);
                         break;
+                    }
                     case Mqtt5Properties::UserProperty:
+                    {
+                        const uint16_t len = readTwoBytesToUInt16();
+                        readBytes(len);
+                        const uint16_t len2 = readTwoBytesToUInt16();
+                        readBytes(len2);
                         break;
+                    }
                     default:
                         throw ProtocolError("Invalid will property in connect.");
                     }
