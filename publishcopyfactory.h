@@ -36,6 +36,8 @@ public:
     bool getRetain() const;
     Publish getNewPublish() const;
     std::shared_ptr<Client> getSender();
+    const std::vector<std::pair<std::string, std::string>> *getUserProperties() const;
+
 };
 
 #endif // PUBLISHCOPYFACTORY_H

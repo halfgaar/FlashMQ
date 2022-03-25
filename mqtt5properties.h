@@ -10,6 +10,7 @@ class Mqtt5PropertyBuilder
 {
     std::vector<char> genericBytes;
     std::vector<char> clientSpecificBytes; // only relevant for publishes
+    std::shared_ptr<std::vector<std::pair<std::string, std::string>>> userProperties;
     VariableByteInt length;
 
     void writeUint32(Mqtt5Properties prop, const uint32_t x, std::vector<char> &target);
@@ -25,6 +26,7 @@ public:
     const std::vector<char> &getGenericBytes() const;
     const std::vector<char> &getclientSpecificBytes() const;
     void clearClientSpecificBytes();
+    std::shared_ptr<std::vector<std::pair<std::string, std::string>>> getUserProperties() const;
 
     void writeSessionExpiry(uint32_t val);
     void writeReceiveMax(uint16_t val);
@@ -39,8 +41,9 @@ public:
     void writePayloadFormatIndicator(uint8_t val);
     void writeMessageExpiryInterval(uint32_t val);
     void writeResponseTopic(const std::string &str);
-    void writeUserProperty(const std::string &key, const std::string &value);
+    void writeUserProperty(std::string &&key, std::string &&value);
     void writeCorrelationData(const std::string &correlationData);
+    void setNewUserProperties(const std::shared_ptr<std::vector<std::pair<std::string, std::string>>> &userProperties);
 };
 
 #endif // MQTT5PROPERTIES_H

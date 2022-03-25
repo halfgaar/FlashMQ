@@ -16,6 +16,7 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <memory>
 
 #define FLASHMQ_PLUGIN_VERSION 1
 
@@ -72,10 +73,12 @@ struct FlashMQMessage
 {
     const std::string &topic;
     const std::vector<std::string> &subtopics;
+    const std::vector<std::pair<std::string, std::string>> *userProperties;
     const char qos;
     const bool retain;
 
-    FlashMQMessage(const std::string &topic, const std::vector<std::string> &subtopics, const char qos, const bool retain);
+    FlashMQMessage(const std::string &topic, const std::vector<std::string> &subtopics, const char qos, const bool retain,
+                   const std::vector<std::pair<std::string, std::string>> *userProperties);
 };
 
 /**
@@ -177,7 +180,8 @@ void flashmq_auth_plugin_periodic_event(void *thread_data);
  * Note that there is a setting 'auth_plugin_serialize_auth_checks'. Use only as a last resort if your plugin is not
  * thread-safe. It will negate much of FlashMQ's multi-core model.
  */
-AuthResult flashmq_auth_plugin_login_check(void *thread_data, const std::string &username, const std::string &password);
+AuthResult flashmq_auth_plugin_login_check(void *thread_data, const std::string &username, const std::string &password,
+                                           const std::vector<std::pair<std::string, std::string>> *userProperties);
 
 /**
  * @brief flashmq_auth_plugin_acl_check is called on publish, deliver and subscribe.

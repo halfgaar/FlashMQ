@@ -65,7 +65,8 @@ typedef void(*F_flashmq_auth_plugin_deallocate_thread_memory_v1)(void *thread_da
 typedef void(*F_flashmq_auth_plugin_init_v1)(void *thread_data, std::unordered_map<std::string, std::string> &auth_opts, bool reloading);
 typedef void(*F_flashmq_auth_plugin_deinit_v1)(void *thread_data, std::unordered_map<std::string, std::string> &auth_opts, bool reloading);
 typedef AuthResult(*F_flashmq_auth_plugin_acl_check_v1)(void *thread_data, AclAccess access, const std::string &clientid, const std::string &username, const FlashMQMessage &msg);
-typedef AuthResult(*F_flashmq_auth_plugin_login_check_v1)(void *thread_data, const std::string &username, const std::string &password);
+typedef AuthResult(*F_flashmq_auth_plugin_login_check_v1)(void *thread_data, const std::string &username, const std::string &password,
+                                                          const std::vector<std::pair<std::string, std::string>> *userProperties);
 typedef void (*F_flashmq_auth_plugin_periodic_event)(void *thread_data);
 
 extern "C"
@@ -152,8 +153,9 @@ public:
     void securityInit(bool reloading);
     void securityCleanup(bool reloading);
     AuthResult aclCheck(const std::string &clientid, const std::string &username, const std::string &topic, const std::vector<std::string> &subtopics,
-                        AclAccess access, char qos, bool retain);
-    AuthResult unPwdCheck(const std::string &username, const std::string &password);
+                        AclAccess access, char qos, bool retain, const std::vector<std::pair<std::string, std::string>> *userProperties);
+    AuthResult unPwdCheck(const std::string &username, const std::string &password,
+                          const std::vector<std::pair<std::string, std::string>> *userProperties);
 
     void setQuitting();
     void loadMosquittoPasswordFile();

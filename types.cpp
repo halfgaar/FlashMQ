@@ -141,6 +141,14 @@ void PublishBase::setClientSpecificProperties()
         propertyBuilder->writeMessageExpiryInterval(newExpiresAfter.count());
 }
 
+void PublishBase::constructPropertyBuilder()
+{
+    if (this->propertyBuilder)
+        return;
+
+    this->propertyBuilder = std::make_shared<Mqtt5PropertyBuilder>();
+}
+
 Publish::Publish(const Publish &other) :
     PublishBase(other)
 {

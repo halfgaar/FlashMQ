@@ -132,6 +132,15 @@ MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, const Publish &_pu
 
     if (protocolVersion >= ProtocolVersion::Mqtt5)
     {
+        // Step 1: make certain properties available as objects, because FlashMQ needs access to them for internal logic.
+        if (_publish.propertyBuilder)
+        {
+            this->publishData.constructPropertyBuilder();
+            this->publishData.propertyBuilder->setNewUserProperties(_publish.propertyBuilder->getUserProperties());
+        }
+
+        // Step 2: this line will make sure the whole byte array containing all properties as flat bytes is present in the 'bites' vector,
+        // which is sent to the subscribers.
         writeProperties(_publish.propertyBuilder);
     }
 
@@ -368,13 +377,8 @@ void MqttPacket::handleConnect()
                     request_problem_information = !!readByte();
                     break;
                 case Mqtt5Properties::UserProperty:
-                {
-                    const uint16_t len = readTwoBytesToUInt16();
-                    readBytes(len);
-                    const uint16_t len2 = readTwoBytesToUInt16();
-                    readBytes(len2);
+                    readUserProperty();
                     break;
-                }
                 case Mqtt5Properties::AuthenticationMethod:
                 {
                     const uint16_t len = readTwoBytesToUInt16();
@@ -407,7 +411,7 @@ void MqttPacket::handleConnect()
         {
             if (protocolVersion == ProtocolVersion::Mqtt5)
             {
-                willpublish.propertyBuilder = std::make_unique<Mqtt5PropertyBuilder>();
+                willpublish.constructPropertyBuilder();
 
                 const size_t proplen = decodeVariableByteIntAtPos();
                 const size_t prop_end_at = pos + proplen;
@@ -450,15 +454,16 @@ void MqttPacket::handleConnect()
                     {
                         const uint16_t len = readTwoBytesToUInt16();
                         const std::string correlationData(readBytes(len), len);
-                        publishData.propertyBuilder->writeCorrelationData(correlationData);
+                        willpublish.propertyBuilder->writeCorrelationData(correlationData);
                         break;
                     }
                     case Mqtt5Properties::UserProperty:
                     {
-                        const uint16_t len = readTwoBytesToUInt16();
-                        readBytes(len);
-                        const uint16_t len2 = readTwoBytesToUInt16();
-                        readBytes(len2);
+                        const uint16_t lenKey = readTwoBytesToUInt16();
+                        std::string userPropKey(readBytes(lenKey), lenKey);
+                        const uint16_t lenVal = readTwoBytesToUInt16();
+                        std::string userPropVal(readBytes(lenVal), lenVal);
+                        willpublish.propertyBuilder->writeUserProperty(std::move(userPropKey), std::move(userPropVal));
                         break;
                     }
                     default:
@@ -554,7 +559,7 @@ void MqttPacket::handleConnect()
             sender->setDisconnectReason("Invalid username character");
             accessGranted = false;
         }
-        else if (authentication.unPwdCheck(username, password) == AuthResult::success)
+        else if (authentication.unPwdCheck(username, password, getUserProperties()) == AuthResult::success)
         {
             accessGranted = true;
         }
@@ -644,13 +649,8 @@ void MqttPacket::handleSubscribe()
                 decodeVariableByteIntAtPos();
                 break;
             case Mqtt5Properties::UserProperty:
-            {
-                const uint16_t len = readTwoBytesToUInt16();
-                readBytes(len);
-                const uint16_t len2 = readTwoBytesToUInt16();
-                readBytes(len2);
+                readUserProperty();
                 break;
-            }
             default:
                 throw ProtocolError("Invalid subscribe property.");
             }
@@ -678,7 +678,7 @@ void MqttPacket::handleSubscribe()
 
         std::vector<std::string> subtopics;
         splitTopic(topic, subtopics);
-        if (authentication.aclCheck(sender->getClientId(), sender->getUsername(), topic, subtopics, AclAccess::subscribe, qos, false) == AuthResult::success)
+        if (authentication.aclCheck(sender->getClientId(), sender->getUsername(), topic, subtopics, AclAccess::subscribe, qos, false, getUserProperties()) == AuthResult::success)
         {
             logger->logf(LOG_SUBSCRIBE, "Client '%s' subscribed to '%s' QoS %d", sender->repr().c_str(), topic.c_str(), qos);
             sender->getThreadData()->getSubscriptionStore()->addSubscription(sender, topic, subtopics, qos);
@@ -821,7 +821,7 @@ void MqttPacket::handlePublish()
         const size_t prop_end_at = pos + proplen;
 
         if (proplen > 0)
-            publishData.propertyBuilder = std::make_shared<Mqtt5PropertyBuilder>();
+            publishData.constructPropertyBuilder();
 
         while (pos < prop_end_at)
         {
@@ -854,10 +854,10 @@ void MqttPacket::handlePublish()
             case Mqtt5Properties::UserProperty:
             {
                 const uint16_t lenKey = readTwoBytesToUInt16();
-                const std::string userPropKey(readBytes(lenKey), lenKey);
+                std::string userPropKey(readBytes(lenKey), lenKey);
                 const uint16_t lenVal = readTwoBytesToUInt16();
-                const std::string userPropVal(readBytes(lenVal), lenVal);
-                publishData.propertyBuilder->writeUserProperty(userPropKey, userPropVal);
+                std::string userPropVal(readBytes(lenVal), lenVal);
+                publishData.propertyBuilder->writeUserProperty(std::move(userPropKey), std::move(userPropVal));
                 break;
             }
             case Mqtt5Properties::SubscriptionIdentifier:
@@ -882,7 +882,7 @@ void MqttPacket::handlePublish()
     payloadStart = pos;
 
     Authentication &authentication = *ThreadGlobals::getAuth();
-    if (authentication.aclCheck(sender->getClientId(), sender->getUsername(), publishData.topic, publishData.subtopics, AclAccess::write, qos, retain) == AuthResult::success)
+    if (authentication.aclCheck(sender->getClientId(), sender->getUsername(), publishData.topic, publishData.subtopics, AclAccess::write, qos, retain, getUserProperties()) == AuthResult::success)
     {
         if (retain)
         {
@@ -1174,6 +1174,26 @@ size_t MqttPacket::decodeVariableByteIntAtPos()
     while ((encodedByte & 128) != 0);
 
     return value;
+}
+
+void MqttPacket::readUserProperty()
+{
+    this->publishData.constructPropertyBuilder();
+
+    const uint16_t len = readTwoBytesToUInt16();
+    std::string key(readBytes(len), len);
+    const uint16_t len2 = readTwoBytesToUInt16();
+    std::string value(readBytes(len2), len2);
+
+    this->publishData.propertyBuilder->writeUserProperty(std::move(key), std::move(value));
+}
+
+const std::vector<std::pair<std::string, std::string>> *MqttPacket::getUserProperties() const
+{
+    if (this->publishData.propertyBuilder)
+        return this->publishData.propertyBuilder->getUserProperties().get();
+
+    return nullptr;
 }
 
 bool MqttPacket::getRetain() const

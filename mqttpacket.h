@@ -67,11 +67,12 @@ class MqttPacket
     uint32_t readFourBytesToUint32();
     size_t remainingAfterPos();
     size_t decodeVariableByteIntAtPos();
+    void readUserProperty();
 
     void calculateRemainingLength();
     void pubCommonConstruct(const uint16_t packet_id, PacketType packetType, uint8_t firstByteDefaultBits = 0);
 
-    MqttPacket(const MqttPacket &other) = default;
+    MqttPacket(const MqttPacket &other) = delete;
 public:
     PacketType packetType = PacketType::Reserved;
     MqttPacket(CirBuf &buf, size_t packet_len, size_t fixed_header_length, std::shared_ptr<Client> &sender); // Constructor for parsing incoming packets.
@@ -123,6 +124,7 @@ public:
     void setRetain();
     const Publish &getPublishData();
     bool containsClientSpecificProperties() const;
+    const std::vector<std::pair<std::string, std::string>> *getUserProperties() const;
 };
 
 #endif // MQTTPACKET_H

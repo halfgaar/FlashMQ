@@ -2,6 +2,7 @@
 
 #include "cstring"
 #include "vector"
+#include "cassert"
 
 #include "exceptions.h"
 
@@ -36,6 +37,11 @@ const std::vector<char> &Mqtt5PropertyBuilder::getclientSpecificBytes() const
 void Mqtt5PropertyBuilder::clearClientSpecificBytes()
 {
     clientSpecificBytes.clear();
+}
+
+std::shared_ptr<std::vector<std::pair<std::string, std::string>>> Mqtt5PropertyBuilder::getUserProperties() const
+{
+    return this->userProperties;
 }
 
 void Mqtt5PropertyBuilder::writeSessionExpiry(uint32_t val)
@@ -103,14 +109,29 @@ void Mqtt5PropertyBuilder::writeResponseTopic(const std::string &str)
     writeStr(Mqtt5Properties::ResponseTopic, str);
 }
 
-void Mqtt5PropertyBuilder::writeUserProperty(const std::string &key, const std::string &value)
+void Mqtt5PropertyBuilder::writeUserProperty(std::string &&key, std::string &&value)
 {
     write2Str(Mqtt5Properties::UserProperty, key, value);
+
+    if (!this->userProperties)
+        this->userProperties = std::make_shared<std::vector<std::pair<std::string, std::string>>>();
+
+    std::pair<std::string, std::string> pair(std::move(key), std::move(value));
+    this->userProperties->push_back(std::move(pair));
 }
 
 void Mqtt5PropertyBuilder::writeCorrelationData(const std::string &correlationData)
 {
     writeStr(Mqtt5Properties::CorrelationData, correlationData);
+}
+
+void Mqtt5PropertyBuilder::setNewUserProperties(const std::shared_ptr<std::vector<std::pair<std::string, std::string>>> &userProperties)
+{
+    assert(!this->userProperties);
+    assert(this->genericBytes.empty());
+    assert(this->clientSpecificBytes.empty());
+
+    this->userProperties = userProperties;
 }
 
 void Mqtt5PropertyBuilder::writeUint32(Mqtt5Properties prop, const uint32_t x, std::vector<char> &target)

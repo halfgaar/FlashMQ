@@ -124,3 +124,20 @@ std::shared_ptr<Client> PublishCopyFactory::getSender()
         return packet->getSender();
     return std::shared_ptr<Client>(0);
 }
+
+const std::vector<std::pair<std::string, std::string> > *PublishCopyFactory::getUserProperties() const
+{
+    if (packet)
+    {
+        return packet->getUserProperties();
+    }
+
+    assert(publish);
+
+    if (publish->propertyBuilder)
+    {
+        return publish->propertyBuilder->getUserProperties().get();
+    }
+
+    return nullptr;
+}

@@ -278,7 +278,7 @@ void Authentication::securityCleanup(bool reloading)
 }
 
 AuthResult Authentication::aclCheck(const std::string &clientid, const std::string &username, const std::string &topic, const std::vector<std::string> &subtopics,
-                                    AclAccess access, char qos, bool retain)
+                                    AclAccess access, char qos, bool retain, const std::vector<std::pair<std::string, std::string>> *userProperties)
 {
     assert(subtopics.size() > 0);
 
@@ -322,7 +322,7 @@ AuthResult Authentication::aclCheck(const std::string &clientid, const std::stri
         // gets disconnected.
         try
         {
-            FlashMQMessage msg(topic, subtopics, qos, retain);
+            FlashMQMessage msg(topic, subtopics, qos, retain, userProperties);
             return flashmq_auth_plugin_acl_check_v1(pluginData, access, clientid, username, msg);
         }
         catch (std::exception &ex)
@@ -335,7 +335,8 @@ AuthResult Authentication::aclCheck(const std::string &clientid, const std::stri
     return AuthResult::error;
 }
 
-AuthResult Authentication::unPwdCheck(const std::string &username, const std::string &password)
+AuthResult Authentication::unPwdCheck(const std::string &username, const std::string &password,
+                                      const std::vector<std::pair<std::string, std::string>> *userProperties)
 {
     AuthResult firstResult = unPwdCheckFromMosquittoPasswordFile(username, password);
 
@@ -373,7 +374,7 @@ AuthResult Authentication::unPwdCheck(const std::string &username, const std::st
         // gets disconnected.
         try
         {
-            return flashmq_auth_plugin_login_check_v1(pluginData, username, password);
+            return flashmq_auth_plugin_login_check_v1(pluginData, username, password, userProperties);
         }
         catch (std::exception &ex)
         {
