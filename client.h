@@ -82,6 +82,8 @@ class Client
 
     std::shared_ptr<Session> session;
 
+    std::unordered_map<uint16_t, std::string> topicAliases;
+
     Logger *logger = Logger::getInstance();
 
     void setReadyForWriting(bool val);
@@ -136,6 +138,9 @@ public:
     bool keepAliveExpired();
     std::string getKeepAliveInfoString() const;
     void resetBuffersIfEligible();
+
+    void setTopicAlias(const uint16_t alias_id, const std::string &topic);
+    const std::string &getTopicAlias(const uint16_t id);
 
 #ifndef NDEBUG
     void setFakeUpgraded();

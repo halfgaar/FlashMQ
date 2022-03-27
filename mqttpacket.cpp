@@ -343,7 +343,7 @@ void MqttPacket::handleConnect()
         uint16_t max_qos_packets = settings.maxQosMsgPendingPerClient;
         uint32_t session_expire = settings.expireSessionsAfterSeconds > 0 ? settings.expireSessionsAfterSeconds : std::numeric_limits<uint32_t>::max();
         uint32_t max_packet_size = settings.maxPacketSize;
-        uint16_t max_topic_aliases = 0;
+        uint16_t max_topic_aliases = settings.maxTopicAliases;
         bool request_response_information = false;
         bool request_problem_information = false;
 
@@ -750,10 +750,7 @@ void MqttPacket::handleUnsubscribe()
 
 void MqttPacket::handlePublish()
 {
-    uint16_t variable_header_length = readTwoBytesToUInt16();
-
-    if (variable_header_length == 0)
-        throw ProtocolError("Empty publish topic");
+    const uint16_t variable_header_length = readTwoBytesToUInt16();
 
     bool retain = (first_byte & 0b00000001);
     bool dup = !!(first_byte & 0b00001000);
@@ -767,19 +764,6 @@ void MqttPacket::handlePublish()
         throw ProtocolError("Duplicate flag is set for QoS 0 packet. This is illegal.");
 
     publishData.topic = std::string(readBytes(variable_header_length), variable_header_length);
-    splitTopic(publishData.topic, publishData.subtopics);
-
-    if (!isValidUtf8(publishData.topic, true))
-    {
-        logger->logf(LOG_WARNING, "Client '%s' published a message with invalid UTF8 or $/+/# in it. Dropping.", sender->repr().c_str());
-        return;
-    }
-
-#ifndef NDEBUG
-    logger->logf(LOG_DEBUG, "Publish received, topic '%s'. QoS=%d. Retain=%d, dup=%d", publishData.topic.c_str(), qos, retain, dup);
-#endif
-
-    sender->getThreadData()->incrementReceivedMessageCount();
 
     if (qos)
     {
@@ -820,6 +804,7 @@ void MqttPacket::handlePublish()
         const size_t proplen = decodeVariableByteIntAtPos();
         const size_t prop_end_at = pos + proplen;
 
+        // TODO: don't do this when the only properties are expiry and topic alias; they don't need the builder.
         if (proplen > 0)
             publishData.constructPropertyBuilder();
 
@@ -836,7 +821,21 @@ void MqttPacket::handlePublish()
                 publishData.createdAt = std::chrono::steady_clock::now();
                 publishData.expiresAfter = std::chrono::seconds(readFourBytesToUint32());
             case Mqtt5Properties::TopicAlias:
+            {
+                const uint16_t alias_id = readTwoBytesToUInt16();
+                this->hasTopicAlias = true;
+
+                if (publishData.topic.empty())
+                {
+                    publishData.topic = sender->getTopicAlias(alias_id);
+                }
+                else
+                {
+                    sender->setTopicAlias(alias_id, publishData.topic);
+                }
+
                 break;
+            }
             case Mqtt5Properties::ResponseTopic:
             {
                 const uint16_t len = readTwoBytesToUInt16();
@@ -877,6 +876,23 @@ void MqttPacket::handlePublish()
             }
         }
     }
+
+    splitTopic(publishData.topic, publishData.subtopics);
+
+    if (!isValidUtf8(publishData.topic, true))
+    {
+        logger->logf(LOG_WARNING, "Client '%s' published a message with invalid UTF8 or $/+/# in it. Dropping.", sender->repr().c_str());
+        return;
+    }
+
+    if (publishData.topic.empty())
+        throw ProtocolError("Empty publish topic");
+
+#ifndef NDEBUG
+    logger->logf(LOG_DEBUG, "Publish received, topic '%s'. QoS=%d. Retain=%d, dup=%d", publishData.topic.c_str(), qos, retain, dup);
+#endif
+
+    sender->getThreadData()->incrementReceivedMessageCount();
 
     payloadLen = remainingAfterPos();
     payloadStart = pos;
@@ -1237,7 +1253,7 @@ bool MqttPacket::containsClientSpecificProperties() const
     if (protocolVersion <= ProtocolVersion::Mqtt311 || !publishData.propertyBuilder)
         return false;
 
-    if (publishData.createdAt.time_since_epoch().count() == 0) // TODO: better
+    if (publishData.createdAt.time_since_epoch().count() == 0 || this->hasTopicAlias) // TODO: better
     {
         return true;
     }

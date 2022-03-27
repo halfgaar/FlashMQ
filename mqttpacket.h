@@ -54,6 +54,7 @@ class MqttPacket
     ProtocolVersion protocolVersion = ProtocolVersion::None;
     size_t payloadStart = 0;
     size_t payloadLen = 0;
+    bool hasTopicAlias = false;
     Logger *logger = Logger::getInstance();
 
     char *readBytes(size_t length);

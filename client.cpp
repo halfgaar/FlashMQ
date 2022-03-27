@@ -334,6 +334,25 @@ void Client::resetBuffersIfEligible()
     writebuf.resetSizeIfEligable(initialBufferSize);
 }
 
+void Client::setTopicAlias(const uint16_t alias_id, const std::string &topic)
+{
+    if (alias_id == 0)
+        throw ProtocolError("Client tried to set topic alias 0, which is a protocol error.");
+
+    if (topic.empty())
+        return;
+
+    if (alias_id > this->maxTopicAliases)
+        throw ProtocolError("Client exceeded max topic aliases.");
+
+    this->topicAliases[alias_id] = topic;
+}
+
+const std::string &Client::getTopicAlias(const uint16_t id)
+{
+    return this->topicAliases[id];
+}
+
 #ifndef NDEBUG
 /**
  * @brief IoWrapper::setFakeUpgraded().
