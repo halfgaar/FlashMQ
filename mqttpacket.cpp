@@ -111,6 +111,7 @@ MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, const Publish &_pu
     if (!_publish.skipTopic)
         this->publishData.topic = _publish.topic;
 
+    // We often don't need to split because we already did the ACL checks and subscriber searching. But we do split on fresh publishes like wills and $SYS messages.
     if (_publish.splitTopic)
         splitTopic(this->publishData.topic, this->publishData.subtopics);
 
@@ -134,7 +135,7 @@ MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, const Publish &_pu
     if (protocolVersion >= ProtocolVersion::Mqtt5)
     {
         // Step 1: make certain properties available as objects, because FlashMQ needs access to them for internal logic (only ACL checking at this point).
-        if (_publish.hasUserProperties())
+        if (_publish.splitTopic && _publish.hasUserProperties())
         {
             this->publishData.constructPropertyBuilder();
             this->publishData.propertyBuilder->setNewUserProperties(_publish.propertyBuilder->getUserProperties());
