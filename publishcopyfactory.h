@@ -29,7 +29,7 @@ public:
     PublishCopyFactory(const PublishCopyFactory &other) = delete;
     PublishCopyFactory(PublishCopyFactory &&other) = delete;
 
-    MqttPacket *getOptimumPacket(const char max_qos, const ProtocolVersion protocolVersion);
+    MqttPacket *getOptimumPacket(const char max_qos, const ProtocolVersion protocolVersion, uint16_t topic_alias, bool skip_topic);
     char getEffectiveQos(char max_qos) const;
     const std::string &getTopic() const;
     const std::vector<std::string> &getSubtopics();

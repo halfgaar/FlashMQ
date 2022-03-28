@@ -84,6 +84,9 @@ class Client
 
     std::unordered_map<uint16_t, std::string> topicAliases;
 
+    uint16_t curOutgoingTopicAlias = 0;
+    std::unordered_map<std::string, uint16_t> outgoingTopicAliases;
+
     Logger *logger = Logger::getInstance();
 
     void setReadyForWriting(bool val);

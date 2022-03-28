@@ -206,6 +206,8 @@ public:
     bool splitTopic = true;
     std::chrono::time_point<std::chrono::steady_clock> createdAt;
     std::chrono::seconds expiresAfter;
+    uint16_t topicAlias = 0;
+    bool skipTopic = false;
     std::shared_ptr<Mqtt5PropertyBuilder> propertyBuilder; // Only contains data for sending, not receiving
 
     PublishBase() = default;

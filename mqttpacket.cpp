@@ -108,7 +108,8 @@ MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, const Publish &_pu
 
     this->protocolVersion = protocolVersion;
 
-    this->publishData.topic = _publish.topic;
+    if (!_publish.skipTopic)
+        this->publishData.topic = _publish.topic;
 
     if (_publish.splitTopic)
         splitTopic(this->publishData.topic, this->publishData.subtopics);
@@ -133,7 +134,7 @@ MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, const Publish &_pu
     if (protocolVersion >= ProtocolVersion::Mqtt5)
     {
         // Step 1: make certain properties available as objects, because FlashMQ needs access to them for internal logic.
-        if (_publish.propertyBuilder)
+        if (_publish.propertyBuilder) // TODO: only do this when there are user properties. Otherwise we don't need it.
         {
             this->publishData.constructPropertyBuilder();
             this->publishData.propertyBuilder->setNewUserProperties(_publish.propertyBuilder->getUserProperties());
@@ -343,7 +344,7 @@ void MqttPacket::handleConnect()
         uint16_t max_qos_packets = settings.maxQosMsgPendingPerClient;
         uint32_t session_expire = settings.expireSessionsAfterSeconds > 0 ? settings.expireSessionsAfterSeconds : std::numeric_limits<uint32_t>::max();
         uint32_t max_packet_size = settings.maxPacketSize;
-        uint16_t max_topic_aliases = settings.maxTopicAliases;
+        uint16_t max_topic_aliases = settings.maxOutgoingTopicAliases;
         bool request_response_information = false;
         bool request_problem_information = false;
 
@@ -820,6 +821,7 @@ void MqttPacket::handlePublish()
             case Mqtt5Properties::MessageExpiryInterval:
                 publishData.createdAt = std::chrono::steady_clock::now();
                 publishData.expiresAfter = std::chrono::seconds(readFourBytesToUint32());
+                break;
             case Mqtt5Properties::TopicAlias:
             {
                 const uint16_t alias_id = readTwoBytesToUInt16();

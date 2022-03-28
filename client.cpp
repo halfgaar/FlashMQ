@@ -208,7 +208,23 @@ int Client::writeMqttPacket(const MqttPacket &packet)
 
 int Client::writeMqttPacketAndBlameThisClient(PublishCopyFactory &copyFactory, char max_qos, uint16_t packet_id)
 {
-    MqttPacket *p = copyFactory.getOptimumPacket(max_qos, this->protocolVersion);
+    const Settings *settings = ThreadGlobals::getSettings();
+    uint16_t topic_alias = 0;
+    bool skip_topic = false;
+
+    if (protocolVersion >= ProtocolVersion::Mqtt5 && settings->maxOutgoingTopicAliases > this->curOutgoingTopicAlias)
+    {
+        uint16_t &id = this->outgoingTopicAliases[copyFactory.getTopic()];
+
+        if (id > 0)
+            skip_topic = true;
+        else
+            id = ++this->curOutgoingTopicAlias;
+
+        topic_alias = id;
+    }
+
+    MqttPacket *p = copyFactory.getOptimumPacket(max_qos, this->protocolVersion, topic_alias, skip_topic);
 
     assert(p->getQos() <= max_qos);
 

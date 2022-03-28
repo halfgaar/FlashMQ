@@ -17,15 +17,17 @@ PublishCopyFactory::PublishCopyFactory(Publish *publish) :
 
 }
 
-MqttPacket *PublishCopyFactory::getOptimumPacket(const char max_qos, const ProtocolVersion protocolVersion)
+MqttPacket *PublishCopyFactory::getOptimumPacket(const char max_qos, const ProtocolVersion protocolVersion, uint16_t topic_alias, bool skip_topic)
 {
     if (packet)
     {
-        if (packet->containsClientSpecificProperties())
+        if (protocolVersion >= ProtocolVersion::Mqtt5 && (packet->containsClientSpecificProperties() || topic_alias > 0))
         {
             Publish newPublish(packet->getPublishData());
             newPublish.splitTopic = false;
             newPublish.qos = max_qos;
+            newPublish.topicAlias = topic_alias;
+            newPublish.skipTopic = skip_topic;
             newPublish.setClientSpecificProperties();
             this->oneShotPacket = std::make_unique<MqttPacket>(protocolVersion, newPublish);
             return this->oneShotPacket.get();

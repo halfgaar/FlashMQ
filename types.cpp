@@ -117,7 +117,8 @@ PublishBase::PublishBase(const std::string &topic, const std::string &payload, c
 
 size_t PublishBase::getLengthWithoutFixedHeader() const
 {
-    int result = topic.length() + payload.length() + 2;
+    const int topicLength = this->skipTopic ? 0 : topic.length();
+    int result = topicLength + payload.length() + 2;
 
     if (qos)
         result += 2;
@@ -131,14 +132,23 @@ size_t PublishBase::getLengthWithoutFixedHeader() const
  */
 void PublishBase::setClientSpecificProperties()
 {
+    if (this->createdAt.time_since_epoch().count() && this->topicAlias == 0)
+        return;
+
     if (propertyBuilder)
         propertyBuilder->clearClientSpecificBytes();
+    else
+        propertyBuilder = std::make_shared<Mqtt5PropertyBuilder>();
 
-    auto now = std::chrono::steady_clock::now();
-    std::chrono::seconds newExpiresAfter = std::chrono::duration_cast<std::chrono::seconds>(now - createdAt);
-
-    if (newExpiresAfter.count() > 0)
+    if (createdAt.time_since_epoch().count() > 0)
+    {
+        auto now = std::chrono::steady_clock::now();
+        std::chrono::seconds newExpiresAfter = std::chrono::duration_cast<std::chrono::seconds>(now - createdAt);
         propertyBuilder->writeMessageExpiryInterval(newExpiresAfter.count());
+    }
+
+    if (topicAlias > 0)
+        propertyBuilder->writeTopicAlias(this->topicAlias);
 }
 
 void PublishBase::constructPropertyBuilder()

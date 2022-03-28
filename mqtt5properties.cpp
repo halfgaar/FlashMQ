@@ -125,6 +125,11 @@ void Mqtt5PropertyBuilder::writeCorrelationData(const std::string &correlationDa
     writeStr(Mqtt5Properties::CorrelationData, correlationData);
 }
 
+void Mqtt5PropertyBuilder::writeTopicAlias(const uint16_t id)
+{
+    writeUint16(Mqtt5Properties::TopicAlias, id, clientSpecificBytes);
+}
+
 void Mqtt5PropertyBuilder::setNewUserProperties(const std::shared_ptr<std::vector<std::pair<std::string, std::string>>> &userProperties)
 {
     assert(!this->userProperties);
@@ -134,7 +139,7 @@ void Mqtt5PropertyBuilder::setNewUserProperties(const std::shared_ptr<std::vecto
     this->userProperties = userProperties;
 }
 
-void Mqtt5PropertyBuilder::writeUint32(Mqtt5Properties prop, const uint32_t x, std::vector<char> &target)
+void Mqtt5PropertyBuilder::writeUint32(Mqtt5Properties prop, const uint32_t x, std::vector<char> &target) const
 {
     size_t pos = target.size();
     const size_t newSize = pos + 5;
@@ -154,16 +159,21 @@ void Mqtt5PropertyBuilder::writeUint32(Mqtt5Properties prop, const uint32_t x, s
 
 void Mqtt5PropertyBuilder::writeUint16(Mqtt5Properties prop, const uint16_t x)
 {
-    size_t pos = genericBytes.size();
+    writeUint16(prop, x, this->genericBytes);
+}
+
+void Mqtt5PropertyBuilder::writeUint16(Mqtt5Properties prop, const uint16_t x, std::vector<char> &target) const
+{
+    size_t pos = target.size();
     const size_t newSize = pos + 3;
-    genericBytes.resize(newSize);
+    target.resize(newSize);
 
     const uint8_t a = static_cast<uint8_t>(x >> 8);
     const uint8_t b = static_cast<uint8_t>(x);
 
-    genericBytes[pos++] = static_cast<uint8_t>(prop);
-    genericBytes[pos++] = a;
-    genericBytes[pos] = b;
+    target[pos++] = static_cast<uint8_t>(prop);
+    target[pos++] = a;
+    target[pos] = b;
 }
 
 void Mqtt5PropertyBuilder::writeUint8(Mqtt5Properties prop, const uint8_t x)
