@@ -159,6 +159,11 @@ void PublishBase::constructPropertyBuilder()
     this->propertyBuilder = std::make_shared<Mqtt5PropertyBuilder>();
 }
 
+bool PublishBase::hasUserProperties() const
+{
+    return this->propertyBuilder.operator bool() && this->propertyBuilder->getUserProperties().operator bool();
+}
+
 Publish::Publish(const Publish &other) :
     PublishBase(other)
 {

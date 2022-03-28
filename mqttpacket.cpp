@@ -133,8 +133,8 @@ MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, const Publish &_pu
 
     if (protocolVersion >= ProtocolVersion::Mqtt5)
     {
-        // Step 1: make certain properties available as objects, because FlashMQ needs access to them for internal logic.
-        if (_publish.propertyBuilder) // TODO: only do this when there are user properties. Otherwise we don't need it.
+        // Step 1: make certain properties available as objects, because FlashMQ needs access to them for internal logic (only ACL checking at this point).
+        if (_publish.hasUserProperties())
         {
             this->publishData.constructPropertyBuilder();
             this->publishData.propertyBuilder->setNewUserProperties(_publish.propertyBuilder->getUserProperties());

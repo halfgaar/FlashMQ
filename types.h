@@ -215,6 +215,7 @@ public:
     size_t getLengthWithoutFixedHeader() const;
     void setClientSpecificProperties();
     void constructPropertyBuilder();
+    bool hasUserProperties() const;
 };
 
 class Publish : public PublishBase
