@@ -806,10 +806,6 @@ void MqttPacket::handlePublish()
         const size_t proplen = decodeVariableByteIntAtPos();
         const size_t prop_end_at = pos + proplen;
 
-        // TODO: don't do this when the only properties are expiry and topic alias; they don't need the builder.
-        if (proplen > 0)
-            publishData.constructPropertyBuilder();
-
         while (pos < prop_end_at)
         {
             const Mqtt5Properties prop = static_cast<Mqtt5Properties>(readByte());
@@ -817,6 +813,7 @@ void MqttPacket::handlePublish()
             switch (prop)
             {
             case Mqtt5Properties::PayloadFormatIndicator:
+                publishData.constructPropertyBuilder();
                 publishData.propertyBuilder->writePayloadFormatIndicator(readByte());
                 break;
             case Mqtt5Properties::MessageExpiryInterval:
@@ -841,6 +838,7 @@ void MqttPacket::handlePublish()
             }
             case Mqtt5Properties::ResponseTopic:
             {
+                publishData.constructPropertyBuilder();
                 const uint16_t len = readTwoBytesToUInt16();
                 const std::string responseTopic(readBytes(len), len);
                 publishData.propertyBuilder->writeResponseTopic(responseTopic);
@@ -848,6 +846,7 @@ void MqttPacket::handlePublish()
             }
             case Mqtt5Properties::CorrelationData:
             {
+                publishData.constructPropertyBuilder();
                 const uint16_t len = readTwoBytesToUInt16();
                 const std::string correlationData(readBytes(len), len);
                 publishData.propertyBuilder->writeCorrelationData(correlationData);
@@ -855,6 +854,7 @@ void MqttPacket::handlePublish()
             }
             case Mqtt5Properties::UserProperty:
             {
+                publishData.constructPropertyBuilder();
                 const uint16_t lenKey = readTwoBytesToUInt16();
                 std::string userPropKey(readBytes(lenKey), lenKey);
                 const uint16_t lenVal = readTwoBytesToUInt16();
@@ -869,6 +869,7 @@ void MqttPacket::handlePublish()
             }
             case Mqtt5Properties::ContentType:
             {
+                publishData.constructPropertyBuilder();
                 const uint16_t len = readTwoBytesToUInt16();
                 const std::string contentType(readBytes(len), len);
                 publishData.propertyBuilder->writeContentType(contentType);
