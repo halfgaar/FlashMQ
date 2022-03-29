@@ -461,6 +461,26 @@ void ConfigFileParser::loadFile(bool test)
                     }
                     tmpSettings->maxQosBytesPendingPerClient = newVal;
                 }
+
+                if (key == "max_incoming_topic_alias_value")
+                {
+                    int newVal = std::stoi(value);
+                    if (newVal < 0 || newVal > 0xFFFF)
+                    {
+                        throw ConfigFileException(formatString("max_incoming_topic_alias_value value '%d' is invalid. Valid values are between 0 and 65535.", newVal));
+                    }
+                    tmpSettings->maxIncomingTopicAliasValue = newVal;
+                }
+
+                if (key == "max_outgoing_topic_alias_value")
+                {
+                    int newVal = std::stoi(value);
+                    if (newVal < 0 || newVal > 0xFFFF)
+                    {
+                        throw ConfigFileException(formatString("max_outgoing_topic_alias_value value '%d' is invalid. Valid values are between 0 and 65535.", newVal));
+                    }
+                    tmpSettings->maxOutgoingTopicAliasValue = newVal;
+                }
             }
         }
         catch (std::invalid_argument &ex) // catch for the stoi()

@@ -345,7 +345,7 @@ void MqttPacket::handleConnect()
         uint16_t max_qos_packets = settings.maxQosMsgPendingPerClient;
         uint32_t session_expire = settings.expireSessionsAfterSeconds > 0 ? settings.expireSessionsAfterSeconds : std::numeric_limits<uint32_t>::max();
         uint32_t max_packet_size = settings.maxPacketSize;
-        uint16_t max_topic_aliases = settings.maxOutgoingTopicAliases;
+        uint16_t max_outgoing_topic_aliases = 0; // Default MUST BE 0, meaning server won't initiate aliases
         bool request_response_information = false;
         bool request_problem_information = false;
 
@@ -370,7 +370,7 @@ void MqttPacket::handleConnect()
                     max_packet_size = std::min<uint32_t>(readFourBytesToUint32(), max_packet_size);
                     break;
                 case Mqtt5Properties::TopicAliasMaximum:
-                    max_topic_aliases = std::min<uint16_t>(readTwoBytesToUInt16(), max_topic_aliases);
+                    max_outgoing_topic_aliases = std::min<uint16_t>(readTwoBytesToUInt16(), settings.maxOutgoingTopicAliasValue);
                     break;
                 case Mqtt5Properties::RequestResponseInformation:
                     request_response_information = !!readByte();
@@ -541,7 +541,7 @@ void MqttPacket::handleConnect()
             clientIdGenerated = true;
         }
 
-        sender->setClientProperties(protocolVersion, client_id, username, true, keep_alive, max_packet_size, max_topic_aliases);
+        sender->setClientProperties(protocolVersion, client_id, username, true, keep_alive, max_packet_size, max_outgoing_topic_aliases);
 
         if (will_flag)
             sender->setWill(std::move(willpublish));
@@ -582,7 +582,7 @@ void MqttPacket::handleConnect()
                 connAck.propertyBuilder->writeMaxPacketSize(max_packet_size);
                 if (clientIdGenerated)
                     connAck.propertyBuilder->writeAssignedClientId(client_id);
-                connAck.propertyBuilder->writeMaxTopicAliases(max_topic_aliases);
+                connAck.propertyBuilder->writeMaxTopicAliases(settings.maxIncomingTopicAliasValue);
                 connAck.propertyBuilder->writeWildcardSubscriptionAvailable(1);
                 connAck.propertyBuilder->writeSubscriptionIdentifiersAvailable(0);
                 connAck.propertyBuilder->writeSharedSubscriptionAvailable(0);

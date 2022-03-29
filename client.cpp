@@ -208,11 +208,10 @@ int Client::writeMqttPacket(const MqttPacket &packet)
 
 int Client::writeMqttPacketAndBlameThisClient(PublishCopyFactory &copyFactory, char max_qos, uint16_t packet_id)
 {
-    const Settings *settings = ThreadGlobals::getSettings();
     uint16_t topic_alias = 0;
     bool skip_topic = false;
 
-    if (protocolVersion >= ProtocolVersion::Mqtt5 && settings->maxOutgoingTopicAliases > this->curOutgoingTopicAlias)
+    if (protocolVersion >= ProtocolVersion::Mqtt5 && this->maxOutgoingTopicAliasValue > this->curOutgoingTopicAlias)
     {
         uint16_t &id = this->outgoingTopicAliases[copyFactory.getTopic()];
 
@@ -358,15 +357,18 @@ void Client::setTopicAlias(const uint16_t alias_id, const std::string &topic)
     if (topic.empty())
         return;
 
-    if (alias_id > this->maxTopicAliases)
-        throw ProtocolError("Client exceeded max topic aliases.");
+    const Settings *settings = ThreadGlobals::getSettings();
 
-    this->topicAliases[alias_id] = topic;
+    // The specs actually say "The Client MUST NOT send a Topic Alias [...] to the Server greater than this value [Topic Alias Maximum]". So, it's not about count.
+    if (alias_id > settings->maxIncomingTopicAliasValue)
+        throw ProtocolError(formatString("Client tried to set more topic aliases than the server max of %d per client", settings->maxIncomingTopicAliasValue));
+
+    this->incomingTopicAliases[alias_id] = topic;
 }
 
 const std::string &Client::getTopicAlias(const uint16_t id)
 {
-    return this->topicAliases[id];
+    return this->incomingTopicAliases[id];
 }
 
 #ifndef NDEBUG
@@ -460,7 +462,7 @@ void Client::setClientProperties(ProtocolVersion protocolVersion, const std::str
 
 
 void Client::setClientProperties(ProtocolVersion protocolVersion, const std::string &clientId, const std::string username, bool connectPacketSeen, uint16_t keepalive,
-                                 uint32_t maxPacketSize, uint16_t maxTopicAliases)
+                                 uint32_t maxPacketSize, uint16_t maxOutgoingTopicAliasValue)
 {
     this->protocolVersion = protocolVersion;
     this->clientid = clientId;
@@ -468,7 +470,7 @@ void Client::setClientProperties(ProtocolVersion protocolVersion, const std::str
     this->connectPacketSeen = connectPacketSeen;
     this->keepalive = keepalive;
     this->maxPacketSize = maxPacketSize;
-    this->maxTopicAliases = maxTopicAliases;
+    this->maxOutgoingTopicAliasValue = maxOutgoingTopicAliasValue;
 }
 
 void Client::setWill(Publish &&willPublish)

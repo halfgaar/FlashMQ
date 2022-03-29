@@ -53,7 +53,7 @@ class Client
 
     const size_t initialBufferSize = 0;
     uint32_t maxPacketSize = 0;
-    uint16_t maxTopicAliases = 0;
+    uint16_t maxOutgoingTopicAliasValue = 0;
 
     IoWrapper ioWrapper;
     std::string transportStr;
@@ -82,7 +82,7 @@ class Client
 
     std::shared_ptr<Session> session;
 
-    std::unordered_map<uint16_t, std::string> topicAliases;
+    std::unordered_map<uint16_t, std::string> incomingTopicAliases;
 
     uint16_t curOutgoingTopicAlias = 0;
     std::unordered_map<std::string, uint16_t> outgoingTopicAliases;
@@ -111,7 +111,7 @@ public:
     void bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn, std::shared_ptr<Client> &sender);
     void setClientProperties(ProtocolVersion protocolVersion, const std::string &clientId, const std::string username, bool connectPacketSeen, uint16_t keepalive);
     void setClientProperties(ProtocolVersion protocolVersion, const std::string &clientId, const std::string username, bool connectPacketSeen, uint16_t keepalive,
-                             uint32_t maxPacketSize, uint16_t maxTopicAliases);
+                             uint32_t maxPacketSize, uint16_t maxOutgoingTopicAliasValue);
     void setWill(const std::string &topic, const std::string &payload, bool retain, char qos);
     void setWill(Publish &&willPublish);
     void clearWill();

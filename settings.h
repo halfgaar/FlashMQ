@@ -42,8 +42,8 @@ public:
     bool authPluginSerializeAuthChecks = false;
     int clientInitialBufferSize = 1024; // Must be power of 2
     int maxPacketSize = 268435461; // 256 MB + 5
-    uint16_t maxIncomingTopicAliases = 65535;
-    uint16_t maxOutgoingTopicAliases = 0; // TODO: setting, when I can confirm with clients that support it that it works.
+    uint16_t maxIncomingTopicAliasValue = 65535;
+    uint16_t maxOutgoingTopicAliasValue = 65535;
 #ifdef TESTING
     bool logDebug = true;
 #else
