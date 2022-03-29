@@ -69,7 +69,7 @@ Client::~Client()
         close(fd);
     }
 
-    if (session->getDestroyOnDisconnect())
+    if (session && session->getDestroyOnDisconnect())
     {
         store->removeSession(session);
     }

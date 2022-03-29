@@ -634,6 +634,9 @@ void SubscriptionStore::removeExpiredSessionsClients()
 
 void SubscriptionStore::queueSessionRemoval(const std::shared_ptr<Session> &session)
 {
+    if (!session)
+        return;
+
     QueuedSessionRemoval qsr(session);
 
     auto comp = [](const QueuedSessionRemoval &a, const QueuedSessionRemoval &b)
