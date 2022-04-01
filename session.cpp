@@ -268,7 +268,7 @@ uint64_t Session::sendPendingQosMessages()
 
         for (const uint16_t packet_id : outgoingQoS2MessageIds)
         {
-            PubRel pubRel(packet_id);
+            PubResponse pubRel(c->getProtocolVersion(), PacketType::PUBREL, ReasonCodes::Success, packet_id);
             MqttPacket packet(pubRel);
             count += c->writeMqttPacketAndBlameThisClient(packet);
         }
@@ -313,12 +313,16 @@ std::shared_ptr<Publish> &Session::getWill()
 
 void Session::addIncomingQoS2MessageId(uint16_t packet_id)
 {
+    assert(packet_id > 0);
+
     std::unique_lock<std::mutex> locker(qosQueueMutex);
     incomingQoS2MessageIds.insert(packet_id);
 }
 
 bool Session::incomingQoS2MessageIdInTransit(uint16_t packet_id)
 {
+    assert(packet_id > 0);
+
     std::unique_lock<std::mutex> locker(qosQueueMutex);
     const auto it = incomingQoS2MessageIds.find(packet_id);
     return it != incomingQoS2MessageIds.end();
@@ -326,6 +330,8 @@ bool Session::incomingQoS2MessageIdInTransit(uint16_t packet_id)
 
 void Session::removeIncomingQoS2MessageId(u_int16_t packet_id)
 {
+    assert(packet_id > 0);
+
     std::unique_lock<std::mutex> locker(qosQueueMutex);
 
 #ifndef NDEBUG

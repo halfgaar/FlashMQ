@@ -230,36 +230,19 @@ public:
 
 bool WillDelayCompare(const std::shared_ptr<Publish> &a, const std::weak_ptr<Publish> &b);
 
-class PubAck
+class PubResponse
 {
 public:
-    PubAck(uint16_t packet_id);
-    uint16_t packet_id;
-    size_t getLengthWithoutFixedHeader() const;
-};
+    PubResponse(const PubResponse &other) = delete;
+    PubResponse(const ProtocolVersion protVersion, const PacketType packet_type, ReasonCodes reason_code, uint16_t packet_id);
 
-class PubRec
-{
-public:
-    PubRec(uint16_t packet_id);
+    const PacketType packet_type;
+    const ProtocolVersion protocol_version;
+    const ReasonCodes reason_code;
     uint16_t packet_id;
-    size_t getLengthWithoutFixedHeader() const;
-};
-
-class PubComp
-{
-public:
-    PubComp(uint16_t packet_id);
-    uint16_t packet_id;
-    size_t getLengthWithoutFixedHeader() const;
-};
-
-class PubRel
-{
-public:
-    PubRel(uint16_t packet_id);
-    uint16_t packet_id;
-    size_t getLengthWithoutFixedHeader() const;
+    uint8_t getLengthIncludingFixedHeader() const;
+    uint8_t getRemainingLength() const;
+    bool needsReasonCode() const;
 };
 
 #endif // TYPES_H

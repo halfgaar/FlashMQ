@@ -153,47 +153,23 @@ MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, const Publish &_pu
     calculateRemainingLength();
 }
 
-/**
- * @brief MqttPacket::pubCommonConstruct is common code for constructors for all those empty pub control packets (ack, rec(eived), rel(ease), comp(lete)).
- * @param packet_id
- *
- * This functions cheats a bit and doesn't use calculateRemainingLength, because it's always 2. Be sure to allocate enough room in the vector when
- * you use this function (add 2 to the length).
- */
-void MqttPacket::pubCommonConstruct(const uint16_t packet_id, PacketType packetType, uint8_t firstByteDefaultBits)
+MqttPacket::MqttPacket(const PubResponse &pubAck) :
+    bites(pubAck.getLengthIncludingFixedHeader())
 {
-    assert(firstByteDefaultBits <= 0xF);
+    this->protocolVersion = pubAck.protocol_version;
 
     fixed_header_length = 2;
-    first_byte = (static_cast<uint8_t>(packetType) << 4) | firstByteDefaultBits;
+    const uint8_t firstByteDefaultBits = pubAck.packet_type == PacketType::PUBREL ? 0b0010 : 0;
+    this->first_byte = (static_cast<uint8_t>(pubAck.packet_type) << 4) | firstByteDefaultBits;
     writeByte(first_byte);
-    writeByte(2); // length is always 2.
-    packet_id_pos = pos;
-    writeUint16(packet_id);
-}
+    writeByte(pubAck.getRemainingLength());
+    this->packet_id_pos = this->pos;
+    writeUint16(pubAck.packet_id);
 
-MqttPacket::MqttPacket(const PubAck &pubAck) :
-    bites(pubAck.getLengthWithoutFixedHeader() + 2)
-{
-    pubCommonConstruct(pubAck.packet_id, PacketType::PUBACK);
-}
-
-MqttPacket::MqttPacket(const PubRec &pubRec) :
-    bites(pubRec.getLengthWithoutFixedHeader() + 2)
-{
-    pubCommonConstruct(pubRec.packet_id, PacketType::PUBREC);
-}
-
-MqttPacket::MqttPacket(const PubComp &pubComp) :
-    bites(pubComp.getLengthWithoutFixedHeader() + 2)
-{
-    pubCommonConstruct(pubComp.packet_id, PacketType::PUBCOMP);
-}
-
-MqttPacket::MqttPacket(const PubRel &pubRel) :
-    bites(pubRel.getLengthWithoutFixedHeader() + 2)
-{
-    pubCommonConstruct(pubRel.packet_id, PacketType::PUBREL, 0b0010);
+    if (pubAck.needsReasonCode())
+    {
+        writeByte(static_cast<uint8_t>(pubAck.reason_code));
+    }
 }
 
 void MqttPacket::bufferToMqttPackets(CirBuf &buf, std::vector<MqttPacket> &packetQueueIn, std::shared_ptr<Client> &sender)
@@ -767,6 +743,8 @@ void MqttPacket::handlePublish()
 
     publishData.topic = std::string(readBytes(variable_header_length), variable_header_length);
 
+    ReasonCodes ackCode = ReasonCodes::Success;
+
     if (qos)
     {
         packet_id_pos = pos;
@@ -775,29 +753,6 @@ void MqttPacket::handlePublish()
         if (packet_id == 0)
         {
             throw ProtocolError("Packet ID 0 when publishing is invalid."); // [MQTT-2.3.1-1]
-        }
-
-        if (qos == 1)
-        {
-            PubAck pubAck(packet_id);
-            MqttPacket response(pubAck);
-            sender->writeMqttPacket(response);
-        }
-        else
-        {
-            PubRec pubRec(packet_id);
-            MqttPacket response(pubRec);
-            sender->writeMqttPacket(response);
-
-            if (sender->getSession()->incomingQoS2MessageIdInTransit(packet_id))
-            {
-                return;
-            }
-            else
-            {
-                // Doing this before the authentication on purpose, so when the publish is not allowed, the QoS control packets are allowed and can finish.
-                sender->getSession()->addIncomingQoS2MessageId(packet_id);
-            }
         }
     }
 
@@ -881,16 +836,15 @@ void MqttPacket::handlePublish()
         }
     }
 
-    splitTopic(publishData.topic, publishData.subtopics);
+    if (publishData.topic.empty())
+        throw ProtocolError("Empty publish topic");
 
     if (!isValidUtf8(publishData.topic, true))
     {
-        logger->logf(LOG_WARNING, "Client '%s' published a message with invalid UTF8 or $/+/# in it. Dropping.", sender->repr().c_str());
-        return;
+        const std::string err = formatString("Client '%s' published a message with invalid UTF8 or $/+/# in it. Dropping.", sender->repr().c_str());
+        logger->logf(LOG_WARNING, err.c_str());
+        throw ProtocolError(err);
     }
-
-    if (publishData.topic.empty())
-        throw ProtocolError("Empty publish topic");
 
 #ifndef NDEBUG
     logger->logf(LOG_DEBUG, "Publish received, topic '%s'. QoS=%d. Retain=%d, dup=%d", publishData.topic.c_str(), qos, retain, dup);
@@ -902,21 +856,55 @@ void MqttPacket::handlePublish()
     payloadStart = pos;
 
     Authentication &authentication = *ThreadGlobals::getAuth();
-    if (authentication.aclCheck(sender->getClientId(), sender->getUsername(), publishData.topic, publishData.subtopics, AclAccess::write, qos, retain, getUserProperties()) == AuthResult::success)
+
+    // Working with a local copy because the subscribing action will modify this->packet_id. See the PublishCopyFactory.
+    const uint16_t _packet_id = this->packet_id;
+
+    if (qos == 2 && sender->getSession()->incomingQoS2MessageIdInTransit(_packet_id))
     {
-        if (retain)
+        ackCode = ReasonCodes::PacketIdentifierInUse;
+    }
+    else
+    {
+        // Doing this before the authentication on purpose, so when the publish is not allowed, the QoS control packets are allowed and can finish.
+        if (qos == 2)
+            sender->getSession()->addIncomingQoS2MessageId(_packet_id);
+
+        splitTopic(publishData.topic, publishData.subtopics);
+
+        if (authentication.aclCheck(sender->getClientId(), sender->getUsername(), publishData.topic, publishData.subtopics, AclAccess::write, qos, retain, getUserProperties()) == AuthResult::success)
         {
-            std::string payload(readBytes(payloadLen), payloadLen);
-            sender->getThreadData()->getSubscriptionStore()->setRetainedMessage(publishData.topic, publishData.subtopics, payload, qos);
+            if (retain)
+            {
+                std::string payload(readBytes(payloadLen), payloadLen);
+                sender->getThreadData()->getSubscriptionStore()->setRetainedMessage(publishData.topic, publishData.subtopics, payload, qos);
+            }
+
+            // Set dup flag to 0, because that must not be propagated [MQTT-3.3.1-3].
+            // Existing subscribers don't get retain=1. [MQTT-3.3.1-9]
+            bites[0] &= 0b11110110;
+            first_byte = bites[0];
+
+            PublishCopyFactory factory(this);
+            sender->getThreadData()->getSubscriptionStore()->queuePacketAtSubscribers(factory);
         }
+        else
+        {
+            ackCode = ReasonCodes::NotAuthorized;
+        }
+    }
 
-        // Set dup flag to 0, because that must not be propagated [MQTT-3.3.1-3].
-        // Existing subscribers don't get retain=1. [MQTT-3.3.1-9]
-        bites[0] &= 0b11110110;
-        first_byte = bites[0];
+#ifndef NDEBUG
+    // Protection against using the altered packet id.
+    this->packet_id = 0;
+#endif
 
-        PublishCopyFactory factory(this);
-        sender->getThreadData()->getSubscriptionStore()->queuePacketAtSubscribers(factory);
+    if (qos > 0)
+    {
+        const PacketType responseType = qos == 1 ? PacketType::PUBACK : PacketType::PUBREC;
+        PubResponse pubAck(this->protocolVersion, responseType, ackCode, _packet_id);
+        MqttPacket response(pubAck);
+        sender->writeMqttPacket(response);
     }
 }
 
@@ -935,7 +923,7 @@ void MqttPacket::handlePubRec()
     sender->getSession()->clearQosMessage(packet_id);
     sender->getSession()->addOutgoingQoS2MessageId(packet_id);
 
-    PubRel pubRel(packet_id);
+    PubResponse pubRel(this->protocolVersion, PacketType::PUBREL, ReasonCodes::Success, packet_id);
     MqttPacket response(pubRel);
     sender->writeMqttPacket(response);
 }
@@ -952,7 +940,7 @@ void MqttPacket::handlePubRel()
     const uint16_t packet_id = readTwoBytesToUInt16();
     sender->getSession()->removeIncomingQoS2MessageId(packet_id);
 
-    PubComp pubcomp(packet_id);
+    PubResponse pubcomp(this->protocolVersion, PacketType::PUBCOMP, ReasonCodes::Success, packet_id);
     MqttPacket response(pubcomp);
     sender->writeMqttPacket(response);
 }

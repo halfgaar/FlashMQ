@@ -71,7 +71,6 @@ class MqttPacket
     void readUserProperty();
 
     void calculateRemainingLength();
-    void pubCommonConstruct(const uint16_t packet_id, PacketType packetType, uint8_t firstByteDefaultBits = 0);
 
     MqttPacket(const MqttPacket &other) = delete;
 public:
@@ -87,10 +86,7 @@ public:
     MqttPacket(const SubAck &subAck);
     MqttPacket(const UnsubAck &unsubAck);
     MqttPacket(const ProtocolVersion protocolVersion, const Publish &_publish);
-    MqttPacket(const PubAck &pubAck);
-    MqttPacket(const PubRec &pubRec);
-    MqttPacket(const PubComp &pubComp);
-    MqttPacket(const PubRel &pubRel);
+    MqttPacket(const PubResponse &pubAck);
 
     static void bufferToMqttPackets(CirBuf &buf, std::vector<MqttPacket> &packetQueueIn, std::shared_ptr<Client> &sender);
 

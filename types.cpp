@@ -186,16 +186,34 @@ bool WillDelayCompare(const std::shared_ptr<Publish> &a, const std::weak_ptr<Pub
     return a->will_delay < _b->will_delay;
 };
 
-PubAck::PubAck(uint16_t packet_id) :
+PubResponse::PubResponse(const ProtocolVersion protVersion, const PacketType packet_type, ReasonCodes reason_code, uint16_t packet_id) :
+    packet_type(packet_type),
+    protocol_version(protVersion),
+    reason_code(protVersion >= ProtocolVersion::Mqtt5 ? reason_code : ReasonCodes::Success),
     packet_id(packet_id)
 {
-
+    assert(packet_type == PacketType::PUBACK || packet_type == PacketType::PUBREC || packet_type == PacketType::PUBREL || packet_type == PacketType::PUBCOMP);
 }
 
-// Packet has no payload and only a variable header, of length 2.
-size_t PubAck::getLengthWithoutFixedHeader() const
+uint8_t PubResponse::getLengthIncludingFixedHeader() const
 {
-    return 2;
+    return 2 + getRemainingLength();
+}
+
+uint8_t PubResponse::getRemainingLength() const
+{
+    // I'm leaving out the property length of 0: "If the Remaining Length is less than 4 there is no Property Length and the value of 0 is used"
+    const uint8_t result = needsReasonCode() ? 3 : 2;
+    return result;
+}
+
+/**
+ * @brief "The Reason Code and Property Length can be omitted if the Reason Code is 0x00 (Success) and there are no Properties"
+ * @return
+ */
+bool PubResponse::needsReasonCode() const
+{
+    return this->protocol_version >= ProtocolVersion::Mqtt5 && this->reason_code > ReasonCodes::Success;
 }
 
 UnsubAck::UnsubAck(uint16_t packet_id) :
@@ -205,39 +223,6 @@ UnsubAck::UnsubAck(uint16_t packet_id) :
 }
 
 size_t UnsubAck::getLengthWithoutFixedHeader() const
-{
-    return 2;
-}
-
-PubRec::PubRec(uint16_t packet_id) :
-    packet_id(packet_id)
-{
-
-}
-
-size_t PubRec::getLengthWithoutFixedHeader() const
-{
-    return 2;
-}
-
-PubComp::PubComp(uint16_t packet_id) :
-    packet_id(packet_id)
-{
-
-}
-
-size_t PubComp::getLengthWithoutFixedHeader() const
-{
-    return 2;
-}
-
-PubRel::PubRel(uint16_t packet_id) :
-    packet_id(packet_id)
-{
-
-}
-
-size_t PubRel::getLengthWithoutFixedHeader() const
 {
     return 2;
 }
