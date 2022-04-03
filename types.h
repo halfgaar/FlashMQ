@@ -164,23 +164,15 @@ public:
     size_t getLengthWithoutFixedHeader() const;
 };
 
-enum class SubAckReturnCodes
-{
-    MaxQoS0 = 0,
-    MaxQoS1 = 1,
-    MaxQoS2 = 2,
-    Fail = 0x80
-};
-
 class SubAck
 {
 public:
     const ProtocolVersion protocol_version;
-    uint16_t packet_id;
-    std::list<SubAckReturnCodes> responses;
+    const uint16_t packet_id;
+    std::list<ReasonCodes> responses;
     std::shared_ptr<Mqtt5PropertyBuilder> propertyBuilder;
 
-    SubAck(const ProtocolVersion protVersion, uint16_t packet_id, const std::list<char> &subs_qos_reponses);
+    SubAck(const ProtocolVersion protVersion, uint16_t packet_id, const std::list<ReasonCodes> &subs_qos_reponses);
     size_t getLengthWithoutFixedHeader() const;
 };
 

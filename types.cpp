@@ -82,15 +82,21 @@ size_t ConnAck::getLengthWithoutFixedHeader() const
     return result;
 }
 
-SubAck::SubAck(const ProtocolVersion protVersion, uint16_t packet_id, const std::list<char> &subs_qos_reponses) :
+SubAck::SubAck(const ProtocolVersion protVersion, uint16_t packet_id, const std::list<ReasonCodes> &subs_qos_reponses) :
     protocol_version(protVersion),
     packet_id(packet_id)
 {
     assert(!subs_qos_reponses.empty());
 
-    for (char ack_code : subs_qos_reponses)
+    for (const ReasonCodes ack_code : subs_qos_reponses)
     {
-        responses.push_back(static_cast<SubAckReturnCodes>(ack_code));
+        assert(protVersion >= ProtocolVersion::Mqtt311 || ack_code <= ReasonCodes::GrantedQoS2);
+
+        ReasonCodes _ack_code = ack_code;
+        if (protVersion < ProtocolVersion::Mqtt5 && ack_code >= ReasonCodes::UnspecifiedError)
+            _ack_code = ReasonCodes::UnspecifiedError; // Equals Mqtt 3.1.1 'suback failure'
+
+        responses.push_back(static_cast<ReasonCodes>(_ack_code));
     }
 }
 

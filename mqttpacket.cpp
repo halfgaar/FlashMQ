@@ -69,7 +69,8 @@ MqttPacket::MqttPacket(const SubAck &subAck) :
     }
 
     std::vector<char> returnList;
-    for (SubAckReturnCodes code : subAck.responses)
+    returnList.reserve(subAck.responses.size());
+    for (ReasonCodes code : subAck.responses)
     {
         returnList.push_back(static_cast<char>(code));
     }
@@ -605,7 +606,7 @@ void MqttPacket::handleSubscribe()
     if (firstByteFirstNibble != 2)
         throw ProtocolError("First LSB of first byte is wrong value for subscribe packet.");
 
-    uint16_t packet_id = readTwoBytesToUInt16();
+    const uint16_t packet_id = readTwoBytesToUInt16();
 
     if (packet_id == 0)
     {
@@ -637,7 +638,7 @@ void MqttPacket::handleSubscribe()
 
     Authentication &authentication = *ThreadGlobals::getAuth();
 
-    std::list<char> subs_reponse_codes;
+    std::list<ReasonCodes> subs_reponse_codes;
     while (remainingAfterPos() > 0)
     {
         uint16_t topicLength = readTwoBytesToUInt16();
@@ -649,7 +650,7 @@ void MqttPacket::handleSubscribe()
         if (!isValidSubscribePath(topic))
             throw ProtocolError(formatString("Invalid subscribe path: %s", topic.c_str()));
 
-        char qos = readByte();
+        uint8_t qos = readByte();
 
         if (qos > 2)
             throw ProtocolError("QoS is greater than 2, and/or reserved bytes in QoS field are not 0.");
@@ -660,16 +661,14 @@ void MqttPacket::handleSubscribe()
         {
             logger->logf(LOG_SUBSCRIBE, "Client '%s' subscribed to '%s' QoS %d", sender->repr().c_str(), topic.c_str(), qos);
             sender->getThreadData()->getSubscriptionStore()->addSubscription(sender, topic, subtopics, qos);
-            subs_reponse_codes.push_back(qos);
+            subs_reponse_codes.push_back(static_cast<ReasonCodes>(qos));
         }
         else
         {
             logger->logf(LOG_SUBSCRIBE, "Client '%s' subscribe to '%s' denied or failed.", sender->repr().c_str(), topic.c_str());
 
-            // We can't not send an ack, because if there are multiple subscribes, you send fewer acks back, losing sync.
-            char return_code = qos;
-            if (sender->getProtocolVersion() >= ProtocolVersion::Mqtt311)
-                return_code = static_cast<char>(SubAckReturnCodes::Fail);
+            // We can't not send an ack, because if there are multiple subscribes, you'd send fewer acks back, losing sync.
+            ReasonCodes return_code = sender->getProtocolVersion() >= ProtocolVersion::Mqtt311 ? ReasonCodes::NotAuthorized : static_cast<ReasonCodes>(qos);
             subs_reponse_codes.push_back(return_code);
         }
     }
