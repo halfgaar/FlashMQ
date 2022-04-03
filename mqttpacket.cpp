@@ -85,6 +85,17 @@ MqttPacket::MqttPacket(const UnsubAck &unsubAck) :
     packetType = PacketType::SUBACK;
     first_byte = static_cast<char>(packetType) << 4;
     writeUint16(unsubAck.packet_id);
+
+    if (unsubAck.protocol_version >= ProtocolVersion::Mqtt5)
+    {
+        writeProperties(unsubAck.propertyBuilder);
+
+        for(const ReasonCodes &rc : unsubAck.reasonCodes)
+        {
+            writeByte(static_cast<uint8_t>(rc));
+        }
+    }
+
     calculateRemainingLength();
 }
 
@@ -691,11 +702,31 @@ void MqttPacket::handleUnsubscribe()
     if (firstByteFirstNibble != 2)
         throw ProtocolError("First LSB of first byte is wrong value for subscribe packet.");
 
-    uint16_t packet_id = readTwoBytesToUInt16();
+    const uint16_t packet_id = readTwoBytesToUInt16();
 
     if (packet_id == 0)
     {
         throw ProtocolError("Packet ID 0 when unsubscribing is invalid."); // [MQTT-2.3.1-1]
+    }
+
+    if (protocolVersion == ProtocolVersion::Mqtt5)
+    {
+        const size_t proplen = decodeVariableByteIntAtPos();
+        const size_t prop_end_at = pos + proplen;
+
+        while (pos < prop_end_at)
+        {
+            const Mqtt5Properties prop = static_cast<Mqtt5Properties>(readByte());
+
+            switch (prop)
+            {
+            case Mqtt5Properties::UserProperty:
+                readUserProperty();
+                break;
+            default:
+                throw ProtocolError("Invalid unsubscribe property.");
+            }
+        }
     }
 
     int numberOfUnsubs = 0;
@@ -720,7 +751,7 @@ void MqttPacket::handleUnsubscribe()
         throw ProtocolError("No topics specified to unsubscribe to.");
     }
 
-    UnsubAck unsubAck(packet_id);
+    UnsubAck unsubAck(this->sender->getProtocolVersion(), packet_id, numberOfUnsubs);
     MqttPacket response(unsubAck);
     sender->writeMqttPacket(response);
 }

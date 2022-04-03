@@ -222,13 +222,31 @@ bool PubResponse::needsReasonCode() const
     return this->protocol_version >= ProtocolVersion::Mqtt5 && this->reason_code > ReasonCodes::Success;
 }
 
-UnsubAck::UnsubAck(uint16_t packet_id) :
-    packet_id(packet_id)
+UnsubAck::UnsubAck(const ProtocolVersion protVersion, uint16_t packet_id, const int unsubCount) :
+    protocol_version(protVersion),
+    packet_id(packet_id),
+    reasonCodes(unsubCount)
 {
-
+    if (protVersion >= ProtocolVersion::Mqtt5)
+    {
+        // At this point, FlashMQ has no mechanism that would reject unsubscribes, so just marking them all as success.
+        for(ReasonCodes &rc : this->reasonCodes)
+        {
+            rc = ReasonCodes::Success;
+        }
+    }
 }
 
 size_t UnsubAck::getLengthWithoutFixedHeader() const
 {
-    return 2;
+    size_t result = 2; // Start with room for packet id
+
+    if (this->protocol_version >= ProtocolVersion::Mqtt5)
+    {
+        result += this->reasonCodes.size();
+        const size_t proplen = propertyBuilder ? propertyBuilder->getLength() : 1;
+        result += proplen;
+    }
+
+    return result;
 }

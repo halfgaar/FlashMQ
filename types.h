@@ -179,8 +179,11 @@ public:
 class UnsubAck
 {
 public:
-    uint16_t packet_id;
-    UnsubAck(uint16_t packet_id);
+    const ProtocolVersion protocol_version;
+    const uint16_t packet_id;
+    std::shared_ptr<Mqtt5PropertyBuilder> propertyBuilder;
+    std::vector<ReasonCodes> reasonCodes;
+    UnsubAck(const ProtocolVersion protVersion, uint16_t packet_id, const int unsubCount);
     size_t getLengthWithoutFixedHeader() const;
 };
 
