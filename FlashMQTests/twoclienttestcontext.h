@@ -41,7 +41,8 @@ public:
     void connectReceiver();
     void disconnectReceiver();
     void subscribeReceiver(const QString &topic, const quint8 qos = 0);
-    void waitReceiverReceived(int count);
+    void unsubscribeReceiver(const QString &topic);
+    void waitReceiverReceived(const int count);
     void onClientError(const QMQTT::ClientError error);
 
     QList<QMQTT::Message> receivedMessages;

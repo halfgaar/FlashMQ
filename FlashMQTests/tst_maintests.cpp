@@ -115,6 +115,8 @@ private slots:
 
     void testNotMessingUpQosLevels();
 
+    void testUnSubscribe();
+
 };
 
 MainTests::MainTests()
@@ -1289,6 +1291,58 @@ void MainTests::testNotMessingUpQosLevels()
     QCOMPARE(testContextReceiver3.receivedMessages.first().id(), 1);
     QCOMPARE(testContextReceiver4.receivedMessages.first().id(), 1);
     QCOMPARE(testContextReceiver5.receivedMessages.first().id(), 0);
+}
+
+void MainTests::testUnSubscribe()
+{
+    TwoClientTestContext testContext;
+
+    testContext.connectSender();
+    testContext.connectReceiver();
+
+    testContext.subscribeReceiver("Rebecca/Bunch", 2);
+    testContext.subscribeReceiver("Josh/Chan", 1);
+    testContext.subscribeReceiver("White/Josh", 1);
+
+    testContext.publish("Rebecca/Bunch", "Bunch here", 2);
+    testContext.publish("White/Josh", "Anteater", 2);
+    testContext.publish("Josh/Chan", "Human flip-flop", 2);
+
+    testContext.waitReceiverReceived(3);
+
+    QVERIFY(std::any_of(testContext.receivedMessages.begin(), testContext.receivedMessages.end(), [](const QMQTT::Message &msg) {
+        return msg.payload() == "Bunch here" && msg.topic() == "Rebecca/Bunch";
+    }));
+
+    QVERIFY(std::any_of(testContext.receivedMessages.begin(), testContext.receivedMessages.end(), [](const QMQTT::Message &msg) {
+        return msg.payload() == "Anteater" && msg.topic() == "White/Josh";
+    }));
+
+    QVERIFY(std::any_of(testContext.receivedMessages.begin(), testContext.receivedMessages.end(), [](const QMQTT::Message &msg) {
+        return msg.payload() == "Human flip-flop" && msg.topic() == "Josh/Chan";
+    }));
+
+    QCOMPARE(testContext.receivedMessages.count(), 3);
+
+    testContext.receivedMessages.clear();
+
+    testContext.unsubscribeReceiver("Josh/Chan");
+
+    testContext.publish("Rebecca/Bunch", "Bunch here", 2);
+    testContext.publish("White/Josh", "Anteater", 2);
+    testContext.publish("Josh/Chan", "Human flip-flop", 2);
+
+    testContext.waitReceiverReceived(2);
+
+    QCOMPARE(testContext.receivedMessages.count(), 2);
+
+    QVERIFY(std::any_of(testContext.receivedMessages.begin(), testContext.receivedMessages.end(), [](const QMQTT::Message &msg) {
+        return msg.payload() == "Bunch here" && msg.topic() == "Rebecca/Bunch";
+    }));
+
+    QVERIFY(std::any_of(testContext.receivedMessages.begin(), testContext.receivedMessages.end(), [](const QMQTT::Message &msg) {
+        return msg.payload() == "Anteater" && msg.topic() == "White/Josh";
+    }));
 }
 
 
