@@ -24,6 +24,8 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "mosquittoauthoptcompatwrap.h"
 #include "listener.h"
 
+#define ABSOLUTE_MAX_PACKET_SIZE 268435461 // 256 MB + 5
+
 class Settings
 {
     friend class ConfigFileParser;
@@ -41,7 +43,7 @@ public:
     bool authPluginSerializeInit = false;
     bool authPluginSerializeAuthChecks = false;
     int clientInitialBufferSize = 1024; // Must be power of 2
-    int maxPacketSize = 268435461; // 256 MB + 5
+    int maxPacketSize = ABSOLUTE_MAX_PACKET_SIZE;
     uint16_t maxIncomingTopicAliasValue = 65535;
     uint16_t maxOutgoingTopicAliasValue = 65535;
 #ifdef TESTING

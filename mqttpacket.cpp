@@ -31,6 +31,12 @@ MqttPacket::MqttPacket(CirBuf &buf, size_t packet_len, size_t fixed_header_lengt
     sender(sender)
 {
     assert(packet_len > 0);
+
+    if (packet_len > sender->getMaxIncomingPacketSize())
+    {
+        throw ProtocolError("Incoming packet size exceeded. TODO: DISCONNECT WITH CODE 0x95");
+    }
+
     buf.read(bites.data(), packet_len);
 
     protocolVersion = sender->getProtocolVersion();
@@ -338,7 +344,7 @@ void MqttPacket::handleConnect()
 
         uint16_t max_qos_packets = settings.maxQosMsgPendingPerClient;
         uint32_t session_expire = settings.expireSessionsAfterSeconds > 0 ? settings.expireSessionsAfterSeconds : std::numeric_limits<uint32_t>::max();
-        uint32_t max_packet_size = settings.maxPacketSize;
+        uint32_t max_outgoing_packet_size = settings.maxPacketSize;
         uint16_t max_outgoing_topic_aliases = 0; // Default MUST BE 0, meaning server won't initiate aliases
         bool request_response_information = false;
         bool request_problem_information = false;
@@ -361,7 +367,7 @@ void MqttPacket::handleConnect()
                     max_qos_packets = std::min<int16_t>(readTwoBytesToUInt16(), max_qos_packets);
                     break;
                 case Mqtt5Properties::MaximumPacketSize:
-                    max_packet_size = std::min<uint32_t>(readFourBytesToUint32(), max_packet_size);
+                    max_outgoing_packet_size = std::min<uint32_t>(readFourBytesToUint32(), max_outgoing_packet_size);
                     break;
                 case Mqtt5Properties::TopicAliasMaximum:
                     max_outgoing_topic_aliases = std::min<uint16_t>(readTwoBytesToUInt16(), settings.maxOutgoingTopicAliasValue);
@@ -535,7 +541,7 @@ void MqttPacket::handleConnect()
             clientIdGenerated = true;
         }
 
-        sender->setClientProperties(protocolVersion, client_id, username, true, keep_alive, max_packet_size, max_outgoing_topic_aliases);
+        sender->setClientProperties(protocolVersion, client_id, username, true, keep_alive, max_outgoing_packet_size, max_outgoing_topic_aliases);
 
         if (will_flag)
             sender->setWill(std::move(willpublish));
@@ -573,7 +579,7 @@ void MqttPacket::handleConnect()
                 connAck.propertyBuilder->writeSessionExpiry(session_expire);
                 connAck.propertyBuilder->writeReceiveMax(max_qos_packets);
                 connAck.propertyBuilder->writeRetainAvailable(1);
-                connAck.propertyBuilder->writeMaxPacketSize(max_packet_size);
+                connAck.propertyBuilder->writeMaxPacketSize(sender->getMaxIncomingPacketSize());
                 if (clientIdGenerated)
                     connAck.propertyBuilder->writeAssignedClientId(client_id);
                 connAck.propertyBuilder->writeMaxTopicAliases(settings.maxIncomingTopicAliasValue);

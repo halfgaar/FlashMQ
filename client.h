@@ -52,7 +52,9 @@ class Client
     ProtocolVersion protocolVersion = ProtocolVersion::None;
 
     const size_t initialBufferSize = 0;
-    uint32_t maxPacketSize = 0;
+    uint32_t maxOutgoingPacketSize;
+    const uint32_t maxIncomingPacketSize;
+
     uint16_t maxOutgoingTopicAliasValue = 0;
 
     IoWrapper ioWrapper;
@@ -111,7 +113,7 @@ public:
     void bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn, std::shared_ptr<Client> &sender);
     void setClientProperties(ProtocolVersion protocolVersion, const std::string &clientId, const std::string username, bool connectPacketSeen, uint16_t keepalive);
     void setClientProperties(ProtocolVersion protocolVersion, const std::string &clientId, const std::string username, bool connectPacketSeen, uint16_t keepalive,
-                             uint32_t maxPacketSize, uint16_t maxOutgoingTopicAliasValue);
+                             uint32_t maxOutgoingPacketSize, uint16_t maxOutgoingTopicAliasValue);
     void setWill(const std::string &topic, const std::string &payload, bool retain, char qos);
     void setWill(Publish &&willPublish);
     void clearWill();
@@ -144,6 +146,8 @@ public:
 
     void setTopicAlias(const uint16_t alias_id, const std::string &topic);
     const std::string &getTopicAlias(const uint16_t id);
+
+    uint32_t getMaxIncomingPacketSize() const;
 
 #ifndef NDEBUG
     void setFakeUpgraded();

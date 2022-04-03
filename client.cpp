@@ -31,7 +31,8 @@ Client::Client(int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, bool we
     fd(fd),
     fuzzMode(fuzzMode),
     initialBufferSize(settings->clientInitialBufferSize), // The client is constructed in the main thread, so we need to use its settings copy
-    maxPacketSize(settings->maxPacketSize), // Same as initialBufferSize comment.
+    maxOutgoingPacketSize(settings->maxPacketSize), // Same as initialBufferSize comment.
+    maxIncomingPacketSize(settings->maxPacketSize),
     ioWrapper(ssl, websocket, initialBufferSize, this),
     readbuf(initialBufferSize),
     writebuf(initialBufferSize),
@@ -141,7 +142,7 @@ bool Client::readFdIntoBuffer()
         // Make sure we either always have enough space for a next call of this method, or stop reading the fd.
         if (readbuf.freeSpace() == 0)
         {
-            if (readbuf.getSize() * 2 < maxPacketSize)
+            if (readbuf.getSize() * 2 < this->maxIncomingPacketSize)
             {
                 readbuf.doubleSize();
             }
@@ -181,18 +182,27 @@ void Client::writeText(const std::string &text)
 
 int Client::writeMqttPacket(const MqttPacket &packet)
 {
+    const size_t packetSize = packet.getSizeIncludingNonPresentHeader();
+
+    // "Where a Packet is too large to send, the Server MUST discard it without sending it and then behave as if it had completed
+    // sending that Application Message [MQTT-3.1.2-25]."
+    if (packetSize > this->maxOutgoingPacketSize)
+    {
+        return 0;
+    }
+
     std::lock_guard<std::mutex> locker(writeBufMutex);
 
     // We have to allow big packets, yet don't allow a slow loris subscriber to grow huge write buffers. This
     // could be enhanced a lot, but it's a start.
-    const uint32_t growBufMaxTo = std::min<int>(packet.getSizeIncludingNonPresentHeader() * 1000, maxPacketSize);
+    const uint32_t growBufMaxTo = std::min<int>(packetSize * 1000, this->maxOutgoingPacketSize);
 
     // Grow as far as we can. We have to make room for one MQTT packet.
-    writebuf.ensureFreeSpace(packet.getSizeIncludingNonPresentHeader(), growBufMaxTo);
+    writebuf.ensureFreeSpace(packetSize, growBufMaxTo);
 
     // And drop a publish when it doesn't fit, even after resizing. This means we do allow pings. And
     // QoS packet are queued and limited elsewhere.
-    if (packet.packetType == PacketType::PUBLISH && packet.getQos() == 0 && packet.getSizeIncludingNonPresentHeader() > writebuf.freeSpace())
+    if (packet.packetType == PacketType::PUBLISH && packet.getQos() == 0 && packetSize > writebuf.freeSpace())
     {
         return 0;
     }
@@ -371,6 +381,16 @@ const std::string &Client::getTopicAlias(const uint16_t id)
     return this->incomingTopicAliases[id];
 }
 
+/**
+ * @brief We use this for doing the checks on client traffic, as opposed to using settings.maxPacketSize, because the latter than change on config reload,
+ *        possibly resulting in exceeding what the other side uses as maximum.
+ * @return
+ */
+uint32_t Client::getMaxIncomingPacketSize() const
+{
+    return this->maxIncomingPacketSize;
+}
+
 #ifndef NDEBUG
 /**
  * @brief IoWrapper::setFakeUpgraded().
@@ -462,14 +482,14 @@ void Client::setClientProperties(ProtocolVersion protocolVersion, const std::str
 
 
 void Client::setClientProperties(ProtocolVersion protocolVersion, const std::string &clientId, const std::string username, bool connectPacketSeen, uint16_t keepalive,
-                                 uint32_t maxPacketSize, uint16_t maxOutgoingTopicAliasValue)
+                                 uint32_t maxOutgoingPacketSize, uint16_t maxOutgoingTopicAliasValue)
 {
     this->protocolVersion = protocolVersion;
     this->clientid = clientId;
     this->username = username;
     this->connectPacketSeen = connectPacketSeen;
     this->keepalive = keepalive;
-    this->maxPacketSize = maxPacketSize;
+    this->maxOutgoingPacketSize = maxOutgoingPacketSize;
     this->maxOutgoingTopicAliasValue = maxOutgoingTopicAliasValue;
 }
 
