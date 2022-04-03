@@ -50,6 +50,8 @@ MqttPacket::MqttPacket(const ConnAck &connAck) :
 
     if (connAck.protocol_version >= ProtocolVersion::Mqtt5)
     {
+        // TODO: don't include the reason string and user properties when it would increase the CONACK packet beyond the max packet size as determined by client.
+        //       We don't send those at all momentarily, so there is no logic to prevent it.
         writeProperties(connAck.propertyBuilder);
     }
 
@@ -65,6 +67,8 @@ MqttPacket::MqttPacket(const SubAck &subAck) :
 
     if (subAck.protocol_version >= ProtocolVersion::Mqtt5)
     {
+        // TODO: don't include the reason string and user properties when it would increase the SUBACK packet beyond the max packet size as determined by client.
+        //       We don't send those at all momentarily, so there is no logic to prevent it.
         writeProperties(subAck.propertyBuilder);
     }
 
@@ -180,6 +184,8 @@ MqttPacket::MqttPacket(const PubResponse &pubAck) :
 
     if (pubAck.needsReasonCode())
     {
+        // TODO: don't include the reason string and user properties when it would increase the PUBACK/PUBREL/PUBCOMP packet beyond the max packet size as determined by client.
+        //       We don't send those at all momentarily, so there is no logic to prevent it.
         writeByte(static_cast<uint8_t>(pubAck.reason_code));
     }
 }
