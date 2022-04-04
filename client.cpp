@@ -53,12 +53,6 @@ Client::~Client()
 {
     std::shared_ptr<SubscriptionStore> &store = getThreadData()->getSubscriptionStore();
 
-    // Will payload can be empty, apparently.
-    if (willPublish)
-    {
-        store->queueWillMessage(willPublish);
-    }
-
     if (disconnectReason.empty())
         disconnectReason = "not specified";
 
