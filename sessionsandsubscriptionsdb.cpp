@@ -41,7 +41,7 @@ SessionsAndSubscriptionsDB::SessionsAndSubscriptionsDB(const std::string &filePa
 
 void SessionsAndSubscriptionsDB::openWrite()
 {
-    PersistenceFile::openWrite(MAGIC_STRING_SESSION_FILE_V1);
+    PersistenceFile::openWrite(MAGIC_STRING_SESSION_FILE_V2);
 }
 
 void SessionsAndSubscriptionsDB::openRead()
@@ -50,11 +50,13 @@ void SessionsAndSubscriptionsDB::openRead()
 
     if (detectedVersionString == MAGIC_STRING_SESSION_FILE_V1)
         readVersion = ReadVersion::v1;
+    else if (detectedVersionString == MAGIC_STRING_SESSION_FILE_V2)
+        readVersion = ReadVersion::v2;
     else
         throw std::runtime_error("Unknown file version.");
 }
 
-SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV1()
+SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV2()
 {
     SessionsAndSubscriptionsResult result;
 
@@ -74,11 +76,11 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV1()
         if (eofFound)
             continue;
 
-        std::vector<char> reserved(RESERVED_SPACE_SESSIONS_DB_V1);
+        std::vector<char> reserved(RESERVED_SPACE_SESSIONS_DB_V2);
 
         for (uint32_t i = 0; i < nrOfSessions; i++)
         {
-            readCheck(buf.data(), 1, RESERVED_SPACE_SESSIONS_DB_V1, f);
+            readCheck(buf.data(), 1, RESERVED_SPACE_SESSIONS_DB_V2, f);
 
             uint32_t usernameLength = readUint32(eofFound);
             readCheck(buf.data(), 1, usernameLength, f);
@@ -188,8 +190,8 @@ void SessionsAndSubscriptionsDB::saveData(const std::vector<std::unique_ptr<Sess
     if (!f)
         return;
 
-    char reserved[RESERVED_SPACE_SESSIONS_DB_V1];
-    std::memset(reserved, 0, RESERVED_SPACE_SESSIONS_DB_V1);
+    char reserved[RESERVED_SPACE_SESSIONS_DB_V2];
+    std::memset(reserved, 0, RESERVED_SPACE_SESSIONS_DB_V2);
 
     const int64_t start_stamp = Session::getProgramStartedAtUnixTimestamp();
     logger->logf(LOG_DEBUG, "Saving program first start time stamp as %ld", start_stamp);
@@ -203,7 +205,7 @@ void SessionsAndSubscriptionsDB::saveData(const std::vector<std::unique_ptr<Sess
 
         writeRowHeader();
 
-        writeCheck(reserved, 1, RESERVED_SPACE_SESSIONS_DB_V1, f);
+        writeCheck(reserved, 1, RESERVED_SPACE_SESSIONS_DB_V2, f);
 
         writeUint32(ses->username.length());
         writeCheck(ses->username.c_str(), 1, ses->username.length(), f);
@@ -294,7 +296,9 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readData()
         return defaultResult;
 
     if (readVersion == ReadVersion::v1)
-        return readDataV1();
+        logger->logf(LOG_WARNING, "File '%s' is version 1, an internal development version that was never finalized. Not reading.", getFilePath().c_str());
+    if (readVersion == ReadVersion::v2)
+        return readDataV2();
 
     return defaultResult;
 }

@@ -25,7 +25,8 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "session.h"
 
 #define MAGIC_STRING_SESSION_FILE_V1 "FlashMQRetainedDBv1"
-#define RESERVED_SPACE_SESSIONS_DB_V1 32
+#define MAGIC_STRING_SESSION_FILE_V2 "FlashMQRetainedDBv2"
+#define RESERVED_SPACE_SESSIONS_DB_V2 32
 
 /**
  * @brief The SubscriptionForSerializing struct contains the fields we're interested in when saving a subscription.
@@ -51,12 +52,13 @@ class SessionsAndSubscriptionsDB : public PersistenceFile
     enum class ReadVersion
     {
         unknown,
-        v1
+        v1,
+        v2
     };
 
     ReadVersion readVersion = ReadVersion::unknown;
 
-    SessionsAndSubscriptionsResult readDataV1();
+    SessionsAndSubscriptionsResult readDataV2();
     void writeRowHeader();
 public:
     SessionsAndSubscriptionsDB(const std::string &filePath);
