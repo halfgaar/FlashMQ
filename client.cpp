@@ -154,8 +154,6 @@ bool Client::readFdIntoBuffer()
     }
 
     lastActivity = std::chrono::steady_clock::now();
-    if (session)
-        session->touch(lastActivity);
 
     return true;
 }

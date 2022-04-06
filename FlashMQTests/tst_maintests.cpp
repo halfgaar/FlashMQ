@@ -1007,14 +1007,12 @@ void MainTests::testSavingSessions()
         std::shared_ptr<Client> c1(new Client(0, t, nullptr, false, nullptr, settings, false));
         c1->setClientProperties(ProtocolVersion::Mqtt311, "c1", "user1", true, 60);
         store->registerClientAndKickExistingOne(c1, false, 512, 120);
-        c1->getSession()->touch();
         c1->getSession()->addIncomingQoS2MessageId(2);
         c1->getSession()->addIncomingQoS2MessageId(3);
 
         std::shared_ptr<Client> c2(new Client(0, t, nullptr, false, nullptr, settings, false));
         c2->setClientProperties(ProtocolVersion::Mqtt311, "c2", "user2", true, 60);
         store->registerClientAndKickExistingOne(c2, false, 512, 120);
-        c2->getSession()->touch();
         c2->getSession()->addOutgoingQoS2MessageId(55);
         c2->getSession()->addOutgoingQoS2MessageId(66);
 

@@ -22,8 +22,6 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "threadglobals.h"
 #include "threadglobals.h"
 
-std::chrono::time_point<std::chrono::steady_clock> appStartTime = std::chrono::steady_clock::now();
-
 Session::Session()
 {
     const Settings &settings = *ThreadGlobals::getSettings();
@@ -31,44 +29,6 @@ Session::Session()
     // Sessions also get defaults from the handleConnect() method, but when you create sessions elsewhere, we do need some sensible defaults.
     this->maxQosMsgPending = settings.maxQosMsgPendingPerClient;
     this->sessionExpiryInterval = settings.expireSessionsAfterSeconds;
-}
-
-int64_t Session::getProgramStartedAtUnixTimestamp()
-{
-    auto secondsSinceEpoch = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-    const std::chrono::seconds age = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - appStartTime);
-    int64_t result = secondsSinceEpoch - age.count();
-    return result;
-}
-
-void Session::setProgramStartedAtUnixTimestamp(const int64_t unix_timestamp)
-{
-    auto secondsSinceEpoch = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch());
-    const std::chrono::seconds _unix_timestamp = std::chrono::seconds(unix_timestamp);
-    const std::chrono::seconds age_in_s = secondsSinceEpoch - _unix_timestamp;
-    appStartTime = std::chrono::steady_clock::now() - age_in_s;
-}
-
-/**
- * @brief Session::getSessionRelativeAgeInMs is used to get the value to store on disk when saving sessions.
- * @return
- */
-int64_t Session::getSessionRelativeAgeInMs() const
-{
-    const std::chrono::milliseconds sessionAge = std::chrono::duration_cast<std::chrono::milliseconds>(lastTouched - appStartTime);
-    const int64_t sInMs = sessionAge.count();
-    return sInMs;
-}
-
-/**
- * @brief Session::setSessionTouch is the set 'lastTouched' value relative to the app start time when a session is loaded from disk.
- * @param ageInMs
- */
-void Session::setSessionTouch(int64_t ageInMs)
-{
-    std::chrono::milliseconds ms(ageInMs);
-    std::chrono::time_point<std::chrono::steady_clock> point = appStartTime + ms;
-    lastTouched = point;
 }
 
 bool Session::requiresPacketRetransmission() const
@@ -110,7 +70,6 @@ Session::Session(const Session &other)
     this->incomingQoS2MessageIds = other.incomingQoS2MessageIds;
     this->outgoingQoS2MessageIds = other.outgoingQoS2MessageIds;
     this->nextPacketId = other.nextPacketId;
-    this->lastTouched = other.lastTouched;
 
     // TODO: see git history for a change here. We now copy the whole queued publish. Do we want to address that?
     this->qosPacketQueue = other.qosPacketQueue;
@@ -284,28 +243,9 @@ uint64_t Session::sendPendingQosMessages()
     return count;
 }
 
-/**
- * @brief Session::touch with a time value allowed touching without causing another sys/lib call to get the time.
- * @param newval
- */
-void Session::touch(std::chrono::time_point<std::chrono::steady_clock> newval)
+bool Session::hasActiveClient() const
 {
-    lastTouched = newval;
-}
-
-void Session::touch()
-{
-    lastTouched = std::chrono::steady_clock::now();
-}
-
-bool Session::hasExpired() const
-{
-    if (!client.expired())
-        return false;
-
-    std::chrono::seconds expireAfter(sessionExpiryInterval);
-    std::chrono::time_point<std::chrono::steady_clock> now = std::chrono::steady_clock::now();
-    return (lastTouched + expireAfter) < now;
+    return !client.expired();
 }
 
 void Session::clearWill()

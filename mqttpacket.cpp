@@ -568,7 +568,15 @@ void MqttPacket::handleConnect()
 
         if (accessGranted)
         {
-            bool sessionPresent = protocolVersion >= ProtocolVersion::Mqtt311 && !clean_start && subscriptionStore->sessionPresent(client_id);
+            bool sessionPresent = false;
+            std::shared_ptr<Session> existingSession;
+
+            if (protocolVersion >= ProtocolVersion::Mqtt311 && !clean_start)
+            {
+                existingSession = subscriptionStore->lockSession(client_id);
+                if (existingSession)
+                    sessionPresent = true;
+            }
 
             sender->setAuthenticated(true);
             ConnAck connAck(protocolVersion, ReasonCodes::Success, sessionPresent);

@@ -50,12 +50,9 @@ class Session
     uint16_t maxQosMsgPending;
     uint16_t QoSLogPrintedAtId = 0;
     bool destroyOnDisconnect = false;
-    std::chrono::time_point<std::chrono::steady_clock> lastTouched = std::chrono::steady_clock::now();
     std::shared_ptr<Publish> willPublish;
     Logger *logger = Logger::getInstance();
 
-    int64_t getSessionRelativeAgeInMs() const;
-    void setSessionTouch(int64_t ageInMs);
     bool requiresPacketRetransmission() const;
     void increasePacketId();
 
@@ -66,9 +63,6 @@ public:
     Session(Session &&other) = delete;
     ~Session();
 
-    static int64_t getProgramStartedAtUnixTimestamp();
-    static void setProgramStartedAtUnixTimestamp(const int64_t unix_timestamp);
-
     std::unique_ptr<Session> getCopy() const;
 
     const std::string &getClientId() const { return client_id; }
@@ -77,9 +71,7 @@ public:
     void writePacket(PublishCopyFactory &copyFactory, const char max_qos, uint64_t &count);
     void clearQosMessage(uint16_t packet_id);
     uint64_t sendPendingQosMessages();
-    void touch(std::chrono::time_point<std::chrono::steady_clock> val);
-    void touch();
-    bool hasExpired() const;
+    bool hasActiveClient() const;
     void clearWill();
     std::shared_ptr<Publish> &getWill();
 

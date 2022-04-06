@@ -84,6 +84,12 @@ class RetainedMessageNode
     RetainedMessageNode *getChildren(const std::string &subtopic) const;
 };
 
+/**
+ * @brief A QueuedSessionRemoval is a sort of delayed request for removal. They are kept in a sorted list for fast insertion,
+ * and fast dequeueing of expired entries from the start.
+ *
+ * You can have multiple of these in the pending list. If a client has picked up the session again, the removal is not executed.
+ */
 class QueuedSessionRemoval
 {
     std::weak_ptr<Session> session;
@@ -142,7 +148,7 @@ public:
     void removeSubscription(std::shared_ptr<Client> &client, const std::string &topic);
     void registerClientAndKickExistingOne(std::shared_ptr<Client> &client);
     void registerClientAndKickExistingOne(std::shared_ptr<Client> &client, bool clean_start, uint16_t maxQosPackets, uint32_t sessionExpiryInterval);
-    bool sessionPresent(const std::string &clientid);
+    std::shared_ptr<Session> lockSession(const std::string &clientid);
 
     void sendQueuedWillMessages();
     void queueWillMessage(std::shared_ptr<Publish> &willMessage, bool forceNow = false);

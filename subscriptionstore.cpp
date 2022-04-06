@@ -253,20 +253,23 @@ void SubscriptionStore::registerClientAndKickExistingOne(std::shared_ptr<Client>
     client->getThreadData()->incrementSentMessageCount(count);
 }
 
-bool SubscriptionStore::sessionPresent(const std::string &clientid)
+/**
+ * @brief SubscriptionStore::lockSession returns the session if it exists. Returning is done keep the shared pointer active, to
+ * avoid race conditions with session removal.
+ * @param clientid
+ * @return
+ */
+std::shared_ptr<Session> SubscriptionStore::lockSession(const std::string &clientid)
 {
     RWLockGuard lock_guard(&subscriptionsRwlock);
     lock_guard.rdlock();
 
-    bool result = false;
-
     auto it = sessionsByIdConst.find(clientid);
     if (it != sessionsByIdConst.end())
     {
-        it->second->touch(); // Touching to avoid a race condition between using the session after this, and it expiring.
-        result = true;
+        return it->second;
     }
-    return result;
+    return std::shared_ptr<Session>();
 }
 
 void SubscriptionStore::sendQueuedWillMessages()
@@ -612,7 +615,7 @@ void SubscriptionStore::removeExpiredSessionsClients()
                 }
 
                 // A session could have been picked up again, so we have to verify its expiration status.
-                if (session->hasExpired())
+                if (!session->hasActiveClient())
                 {
                     removeSession(session);
                 }
@@ -632,6 +635,10 @@ void SubscriptionStore::removeExpiredSessionsClients()
     }
 }
 
+/**
+ * @brief SubscriptionStore::queueSessionRemoval places session efficiently in a sorted list that is periodically dequeued.
+ * @param session
+ */
 void SubscriptionStore::queueSessionRemoval(const std::shared_ptr<Session> &session)
 {
     if (!session)

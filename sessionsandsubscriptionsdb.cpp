@@ -67,12 +67,14 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV2()
     {
         bool eofFound = false;
 
-        const int64_t programStartStamp = readInt64(eofFound);
+        const int64_t fileSavedAt = readInt64(eofFound);
         if (eofFound)
             continue;
 
-        logger->logf(LOG_DEBUG, "Setting first app start time to timestamp %ld", programStartStamp);
-        Session::setProgramStartedAtUnixTimestamp(programStartStamp);
+        const int64_t now_epoch = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+        const int64_t persistence_state_age = fileSavedAt > now_epoch ? 0 : now_epoch - fileSavedAt;
+
+        logger->logf(LOG_DEBUG, "Session file was saved at %ld. That's %ld seconds ago.", fileSavedAt, persistence_state_age);
 
         const uint32_t nrOfSessions = readUint32(eofFound);
 
@@ -146,19 +148,16 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV2()
             logger->logf(LOG_DEBUG, "Loaded next packetid %d.", ses->nextPacketId);
             ses->nextPacketId = nextPacketId;
 
-            int64_t sessionAge = readInt64(eofFound);
-            logger->logf(LOG_DEBUG, "Loaded session age: %ld ms.", sessionAge);
-            ses->setSessionTouch(sessionAge);
+            const uint32_t originalSessionExpiryInterval = readUint32(eofFound);
+            const uint32_t compensatedSessionExpiry = persistence_state_age > originalSessionExpiryInterval ? 0 : originalSessionExpiryInterval - persistence_state_age;
+            const uint32_t sessionExpiryInterval = std::min<uint32_t>(compensatedSessionExpiry, settings->getExpireSessionAfterSeconds());
 
-            const uint32_t sessionExpiryInterval = std::min<uint32_t>(readUint32(eofFound), settings->getExpireSessionAfterSeconds());
             const uint16_t maxQosPending = std::min<uint16_t>(readUint16(eofFound), settings->maxQosMsgPendingPerClient);
 
-            // TODO: perhaps I should calculate a new sessionExpiryInterval, minus the time it was off?
-
-            // Setting the sessionExpiryInterval back to what it was is somewhat naive, in that when you have the
-            // server off for a week, you basically suspended time and will delay all session destructions. But,
-            // I'm chosing that option versus kicking out all sessions if the server was off for a longer period.
-            ses->setSessionProperties(maxQosPending, sessionExpiryInterval, 0, ProtocolVersion::Mqtt5); // The protocol version is just dummy, to get the behavior I want.
+            // We will set the session expiry interval as it would have had time continued. If a connection picks up session, it will update
+            // it with a more relevant value.
+            // The protocol version 5 is just dummy, to get the behavior I want.
+            ses->setSessionProperties(maxQosPending, sessionExpiryInterval, 0, ProtocolVersion::Mqtt5);
         }
 
         const uint32_t nrOfSubscriptions = readUint32(eofFound);
@@ -206,9 +205,9 @@ void SessionsAndSubscriptionsDB::saveData(const std::vector<std::unique_ptr<Sess
     char reserved[RESERVED_SPACE_SESSIONS_DB_V2];
     std::memset(reserved, 0, RESERVED_SPACE_SESSIONS_DB_V2);
 
-    const int64_t start_stamp = Session::getProgramStartedAtUnixTimestamp();
-    logger->logf(LOG_DEBUG, "Saving program first start time stamp as %ld", start_stamp);
-    writeInt64(start_stamp);
+    const int64_t now_epoch = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    logger->logf(LOG_DEBUG, "Saving current time stamp %ld", now_epoch);
+    writeInt64(now_epoch);
 
     writeUint32(sessions.size());
 
@@ -268,10 +267,6 @@ void SessionsAndSubscriptionsDB::saveData(const std::vector<std::unique_ptr<Sess
 
         logger->logf(LOG_DEBUG, "Writing next packetid %d.", ses->nextPacketId);
         writeUint16(ses->nextPacketId);
-
-        const int64_t sInMs = ses->getSessionRelativeAgeInMs();
-        logger->logf(LOG_DEBUG, "Writing session age: %ld ms.", sInMs);
-        writeInt64(sInMs);
 
         writeUint32(ses->sessionExpiryInterval);
         writeUint16(ses->maxQosMsgPending);
