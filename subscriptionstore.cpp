@@ -855,6 +855,7 @@ void SubscriptionStore::loadSessionsAndSubscriptions(const std::string &filePath
         for (std::shared_ptr<Session> &session : loadedData.sessions)
         {
             sessionsById[session->getClientId()] = session;
+            queueSessionRemoval(session);
         }
 
         std::vector<std::string> subtopics;

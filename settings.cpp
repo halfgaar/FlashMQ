@@ -45,3 +45,12 @@ std::string Settings::getSessionsDBFile() const
     std::string path = formatString("%s/%s", storageDir.c_str(), "sessions.db");
     return path;
 }
+
+/**
+ * @brief because 0 means 'forever', we have to translate this.
+ * @return
+ */
+uint32_t Settings::getExpireSessionAfterSeconds() const
+{
+    return expireSessionsAfterSeconds > 0 ? expireSessionsAfterSeconds : std::numeric_limits<uint32_t>::max();
+}

@@ -49,7 +49,10 @@ void Session::setProgramStartedAtUnixTimestamp(const int64_t unix_timestamp)
     appStartTime = std::chrono::steady_clock::now() - age_in_s;
 }
 
-
+/**
+ * @brief Session::getSessionRelativeAgeInMs is used to get the value to store on disk when saving sessions.
+ * @return
+ */
 int64_t Session::getSessionRelativeAgeInMs() const
 {
     const std::chrono::milliseconds sessionAge = std::chrono::duration_cast<std::chrono::milliseconds>(lastTouched - appStartTime);
@@ -57,6 +60,10 @@ int64_t Session::getSessionRelativeAgeInMs() const
     return sInMs;
 }
 
+/**
+ * @brief Session::setSessionTouch is the set 'lastTouched' value relative to the app start time when a session is loaded from disk.
+ * @param ageInMs
+ */
 void Session::setSessionTouch(int64_t ageInMs)
 {
     std::chrono::milliseconds ms(ageInMs);

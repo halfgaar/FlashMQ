@@ -69,6 +69,8 @@ public:
 
     std::string getRetainedMessagesDBFile() const;
     std::string getSessionsDBFile() const;
+
+    uint32_t getExpireSessionAfterSeconds() const;
 };
 
 #endif // SETTINGS_H

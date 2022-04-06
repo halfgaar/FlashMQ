@@ -17,6 +17,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 
 #include "sessionsandsubscriptionsdb.h"
 #include "mqttpacket.h"
+#include "threadglobals.h"
 
 #include "cassert"
 
@@ -58,18 +59,20 @@ void SessionsAndSubscriptionsDB::openRead()
 
 SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV2()
 {
+    const Settings *settings = ThreadGlobals::getSettings();
+
     SessionsAndSubscriptionsResult result;
 
     while (!feof(f))
     {
         bool eofFound = false;
 
-        const int64_t programStartAge = readInt64(eofFound);
+        const int64_t programStartStamp = readInt64(eofFound);
         if (eofFound)
             continue;
 
-        logger->logf(LOG_DEBUG, "Setting first app start time to timestamp %ld", programStartAge);
-        Session::setProgramStartedAtUnixTimestamp(programStartAge);
+        logger->logf(LOG_DEBUG, "Setting first app start time to timestamp %ld", programStartStamp);
+        Session::setProgramStartedAtUnixTimestamp(programStartStamp);
 
         const uint32_t nrOfSessions = readUint32(eofFound);
 
@@ -146,6 +149,16 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV2()
             int64_t sessionAge = readInt64(eofFound);
             logger->logf(LOG_DEBUG, "Loaded session age: %ld ms.", sessionAge);
             ses->setSessionTouch(sessionAge);
+
+            const uint32_t sessionExpiryInterval = std::min<uint32_t>(readUint32(eofFound), settings->getExpireSessionAfterSeconds());
+            const uint16_t maxQosPending = std::min<uint16_t>(readUint16(eofFound), settings->maxQosMsgPendingPerClient);
+
+            // TODO: perhaps I should calculate a new sessionExpiryInterval, minus the time it was off?
+
+            // Setting the sessionExpiryInterval back to what it was is somewhat naive, in that when you have the
+            // server off for a week, you basically suspended time and will delay all session destructions. But,
+            // I'm chosing that option versus kicking out all sessions if the server was off for a longer period.
+            ses->setSessionProperties(maxQosPending, sessionExpiryInterval, 0, ProtocolVersion::Mqtt5); // The protocol version is just dummy, to get the behavior I want.
         }
 
         const uint32_t nrOfSubscriptions = readUint32(eofFound);
@@ -259,6 +272,9 @@ void SessionsAndSubscriptionsDB::saveData(const std::vector<std::unique_ptr<Sess
         const int64_t sInMs = ses->getSessionRelativeAgeInMs();
         logger->logf(LOG_DEBUG, "Writing session age: %ld ms.", sInMs);
         writeInt64(sInMs);
+
+        writeUint32(ses->sessionExpiryInterval);
+        writeUint16(ses->maxQosMsgPending);
     }
 
     writeUint32(subscriptions.size());

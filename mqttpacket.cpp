@@ -343,7 +343,7 @@ void MqttPacket::handleConnect()
         uint16_t keep_alive = readTwoBytesToUInt16();
 
         uint16_t max_qos_packets = settings.maxQosMsgPendingPerClient;
-        uint32_t session_expire = settings.expireSessionsAfterSeconds > 0 ? settings.expireSessionsAfterSeconds : std::numeric_limits<uint32_t>::max();
+        uint32_t session_expire = settings.getExpireSessionAfterSeconds();
         uint32_t max_outgoing_packet_size = settings.maxPacketSize;
         uint16_t max_outgoing_topic_aliases = 0; // Default MUST BE 0, meaning server won't initiate aliases
         bool request_response_information = false;
