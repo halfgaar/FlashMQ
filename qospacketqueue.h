@@ -31,6 +31,7 @@ class QoSPublishQueue
 
 public:
     void erase(const uint16_t packet_id);
+    std::list<QueuedPublish>::const_iterator erase(std::list<QueuedPublish>::const_iterator pos);
     size_t size() const;
     size_t getByteSize() const;
     void queuePublish(PublishCopyFactory &copyFactory, uint16_t id, char new_max_qos);

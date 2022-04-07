@@ -170,6 +170,12 @@ bool PublishBase::hasUserProperties() const
     return this->propertyBuilder.operator bool() && this->propertyBuilder->getUserProperties().operator bool();
 }
 
+bool PublishBase::hasExpired() const
+{
+    const std::chrono::seconds age = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - this->createdAt);
+    return (expiresAfter > age);
+}
+
 Publish::Publish(const Publish &other) :
     PublishBase(other)
 {

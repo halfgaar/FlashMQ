@@ -51,6 +51,11 @@ void QoSPublishQueue::erase(const uint16_t packet_id)
     }
 }
 
+std::list<QueuedPublish>::const_iterator QoSPublishQueue::erase(std::list<QueuedPublish>::const_iterator pos)
+{
+    return this->queue.erase(pos);
+}
+
 size_t QoSPublishQueue::size() const
 {
     return queue.size();

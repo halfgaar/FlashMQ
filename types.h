@@ -211,6 +211,7 @@ public:
     void setClientSpecificProperties();
     void constructPropertyBuilder();
     bool hasUserProperties() const;
+    bool hasExpired() const;
 };
 
 class Publish : public PublishBase

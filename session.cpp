@@ -210,12 +210,22 @@ void Session::clearQosMessage(uint16_t packet_id)
     }
 }
 
-// [MQTT-4.4.0-1]: "When a Client reconnects with CleanSession set to 0, both the Client and Server MUST re-send any
-// unacknowledged PUBLISH Packets (where QoS > 0) and PUBREL Packets using their original Packet Identifiers. This
-// is the only circumstance where a Client or Server is REQUIRED to redeliver messages."
-//
-// There is a bit of a hole there, I think. When we write out a packet to a receiver, it may decide to drop it, if its buffers
-// are full, for instance. We are not required to (periodically) retry. TODO Perhaps I will implement that retry anyway.
+
+/**
+ * @brief Session::sendPendingQosMessages sends pending publishes and QoS2 control packets.
+ * @return the amount of messages/packets published.
+ *
+ * [MQTT-4.4.0-1] (about MQTT 3.1.1): "When a Client reconnects with CleanSession set to 0, both the Client and Server MUST
+ * re-send any unacknowledged PUBLISH Packets (where QoS > 0) and PUBREL Packets using their original Packet Identifiers. This
+ * is the only circumstance where a Client or Server is REQUIRED to redeliver messages."
+ *
+ * Only MQTT 3.1 requires retransmission. MQTT 3.1.1 and MQTT 5 only send on reconnect. At time of writing this comment,
+ * FlashMQ doesn't have a retransmission system. I don't think I want to implement one for the sake of 3.1 compliance,
+ * because it's just not that great an idea in terms of server load and quality of modern TCP. However, receiving clients
+ * can still decide to drop packets, like when their buffers are full. The clients from where the packet originates will
+ * never know that, because IT will have received the PUBACK from FlashMQ. The QoS system is not between publisher
+ * and subscriber. Users are required to implement something themselves.
+ */
 uint64_t Session::sendPendingQosMessages()
 {
     uint64_t count = 0;
@@ -224,8 +234,18 @@ uint64_t Session::sendPendingQosMessages()
     if (c)
     {
         std::lock_guard<std::mutex> locker(qosQueueMutex);
-        for (const QueuedPublish &queuedPublish : qosPacketQueue)
+
+        auto pos = qosPacketQueue.begin();
+        while (pos != qosPacketQueue.end())
         {
+            const QueuedPublish &queuedPublish = *pos;
+
+            if (queuedPublish.getPublish().hasExpired())
+            {
+                pos = qosPacketQueue.erase(pos);
+                continue;
+            }
+
             MqttPacket p(c->getProtocolVersion(), queuedPublish.getPublish());
             p.setDuplicate();
 

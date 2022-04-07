@@ -272,6 +272,15 @@ std::shared_ptr<Session> SubscriptionStore::lockSession(const std::string &clien
     return std::shared_ptr<Session>();
 }
 
+/**
+ * @brief SubscriptionStore::sendQueuedWillMessages sends queued will messages.
+ *
+ * The list of pendingWillMessages is sorted. This allows for fast insertion and dequeueing of wills that have expired.
+ *
+ * The expiry interval as set in the properties of the will message is not used to check for expiration here. To
+ * quote the specs: "If present, the Four Byte value is the lifetime of the Will Message in seconds and is sent as
+ * the Publication Expiry Interval when the Server publishes the Will Message."
+ */
 void SubscriptionStore::sendQueuedWillMessages()
 {
     const auto now = std::chrono::steady_clock::now();
@@ -294,6 +303,11 @@ void SubscriptionStore::sendQueuedWillMessages()
     }
 }
 
+/**
+ * @brief SubscriptionStore::queueWillMessage queues the will message by bin-searching its place in the sorted list.
+ * @param willMessage
+ * @param forceNow
+ */
 void SubscriptionStore::queueWillMessage(std::shared_ptr<Publish> &willMessage, bool forceNow)
 {
     if (!willMessage)
