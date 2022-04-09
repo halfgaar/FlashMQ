@@ -776,7 +776,7 @@ void MqttPacket::handleUnsubscribe()
     sender->writeMqttPacket(response);
 }
 
-void MqttPacket::handlePublish()
+void MqttPacket::handlePublish(const bool stopAfterParsing)
 {
     const uint16_t variable_header_length = readTwoBytesToUInt16();
 
@@ -900,10 +900,14 @@ void MqttPacket::handlePublish()
     logger->logf(LOG_DEBUG, "Publish received, topic '%s'. QoS=%d. Retain=%d, dup=%d", publishData.topic.c_str(), qos, retain, dup);
 #endif
 
-    sender->getThreadData()->incrementReceivedMessageCount();
-
     payloadLen = remainingAfterPos();
     payloadStart = pos;
+
+    sender->getThreadData()->incrementReceivedMessageCount();
+
+    // TODO: or maybe create a function parsePublishData().
+    if (stopAfterParsing)
+        return;
 
     Authentication &authentication = *ThreadGlobals::getAuth();
 

@@ -96,7 +96,7 @@ public:
     void handleSubscribe();
     void handleUnsubscribe();
     void handlePing();
-    void handlePublish();
+    void handlePublish(const bool stopAfterParsing = false);
     void handlePubAck();
     void handlePubRec();
     void handlePubRel();

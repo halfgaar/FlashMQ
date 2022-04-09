@@ -82,6 +82,12 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV2()
             continue;
 
         std::vector<char> reserved(RESERVED_SPACE_SESSIONS_DB_V2);
+        CirBuf cirbuf(1024);
+
+        // TODO: all that settings and thread data needs to be removed from Client.
+        std::shared_ptr<ThreadData> dummyThreadData;
+        std::shared_ptr<Settings> dummySettings(new Settings()); // TODO: this is wrong: these are not from config file
+        std::shared_ptr<Client> dummyClient(new Client(0, dummyThreadData, nullptr, false, nullptr, dummySettings, false));
 
         for (uint32_t i = 0; i < nrOfSessions; i++)
         {
@@ -106,22 +112,20 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV2()
             for (uint32_t i = 0; i < nrOfQueuedQoSPackets; i++)
             {
                 const uint16_t id = readUint16(eofFound);
-                const uint32_t topicSize = readUint32(eofFound);
-                const uint32_t payloadSize = readUint32(eofFound);
+                const uint32_t packlen = readUint32(eofFound);
 
                 assert(id > 0);
 
-                readCheck(buf.data(), 1, 1, f);
-                const unsigned char qos = buf[0];
+                cirbuf.reset();
+                cirbuf.ensureFreeSpace(packlen + 32);
 
-                readCheck(buf.data(), 1, topicSize, f);
-                const std::string topic(buf.data(), topicSize);
+                readCheck(cirbuf.headPtr(), 1, packlen, f);
+                cirbuf.advanceHead(packlen);
+                MqttPacket pack(cirbuf, packlen, 2, dummyClient); // TODO: store the 2 in the file
 
-                makeSureBufSize(payloadSize);
-                readCheck(buf.data(), 1, payloadSize, f);
-                const std::string payload(buf.data(), payloadSize);
+                pack.handlePublish(true);
+                Publish pub(pack.getPublishData());
 
-                Publish pub(topic, payload, qos);
                 logger->logf(LOG_DEBUG, "Loaded QoS %d message for topic '%s'.", pub.qos, pub.topic.c_str());
                 ses->qosPacketQueue.queuePublish(std::move(pub), id);
             }
@@ -211,6 +215,8 @@ void SessionsAndSubscriptionsDB::saveData(const std::vector<std::unique_ptr<Sess
 
     writeUint32(sessions.size());
 
+    CirBuf cirbuf(1024);
+
     for (const std::unique_ptr<Session> &ses : sessions)
     {
         logger->logf(LOG_DEBUG, "Saving session '%s'.", ses->getClientId().c_str());
@@ -231,22 +237,23 @@ void SessionsAndSubscriptionsDB::saveData(const std::vector<std::unique_ptr<Sess
 
         for (const QueuedPublish &p: ses->qosPacketQueue)
         {
+            qosPacketsCounted++;
+
             const Publish &pub = p.getPublish();
+            assert(!pub.splitTopic);
+            assert(pub.topicAlias == 0);
 
             logger->logf(LOG_DEBUG, "Saving QoS %d message for topic '%s'.", pub.qos, pub.topic.c_str());
 
-            qosPacketsCounted++;
+            const MqttPacket pack(ProtocolVersion::Mqtt5, pub);
+            const uint32_t packSize = pack.getSizeIncludingNonPresentHeader();
+            cirbuf.reset();
+            cirbuf.ensureFreeSpace(packSize + 32);
+            pack.readIntoBuf(cirbuf);
 
             writeUint16(p.getPacketId());
-
-            writeUint32(pub.topic.length());
-            writeUint32(pub.payload.size());
-
-            const char qos = pub.qos;
-            writeCheck(&qos, 1, 1, f);
-
-            writeCheck(pub.topic.c_str(), 1, pub.topic.length(), f);
-            writeCheck(pub.payload.c_str(), 1, pub.payload.length(), f);
+            writeUint32(packSize);
+            writeCheck(cirbuf.tailPtr(), 1, cirbuf.usedBytes(), f);
         }
 
         assert(qosPacketsExpected == qosPacketsCounted);
