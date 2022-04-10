@@ -36,6 +36,13 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "variablebyteint.h"
 #include "mqtt5properties.h"
 
+/**
+ * @brief The MqttPacket class represents incoming and outgonig packets.
+ *
+ * Be sure to understand the 'externallyReceived' member. See in-code documentation.
+ *
+ * TODO: I could perhaps make a subclass for the externally received one.
+ */
 class MqttPacket
 {
 #ifdef TESTING
@@ -55,6 +62,12 @@ class MqttPacket
     size_t payloadStart = 0;
     size_t payloadLen = 0;
     bool hasTopicAlias = false;
+
+    // It's important to understand that this class is used for incoming packets as well as new outgoing packets. When we create
+    // new outgoing packets, we generally know exactly who it's for and the information is only stored in this->bites. So, the
+    // publishData and fields like hasTopicAlias are invalid in those cases.
+    bool externallyReceived = false;
+
     Logger *logger = Logger::getInstance();
 
     char *readBytes(size_t length);

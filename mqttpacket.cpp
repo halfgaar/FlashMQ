@@ -44,6 +44,7 @@ MqttPacket::MqttPacket(CirBuf &buf, size_t packet_len, size_t fixed_header_lengt
     unsigned char _packetType = (first_byte & 0xF0) >> 4;
     packetType = (PacketType)_packetType;
     pos += fixed_header_length;
+    externallyReceived = true;
 }
 
 MqttPacket::MqttPacket(const ConnAck &connAck) :
@@ -123,7 +124,7 @@ size_t MqttPacket::getRequiredSizeForPublish(const ProtocolVersion protocolVersi
 MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, const Publish &_publish) :
     bites(getRequiredSizeForPublish(protocolVersion, _publish))
 {
-    if (publishData.topic.length() > 0xFFFF)
+    if (_publish.topic.length() > 0xFFFF)
     {
         throw ProtocolError("Topic path too long.");
     }
@@ -1301,6 +1302,7 @@ const Publish &MqttPacket::getPublishData()
 bool MqttPacket::containsClientSpecificProperties() const
 {
     assert(packetType == PacketType::PUBLISH);
+    assert(this->externallyReceived);
 
     if (protocolVersion <= ProtocolVersion::Mqtt311 || !publishData.propertyBuilder)
         return false;
