@@ -24,8 +24,8 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "persistencefile.h"
 #include "session.h"
 
-#define MAGIC_STRING_SESSION_FILE_V1 "FlashMQRetainedDBv1"
-#define MAGIC_STRING_SESSION_FILE_V2 "FlashMQRetainedDBv2"
+#define MAGIC_STRING_SESSION_FILE_V1 "FlashMQRetainedDBv1" // That this is called 'retained' was a bug...
+#define MAGIC_STRING_SESSION_FILE_V2 "FlashMQSessionDBv2"
 #define RESERVED_SPACE_SESSIONS_DB_V2 32
 
 /**
