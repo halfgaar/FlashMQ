@@ -27,7 +27,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "utils.h"
 #include "threadglobals.h"
 
-Client::Client(int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, bool websocket, struct sockaddr *addr, std::shared_ptr<Settings> settings, bool fuzzMode) :
+Client::Client(int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, bool websocket, struct sockaddr *addr, const Settings *settings, bool fuzzMode) :
     fd(fd),
     fuzzMode(fuzzMode),
     initialBufferSize(settings->clientInitialBufferSize), // The client is constructed in the main thread, so we need to use its settings copy
@@ -51,7 +51,11 @@ Client::Client(int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, bool we
 
 Client::~Client()
 {
-    std::shared_ptr<SubscriptionStore> &store = getThreadData()->getSubscriptionStore();
+    // Dummy clients, that I sometimes need just because the interface demands it but there's not actually a client, have no thread.
+    if (!this->threadData)
+        return;
+
+    std::shared_ptr<SubscriptionStore> &store = this->threadData->getSubscriptionStore();
 
     if (disconnectReason.empty())
         disconnectReason = "not specified";

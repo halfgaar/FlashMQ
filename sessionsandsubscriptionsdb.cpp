@@ -85,9 +85,9 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV2()
         CirBuf cirbuf(1024);
 
         // TODO: all that settings and thread data needs to be removed from Client.
-        std::shared_ptr<ThreadData> dummyThreadData;
-        std::shared_ptr<Settings> dummySettings(new Settings()); // TODO: this is wrong: these are not from config file
-        std::shared_ptr<Client> dummyClient(new Client(0, dummyThreadData, nullptr, false, nullptr, dummySettings, false));
+        std::shared_ptr<ThreadData> dummyThreadData; // which thread am I going get/use here?
+        std::shared_ptr<Client> dummyClient(new Client(0, dummyThreadData, nullptr, false, nullptr, settings, false));
+        dummyClient->setClientProperties(ProtocolVersion::Mqtt5, "Dummyforloadingqueuedqos", "nobody", true, 60);
 
         for (uint32_t i = 0; i < nrOfSessions; i++)
         {
@@ -123,7 +123,7 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV2()
                 cirbuf.advanceHead(packlen);
                 MqttPacket pack(cirbuf, packlen, 2, dummyClient); // TODO: store the 2 in the file
 
-                pack.handlePublish(true);
+                pack.parsePublishData();
                 Publish pub(pack.getPublishData());
 
                 logger->logf(LOG_DEBUG, "Loaded QoS %d message for topic '%s'.", pub.qos, pub.topic.c_str());
@@ -240,12 +240,15 @@ void SessionsAndSubscriptionsDB::saveData(const std::vector<std::unique_ptr<Sess
             qosPacketsCounted++;
 
             const Publish &pub = p.getPublish();
+
             assert(!pub.splitTopic);
+            assert(!pub.skipTopic);
             assert(pub.topicAlias == 0);
 
             logger->logf(LOG_DEBUG, "Saving QoS %d message for topic '%s'.", pub.qos, pub.topic.c_str());
 
-            const MqttPacket pack(ProtocolVersion::Mqtt5, pub);
+            MqttPacket pack(ProtocolVersion::Mqtt5, pub);
+            pack.setPacketId(p.getPacketId());
             const uint32_t packSize = pack.getSizeIncludingNonPresentHeader();
             cirbuf.reset();
             cirbuf.ensureFreeSpace(packSize + 32);

@@ -95,7 +95,7 @@ class Client
     void setReadyForReading(bool val);
 
 public:
-    Client(int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, bool websocket, struct sockaddr *addr, std::shared_ptr<Settings> settings, bool fuzzMode=false);
+    Client(int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, bool websocket, struct sockaddr *addr, const Settings *settings, bool fuzzMode=false);
     Client(const Client &other) = delete;
     Client(Client &&other) = delete;
     ~Client();

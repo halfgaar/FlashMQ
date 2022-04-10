@@ -1004,13 +1004,13 @@ void MainTests::testSavingSessions()
         Authentication auth(*settings.get());
         ThreadGlobals::assign(&auth);
 
-        std::shared_ptr<Client> c1(new Client(0, t, nullptr, false, nullptr, settings, false));
+        std::shared_ptr<Client> c1(new Client(0, t, nullptr, false, nullptr, settings.get(), false));
         c1->setClientProperties(ProtocolVersion::Mqtt311, "c1", "user1", true, 60);
         store->registerClientAndKickExistingOne(c1, false, 512, 120);
         c1->getSession()->addIncomingQoS2MessageId(2);
         c1->getSession()->addIncomingQoS2MessageId(3);
 
-        std::shared_ptr<Client> c2(new Client(0, t, nullptr, false, nullptr, settings, false));
+        std::shared_ptr<Client> c2(new Client(0, t, nullptr, false, nullptr, settings.get(), false));
         c2->setClientProperties(ProtocolVersion::Mqtt311, "c2", "user2", true, 60);
         store->registerClientAndKickExistingOne(c2, false, 512, 120);
         c2->getSession()->addOutgoingQoS2MessageId(55);
@@ -1119,7 +1119,7 @@ void MainTests::testParsePacketHelper(const std::string &topic, char from_qos, b
     Authentication auth(*settings.get());
     ThreadGlobals::assign(&auth);
 
-    std::shared_ptr<Client> dummyClient(new Client(0, t, nullptr, false, nullptr, settings, false));
+    std::shared_ptr<Client> dummyClient(new Client(0, t, nullptr, false, nullptr, settings.get(), false));
     dummyClient->setClientProperties(ProtocolVersion::Mqtt311, "qostestclient", "user1", true, 60);
     store->registerClientAndKickExistingOne(dummyClient, false, 512, 120);
 
@@ -1142,7 +1142,7 @@ void MainTests::testParsePacketHelper(const std::string &topic, char from_qos, b
         MqttPacket::bufferToMqttPackets(stagingBufOne, parsedPackets, dummyClient);
         QVERIFY(parsedPackets.size() == 1);
         MqttPacket parsedPacketOne = std::move(parsedPackets.front());
-        parsedPacketOne.handlePublish();
+        parsedPacketOne.parsePublishData();
         if (retain) // A normal handled packet always has retain=0, so I force setting it here.
             parsedPacketOne.setRetain();
 

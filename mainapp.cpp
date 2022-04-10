@@ -471,12 +471,12 @@ void MainApp::start()
 
             std::shared_ptr<ThreadData> threaddata = std::make_shared<ThreadData>(0, subscriptionStore, settings);
 
-            std::shared_ptr<Client> client = std::make_shared<Client>(fd, threaddata, nullptr, fuzzWebsockets, nullptr, settings, true);
-            std::shared_ptr<Client> subscriber = std::make_shared<Client>(fdnull, threaddata, nullptr, fuzzWebsockets, nullptr, settings, true);
+            std::shared_ptr<Client> client = std::make_shared<Client>(fd, threaddata, nullptr, fuzzWebsockets, nullptr, settings.get(), true);
+            std::shared_ptr<Client> subscriber = std::make_shared<Client>(fdnull, threaddata, nullptr, fuzzWebsockets, nullptr, settings.get(), true);
             subscriber->setClientProperties(ProtocolVersion::Mqtt311, "subscriber", "subuser", true, 60);
             subscriber->setAuthenticated(true);
 
-            std::shared_ptr<Client> websocketsubscriber = std::make_shared<Client>(fdnull2, threaddata, nullptr, true, nullptr, settings, true);
+            std::shared_ptr<Client> websocketsubscriber = std::make_shared<Client>(fdnull2, threaddata, nullptr, true, nullptr, settings.get(), true);
             websocketsubscriber->setClientProperties(ProtocolVersion::Mqtt311, "websocketsubscriber", "websocksubuser", true, 60);
             websocketsubscriber->setAuthenticated(true);
             websocketsubscriber->setFakeUpgraded();
@@ -574,7 +574,7 @@ void MainApp::start()
                         SSL_set_fd(clientSSL, fd);
                     }
 
-                    std::shared_ptr<Client> client = std::make_shared<Client>(fd, thread_data, clientSSL, listener->websocket, addr, settings);
+                    std::shared_ptr<Client> client = std::make_shared<Client>(fd, thread_data, clientSSL, listener->websocket, addr, settings.get());
                     thread_data->giveClient(client);
                 }
                 else

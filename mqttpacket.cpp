@@ -776,26 +776,23 @@ void MqttPacket::handleUnsubscribe()
     sender->writeMqttPacket(response);
 }
 
-void MqttPacket::handlePublish(const bool stopAfterParsing)
+void MqttPacket::parsePublishData()
 {
     const uint16_t variable_header_length = readTwoBytesToUInt16();
 
-    bool retain = (first_byte & 0b00000001);
+    publishData.retain = (first_byte & 0b00000001);
     bool dup = !!(first_byte & 0b00001000);
-    char qos = (first_byte & 0b00000110) >> 1;
+    publishData.qos = (first_byte & 0b00000110) >> 1;
 
-    if (qos > 2)
+    if (publishData.qos > 2)
         throw ProtocolError("QoS 3 is a protocol violation.");
-    this->publishData.qos = qos;
 
-    if (qos == 0 && dup)
+    if (publishData.qos == 0 && dup)
         throw ProtocolError("Duplicate flag is set for QoS 0 packet. This is illegal.");
 
     publishData.topic = std::string(readBytes(variable_header_length), variable_header_length);
 
-    ReasonCodes ackCode = ReasonCodes::Success;
-
-    if (qos)
+    if (publishData.qos)
     {
         packet_id_pos = pos;
         packet_id = readTwoBytesToUInt16();
@@ -827,6 +824,12 @@ void MqttPacket::handlePublish(const bool stopAfterParsing)
                 break;
             case Mqtt5Properties::TopicAlias:
             {
+                // For when we use packets has helpers without a senser (like loading packets from disk).
+                // Logically, this should never trip because there can't be aliases in such packets, but including
+                // a check to be sure.
+                if (!sender)
+                    break;
+
                 const uint16_t alias_id = readTwoBytesToUInt16();
                 this->hasTopicAlias = true;
 
@@ -889,6 +892,14 @@ void MqttPacket::handlePublish(const bool stopAfterParsing)
     if (publishData.topic.empty())
         throw ProtocolError("Empty publish topic");
 
+    payloadLen = remainingAfterPos();
+    payloadStart = pos;
+}
+
+void MqttPacket::handlePublish()
+{
+    parsePublishData();
+
     if (!isValidUtf8(publishData.topic, true))
     {
         const std::string err = formatString("Client '%s' published a message with invalid UTF8 or $/+/# in it. Dropping.", sender->repr().c_str());
@@ -897,41 +908,36 @@ void MqttPacket::handlePublish(const bool stopAfterParsing)
     }
 
 #ifndef NDEBUG
-    logger->logf(LOG_DEBUG, "Publish received, topic '%s'. QoS=%d. Retain=%d, dup=%d", publishData.topic.c_str(), qos, retain, dup);
+    logger->logf(LOG_DEBUG, "Publish received, topic '%s'. QoS=%d. Retain=%d, dup=%d", publishData.topic.c_str(), publishData.qos, publishData.retain, dup);
 #endif
 
-    payloadLen = remainingAfterPos();
-    payloadStart = pos;
+    ReasonCodes ackCode = ReasonCodes::Success;
 
     sender->getThreadData()->incrementReceivedMessageCount();
-
-    // TODO: or maybe create a function parsePublishData().
-    if (stopAfterParsing)
-        return;
 
     Authentication &authentication = *ThreadGlobals::getAuth();
 
     // Working with a local copy because the subscribing action will modify this->packet_id. See the PublishCopyFactory.
     const uint16_t _packet_id = this->packet_id;
 
-    if (qos == 2 && sender->getSession()->incomingQoS2MessageIdInTransit(_packet_id))
+    if (publishData.qos == 2 && sender->getSession()->incomingQoS2MessageIdInTransit(_packet_id))
     {
         ackCode = ReasonCodes::PacketIdentifierInUse;
     }
     else
     {
         // Doing this before the authentication on purpose, so when the publish is not allowed, the QoS control packets are allowed and can finish.
-        if (qos == 2)
+        if (publishData.qos == 2)
             sender->getSession()->addIncomingQoS2MessageId(_packet_id);
 
         splitTopic(publishData.topic, publishData.subtopics);
 
-        if (authentication.aclCheck(sender->getClientId(), sender->getUsername(), publishData.topic, publishData.subtopics, AclAccess::write, qos, retain, getUserProperties()) == AuthResult::success)
+        if (authentication.aclCheck(sender->getClientId(), sender->getUsername(), publishData.topic, publishData.subtopics, AclAccess::write, publishData.qos, publishData.retain, getUserProperties()) == AuthResult::success)
         {
-            if (retain)
+            if (publishData.retain)
             {
                 std::string payload(readBytes(payloadLen), payloadLen);
-                sender->getThreadData()->getSubscriptionStore()->setRetainedMessage(publishData.topic, publishData.subtopics, payload, qos);
+                sender->getThreadData()->getSubscriptionStore()->setRetainedMessage(publishData.topic, publishData.subtopics, payload, publishData.qos);
             }
 
             // Set dup flag to 0, because that must not be propagated [MQTT-3.3.1-3].
@@ -953,9 +959,9 @@ void MqttPacket::handlePublish(const bool stopAfterParsing)
     this->packet_id = 0;
 #endif
 
-    if (qos > 0)
+    if (publishData.qos > 0)
     {
-        const PacketType responseType = qos == 1 ? PacketType::PUBACK : PacketType::PUBREC;
+        const PacketType responseType = publishData.qos == 1 ? PacketType::PUBACK : PacketType::PUBREC;
         PubResponse pubAck(this->protocolVersion, responseType, ackCode, _packet_id);
         MqttPacket response(pubAck);
         sender->writeMqttPacket(response);
