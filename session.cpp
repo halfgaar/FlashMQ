@@ -238,15 +238,16 @@ uint64_t Session::sendPendingQosMessages()
         auto pos = qosPacketQueue.begin();
         while (pos != qosPacketQueue.end())
         {
-            const QueuedPublish &queuedPublish = *pos;
+            QueuedPublish &queuedPublish = *pos;
+            Publish &pub = queuedPublish.getPublish();
 
-            if (queuedPublish.getPublish().hasExpired())
+            if (pub.hasExpired())
             {
                 pos = qosPacketQueue.erase(pos);
                 continue;
             }
 
-            MqttPacket p(c->getProtocolVersion(), queuedPublish.getPublish());
+            MqttPacket p(c->getProtocolVersion(), pub);
             p.setDuplicate();
 
             count += c->writeMqttPacketAndBlameThisClient(p);

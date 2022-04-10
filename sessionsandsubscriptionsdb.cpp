@@ -235,17 +235,19 @@ void SessionsAndSubscriptionsDB::saveData(const std::vector<std::unique_ptr<Sess
         size_t qosPacketsCounted = 0;
         writeUint32(qosPacketsExpected);
 
-        for (const QueuedPublish &p: ses->qosPacketQueue)
+        for (QueuedPublish &p: ses->qosPacketQueue)
         {
             qosPacketsCounted++;
 
-            const Publish &pub = p.getPublish();
+            Publish &pub = p.getPublish();
 
             assert(!pub.splitTopic);
             assert(!pub.skipTopic);
             assert(pub.topicAlias == 0);
 
             logger->logf(LOG_DEBUG, "Saving QoS %d message for topic '%s'.", pub.qos, pub.topic.c_str());
+
+            pub.clearClientSpecificProperties();
 
             MqttPacket pack(ProtocolVersion::Mqtt5, pub);
             pack.setPacketId(p.getPacketId());

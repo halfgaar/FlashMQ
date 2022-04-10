@@ -92,13 +92,13 @@ public:
 
     MqttPacket(MqttPacket &&other) = default;
 
-    size_t getRequiredSizeForPublish(const ProtocolVersion protocolVersion, const Publish &publishData) const;
+    size_t setClientSpecificPropertiesAndGetRequiredSizeForPublish(const ProtocolVersion protocolVersion, Publish &publishData) const;
 
     // Constructor for outgoing packets. These may not allocate room for the fixed header, because we don't (always) know the length in advance.
     MqttPacket(const ConnAck &connAck);
     MqttPacket(const SubAck &subAck);
     MqttPacket(const UnsubAck &unsubAck);
-    MqttPacket(const ProtocolVersion protocolVersion, const Publish &_publish);
+    MqttPacket(const ProtocolVersion protocolVersion, Publish &_publish);
     MqttPacket(const PubResponse &pubAck);
 
     static void bufferToMqttPackets(CirBuf &buf, std::vector<MqttPacket> &packetQueueIn, std::shared_ptr<Client> &sender);

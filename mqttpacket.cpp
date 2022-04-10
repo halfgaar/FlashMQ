@@ -110,19 +110,26 @@ MqttPacket::MqttPacket(const UnsubAck &unsubAck) :
     calculateRemainingLength();
 }
 
-size_t MqttPacket::getRequiredSizeForPublish(const ProtocolVersion protocolVersion, const Publish &publish) const
+size_t MqttPacket::setClientSpecificPropertiesAndGetRequiredSizeForPublish(const ProtocolVersion protocolVersion, Publish &publish) const
 {
     size_t result = publish.getLengthWithoutFixedHeader();
     if (protocolVersion >= ProtocolVersion::Mqtt5)
     {
+        publish.setClientSpecificProperties();
+
         const size_t proplen = publish.propertyBuilder ? publish.propertyBuilder->getLength() : 1;
         result += proplen;
     }
     return result;
 }
 
-MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, const Publish &_publish) :
-    bites(getRequiredSizeForPublish(protocolVersion, _publish))
+/**
+ * @brief Construct a packet for a specific protocol version.
+ * @param protocolVersion is required here, and not on the Publish object, because publishes don't have a protocol until they are for a specific client.
+ * @param _publish
+ */
+MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, Publish &_publish) :
+    bites(setClientSpecificPropertiesAndGetRequiredSizeForPublish(protocolVersion, _publish))
 {
     if (_publish.topic.length() > 0xFFFF)
     {

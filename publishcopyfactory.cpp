@@ -28,7 +28,6 @@ MqttPacket *PublishCopyFactory::getOptimumPacket(const char max_qos, const Proto
             newPublish.qos = max_qos;
             newPublish.topicAlias = topic_alias;
             newPublish.skipTopic = skip_topic;
-            newPublish.setClientSpecificProperties();
             this->oneShotPacket = std::make_unique<MqttPacket>(protocolVersion, newPublish);
             return this->oneShotPacket.get();
         }
@@ -47,8 +46,6 @@ MqttPacket *PublishCopyFactory::getOptimumPacket(const char max_qos, const Proto
             Publish newPublish(packet->getPublishData());
             newPublish.splitTopic = false;
             newPublish.qos = max_qos;
-            if (protocolVersion >= ProtocolVersion::Mqtt5)
-                newPublish.setClientSpecificProperties();
             cachedPack = std::make_unique<MqttPacket>(protocolVersion, newPublish);
         }
 
@@ -58,8 +55,6 @@ MqttPacket *PublishCopyFactory::getOptimumPacket(const char max_qos, const Proto
     // Getting a packet of a Publish object happens on will messages and SYS topics and maybe some others. It's low traffic, anyway.
     assert(publish);
 
-    if (protocolVersion >= ProtocolVersion::Mqtt5)
-        publish->setClientSpecificProperties();
     this->oneShotPacket = std::make_unique<MqttPacket>(protocolVersion, *publish);
     return this->oneShotPacket.get();
 }

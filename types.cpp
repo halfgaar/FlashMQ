@@ -157,6 +157,12 @@ void PublishBase::setClientSpecificProperties()
         propertyBuilder->writeTopicAlias(this->topicAlias);
 }
 
+void PublishBase::clearClientSpecificProperties()
+{
+    if (propertyBuilder)
+        propertyBuilder->clearClientSpecificBytes();
+}
+
 void PublishBase::constructPropertyBuilder()
 {
     if (this->propertyBuilder)
