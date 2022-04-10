@@ -70,6 +70,7 @@ Session::Session(const Session &other)
     this->incomingQoS2MessageIds = other.incomingQoS2MessageIds;
     this->outgoingQoS2MessageIds = other.outgoingQoS2MessageIds;
     this->nextPacketId = other.nextPacketId;
+    this->sessionExpiryInterval = other.sessionExpiryInterval;
 
     // TODO: see git history for a change here. We now copy the whole queued publish. Do we want to address that?
     this->qosPacketQueue = other.qosPacketQueue;
@@ -246,6 +247,7 @@ uint64_t Session::sendPendingQosMessages()
                 pos = qosPacketQueue.erase(pos);
                 continue;
             }
+            pos++;
 
             MqttPacket p(c->getProtocolVersion(), pub);
             p.setDuplicate();

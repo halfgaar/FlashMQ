@@ -132,7 +132,7 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV2()
                 const uint32_t newPubAge = persistence_state_age + originalPubAge;
                 pub.setCreatedAt(timepointFromAge(newPubAge));
 
-                logger->logf(LOG_DEBUG, "Loaded QoS %d message for topic '%s'.", pub.qos, pub.topic.c_str());
+                logger->logf(LOG_DEBUG, "Loaded QoS %d message for topic '%s' for session '%s'.", pub.qos, pub.topic.c_str(), ses->getClientId().c_str());
                 ses->qosPacketQueue.queuePublish(std::move(pub), id);
             }
 
