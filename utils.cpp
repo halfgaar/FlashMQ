@@ -668,3 +668,17 @@ const std::string protocolVersionString(ProtocolVersion p)
         return "unknown";
     }
 }
+
+uint32_t ageFromTimePoint(const std::chrono::time_point<std::chrono::steady_clock> &point)
+{
+    auto duration = std::chrono::steady_clock::now() - point;
+    auto seconds = std::chrono::duration_cast<std::chrono::seconds>(duration);
+    return seconds.count();
+}
+
+std::chrono::time_point<std::chrono::steady_clock> timepointFromAge(const uint32_t age)
+{
+    std::chrono::seconds seconds(age);
+    std::chrono::time_point<std::chrono::steady_clock> newPoint = std::chrono::steady_clock::now() + seconds;
+    return newPoint;
+}

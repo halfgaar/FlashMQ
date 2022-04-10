@@ -18,6 +18,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "sessionsandsubscriptionsdb.h"
 #include "mqttpacket.h"
 #include "threadglobals.h"
+#include "utils.h"
 
 #include "cassert"
 
@@ -113,6 +114,7 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV2()
             {
                 const uint16_t fixed_header_length = readUint16(eofFound);
                 const uint16_t id = readUint16(eofFound);
+                const uint32_t originalPubAge = readUint32(eofFound);
                 const uint32_t packlen = readUint32(eofFound);
 
                 assert(id > 0);
@@ -127,7 +129,8 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV2()
                 pack.parsePublishData();
                 Publish pub(pack.getPublishData());
 
-                // TODO: update the pub.createdAt
+                const uint32_t newPubAge = persistence_state_age + originalPubAge;
+                pub.setCreatedAt(timepointFromAge(newPubAge));
 
                 logger->logf(LOG_DEBUG, "Loaded QoS %d message for topic '%s'.", pub.qos, pub.topic.c_str());
                 ses->qosPacketQueue.queuePublish(std::move(pub), id);
@@ -250,8 +253,6 @@ void SessionsAndSubscriptionsDB::saveData(const std::vector<std::unique_ptr<Sess
 
             logger->logf(LOG_DEBUG, "Saving QoS %d message for topic '%s'.", pub.qos, pub.topic.c_str());
 
-            pub.clearClientSpecificProperties(); // TODO: unnecessary? Unwanted even? I need to store the expiration interval. And how to load it?
-
             MqttPacket pack(ProtocolVersion::Mqtt5, pub);
             pack.setPacketId(p.getPacketId());
             const uint32_t packSize = pack.getSizeIncludingNonPresentHeader();
@@ -259,10 +260,11 @@ void SessionsAndSubscriptionsDB::saveData(const std::vector<std::unique_ptr<Sess
             cirbuf.ensureFreeSpace(packSize + 32);
             pack.readIntoBuf(cirbuf);
 
-            // TODO: save age
+            const uint32_t pubAge = ageFromTimePoint(pub.getCreatedAt());
 
             writeUint16(pack.getFixedHeaderLength());
             writeUint16(p.getPacketId());
+            writeUint32(pubAge);
             writeUint32(packSize);
             writeCheck(cirbuf.tailPtr(), 1, cirbuf.usedBytes(), f);
         }

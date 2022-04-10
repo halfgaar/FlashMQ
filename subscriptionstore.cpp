@@ -292,7 +292,7 @@ void SubscriptionStore::sendQueuedWillMessages()
         std::shared_ptr<Publish> p = (*it).lock();
         if (p)
         {
-            if (p->createdAt + std::chrono::seconds(p->will_delay) > now)
+            if (p->getCreatedAt() + std::chrono::seconds(p->will_delay) > now)
                 break;
 
             logger->logf(LOG_DEBUG, "Sending delayed will on topic '%s'.", p->topic.c_str() );

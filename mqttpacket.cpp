@@ -434,7 +434,7 @@ void MqttPacket::handleConnect()
                     {
                     case Mqtt5Properties::WillDelayInterval:
                         willpublish.will_delay = readFourBytesToUint32();
-                        willpublish.createdAt = std::chrono::steady_clock::now();
+                        willpublish.setCreatedAt(std::chrono::steady_clock::now());
                         break;
                     case Mqtt5Properties::PayloadFormatIndicator:
                         willpublish.propertyBuilder->writePayloadFormatIndicator(readByte());
@@ -455,9 +455,8 @@ void MqttPacket::handleConnect()
                     }
                     case Mqtt5Properties::MessageExpiryInterval:
                     {
-                        willpublish.createdAt = std::chrono::steady_clock::now();
-                        uint32_t expiresAfter = readFourBytesToUint32();
-                        willpublish.expiresAfter = std::chrono::seconds(expiresAfter);
+                        const uint32_t expiresAfter = readFourBytesToUint32();
+                        willpublish.setExpireAfter(expiresAfter);
                         break;
                     }
                     case Mqtt5Properties::CorrelationData:
@@ -827,8 +826,7 @@ void MqttPacket::parsePublishData()
                 publishData.propertyBuilder->writePayloadFormatIndicator(readByte());
                 break;
             case Mqtt5Properties::MessageExpiryInterval:
-                publishData.createdAt = std::chrono::steady_clock::now();
-                publishData.expiresAfter = std::chrono::seconds(readFourBytesToUint32());
+                publishData.setExpireAfter(readFourBytesToUint32());
                 break;
             case Mqtt5Properties::TopicAlias:
             {
@@ -1328,7 +1326,8 @@ bool MqttPacket::containsClientSpecificProperties() const
     if (protocolVersion <= ProtocolVersion::Mqtt311 || !publishData.propertyBuilder)
         return false;
 
-    if (publishData.createdAt.time_since_epoch().count() == 0 || this->hasTopicAlias) // TODO: better
+    // TODO: for the on-line clients, even with expire info, we can just copy the same packet. So, that case can be excluded.
+    if (publishData.getHasExpireInfo() || this->hasTopicAlias)
     {
         return true;
     }

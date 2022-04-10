@@ -192,6 +192,10 @@ public:
  */
 class PublishBase
 {
+    bool hasExpireInfo = false;
+    std::chrono::time_point<std::chrono::steady_clock> createdAt;
+    std::chrono::seconds expiresAfter;
+
 public:
     std::string topic;
     std::string payload;
@@ -199,8 +203,6 @@ public:
     bool retain = false; // Note: existing subscribers don't get publishes of retained messages with retain=1. [MQTT-3.3.1-9]
     uint32_t will_delay = 0; // if will, this is the delay. Just storing here, to avoid having to make a WillMessage class
     bool splitTopic = true;
-    std::chrono::time_point<std::chrono::steady_clock> createdAt;
-    std::chrono::seconds expiresAfter;
     uint16_t topicAlias = 0;
     bool skipTopic = false;
     std::shared_ptr<Mqtt5PropertyBuilder> propertyBuilder; // Only contains data for sending, not receiving
@@ -213,6 +215,11 @@ public:
     void constructPropertyBuilder();
     bool hasUserProperties() const;
     bool hasExpired() const;
+
+    void setCreatedAt(std::chrono::time_point<std::chrono::steady_clock> t);
+    void setExpireAfter(uint32_t s);
+    bool getHasExpireInfo() const;
+    const std::chrono::time_point<std::chrono::steady_clock> getCreatedAt() const;
 };
 
 class Publish : public PublishBase

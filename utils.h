@@ -127,5 +127,8 @@ const std::string websocketCloseCodeToString(uint16_t code);
 
 const std::string protocolVersionString(ProtocolVersion p);
 
+uint32_t ageFromTimePoint(const std::chrono::time_point<std::chrono::steady_clock> &point);
+std::chrono::time_point<std::chrono::steady_clock> timepointFromAge(const uint32_t age);
+
 
 #endif // UTILS_H

@@ -138,7 +138,7 @@ size_t PublishBase::getLengthWithoutFixedHeader() const
  */
 void PublishBase::setClientSpecificProperties()
 {
-    if (this->createdAt.time_since_epoch().count() && this->topicAlias == 0)
+    if (!hasExpireInfo && this->topicAlias == 0)
         return;
 
     if (propertyBuilder)
@@ -146,11 +146,13 @@ void PublishBase::setClientSpecificProperties()
     else
         propertyBuilder = std::make_shared<Mqtt5PropertyBuilder>();
 
-    if (createdAt.time_since_epoch().count() > 0)
+    if (hasExpireInfo)
     {
         auto now = std::chrono::steady_clock::now();
-        std::chrono::seconds newExpiresAfter = std::chrono::duration_cast<std::chrono::seconds>(now - createdAt);
-        propertyBuilder->writeMessageExpiryInterval(newExpiresAfter.count());
+        std::chrono::seconds delay = std::chrono::duration_cast<std::chrono::seconds>(now - createdAt);
+        int32_t newExpire = (this->expiresAfter - delay).count();
+        if (newExpire > 0)
+            propertyBuilder->writeMessageExpiryInterval(newExpire);
     }
 
     if (topicAlias > 0)
@@ -178,8 +180,33 @@ bool PublishBase::hasUserProperties() const
 
 bool PublishBase::hasExpired() const
 {
+    if (!hasExpireInfo)
+        return false;
+
     const std::chrono::seconds age = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - this->createdAt);
     return (expiresAfter > age);
+}
+
+void PublishBase::setCreatedAt(std::chrono::time_point<std::chrono::steady_clock> t)
+{
+    this->createdAt = t;
+}
+
+void PublishBase::setExpireAfter(uint32_t s)
+{
+    this->createdAt = std::chrono::steady_clock::now();
+    this->expiresAfter = std::chrono::seconds(s);
+    this->hasExpireInfo = true;
+}
+
+bool PublishBase::getHasExpireInfo() const
+{
+    return this->hasExpireInfo;
+}
+
+const std::chrono::time_point<std::chrono::steady_clock> PublishBase::getCreatedAt() const
+{
+    return this->createdAt;
 }
 
 Publish::Publish(const Publish &other) :
