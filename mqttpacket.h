@@ -116,6 +116,7 @@ public:
     void handlePubRel();
     void handlePubComp();
 
+    uint8_t getFixedHeaderLength() const;
     size_t getSizeIncludingNonPresentHeader() const;
     const std::vector<char> &getBites() const { return bites; }
     char getQos() const { return publishData.qos; }

@@ -1074,14 +1074,28 @@ std::string MqttPacket::getPayloadCopy() const
     return payload;
 }
 
+
+
+uint8_t MqttPacket::getFixedHeaderLength() const
+{
+    size_t result = this->fixed_header_length;
+
+    if (result == 0)
+    {
+        result++; // first byte it always there.
+        result += remainingLength.getLen();
+    }
+
+    return result;
+}
+
 size_t MqttPacket::getSizeIncludingNonPresentHeader() const
 {
     size_t total = bites.size();
 
     if (fixed_header_length == 0)
     {
-        total++;
-        total += remainingLength.getLen();
+        total += getFixedHeaderLength();
     }
 
     return total;
