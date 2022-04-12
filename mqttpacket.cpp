@@ -510,8 +510,16 @@ void MqttPacket::handleConnect()
         }
         if (password_flag)
         {
+            if (this->protocolVersion <= ProtocolVersion::Mqtt311 && !user_name_flag)
+            {
+                throw ProtocolError("MQTT 3.1.1: If the User Name Flag is set to 0, the Password Flag MUST be set to 0.");
+            }
+
             uint16_t password_length = readTwoBytesToUInt16();
             password = std::string(readBytes(password_length), password_length);
+
+            if (password.empty())
+                throw ProtocolError("Password flagged as present, but it's 0 bytes.", ReasonCodes::MalformedPacket);
         }
 
         // The specs don't really say what to do when client id not UTF8, so including here.
