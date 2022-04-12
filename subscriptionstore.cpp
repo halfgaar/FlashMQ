@@ -214,7 +214,7 @@ void SubscriptionStore::registerClientAndKickExistingOne(std::shared_ptr<Client>
     lock_guard.wrlock();
 
     if (client->getClientId().empty())
-        throw ProtocolError("Trying to store client without an ID.");
+        throw ProtocolError("Trying to store client without an ID.", ReasonCodes::ProtocolError);
 
     std::shared_ptr<Session> session;
     auto session_it = sessionsById.find(client->getClientId());
