@@ -646,10 +646,59 @@ void MqttPacket::handleDisconnect()
     if (first_byte & 0b1111)
         throw ProtocolError("Disconnect packet first 4 bits should be 0.", ReasonCodes::MalformedPacket);
 
+    ReasonCodes reasonCode = ReasonCodes::Success;
+    std::string reasonString;
+
+    if (this->protocolVersion >= ProtocolVersion::Mqtt5)
+    {
+        reasonCode = static_cast<ReasonCodes>(readByte());
+
+        const size_t proplen = decodeVariableByteIntAtPos();
+        const size_t prop_end_at = pos + proplen;
+
+        while (pos < prop_end_at)
+        {
+            const Mqtt5Properties prop = static_cast<Mqtt5Properties>(readByte());
+
+            switch (prop)
+            {
+            case Mqtt5Properties::SessionExpiryInterval:
+            {
+                const uint32_t session_expire = std::min<uint32_t>(readFourBytesToUint32(), session_expire);
+                sender->getSession()->setSessionExpiryInterval(session_expire);
+                break;
+            }
+            case Mqtt5Properties::ReasonString:
+            {
+                const uint16_t len = readTwoBytesToUInt16();
+                reasonString = std::string(readBytes(len), len);
+                break;
+            }
+            case Mqtt5Properties::ServerReference:
+            {
+                const uint16_t len = readTwoBytesToUInt16();
+                readBytes(len);
+                break;
+            }
+            case Mqtt5Properties::UserProperty:
+                readUserProperty();
+                break;
+            default:
+                throw ProtocolError("Invalid property in disconnect.", ReasonCodes::ProtocolError);
+            }
+        }
+    }
+
+    std::string disconnectReason = formatString("MQTT Disconnect received (code %d).", static_cast<uint8_t>(reasonCode));
+
+    if (!reasonString.empty())
+        disconnectReason += reasonString;
+
     logger->logf(LOG_NOTICE, "Client '%s' cleanly disconnecting", sender->repr().c_str());
-    sender->setDisconnectReason("MQTT Disconnect received.");
+    sender->setDisconnectReason(disconnectReason);
     sender->markAsDisconnecting();
-    sender->clearWill();
+    if (reasonCode != ReasonCodes::DisconnectWithWill)
+        sender->clearWill();
     sender->getThreadData()->removeClientQueued(sender);
 }
 

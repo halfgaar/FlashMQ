@@ -85,6 +85,7 @@ public:
     bool getDestroyOnDisconnect() const;
 
     void setSessionProperties(uint16_t maxQosPackets, uint32_t sessionExpiryInterval, bool clean_start, ProtocolVersion protocol_version);
+    void setSessionExpiryInterval(uint32_t newVal);
     uint32_t getSessionExpiryInterval() const;
 };
 

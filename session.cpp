@@ -354,6 +354,17 @@ void Session::setSessionProperties(uint16_t maxQosPackets, uint32_t sessionExpir
         destroyOnDisconnect = sessionExpiryInterval == 0;
 }
 
+void Session::setSessionExpiryInterval(uint32_t newVal)
+{
+    // This is only the case on disconnect, but there's no other place where this method is called (so far...)
+    if (this->sessionExpiryInterval == 0 && newVal > 0)
+    {
+        throw ProtocolError("Setting a non-zero session expiry after it was 0 initially is a protocol error.", ReasonCodes::ProtocolError);
+    }
+
+    this->sessionExpiryInterval = newVal;
+}
+
 uint32_t Session::getSessionExpiryInterval() const
 {
     return this->sessionExpiryInterval;
