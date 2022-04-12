@@ -34,7 +34,7 @@ MqttPacket::MqttPacket(CirBuf &buf, size_t packet_len, size_t fixed_header_lengt
 
     if (packet_len > sender->getMaxIncomingPacketSize())
     {
-        throw ProtocolError("Incoming packet size exceeded. TODO: DISCONNECT WITH CODE 0x95");
+        throw ProtocolError("Incoming packet size exceeded.", ReasonCodes::PacketTooLarge);
     }
 
     buf.read(bites.data(), packet_len);
@@ -202,6 +202,19 @@ MqttPacket::MqttPacket(const PubResponse &pubAck) :
         //       We don't send those at all momentarily, so there is no logic to prevent it.
         writeByte(static_cast<uint8_t>(pubAck.reason_code));
     }
+}
+
+MqttPacket::MqttPacket(const Disconnect &disconnect) :
+    bites(disconnect.getLengthWithoutFixedHeader())
+{
+    this->protocolVersion = ProtocolVersion::Mqtt5;
+
+    packetType = PacketType::DISCONNECT;
+    first_byte = static_cast<char>(packetType) << 4;
+
+    writeByte(static_cast<uint8_t>(disconnect.reasonCode));
+    writeProperties(disconnect.propertyBuilder);
+    calculateRemainingLength();
 }
 
 void MqttPacket::bufferToMqttPackets(CirBuf &buf, std::vector<MqttPacket> &packetQueueIn, std::shared_ptr<Client> &sender)
@@ -630,6 +643,9 @@ void MqttPacket::handleConnect()
 
 void MqttPacket::handleDisconnect()
 {
+    if (first_byte & 0b1111)
+        throw ProtocolError("Disconnect packet first 4 bits should be 0.", ReasonCodes::MalformedPacket);
+
     logger->logf(LOG_NOTICE, "Client '%s' cleanly disconnecting", sender->repr().c_str());
     sender->setDisconnectReason("MQTT Disconnect received.");
     sender->markAsDisconnecting();

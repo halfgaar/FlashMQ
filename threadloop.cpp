@@ -135,6 +135,22 @@ void do_thread_work(ThreadData *threadData)
                             }
                         }
                     }
+                    catch (ProtocolError &ex)
+                    {
+                        client->setDisconnectReason(ex.what());
+                        if (client->getProtocolVersion() >= ProtocolVersion::Mqtt5 && client->hasConnectPacketSeen())
+                        {
+                            Disconnect d(client->getProtocolVersion(), ex.reasonCode);
+                            MqttPacket p(d);
+                            client->writeMqttPacket(p);
+                            client->setReadyForDisconnect();
+                        }
+                        else
+                        {
+                            logger->logf(LOG_ERR, "Protocol error: %s. Removing client.", ex.what());
+                            threadData->removeClient(client);
+                        }
+                    }
                     catch(std::exception &ex)
                     {
                         client->setDisconnectReason(ex.what());

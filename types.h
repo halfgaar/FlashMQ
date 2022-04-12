@@ -249,4 +249,13 @@ public:
     bool needsReasonCode() const;
 };
 
+class Disconnect
+{
+public:
+    ReasonCodes reasonCode;
+    std::shared_ptr<Mqtt5PropertyBuilder> propertyBuilder;
+    Disconnect(const ProtocolVersion protVersion, ReasonCodes reason_code);
+    size_t getLengthWithoutFixedHeader() const;
+};
+
 #endif // TYPES_H

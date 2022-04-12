@@ -289,3 +289,27 @@ size_t UnsubAck::getLengthWithoutFixedHeader() const
 
     return result;
 }
+
+Disconnect::Disconnect(const ProtocolVersion protVersion, ReasonCodes reason_code) :
+    reasonCode(reason_code)
+{
+    assert(protVersion >= ProtocolVersion::Mqtt5);
+
+
+}
+
+size_t Disconnect::getLengthWithoutFixedHeader() const
+{
+    size_t result = 1;
+    const size_t proplen = propertyBuilder ? propertyBuilder->getLength() : 1;
+    result += proplen;
+    return result;
+}
+
+
+
+
+
+
+
+

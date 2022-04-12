@@ -100,6 +100,7 @@ public:
     MqttPacket(const UnsubAck &unsubAck);
     MqttPacket(const ProtocolVersion protocolVersion, Publish &_publish);
     MqttPacket(const PubResponse &pubAck);
+    MqttPacket(const Disconnect &disconnect);
 
     static void bufferToMqttPackets(CirBuf &buf, std::vector<MqttPacket> &packetQueueIn, std::shared_ptr<Client> &sender);
 
