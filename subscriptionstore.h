@@ -146,9 +146,9 @@ class SubscriptionStore
                                std::forward_list<ReceivingSubscriber> &targetSessions) const;
     void publishRecursively(std::vector<std::string>::const_iterator cur_subtopic_it, std::vector<std::string>::const_iterator end,
                             SubscriptionNode *this_node, std::forward_list<ReceivingSubscriber> &targetSessions) const;
-    void giveClientRetainedMessagesRecursively(ProtocolVersion protocolVersion, std::vector<std::string>::const_iterator cur_subtopic_it,
+    void giveClientRetainedMessagesRecursively(std::vector<std::string>::const_iterator cur_subtopic_it,
                                                std::vector<std::string>::const_iterator end, RetainedMessageNode *this_node, bool poundMode,
-                                               std::forward_list<MqttPacket> &packetList) const;
+                                               std::forward_list<Publish> &packetList) const;
     void getRetainedMessages(RetainedMessageNode *this_node, std::vector<RetainedMessage> &outputList) const;
     void getSubscriptions(SubscriptionNode *this_node, const std::string &composedTopic, bool root,
                           std::unordered_map<std::string, std::list<SubscriptionForSerializing>> &outputList) const;
@@ -167,7 +167,7 @@ public:
     void sendQueuedWillMessages();
     void queueWillMessage(const std::shared_ptr<Publish> &willMessage, const std::shared_ptr<Session> &session, bool forceNow = false);
     void queuePacketAtSubscribers(PublishCopyFactory &copyFactory, bool dollar = false);
-    uint64_t giveClientRetainedMessages(const std::shared_ptr<Client> &client, const std::shared_ptr<Session> &ses,
+    uint64_t giveClientRetainedMessages(const std::shared_ptr<Session> &ses,
                                         const std::vector<std::string> &subscribeSubtopics, char max_qos);
 
     void setRetainedMessage(const Publish &publish, const std::vector<std::string> &subtopics);
