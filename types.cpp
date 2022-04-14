@@ -187,11 +187,6 @@ bool PublishBase::hasExpired() const
     return (expiresAfter > age);
 }
 
-void PublishBase::setCreatedAt(std::chrono::time_point<std::chrono::steady_clock> t)
-{
-    this->createdAt = t;
-}
-
 void PublishBase::setExpireAfter(uint32_t s)
 {
     this->createdAt = std::chrono::steady_clock::now();
@@ -220,16 +215,6 @@ Publish::Publish(const std::string &topic, const std::string &payload, char qos)
 {
 
 }
-
-bool WillDelayCompare(const std::shared_ptr<Publish> &a, const std::weak_ptr<Publish> &b)
-{
-    std::shared_ptr<Publish> _b = b.lock();
-
-    if (!_b)
-        return true;
-
-    return a->will_delay < _b->will_delay;
-};
 
 PubResponse::PubResponse(const ProtocolVersion protVersion, const PacketType packet_type, ReasonCodes reason_code, uint16_t packet_id) :
     packet_type(packet_type),

@@ -192,6 +192,8 @@ public:
  */
 class PublishBase
 {
+    friend class SessionsAndSubscriptionsDB;
+
     bool hasExpireInfo = false;
     std::chrono::time_point<std::chrono::steady_clock> createdAt;
     std::chrono::seconds expiresAfter;
@@ -201,7 +203,7 @@ public:
     std::string payload;
     char qos = 0;
     bool retain = false; // Note: existing subscribers don't get publishes of retained messages with retain=1. [MQTT-3.3.1-9]
-    uint32_t will_delay = 0; // if will, this is the delay. Just storing here, to avoid having to make a WillMessage class
+    uint32_t will_delay = 0; // if will, this is the delay.
     bool splitTopic = true;
     uint16_t topicAlias = 0;
     bool skipTopic = false;
@@ -216,7 +218,6 @@ public:
     bool hasUserProperties() const;
     bool hasExpired() const;
 
-    void setCreatedAt(std::chrono::time_point<std::chrono::steady_clock> t);
     void setExpireAfter(uint32_t s);
     bool getHasExpireInfo() const;
     const std::chrono::time_point<std::chrono::steady_clock> getCreatedAt() const;
@@ -231,8 +232,6 @@ public:
     Publish(const Publish &other);
     Publish(const std::string &topic, const std::string &payload, char qos);
 };
-
-bool WillDelayCompare(const std::shared_ptr<Publish> &a, const std::weak_ptr<Publish> &b);
 
 class PubResponse
 {

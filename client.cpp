@@ -55,12 +55,18 @@ Client::~Client()
     if (!this->threadData)
         return;
 
-    std::shared_ptr<SubscriptionStore> &store = this->threadData->getSubscriptionStore();
-
     if (disconnectReason.empty())
         disconnectReason = "not specified";
 
     logger->logf(LOG_NOTICE, "Removing client '%s'. Reason(s): %s", repr().c_str(), disconnectReason.c_str());
+
+    std::shared_ptr<SubscriptionStore> &store = this->threadData->getSubscriptionStore();
+
+    if (willPublish)
+    {
+        store->queueWillMessage(willPublish, session);
+    }
+
     if (fd > 0) // this check is essentially for testing, when working with a dummy fd.
     {
         if (epoll_ctl(threadData->epollfd, EPOLL_CTL_DEL, fd, NULL) != 0)

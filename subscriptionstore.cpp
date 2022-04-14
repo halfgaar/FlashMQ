@@ -280,6 +280,9 @@ std::shared_ptr<Session> SubscriptionStore::lockSession(const std::string &clien
  * The expiry interval as set in the properties of the will message is not used to check for expiration here. To
  * quote the specs: "If present, the Four Byte value is the lifetime of the Will Message in seconds and is sent as
  * the Publication Expiry Interval when the Server publishes the Will Message."
+ *
+ * If a new Network Connection to this Session is made before the Will Delay Interval has passed, the Server
+ * MUST NOT send the Will Message [MQTT-3.1.3-9].
  */
 void SubscriptionStore::sendQueuedWillMessages()
 {
@@ -289,15 +292,27 @@ void SubscriptionStore::sendQueuedWillMessages()
     auto it = pendingWillMessages.begin();
     while (it != pendingWillMessages.end())
     {
-        std::shared_ptr<Publish> p = (*it).lock();
+        QueuedWill &qw = *it;
+
+        std::shared_ptr<Publish> p = qw.getWill().lock();
         if (p)
         {
-            if (p->getCreatedAt() + std::chrono::seconds(p->will_delay) > now)
+            if (qw.getSendAt() > now)
                 break;
+
+            std::shared_ptr<Session> s = qw.getSession();
+
+            if (!s || s->hasActiveClient())
+            {
+                it = pendingWillMessages.erase(it);
+                continue;
+            }
 
             logger->logf(LOG_DEBUG, "Sending delayed will on topic '%s'.", p->topic.c_str() );
             PublishCopyFactory factory(p.get());
             queuePacketAtSubscribers(factory);
+
+            s->clearWill();
         }
         it = pendingWillMessages.erase(it);
     }
@@ -308,7 +323,7 @@ void SubscriptionStore::sendQueuedWillMessages()
  * @param willMessage
  * @param forceNow
  */
-void SubscriptionStore::queueWillMessage(std::shared_ptr<Publish> &willMessage, bool forceNow)
+void SubscriptionStore::queueWillMessage(const std::shared_ptr<Publish> &willMessage, const std::shared_ptr<Session> &session, bool forceNow)
 {
     if (!willMessage)
         return;
@@ -320,12 +335,19 @@ void SubscriptionStore::queueWillMessage(std::shared_ptr<Publish> &willMessage, 
     {
         PublishCopyFactory factory(willMessage.get());
         queuePacketAtSubscribers(factory);
+
+        // Avoid sending two immediate wills when a session is destroyed with the client disconnect.
+        if (session) // session is null when you're destroying a client before a session is assigned.
+            session->clearWill();
+
         return;
     }
 
+    QueuedWill queuedWill(willMessage, session);
+
     std::lock_guard<std::mutex>(this->pendingWillsMutex);
-    auto pos = std::upper_bound(this->pendingWillMessages.begin(), this->pendingWillMessages.end(), willMessage, WillDelayCompare);
-    this->pendingWillMessages.insert(pos, willMessage);
+    auto pos = std::upper_bound(this->pendingWillMessages.begin(), this->pendingWillMessages.end(), willMessage, willDelayCompare);
+    this->pendingWillMessages.insert(pos, queuedWill);
 }
 
 void SubscriptionStore::publishNonRecursively(const std::unordered_map<std::string, Subscription> &subscribers,
@@ -588,7 +610,7 @@ void SubscriptionStore::removeSession(const std::shared_ptr<Session> &session)
     std::shared_ptr<Publish> &will = session->getWill();
     if (will)
     {
-        queueWillMessage(will, true);
+        queueWillMessage(will, session, true);
     }
 
     RWLockGuard lock_guard(&subscriptionsRwlock);
@@ -984,3 +1006,36 @@ std::shared_ptr<Session> QueuedSessionRemoval::getSession() const
 {
     return session.lock();
 }
+
+QueuedWill::QueuedWill(const std::shared_ptr<Publish> &will, const std::shared_ptr<Session> &session) :
+    will(will),
+    session(session),
+    sendAt(std::chrono::steady_clock::now() + std::chrono::seconds(will->will_delay))
+{
+
+}
+
+const std::weak_ptr<Publish> &QueuedWill::getWill() const
+{
+    return this->will;
+}
+
+std::chrono::time_point<std::chrono::steady_clock> QueuedWill::getSendAt() const
+{
+    return this->sendAt;
+}
+
+std::shared_ptr<Session> QueuedWill::getSession()
+{
+    return this->session.lock();
+}
+
+bool willDelayCompare(const std::shared_ptr<Publish> &a, const QueuedWill &b)
+{
+    std::shared_ptr<Publish> _b = b.getWill().lock();
+
+    if (!_b)
+        return true;
+
+    return a->will_delay < _b->will_delay;
+};

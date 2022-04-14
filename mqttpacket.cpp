@@ -447,7 +447,6 @@ void MqttPacket::handleConnect()
                     {
                     case Mqtt5Properties::WillDelayInterval:
                         willpublish.will_delay = readFourBytesToUint32();
-                        willpublish.setCreatedAt(std::chrono::steady_clock::now());
                         break;
                     case Mqtt5Properties::PayloadFormatIndicator:
                         willpublish.propertyBuilder->writePayloadFormatIndicator(readByte());

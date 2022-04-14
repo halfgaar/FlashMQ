@@ -101,6 +101,20 @@ public:
     std::shared_ptr<Session> getSession() const;
 };
 
+class QueuedWill
+{
+    std::weak_ptr<Publish> will;
+    std::weak_ptr<Session> session;
+    std::chrono::time_point<std::chrono::steady_clock> sendAt;
+
+public:
+    QueuedWill(const std::shared_ptr<Publish> &will, const std::shared_ptr<Session> &session);
+
+    const std::weak_ptr<Publish> &getWill() const;
+    std::chrono::time_point<std::chrono::steady_clock> getSendAt() const;
+    std::shared_ptr<Session> getSession();
+};
+
 class SubscriptionStore
 {
 #ifdef TESTING
@@ -122,7 +136,7 @@ class SubscriptionStore
     int64_t retainedMessageCount = 0;
 
     std::mutex pendingWillsMutex;
-    std::list<std::weak_ptr<Publish>> pendingWillMessages;
+    std::list<QueuedWill> pendingWillMessages;
 
     std::chrono::time_point<std::chrono::steady_clock> lastTreeCleanup;
 
@@ -151,7 +165,7 @@ public:
     std::shared_ptr<Session> lockSession(const std::string &clientid);
 
     void sendQueuedWillMessages();
-    void queueWillMessage(std::shared_ptr<Publish> &willMessage, bool forceNow = false);
+    void queueWillMessage(const std::shared_ptr<Publish> &willMessage, const std::shared_ptr<Session> &session, bool forceNow = false);
     void queuePacketAtSubscribers(PublishCopyFactory &copyFactory, bool dollar = false);
     uint64_t giveClientRetainedMessages(const std::shared_ptr<Client> &client, const std::shared_ptr<Session> &ses,
                                         const std::vector<std::string> &subscribeSubtopics, char max_qos);
@@ -173,5 +187,7 @@ public:
 
     void queueSessionRemoval(const std::shared_ptr<Session> &session);
 };
+
+bool willDelayCompare(const std::shared_ptr<Publish> &a, const QueuedWill &b);
 
 #endif // SUBSCRIPTIONSTORE_H
