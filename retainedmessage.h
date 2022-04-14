@@ -19,14 +19,13 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #define RETAINEDMESSAGE_H
 
 #include <string>
+#include "types.h"
 
 struct RetainedMessage
 {
-    std::string topic;
-    std::string payload;
-    char qos;
+    Publish publish;
 
-    RetainedMessage(const std::string &topic, const std::string &payload, char qos);
+    RetainedMessage(const Publish &publish);
 
     bool operator==(const RetainedMessage &rhs) const;
     bool empty() const;
@@ -44,7 +43,7 @@ namespace std {
             using std::hash;
             using std::string;
 
-            return hash<string>()(k.topic);
+            return hash<string>()(k.publish.topic);
         }
     };
 

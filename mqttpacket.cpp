@@ -1017,8 +1017,8 @@ void MqttPacket::handlePublish()
         {
             if (publishData.retain)
             {
-                std::string payload(readBytes(payloadLen), payloadLen);
-                sender->getThreadData()->getSubscriptionStore()->setRetainedMessage(publishData.topic, publishData.subtopics, payload, publishData.qos);
+                publishData.payload = getPayloadCopy();
+                sender->getThreadData()->getSubscriptionStore()->setRetainedMessage(publishData, publishData.subtopics);
             }
 
             // Set dup flag to 0, because that must not be propagated [MQTT-3.3.1-3].
@@ -1420,6 +1420,7 @@ bool MqttPacket::containsClientSpecificProperties() const
 void MqttPacket::readIntoBuf(CirBuf &buf) const
 {
     assert(packetType != PacketType::PUBLISH || (first_byte & 0b00000110) >> 1 == publishData.qos);
+    assert(publishData.qos == 0 || packet_id > 0);
 
     buf.ensureFreeSpace(getSizeIncludingNonPresentHeader());
 

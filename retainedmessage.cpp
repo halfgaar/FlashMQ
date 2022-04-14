@@ -17,25 +17,24 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 
 #include "retainedmessage.h"
 
-RetainedMessage::RetainedMessage(const std::string &topic, const std::string &payload, char qos) :
-    topic(topic),
-    payload(payload),
-    qos(qos)
+RetainedMessage::RetainedMessage(const Publish &publish) :
+    publish(publish)
 {
-
+    this->publish.retain = true;
+    this->publish.splitTopic = false;
 }
 
 bool RetainedMessage::operator==(const RetainedMessage &rhs) const
 {
-    return this->topic == rhs.topic;
+    return this->publish.topic == rhs.publish.topic;
 }
 
 bool RetainedMessage::empty() const
 {
-    return payload.empty();
+    return publish.payload.empty();
 }
 
 uint32_t RetainedMessage::getSize() const
 {
-    return topic.length() + payload.length() + 1;
+    return publish.topic.length() + publish.payload.length() + 1;
 }

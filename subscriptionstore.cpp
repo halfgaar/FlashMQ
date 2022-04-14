@@ -449,10 +449,10 @@ void SubscriptionStore::giveClientRetainedMessagesRecursively(ProtocolVersion pr
     {
         for(const RetainedMessage &rm : this_node->retainedMessages)
         {
-            // TODO: set the still to make 'split topic' to false
-            Publish publish(rm.topic, rm.payload, rm.qos);
-            publish.retain = true;
-            packetList.emplace_front(protocolVersion, publish);
+            // TODO: hmm, const stuff forces me to make copy
+            Publish pubcopy(rm.publish);
+            pubcopy.splitTopic = true;
+            packetList.emplace_front(protocolVersion, pubcopy);
         }
         if (poundMode)
         {
@@ -516,7 +516,7 @@ uint64_t SubscriptionStore::giveClientRetainedMessages(const std::shared_ptr<Cli
     return count;
 }
 
-void SubscriptionStore::setRetainedMessage(const std::string &topic, const std::vector<std::string> &subtopics, const std::string &payload, char qos)
+void SubscriptionStore::setRetainedMessage(const Publish &publish, const std::vector<std::string> &subtopics)
 {
     RetainedMessageNode *deepestNode = &retainedMessagesRoot;
     if (!subtopics.empty() && !subtopics[0].empty() > 0 && subtopics[0][0] == '$')
@@ -540,7 +540,7 @@ void SubscriptionStore::setRetainedMessage(const std::string &topic, const std::
 
     if (deepestNode)
     {
-        deepestNode->addPayload(topic, payload, qos, retainedMessageCount);
+        deepestNode->addPayload(publish, retainedMessageCount);
     }
 
     locker.unlock();
@@ -834,10 +834,10 @@ void SubscriptionStore::loadRetainedMessages(const std::string &filePath)
         locker.wrlock();
 
         std::vector<std::string> subtopics;
-        for (const RetainedMessage &rm : messages)
+        for (RetainedMessage &rm : messages)
         {
-            splitTopic(rm.topic, subtopics);
-            setRetainedMessage(rm.topic, subtopics, rm.payload, rm.qos);
+            splitTopic(rm.publish.topic, rm.publish.subtopics);
+            setRetainedMessage(rm.publish, rm.publish.subtopics);
         }
     }
     catch (PersistenceFileCantBeOpened &ex)
@@ -950,18 +950,18 @@ void Subscription::reset()
     qos = 0;
 }
 
-void RetainedMessageNode::addPayload(const std::string &topic, const std::string &payload, char qos, int64_t &totalCount)
+void RetainedMessageNode::addPayload(const Publish &publish, int64_t &totalCount)
 {
     const int64_t countBefore = retainedMessages.size();
-    RetainedMessage rm(topic, payload, qos);
+    RetainedMessage rm(publish);
 
     auto retained_ptr = retainedMessages.find(rm);
     bool retained_found = retained_ptr != retainedMessages.end();
 
-    if (!retained_found && payload.empty())
+    if (!retained_found && publish.payload.empty())
         return;
 
-    if (retained_found && payload.empty())
+    if (retained_found && publish.payload.empty())
     {
         retainedMessages.erase(rm);
         const int64_t diffCount = (retainedMessages.size() - countBefore);

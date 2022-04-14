@@ -24,8 +24,8 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "logger.h"
 
 #define MAGIC_STRING_V1 "FlashMQRetainedDBv1"
-#define ROW_HEADER_SIZE 8
-#define RESERVED_SPACE_RETAINED_DB_V1 31
+#define MAGIC_STRING_V2 "FlashMQRetainedDBv2"
+#define RESERVED_SPACE_RETAINED_DB_V2 64
 
 /**
  * @brief The RetainedMessagesDB class saves and loads the retained messages.
@@ -44,7 +44,8 @@ class RetainedMessagesDB : public PersistenceFile
     enum class ReadVersion
     {
         unknown,
-        v1
+        v1,
+        v2
     };
 
     struct RowHeader
@@ -55,9 +56,7 @@ class RetainedMessagesDB : public PersistenceFile
 
     ReadVersion readVersion = ReadVersion::unknown;
 
-    void writeRowHeader(const RetainedMessage &rm);
-    RowHeader readRowHeaderV1(bool &eofFound);
-    std::list<RetainedMessage> readDataV1();
+    std::list<RetainedMessage> readDataV2();
 public:
     RetainedMessagesDB(const std::string &filePath);
 

@@ -85,7 +85,6 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV2()
         std::vector<char> reserved(RESERVED_SPACE_SESSIONS_DB_V2);
         CirBuf cirbuf(1024);
 
-        // TODO: all that settings and thread data needs to be removed from Client.
         std::shared_ptr<ThreadData> dummyThreadData; // which thread am I going get/use here?
         std::shared_ptr<Client> dummyClient(new Client(0, dummyThreadData, nullptr, false, nullptr, settings, false));
         dummyClient->setClientProperties(ProtocolVersion::Mqtt5, "Dummyforloadingqueuedqos", "nobody", true, 60);

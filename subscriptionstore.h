@@ -80,7 +80,7 @@ class RetainedMessageNode
     std::unordered_map<std::string, std::unique_ptr<RetainedMessageNode>> children;
     std::unordered_set<RetainedMessage> retainedMessages;
 
-    void addPayload(const std::string &topic, const std::string &payload, char qos, int64_t &totalCount);
+    void addPayload(const Publish &publish, int64_t &totalCount);
     RetainedMessageNode *getChildren(const std::string &subtopic) const;
 };
 
@@ -170,7 +170,7 @@ public:
     uint64_t giveClientRetainedMessages(const std::shared_ptr<Client> &client, const std::shared_ptr<Session> &ses,
                                         const std::vector<std::string> &subscribeSubtopics, char max_qos);
 
-    void setRetainedMessage(const std::string &topic, const std::vector<std::string> &subtopics, const std::string &payload, char qos);
+    void setRetainedMessage(const Publish &publish, const std::vector<std::string> &subtopics);
 
     void removeSession(const std::shared_ptr<Session> &session);
     void removeExpiredSessionsClients();

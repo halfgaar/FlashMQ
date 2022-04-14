@@ -895,20 +895,19 @@ void MainTests::testRetainedMessageDB()
         std::string longTopic = formatString("one/two/%s", getSecureRandomString(4000).c_str());
 
         std::vector<RetainedMessage> messages;
-        messages.emplace_back("one/two/three", "payload", 0);
-        messages.emplace_back("one/two/wer", "payload", 1);
-        messages.emplace_back("one/e/wer", "payload", 1);
-        messages.emplace_back("one/wee/wer", "asdfasdfasdf", 1);
-        messages.emplace_back("one/two/wer", "µsdf", 1);
-        messages.emplace_back("/boe/bah", longpayload, 1);
-        messages.emplace_back("one/two/wer", "paylasdfaoad", 1);
-        messages.emplace_back("one/two/wer", "payload", 1);
-        messages.emplace_back(longTopic, "payload", 1);
-        messages.emplace_back(longTopic, longpayload, 1);
-        messages.emplace_back("one", "µsdf", 1);
-        messages.emplace_back("/boe", longpayload, 1);
-        messages.emplace_back("one", "µsdf", 1);
-        messages.emplace_back("", "foremptytopic", 0);
+        messages.emplace_back(Publish("one/two/three", "payload", 0));
+        messages.emplace_back(Publish("one/two/wer", "payload", 1));
+        messages.emplace_back(Publish("one/e/wer", "payload", 1));
+        messages.emplace_back(Publish("one/wee/wer", "asdfasdfasdf", 1));
+        messages.emplace_back(Publish("one/two/wer", "µsdf", 1));
+        messages.emplace_back(Publish("/boe/bah", longpayload, 1));
+        messages.emplace_back(Publish("one/two/wer", "paylasdfaoad", 1));
+        messages.emplace_back(Publish("one/two/wer", "payload", 1));
+        messages.emplace_back(Publish(longTopic, "payload", 1));
+        messages.emplace_back(Publish(longTopic, longpayload, 1));
+        messages.emplace_back(Publish("one", "µsdf", 1));
+        messages.emplace_back(Publish("/boe", longpayload, 1));
+        messages.emplace_back(Publish("one", "µsdf", 1));
 
         RetainedMessagesDB db("/tmp/flashmqtests_retained.db");
         db.openWrite();
@@ -920,7 +919,7 @@ void MainTests::testRetainedMessageDB()
         std::list<RetainedMessage> messagesLoaded = db2.readData();
         db2.closeFile();
 
-        QCOMPARE(messages.size(), messagesLoaded.size());
+        QCOMPARE(messagesLoaded.size(), messages.size());
 
         auto itOrg = messages.begin();
         auto itLoaded = messagesLoaded.begin();
@@ -930,9 +929,9 @@ void MainTests::testRetainedMessageDB()
             RetainedMessage &two = *itLoaded;
 
             // Comparing the fields because the RetainedMessage class has an == operator that only looks at topic.
-            QCOMPARE(one.topic, two.topic);
-            QCOMPARE(one.payload, two.payload);
-            QCOMPARE(one.qos, two.qos);
+            QCOMPARE(one.publish.topic, two.publish.topic);
+            QCOMPARE(one.publish.payload, two.publish.payload);
+            QCOMPARE(one.publish.qos, two.publish.qos);
 
             itOrg++;
             itLoaded++;

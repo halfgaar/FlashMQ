@@ -27,6 +27,8 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "retainedmessagesdb.h"
 #include "utils.h"
 #include "logger.h"
+#include "mqttpacket.h"
+#include "threadglobals.h"
 
 RetainedMessagesDB::RetainedMessagesDB(const std::string &filePath) : PersistenceFile(filePath)
 {
@@ -35,7 +37,7 @@ RetainedMessagesDB::RetainedMessagesDB(const std::string &filePath) : Persistenc
 
 void RetainedMessagesDB::openWrite()
 {
-    PersistenceFile::openWrite(MAGIC_STRING_V1);
+    PersistenceFile::openWrite(MAGIC_STRING_V2);
 }
 
 void RetainedMessagesDB::openRead()
@@ -44,32 +46,10 @@ void RetainedMessagesDB::openRead()
 
     if (detectedVersionString == MAGIC_STRING_V1)
         readVersion = ReadVersion::v1;
+    else if (detectedVersionString == MAGIC_STRING_V2)
+        readVersion = ReadVersion::v2;
     else
         throw std::runtime_error("Unknown file version.");
-}
-
-/**
- * @brief RetainedMessagesDB::writeRowHeader writes two 32 bit integers: topic size and payload size.
- * @param rm
- *
- * So, the header per message is 8 bytes long.
- *
- * It writes no information about the length of the QoS value, because that is always one.
- */
-void RetainedMessagesDB::writeRowHeader(const RetainedMessage &rm)
-{
-    writeUint32(rm.topic.size());
-    writeUint32(rm.payload.size());
-}
-
-RetainedMessagesDB::RowHeader RetainedMessagesDB::readRowHeaderV1(bool &eofFound)
-{
-    RetainedMessagesDB::RowHeader result;
-
-    result.topicLen = readUint32(eofFound);
-    result.payloadLen = readUint32(eofFound);
-
-    return  result;
 }
 
 /**
@@ -81,20 +61,34 @@ void RetainedMessagesDB::saveData(const std::vector<RetainedMessage> &messages)
     if (!f)
         return;
 
-    char reserved[RESERVED_SPACE_RETAINED_DB_V1];
-    std::memset(reserved, 0, RESERVED_SPACE_RETAINED_DB_V1);
+    CirBuf cirbuf(1024);
 
-    char qos = 0;
+    writeUint32(messages.size());
+
+    char reserved[RESERVED_SPACE_RETAINED_DB_V2];
+    std::memset(reserved, 0, RESERVED_SPACE_RETAINED_DB_V2);
+    writeCheck(reserved, 1, RESERVED_SPACE_RETAINED_DB_V2, f);
+
     for (const RetainedMessage &rm : messages)
     {
-        logger->logf(LOG_DEBUG, "Saving retained message for topic '%s' QoS %d.", rm.topic.c_str(), rm.qos);
+        logger->logf(LOG_DEBUG, "Saving retained message for topic '%s' QoS %d.", rm.publish.topic.c_str(), rm.publish.qos);
 
-        writeRowHeader(rm);
-        qos = rm.qos;
-        writeCheck(&qos, 1, 1, f);
-        writeCheck(reserved, 1, RESERVED_SPACE_RETAINED_DB_V1, f);
-        writeCheck(rm.topic.c_str(), 1, rm.topic.length(), f);
-        writeCheck(rm.payload.c_str(), 1, rm.payload.length(), f);
+        Publish pcopy(rm.publish);
+        MqttPacket pack(ProtocolVersion::Mqtt5, pcopy);
+
+        // Dummy, to please the parser on reading.
+        if (pcopy.qos > 0)
+            pack.setPacketId(666);
+
+        const uint32_t packSize = pack.getSizeIncludingNonPresentHeader();
+
+        cirbuf.reset();
+        cirbuf.ensureFreeSpace(packSize + 32);
+        pack.readIntoBuf(cirbuf);
+
+        writeUint16(pack.getFixedHeaderLength());
+        writeUint32(packSize);
+        writeCheck(cirbuf.tailPtr(), 1, cirbuf.usedBytes(), f);
     }
 
     fflush(f);
@@ -108,38 +102,57 @@ std::list<RetainedMessage> RetainedMessagesDB::readData()
         return defaultResult;
 
     if (readVersion == ReadVersion::v1)
-        return readDataV1();
+        logger->logf(LOG_WARNING, "File '%s' is version 1, an internal development version that was never finalized. Not reading.", getFilePath().c_str());
+    if (readVersion == ReadVersion::v2)
+        return readDataV2();
 
     return defaultResult;
 }
 
-std::list<RetainedMessage> RetainedMessagesDB::readDataV1()
+std::list<RetainedMessage> RetainedMessagesDB::readDataV2()
 {
     std::list<RetainedMessage> messages;
+
+    CirBuf cirbuf(1024);
+
+    const Settings *settings = ThreadGlobals::getSettings();
+    std::shared_ptr<ThreadData> dummyThreadData;
+    std::shared_ptr<Client> dummyClient(new Client(0, dummyThreadData, nullptr, false, nullptr, settings, false));
+    dummyClient->setClientProperties(ProtocolVersion::Mqtt5, "Dummyforloadingretained", "nobody", true, 60);
 
     while (!feof(f))
     {
         bool eofFound = false;
-        RetainedMessagesDB::RowHeader header = readRowHeaderV1(eofFound);
+
+        const uint32_t numberOfMessages = readUint32(eofFound);
 
         if (eofFound)
             continue;
 
-        makeSureBufSize(header.payloadLen);
+        fseek(f, RESERVED_SPACE_RETAINED_DB_V2, SEEK_CUR);
 
-        readCheck(buf.data(), 1, 1, f);
-        char qos = buf[0];
-        fseek(f, RESERVED_SPACE_RETAINED_DB_V1, SEEK_CUR);
+        for(uint32_t i = 0; i < numberOfMessages; i++)
+        {
+            const uint16_t fixed_header_length = readUint16(eofFound);
+            const uint32_t packlen = readUint32(eofFound);
 
-        readCheck(buf.data(), 1, header.topicLen, f);
-        std::string topic(buf.data(), header.topicLen);
+            if (eofFound)
+                continue;
 
-        readCheck(buf.data(), 1, header.payloadLen, f);
-        std::string payload(buf.data(), header.payloadLen);
+            cirbuf.reset();
+            cirbuf.ensureFreeSpace(packlen + 32);
 
-        RetainedMessage msg(topic, payload, qos);
-        logger->logf(LOG_DEBUG, "Loading retained message for topic '%s' QoS %d.", msg.topic.c_str(), msg.qos);
-        messages.push_back(std::move(msg));
+            readCheck(cirbuf.headPtr(), 1, packlen, f);
+            cirbuf.advanceHead(packlen);
+            MqttPacket pack(cirbuf, packlen, fixed_header_length, dummyClient);
+
+            pack.parsePublishData();
+            Publish pub(pack.getPublishData());
+
+            RetainedMessage msg(pub);
+            logger->logf(LOG_DEBUG, "Loading retained message for topic '%s' QoS %d.", msg.publish.topic.c_str(), msg.publish.qos);
+            messages.push_back(std::move(msg));
+        }
     }
 
     return messages;
