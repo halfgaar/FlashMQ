@@ -85,6 +85,8 @@ class MqttPacket
 
     void calculateRemainingLength();
 
+    bool atEnd() const;
+
     MqttPacket(const MqttPacket &other) = delete;
 public:
     PacketType packetType = PacketType::Reserved;

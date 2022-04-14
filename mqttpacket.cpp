@@ -660,38 +660,41 @@ void MqttPacket::handleDisconnect()
     {
         reasonCode = static_cast<ReasonCodes>(readByte());
 
-        const size_t proplen = decodeVariableByteIntAtPos();
-        const size_t prop_end_at = pos + proplen;
-
-        while (pos < prop_end_at)
+        if (!atEnd())
         {
-            const Mqtt5Properties prop = static_cast<Mqtt5Properties>(readByte());
+            const size_t proplen = decodeVariableByteIntAtPos();
+            const size_t prop_end_at = pos + proplen;
 
-            switch (prop)
+            while (pos < prop_end_at)
             {
-            case Mqtt5Properties::SessionExpiryInterval:
-            {
-                const uint32_t session_expire = std::min<uint32_t>(readFourBytesToUint32(), session_expire);
-                sender->getSession()->setSessionExpiryInterval(session_expire);
-                break;
-            }
-            case Mqtt5Properties::ReasonString:
-            {
-                const uint16_t len = readTwoBytesToUInt16();
-                reasonString = std::string(readBytes(len), len);
-                break;
-            }
-            case Mqtt5Properties::ServerReference:
-            {
-                const uint16_t len = readTwoBytesToUInt16();
-                readBytes(len);
-                break;
-            }
-            case Mqtt5Properties::UserProperty:
-                readUserProperty();
-                break;
-            default:
-                throw ProtocolError("Invalid property in disconnect.", ReasonCodes::ProtocolError);
+                const Mqtt5Properties prop = static_cast<Mqtt5Properties>(readByte());
+
+                switch (prop)
+                {
+                case Mqtt5Properties::SessionExpiryInterval:
+                {
+                    const uint32_t session_expire = std::min<uint32_t>(readFourBytesToUint32(), session_expire);
+                    sender->getSession()->setSessionExpiryInterval(session_expire);
+                    break;
+                }
+                case Mqtt5Properties::ReasonString:
+                {
+                    const uint16_t len = readTwoBytesToUInt16();
+                    reasonString = std::string(readBytes(len), len);
+                    break;
+                }
+                case Mqtt5Properties::ServerReference:
+                {
+                    const uint16_t len = readTwoBytesToUInt16();
+                    readBytes(len);
+                    break;
+                }
+                case Mqtt5Properties::UserProperty:
+                    readUserProperty();
+                    break;
+                default:
+                    throw ProtocolError("Invalid property in disconnect.", ReasonCodes::ProtocolError);
+                }
             }
         }
     }
@@ -704,7 +707,7 @@ void MqttPacket::handleDisconnect()
     logger->logf(LOG_NOTICE, "Client '%s' cleanly disconnecting", sender->repr().c_str());
     sender->setDisconnectReason(disconnectReason);
     sender->markAsDisconnecting();
-    if (reasonCode != ReasonCodes::DisconnectWithWill)
+    if (reasonCode == ReasonCodes::Success)
         sender->clearWill();
     sender->getThreadData()->removeClientQueued(sender);
 }
@@ -1098,6 +1101,11 @@ void MqttPacket::calculateRemainingLength()
     this->remainingLength = bites.size();
 }
 
+bool MqttPacket::atEnd() const
+{
+    return pos == bites.size();
+}
+
 void MqttPacket::setPacketId(uint16_t packet_id)
 {
     assert(fixed_header_length == 0 || first_byte == bites[0]);
@@ -1317,6 +1325,8 @@ size_t MqttPacket::remainingAfterPos()
 
 size_t MqttPacket::decodeVariableByteIntAtPos()
 {
+    assert(pos < bites.size());
+
     uint64_t multiplier = 1;
     size_t value = 0;
     uint8_t encodedByte = 0;
