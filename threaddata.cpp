@@ -162,6 +162,18 @@ void ThreadData::removeExpiredSessions()
     subscriptionStore->removeExpiredSessionsClients();
 }
 
+void ThreadData::sendAllWils()
+{
+    std::lock_guard<std::mutex> lck(clients_by_fd_mutex);
+
+    for(auto pairs : clients_by_fd)
+    {
+        pairs.second->sendOrQueueWill();
+    }
+
+    allWilssSentForExit = true;
+}
+
 void ThreadData::removeQueuedClients()
 {
     std::vector<int> fds;
@@ -387,6 +399,16 @@ void ThreadData::queueAuthPluginPeriodicEvent()
 void ThreadData::authPluginPeriodicEvent()
 {
     authentication.periodicEvent();
+}
+
+void ThreadData::queueSendAllWills()
+{
+    std::lock_guard<std::mutex> locker(taskQueueMutex);
+
+    auto f = std::bind(&ThreadData::sendAllWils, this);
+    taskQueue.push_front(f);
+
+    wakeUpThread();
 }
 
 // TODO: profile how fast hash iteration is. Perhaps having a second list/vector is beneficial?

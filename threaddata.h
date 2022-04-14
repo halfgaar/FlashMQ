@@ -66,6 +66,7 @@ class ThreadData
     void publishStat(const std::string &topic, uint64_t n);
     void sendQueuedWills();
     void removeExpiredSessions();
+    void sendAllWils();
 
     void removeQueuedClients();
 
@@ -74,6 +75,7 @@ public:
     Authentication authentication;
     bool running = true;
     bool finished = false;
+    bool allWilssSentForExit = false;
     std::thread thread;
     int threadnr = 0;
     int epollfd = 0;
@@ -117,6 +119,8 @@ public:
 
     void queueAuthPluginPeriodicEvent();
     void authPluginPeriodicEvent();
+
+    void queueSendAllWills();
 };
 
 #endif // THREADDATA_H

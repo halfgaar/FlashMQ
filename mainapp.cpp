@@ -285,6 +285,14 @@ void MainApp::queueRemoveExpiredSessions()
     }
 }
 
+void MainApp::waitForAllThreadsQueuedWills()
+{
+    while(std::any_of(threads.begin(), threads.end(), [](std::shared_ptr<ThreadData> t){ return !t->allWilssSentForExit; }))
+    {
+        usleep(1000);
+    }
+}
+
 void MainApp::saveState()
 {
     std::lock_guard<std::mutex> lg(saveStateMutex);
@@ -606,6 +614,14 @@ void MainApp::start()
 
         }
     }
+
+    logger->logf(LOG_DEBUG, "Having all client in all threads send or queue their will.");
+    for(std::shared_ptr<ThreadData> &thread : threads)
+    {
+        thread->queueSendAllWills();
+    }
+
+    waitForAllThreadsQueuedWills();
 
     oneInstanceLock.unlock();
 

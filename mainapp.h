@@ -93,6 +93,7 @@ class MainApp
     void saveStateInThread();
     void queueSendQueuedWills();
     void queueRemoveExpiredSessions();
+    void waitForAllThreadsQueuedWills();
 
     MainApp(const std::string &configFilePath);
 public:

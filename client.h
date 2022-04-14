@@ -149,6 +149,8 @@ public:
 
     uint32_t getMaxIncomingPacketSize() const;
 
+    void sendOrQueueWill();
+
 #ifndef NDEBUG
     void setFakeUpgraded();
 #endif

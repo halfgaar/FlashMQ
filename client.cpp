@@ -394,6 +394,19 @@ uint32_t Client::getMaxIncomingPacketSize() const
     return this->maxIncomingPacketSize;
 }
 
+void Client::sendOrQueueWill()
+{
+    if (!this->threadData)
+        return;
+
+    if (!this->willPublish)
+        return;
+
+    std::shared_ptr<SubscriptionStore> &store = this->threadData->getSubscriptionStore();
+    store->queueWillMessage(willPublish, session);
+    this->willPublish.reset();
+}
+
 #ifndef NDEBUG
 /**
  * @brief IoWrapper::setFakeUpgraded().
