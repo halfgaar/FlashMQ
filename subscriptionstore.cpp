@@ -312,6 +312,9 @@ void SubscriptionStore::sendQueuedWillMessages()
             PublishCopyFactory factory(p.get());
             queuePacketAtSubscribers(factory);
 
+            if (p->retain)
+                setRetainedMessage(*p.get(), (*p.get()).subtopics);
+
             s->clearWill();
         }
         it = pendingWillMessages.erase(it);
@@ -335,6 +338,9 @@ void SubscriptionStore::queueWillMessage(const std::shared_ptr<Publish> &willMes
     {
         PublishCopyFactory factory(willMessage.get());
         queuePacketAtSubscribers(factory);
+
+        if (willMessage->retain)
+            setRetainedMessage(*willMessage.get(), (*willMessage.get()).subtopics);
 
         // Avoid sending two immediate wills when a session is destroyed with the client disconnect.
         if (session) // session is null when you're destroying a client before a session is assigned.
@@ -518,6 +524,8 @@ uint64_t SubscriptionStore::giveClientRetainedMessages(const std::shared_ptr<Cli
 
 void SubscriptionStore::setRetainedMessage(const Publish &publish, const std::vector<std::string> &subtopics)
 {
+    assert(!subtopics.empty());
+
     RetainedMessageNode *deepestNode = &retainedMessagesRoot;
     if (!subtopics.empty() && !subtopics[0].empty() > 0 && subtopics[0][0] == '$')
         deepestNode = &retainedMessagesRootDollar;

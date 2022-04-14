@@ -52,7 +52,7 @@ MqttPacket *PublishCopyFactory::getOptimumPacket(const char max_qos, const Proto
         return cachedPack.get();
     }
 
-    // Getting a packet of a Publish object happens on will messages and SYS topics and maybe some others. It's low traffic, anyway.
+    // Getting an instance of a Publish object happens at least on retained messages, will messages and SYS topics. It's low traffic, anyway.
     assert(publish);
 
     this->oneShotPacket = std::make_unique<MqttPacket>(protocolVersion, *publish);
