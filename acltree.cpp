@@ -202,13 +202,13 @@ void AclTree::findPermissionRecursive(std::vector<std::string>::const_iterator c
 }
 
 /**
- * @brief AclTree::findPermission tests permissions as loaded from the Mosquitto acl_file.
+ * @brief AclTree::findPermission tests permissions as loaded from the Mosquitto-compatible acl_file.
  * @param subtopicsPublish
- * @param access
- * @param username
+ * @param access Whether to test read access or write access (`AclGrant::Read` or `AclGrant::Write` respectively).
+ * @param username The user to test permission for.
  * @return
  *
- * It's behaves like Mosquitto's ACL file. Some of that behavior is a bit limited, but sticking to it for compatability:
+ * It behaves like Mosquitto's ACL file. Some of that behavior is a bit limited, but sticking to it for compatability:
  *
  * - If your user is authenticated, there must a user specific definition for that user; it won't fall back on anonymous ACLs.
  * - You can't combine ACLs, like 'all clients read bla/#' and add 'user john readwrite bla/#. User specific ACLs don't add

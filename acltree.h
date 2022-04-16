@@ -26,12 +26,16 @@ enum class AclTopicType
 
 AclGrant stringToAclGrant(const std::string &s);
 
+/**
+ * @brief Permissions for an MQTT topic path is a tree of `AclNode`s. Topic paths are broken up and matched down the tree. A '#' wildcard will match
+ * all following subtopics, so therefore '#' is a 'grant', not a 'child'.
+ */
 class AclNode
 {
     bool empty = false;
 
     std::unordered_map<std::string, std::unique_ptr<AclNode>> children;
-    std::unique_ptr<AclNode> childrenPlus;
+    std::unique_ptr<AclNode> childrenPlus; // The + sign in MQTT represents a single-level wildcard
 
     std::vector<AclGrant> grants;
     std::vector<AclGrant> grantsPound; // The # sign. This is short-hand for avoiding one memory access though a layer of std::unique_ptr<AclNode>
