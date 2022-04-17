@@ -845,13 +845,13 @@ void MqttPacket::handleUnsubscribe()
 void MqttPacket::parsePublishData()
 {
     publishData.retain = (first_byte & 0b00000001);
-    bool dup = !!(first_byte & 0b00001000);
+    const bool duplicate = !!(first_byte & 0b00001000);
     publishData.qos = (first_byte & 0b00000110) >> 1;
 
     if (publishData.qos > 2)
         throw ProtocolError("QoS 3 is a protocol violation.", ReasonCodes::MalformedPacket);
 
-    if (publishData.qos == 0 && dup)
+    if (publishData.qos == 0 && duplicate)
         throw ProtocolError("Duplicate flag is set for QoS 0 packet. This is illegal.", ReasonCodes::MalformedPacket);
 
     publishData.topic = readBytesToString(true, true);
@@ -957,7 +957,8 @@ void MqttPacket::handlePublish()
     parsePublishData();
 
 #ifndef NDEBUG
-    logger->logf(LOG_DEBUG, "Publish received, topic '%s'. QoS=%d. Retain=%d, dup=%d", publishData.topic.c_str(), publishData.qos, publishData.retain, dup);
+    const bool duplicate = !!(first_byte & 0b00001000);
+    logger->logf(LOG_DEBUG, "Publish received, topic '%s'. QoS=%d. Retain=%d, dup=%d", publishData.topic.c_str(), publishData.qos, publishData.retain, duplicate);
 #endif
 
     ReasonCodes ackCode = ReasonCodes::Success;
