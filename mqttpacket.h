@@ -82,6 +82,7 @@ class MqttPacket
     size_t remainingAfterPos();
     size_t decodeVariableByteIntAtPos();
     void readUserProperty();
+    std::string readBytesToString(bool validateUtf8 = true, bool alsoCheckInvalidPublishChars = false);
 
     void calculateRemainingLength();
 
