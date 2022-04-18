@@ -509,9 +509,9 @@ void Client::setClientProperties(ProtocolVersion protocolVersion, const std::str
     this->maxOutgoingTopicAliasValue = maxOutgoingTopicAliasValue;
 }
 
-void Client::setWill(Publish &&willPublish)
+void Client::setWill(WillPublish &&willPublish)
 {
-    this->willPublish = std::make_shared<Publish>(std::move(willPublish));
+    this->willPublish = std::make_shared<WillPublish>(std::move(willPublish));
 }
 
 void Client::assignSession(std::shared_ptr<Session> &session)

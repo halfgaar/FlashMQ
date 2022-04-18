@@ -50,7 +50,7 @@ class Session
     uint16_t maxQosMsgPending;
     uint16_t QoSLogPrintedAtId = 0;
     bool destroyOnDisconnect = false;
-    std::shared_ptr<Publish> willPublish;
+    std::shared_ptr<WillPublish> willPublish;
     Logger *logger = Logger::getInstance();
 
     bool requiresPacketRetransmission() const;
@@ -73,7 +73,8 @@ public:
     uint64_t sendPendingQosMessages();
     bool hasActiveClient() const;
     void clearWill();
-    std::shared_ptr<Publish> &getWill();
+    std::shared_ptr<WillPublish> &getWill();
+    void setWill(WillPublish &&pub);
 
     void addIncomingQoS2MessageId(uint16_t packet_id);
     bool incomingQoS2MessageIdInTransit(uint16_t packet_id);

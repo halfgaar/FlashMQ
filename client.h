@@ -77,7 +77,7 @@ class Client
     std::string username;
     uint16_t keepalive = 0;
 
-    std::shared_ptr<Publish> willPublish;
+    std::shared_ptr<WillPublish> willPublish;
 
     std::shared_ptr<ThreadData> threadData;
     std::mutex writeBufMutex;
@@ -115,7 +115,7 @@ public:
     void setClientProperties(ProtocolVersion protocolVersion, const std::string &clientId, const std::string username, bool connectPacketSeen, uint16_t keepalive,
                              uint32_t maxOutgoingPacketSize, uint16_t maxOutgoingTopicAliasValue);
     void setWill(const std::string &topic, const std::string &payload, bool retain, char qos);
-    void setWill(Publish &&willPublish);
+    void setWill(WillPublish &&willPublish);
     void clearWill();
     void setAuthenticated(bool value) { authenticated = value;}
     bool getAuthenticated() { return authenticated; }
@@ -123,7 +123,7 @@ public:
     std::shared_ptr<ThreadData> getThreadData() { return threadData; }
     std::string &getClientId() { return this->clientid; }
     const std::string &getUsername() const { return this->username; }
-    std::shared_ptr<Publish> &getWill() { return this->willPublish; }
+    std::shared_ptr<WillPublish> &getWill() { return this->willPublish; }
     void assignSession(std::shared_ptr<Session> &session);
     std::shared_ptr<Session> getSession();
     void setDisconnectReason(const std::string &reason);

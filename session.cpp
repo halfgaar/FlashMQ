@@ -71,6 +71,7 @@ Session::Session(const Session &other)
     this->outgoingQoS2MessageIds = other.outgoingQoS2MessageIds;
     this->nextPacketId = other.nextPacketId;
     this->sessionExpiryInterval = other.sessionExpiryInterval;
+    this->willPublish = other.willPublish;
 
     // TODO: see git history for a change here. We now copy the whole queued publish. Do we want to address that?
     this->qosPacketQueue = other.qosPacketQueue;
@@ -276,9 +277,14 @@ void Session::clearWill()
     this->willPublish.reset();
 }
 
-std::shared_ptr<Publish> &Session::getWill()
+std::shared_ptr<WillPublish> &Session::getWill()
 {
     return this->willPublish;
+}
+
+void Session::setWill(WillPublish &&pub)
+{
+    this->willPublish = std::make_shared<WillPublish>(std::move(pub));
 }
 
 void Session::addIncomingQoS2MessageId(uint16_t packet_id)

@@ -216,6 +216,34 @@ Publish::Publish(const std::string &topic, const std::string &payload, char qos)
 
 }
 
+WillPublish::WillPublish(const Publish &other) :
+    Publish(other)
+{
+
+}
+
+void WillPublish::setQueuedAt()
+{
+    this->isQueued = true;
+    this->queuedAt = std::chrono::steady_clock::now();
+}
+
+/**
+ * @brief WillPublish::getQueuedAtAge gets the time ago in seconds when this will was queued. The time is set externally by the queue action.
+ * @return
+ *
+ * This age is required when saving wills to disk, because the new will delay to set on load is not the original will delay, but minus the
+ * elapsed time after queueing.
+ */
+uint32_t WillPublish::getQueuedAtAge() const
+{
+    if (!isQueued)
+        return 0;
+
+    const std::chrono::seconds age = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - this->queuedAt);
+    return age.count();
+}
+
 PubResponse::PubResponse(const ProtocolVersion protVersion, const PacketType packet_type, ReasonCodes reason_code, uint16_t packet_id) :
     packet_type(packet_type),
     protocol_version(protVersion),

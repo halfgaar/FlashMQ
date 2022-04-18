@@ -326,7 +326,7 @@ void SubscriptionStore::sendQueuedWillMessages()
  * @param willMessage
  * @param forceNow
  */
-void SubscriptionStore::queueWillMessage(const std::shared_ptr<Publish> &willMessage, const std::shared_ptr<Session> &session, bool forceNow)
+void SubscriptionStore::queueWillMessage(const std::shared_ptr<WillPublish> &willMessage, const std::shared_ptr<Session> &session, bool forceNow)
 {
     if (!willMessage)
         return;
@@ -348,6 +348,8 @@ void SubscriptionStore::queueWillMessage(const std::shared_ptr<Publish> &willMes
 
         return;
     }
+
+    willMessage->setQueuedAt();
 
     QueuedWill queuedWill(willMessage, session);
 
@@ -613,7 +615,7 @@ void SubscriptionStore::removeSession(const std::shared_ptr<Session> &session)
     const std::string &clientid = session->getClientId();
     logger->logf(LOG_DEBUG, "Removing session of client '%s'.", clientid.c_str());
 
-    std::shared_ptr<Publish> &will = session->getWill();
+    std::shared_ptr<WillPublish> &will = session->getWill();
     if (will)
     {
         queueWillMessage(will, session, true);
@@ -905,6 +907,7 @@ void SubscriptionStore::loadSessionsAndSubscriptions(const std::string &filePath
         {
             sessionsById[session->getClientId()] = session;
             queueSessionRemoval(session);
+            queueWillMessage(session->getWill(), session);
         }
 
         std::vector<std::string> subtopics;
@@ -1013,7 +1016,7 @@ std::shared_ptr<Session> QueuedSessionRemoval::getSession() const
     return session.lock();
 }
 
-QueuedWill::QueuedWill(const std::shared_ptr<Publish> &will, const std::shared_ptr<Session> &session) :
+QueuedWill::QueuedWill(const std::shared_ptr<WillPublish> &will, const std::shared_ptr<Session> &session) :
     will(will),
     session(session),
     sendAt(std::chrono::steady_clock::now() + std::chrono::seconds(will->will_delay))
@@ -1021,7 +1024,7 @@ QueuedWill::QueuedWill(const std::shared_ptr<Publish> &will, const std::shared_p
 
 }
 
-const std::weak_ptr<Publish> &QueuedWill::getWill() const
+const std::weak_ptr<WillPublish> &QueuedWill::getWill() const
 {
     return this->will;
 }
@@ -1036,9 +1039,9 @@ std::shared_ptr<Session> QueuedWill::getSession()
     return this->session.lock();
 }
 
-bool willDelayCompare(const std::shared_ptr<Publish> &a, const QueuedWill &b)
+bool willDelayCompare(const std::shared_ptr<WillPublish> &a, const QueuedWill &b)
 {
-    std::shared_ptr<Publish> _b = b.getWill().lock();
+    std::shared_ptr<WillPublish> _b = b.getWill().lock();
 
     if (!_b)
         return true;

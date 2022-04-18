@@ -167,6 +167,32 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV2()
             // it with a more relevant value.
             // The protocol version 5 is just dummy, to get the behavior I want.
             ses->setSessionProperties(maxQosPending, sessionExpiryInterval, 0, ProtocolVersion::Mqtt5);
+
+            const uint16_t hasWill = readUint16(eofFound);
+
+            if (hasWill)
+            {
+                const uint16_t fixed_header_length = readUint16(eofFound);
+                const uint32_t originalWillDelay = readUint32(eofFound);
+                const uint32_t originalWillQueueAge = readUint32(eofFound);
+                const uint32_t newWillDelayAfterMaybeAlreadyBeingQueued = originalWillQueueAge < originalWillDelay ? originalWillDelay - originalWillQueueAge : 0;
+                const uint32_t packlen = readUint32(eofFound);
+
+                const uint32_t stateAgecompensatedWillDelay =
+                        persistence_state_age > newWillDelayAfterMaybeAlreadyBeingQueued ? 0 : newWillDelayAfterMaybeAlreadyBeingQueued - persistence_state_age;
+
+                cirbuf.reset();
+                cirbuf.ensureFreeSpace(packlen + 32);
+
+                readCheck(cirbuf.headPtr(), 1, packlen, f);
+                cirbuf.advanceHead(packlen);
+                MqttPacket publishpack(cirbuf, packlen, fixed_header_length, dummyClient);
+                publishpack.parsePublishData();
+                WillPublish willPublish = publishpack.getPublishData();
+                willPublish.will_delay = stateAgecompensatedWillDelay;
+
+                ses->setWill(std::move(willPublish));
+            }
         }
 
         const uint32_t nrOfSubscriptions = readUint32(eofFound);
@@ -289,6 +315,30 @@ void SessionsAndSubscriptionsDB::saveData(const std::vector<std::unique_ptr<Sess
 
         writeUint32(ses->sessionExpiryInterval);
         writeUint16(ses->maxQosMsgPending);
+
+        const bool hasWillThatShouldSurviveRestart = ses->getWill().operator bool() && ses->getWill()->will_delay > 0;
+        writeUint16(static_cast<uint16_t>(hasWillThatShouldSurviveRestart));
+
+        if (hasWillThatShouldSurviveRestart)
+        {
+            WillPublish &will = *ses->getWill().get();
+            MqttPacket willpacket(ProtocolVersion::Mqtt5, will);
+
+            // Dummy, to please the parser on reading.
+            if (will.qos > 0)
+                willpacket.setPacketId(666);
+
+            const uint32_t packSize = willpacket.getSizeIncludingNonPresentHeader();
+            cirbuf.reset();
+            cirbuf.ensureFreeSpace(packSize + 32);
+            willpacket.readIntoBuf(cirbuf);
+
+            writeUint16(willpacket.getFixedHeaderLength());
+            writeUint32(will.will_delay);
+            writeUint32(will.getQueuedAtAge());
+            writeUint32(packSize);
+            writeCheck(cirbuf.tailPtr(), 1, cirbuf.usedBytes(), f);
+        }
     }
 
     writeUint32(subscriptions.size());

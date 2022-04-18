@@ -423,7 +423,7 @@ void MqttPacket::handleConnect()
         std::string username;
         std::string password;
 
-        Publish willpublish;
+        WillPublish willpublish;
         willpublish.qos = will_qos;
         willpublish.retain = will_retain;
 
