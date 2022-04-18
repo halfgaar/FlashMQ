@@ -695,6 +695,8 @@ void SubscriptionStore::queueSessionRemoval(const std::shared_ptr<Session> &sess
         return a.getExpiresAt() < b.getExpiresAt();
     };
 
+    session->setQueuedRemovalAt();
+
     std::lock_guard<std::mutex>(this->queuedSessionRemovalsMutex);
     auto pos = std::upper_bound(this->queuedSessionRemovals.begin(), this->queuedSessionRemovals.end(), qsr, comp);
     this->queuedSessionRemovals.insert(pos, qsr);

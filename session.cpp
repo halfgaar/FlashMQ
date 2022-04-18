@@ -72,6 +72,11 @@ Session::Session(const Session &other)
     this->nextPacketId = other.nextPacketId;
     this->sessionExpiryInterval = other.sessionExpiryInterval;
     this->willPublish = other.willPublish;
+    this->removalQueued = other.removalQueued;
+    this->removalQueuedAt = other.removalQueuedAt;
+
+
+    // TODO: perhaps this copy constructor is nonsense now.
 
     // TODO: see git history for a change here. We now copy the whole queued publish. Do we want to address that?
     this->qosPacketQueue = other.qosPacketQueue;
@@ -107,6 +112,7 @@ void Session::assignActiveConnection(std::shared_ptr<Client> &client)
     this->client_id = client->getClientId();
     this->username = client->getUsername();
     this->willPublish = client->getWill();
+    this->removalQueued = false;
 }
 
 /**
@@ -371,8 +377,25 @@ void Session::setSessionExpiryInterval(uint32_t newVal)
     this->sessionExpiryInterval = newVal;
 }
 
+void Session::setQueuedRemovalAt()
+{
+    this->removalQueuedAt = std::chrono::steady_clock::now();
+    this->removalQueued = true;
+}
+
 uint32_t Session::getSessionExpiryInterval() const
 {
     return this->sessionExpiryInterval;
+}
+
+uint32_t Session::getCurrentSessionExpiryInterval() const
+{
+    if (!this->removalQueued || hasActiveClient())
+        return this->sessionExpiryInterval;
+
+    const std::chrono::seconds age = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - this->removalQueuedAt);
+    const uint32_t ageInSeconds = age.count();
+    const uint32_t result = ageInSeconds <= this->sessionExpiryInterval ? this->sessionExpiryInterval - age.count() : 0;
+    return result;
 }
 

@@ -313,7 +313,7 @@ void SessionsAndSubscriptionsDB::saveData(const std::vector<std::unique_ptr<Sess
         logger->logf(LOG_DEBUG, "Writing next packetid %d.", ses->nextPacketId);
         writeUint16(ses->nextPacketId);
 
-        writeUint32(ses->sessionExpiryInterval);
+        writeUint32(ses->getCurrentSessionExpiryInterval());
         writeUint16(ses->maxQosMsgPending);
 
         const bool hasWillThatShouldSurviveRestart = ses->getWill().operator bool() && ses->getWill()->will_delay > 0;

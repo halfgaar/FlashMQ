@@ -51,6 +51,8 @@ class Session
     uint16_t QoSLogPrintedAtId = 0;
     bool destroyOnDisconnect = false;
     std::shared_ptr<WillPublish> willPublish;
+    bool removalQueued = false;
+    std::chrono::time_point<std::chrono::steady_clock> removalQueuedAt;
     Logger *logger = Logger::getInstance();
 
     bool requiresPacketRetransmission() const;
@@ -87,7 +89,9 @@ public:
 
     void setSessionProperties(uint16_t maxQosPackets, uint32_t sessionExpiryInterval, bool clean_start, ProtocolVersion protocol_version);
     void setSessionExpiryInterval(uint32_t newVal);
+    void setQueuedRemovalAt();
     uint32_t getSessionExpiryInterval() const;
+    uint32_t getCurrentSessionExpiryInterval() const;
 };
 
 #endif // SESSION_H
