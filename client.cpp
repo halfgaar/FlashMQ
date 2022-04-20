@@ -374,7 +374,7 @@ void Client::setTopicAlias(const uint16_t alias_id, const std::string &topic)
     // The specs actually say "The Client MUST NOT send a Topic Alias [...] to the Server greater than this value [Topic Alias Maximum]". So, it's not about count.
     if (alias_id > settings->maxIncomingTopicAliasValue)
         throw ProtocolError(formatString("Client tried to set more topic aliases than the server max of %d per client", settings->maxIncomingTopicAliasValue),
-                            ReasonCodes::ProtocolError);
+                            ReasonCodes::TopicAliasInvalid);
 
     this->incomingTopicAliases[alias_id] = topic;
 }
