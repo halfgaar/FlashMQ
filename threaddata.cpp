@@ -162,16 +162,39 @@ void ThreadData::removeExpiredSessions()
     subscriptionStore->removeExpiredSessionsClients();
 }
 
-void ThreadData::sendAllWils()
+void ThreadData::sendAllWills()
 {
     std::lock_guard<std::mutex> lck(clients_by_fd_mutex);
 
-    for(auto pairs : clients_by_fd)
+    for(auto &pair : clients_by_fd)
     {
-        pairs.second->sendOrQueueWill();
+        std::shared_ptr<Client> &c = pair.second;
+        c->sendOrQueueWill();
     }
 
-    allWilssSentForExit = true;
+    allWillsQueued = true;
+}
+
+void ThreadData::sendAllDisconnects()
+{
+    std::vector<std::shared_ptr<Client>> clientsFound;
+
+    {
+        std::lock_guard<std::mutex> lck(clients_by_fd_mutex);
+        clientsFound.reserve(clients_by_fd.size());
+
+        for(auto &pair : clients_by_fd)
+        {
+            clientsFound.push_back(pair.second);
+        }
+    }
+
+    for (std::shared_ptr<Client> &c : clientsFound)
+    {
+        c->serverInitiatedDisconnect(ReasonCodes::ServerShuttingDown);
+    }
+
+    allDisconnectsSent = true;
 }
 
 void ThreadData::removeQueuedClients()
@@ -401,11 +424,21 @@ void ThreadData::authPluginPeriodicEvent()
     authentication.periodicEvent();
 }
 
-void ThreadData::queueSendAllWills()
+void ThreadData::queueSendWills()
 {
     std::lock_guard<std::mutex> locker(taskQueueMutex);
 
-    auto f = std::bind(&ThreadData::sendAllWils, this);
+    auto f = std::bind(&ThreadData::sendAllWills, this);
+    taskQueue.push_front(f);
+
+    wakeUpThread();
+}
+
+void ThreadData::queueSendDisconnects()
+{
+    std::lock_guard<std::mutex> locker(taskQueueMutex);
+
+    auto f = std::bind(&ThreadData::sendAllDisconnects, this);
     taskQueue.push_front(f);
 
     wakeUpThread();

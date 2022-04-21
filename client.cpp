@@ -407,6 +407,32 @@ void Client::sendOrQueueWill()
     this->willPublish.reset();
 }
 
+/**
+ * @brief Client::serverInitiatedDisconnect queues a disconnect packet and when the last bytes are written, the thread loop will disconnect it.
+ * @param reason is an MQTT5 reason code.
+ *
+ * There is a chance that an client's TCP buffers are full (when the client is gone, for example) and epoll will not report the
+ * fd as EPOLLOUT, which means the disconnect will not happen. It will then be up to the keep-alive mechanism to kick the client out.
+ *
+ * Sending clients disconnect packets is only supported by MQTT >= 5, so in case of MQTT3, just close the connection.
+ */
+void Client::serverInitiatedDisconnect(ReasonCodes reason)
+{
+    setDisconnectReason(formatString("Server initiating disconnect with reason code '%d'", static_cast<uint8_t>(reason)));
+
+    if (this->protocolVersion >= ProtocolVersion::Mqtt5)
+    {
+        setReadyForDisconnect();
+        Disconnect d(ProtocolVersion::Mqtt5, reason);
+        writeMqttPacket(d);
+    }
+    else
+    {
+        markAsDisconnecting();
+        threadData->removeClientQueued(fd);
+    }
+}
+
 #ifndef NDEBUG
 /**
  * @brief IoWrapper::setFakeUpgraded().

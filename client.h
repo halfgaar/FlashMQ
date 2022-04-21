@@ -150,6 +150,7 @@ public:
     uint32_t getMaxIncomingPacketSize() const;
 
     void sendOrQueueWill();
+    void serverInitiatedDisconnect(ReasonCodes reason);
 
 #ifndef NDEBUG
     void setFakeUpgraded();

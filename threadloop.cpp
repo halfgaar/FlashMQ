@@ -144,6 +144,10 @@ void do_thread_work(ThreadData *threadData)
                             MqttPacket p(d);
                             client->writeMqttPacket(p);
                             client->setReadyForDisconnect();
+
+                            // When a client's TCP buffers are full (when the client is gone, for instance), EPOLLOUT will never be
+                            // reported. In those cases, the client is not removed; not until the keep-alive mechanism anyway. Is
+                            // that a problem?
                         }
                         else
                         {

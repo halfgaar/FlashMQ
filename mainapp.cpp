@@ -285,9 +285,17 @@ void MainApp::queueRemoveExpiredSessions()
     }
 }
 
-void MainApp::waitForAllThreadsQueuedWills()
+void MainApp::waitForWillsQueued()
 {
-    while(std::any_of(threads.begin(), threads.end(), [](std::shared_ptr<ThreadData> t){ return !t->allWilssSentForExit; }))
+    while(std::any_of(threads.begin(), threads.end(), [](std::shared_ptr<ThreadData> t){ return !t->allWillsQueued; }))
+    {
+        usleep(1000);
+    }
+}
+
+void MainApp::waitForDisconnectsInitiated()
+{
+    while(std::any_of(threads.begin(), threads.end(), [](std::shared_ptr<ThreadData> t){ return !t->allDisconnectsSent; }))
     {
         usleep(1000);
     }
@@ -618,10 +626,16 @@ void MainApp::start()
     logger->logf(LOG_DEBUG, "Having all client in all threads send or queue their will.");
     for(std::shared_ptr<ThreadData> &thread : threads)
     {
-        thread->queueSendAllWills();
+        thread->queueSendWills();
     }
+    waitForWillsQueued();
 
-    waitForAllThreadsQueuedWills();
+    logger->logf(LOG_DEBUG, "Having all client in all threads send a disconnect packet.");
+    for(std::shared_ptr<ThreadData> &thread : threads)
+    {
+        thread->queueSendDisconnects();
+    }
+    waitForDisconnectsInitiated();
 
     oneInstanceLock.unlock();
 
