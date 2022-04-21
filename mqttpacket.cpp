@@ -268,6 +268,11 @@ void MqttPacket::bufferToMqttPackets(CirBuf &buf, std::vector<MqttPacket> &packe
 
 void MqttPacket::handle()
 {
+    // It may be a stale client. This is especially important for when a session is picked up by another client. The old client
+    // may still have stale data in the buffer, causing action on the session otherwise.
+    if (sender->isBeingDisconnected())
+        return;
+
     if (packetType == PacketType::Reserved)
         throw ProtocolError("Packet type 0 specified, which is reserved and invalid.", ReasonCodes::MalformedPacket);
 

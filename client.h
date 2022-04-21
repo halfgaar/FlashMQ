@@ -134,6 +134,7 @@ public:
     int writeMqttPacketAndBlameThisClient(PublishCopyFactory &copyFactory, char max_qos, uint16_t packet_id);
     int writeMqttPacketAndBlameThisClient(const MqttPacket &packet);
     bool writeBufIntoFd();
+    bool isBeingDisconnected() const { return disconnectWhenBytesWritten; }
     bool readyForDisconnecting() const { return disconnectWhenBytesWritten && writebuf.usedBytes() == 0; }
 
     // Do this before calling an action that makes this client ready for writing, so that the EPOLLOUT will handle it.
