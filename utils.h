@@ -35,6 +35,8 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "bindaddr.h"
 #include "types.h"
 
+#define UNUSED(expr) do { (void)(expr); } while (0)
+
 template<typename T> int check(int rc)
 {
     if (rc < 0)

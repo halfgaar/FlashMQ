@@ -400,9 +400,11 @@ void MqttPacket::handleConnect()
                     break;
                 case Mqtt5Properties::RequestResponseInformation:
                     request_response_information = !!readByte();
+                    UNUSED(request_response_information);
                     break;
                 case Mqtt5Properties::RequestProblemInformation:
                     request_problem_information = !!readByte();
+                    UNUSED(request_problem_information);
                     break;
                 case Mqtt5Properties::UserProperty:
                     readUserProperty();
