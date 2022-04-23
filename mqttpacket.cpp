@@ -730,8 +730,7 @@ void MqttPacket::handleSubscribe()
             switch (prop)
             {
             case Mqtt5Properties::SubscriptionIdentifier:
-                decodeVariableByteIntAtPos();
-                break;
+                throw ProtocolError("Subscription identifiers not supported", ReasonCodes::ProtocolError);
             case Mqtt5Properties::UserProperty:
                 readUserProperty();
                 break;
