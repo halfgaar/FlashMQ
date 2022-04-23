@@ -4,8 +4,8 @@
  *
  * This interface definition is public domain and you are encouraged
  * to copy it to your authentication plugin project, for portability. Including
- * this file in your project does not require your code to have a compatibile
- * license nor requires you to open source it.
+ * this file in your project does not make it a 'derived work', does not require
+ * your code to have a compatibile license nor requires you to open source it.
  *
  * Compile like: gcc -fPIC -shared authplugin.cpp -o authplugin.so
  */
@@ -79,7 +79,8 @@ struct FlashMQMessage
 };
 
 /**
- * @brief flashmq_logf calls the internal logger of FlashMQ. The logger mutexes all access, so is thread-safe.
+ * @brief flashmq_logf calls the internal logger of FlashMQ. The logger mutexes all access, so is thread-safe, and writes to disk
+ * asynchronously, so it won't hold you up.
  * @param level is any of the levels defined above, starting with LOG_.
  * @param str
  *
@@ -96,17 +97,14 @@ int flashmq_auth_plugin_version();
 /**
  * @brief flashmq_auth_plugin_allocate_thread_memory is called once by each thread. Never again.
  * @param thread_data. Create a memory structure and assign it to *thread_data.
- * @param global_data. The global data created in flashmq_auth_plugin_allocate_global_memory, if you use it.
  * @param auth_opts. Map of flashmq_auth_opt_* from the config file.
  *
- * Only allocate the plugin's memory here. Don't open connections, etc.
+ * Only allocate the plugin's memory here. Don't open connections, etc. That's because the reload mechanism doesn't call this function.
  *
- * The global data is created by flashmq_auth_plugin_allocate_global_memory() and if you need it, you can assign it to your
- * own thread_data storage. It is not passed as argument to other functions.
+ * Because of the multi-core design of FlashMQ, you should treat each thread as its own domain with its own data. You can use static
+ * variables for global scope if you must, or even create threads, but do provide proper locking where necessary.
  *
- * You can use static variables for global scope if you must, but do provide proper locking where necessary.
- *
- * throw an exception on errors.
+ * You can throw exceptions on errors.
  */
 void flashmq_auth_plugin_allocate_thread_memory(void **thread_data, std::unordered_map<std::string, std::string> &auth_opts);
 
@@ -115,7 +113,7 @@ void flashmq_auth_plugin_allocate_thread_memory(void **thread_data, std::unorder
  * @param thread_data. Delete this memory.
  * @param auth_opts. Map of flashmq_auth_opt_* from the config file.
  *
- * throw an exception on errors.
+ * You can throw exceptions on errors.
  */
 void flashmq_auth_plugin_deallocate_thread_memory(void *thread_data, std::unordered_map<std::string, std::string> &auth_opts);
 
@@ -134,7 +132,7 @@ void flashmq_auth_plugin_deallocate_thread_memory(void *thread_data, std::unorde
  * There is the option to set 'auth_plugin_serialize_init true' in the config file, which allows some mitigation in
  * case you run into problems.
  *
- * throw an exception on errors.
+ * You can throw exceptions on errors.
  */
 void flashmq_auth_plugin_init(void *thread_data, std::unordered_map<std::string, std::string> &auth_opts, bool reloading);
 
@@ -144,7 +142,7 @@ void flashmq_auth_plugin_init(void *thread_data, std::unordered_map<std::string,
  * @param auth_opts. Map of flashmq_auth_opt_* from the config file.
  * @param reloading
  *
- * throw an exception on errors.
+ * You can throw exceptions on errors.
  */
 void flashmq_auth_plugin_deinit(void *thread_data, std::unordered_map<std::string, std::string> &auth_opts, bool reloading);
 
@@ -162,7 +160,7 @@ void flashmq_auth_plugin_deinit(void *thread_data, std::unordered_map<std::strin
  *
  * Implementing this is optional.
  *
- * throw an exception on errors.
+ * You can throw exceptions on errors.
  */
 void flashmq_auth_plugin_periodic_event(void *thread_data);
 
