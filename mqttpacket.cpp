@@ -666,7 +666,8 @@ void MqttPacket::handleDisconnect()
                 {
                 case Mqtt5Properties::SessionExpiryInterval:
                 {
-                    const uint32_t session_expire = std::min<uint32_t>(readFourBytesToUint32(), session_expire);
+                    const Settings *settings = ThreadGlobals::getSettings();
+                    const uint32_t session_expire = std::min<uint32_t>(readFourBytesToUint32(), settings->getExpireSessionAfterSeconds());
                     sender->getSession()->setSessionExpiryInterval(session_expire);
                     break;
                 }
