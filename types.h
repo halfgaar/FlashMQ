@@ -44,8 +44,7 @@ enum class PacketType
     PINGREQ = 12,
     PINGRESP = 13,
     DISCONNECT = 14,
-
-    Reserved2 = 15
+    AUTH = 15
 };
 
 enum class ProtocolVersion
@@ -265,6 +264,15 @@ public:
     ReasonCodes reasonCode;
     std::shared_ptr<Mqtt5PropertyBuilder> propertyBuilder;
     Disconnect(const ProtocolVersion protVersion, ReasonCodes reason_code);
+    size_t getLengthWithoutFixedHeader() const;
+};
+
+class Auth
+{
+public:
+    ReasonCodes reasonCode;
+    std::shared_ptr<Mqtt5PropertyBuilder> propertyBuilder;
+    Auth(ReasonCodes reasonCode, const std::string &authMethod, const std::string &authData);
     size_t getLengthWithoutFixedHeader() const;
 };
 

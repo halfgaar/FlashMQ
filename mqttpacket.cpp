@@ -217,6 +217,18 @@ MqttPacket::MqttPacket(const Disconnect &disconnect) :
     calculateRemainingLength();
 }
 
+MqttPacket::MqttPacket(const Auth &auth) :
+    bites(auth.getLengthWithoutFixedHeader()),
+    protocolVersion(ProtocolVersion::Mqtt5),
+    packetType(PacketType::AUTH)
+{
+    first_byte = static_cast<char>(packetType) << 4;
+
+    writeByte(static_cast<uint8_t>(auth.reasonCode));
+    writeProperties(auth.propertyBuilder);
+    calculateRemainingLength();
+}
+
 void MqttPacket::bufferToMqttPackets(CirBuf &buf, std::vector<MqttPacket> &packetQueueIn, std::shared_ptr<Client> &sender)
 {
     while (buf.usedBytes() >= MQTT_HEADER_LENGH)
@@ -276,7 +288,7 @@ void MqttPacket::handle()
     if (packetType == PacketType::Reserved)
         throw ProtocolError("Packet type 0 specified, which is reserved and invalid.", ReasonCodes::MalformedPacket);
 
-    if (packetType != PacketType::CONNECT)
+    if (packetType != PacketType::CONNECT && packetType != PacketType::AUTH)
     {
         if (!sender->getAuthenticated())
         {
@@ -305,6 +317,8 @@ void MqttPacket::handle()
         handlePubRel();
     else if (packetType == PacketType::PUBCOMP)
         handlePubComp();
+    else if (packetType == PacketType::AUTH)
+        handleExtendedAuth();
 }
 
 void MqttPacket::handleConnect()
@@ -375,6 +389,9 @@ void MqttPacket::handleConnect()
         bool request_response_information = false;
         bool request_problem_information = false;
 
+        std::string authenticationMethod;
+        std::string authenticationData;
+
         if (protocolVersion == ProtocolVersion::Mqtt5)
         {
             const size_t proplen = decodeVariableByteIntAtPos();
@@ -411,12 +428,12 @@ void MqttPacket::handleConnect()
                     break;
                 case Mqtt5Properties::AuthenticationMethod:
                 {
-                    readBytesToString();
+                    authenticationMethod = readBytesToString();
                     break;
                 }
                 case Mqtt5Properties::AuthenticationData:
                 {
-                    readBytesToString(false);
+                    authenticationData = readBytesToString(false);
                     break;
                 }
                 default:
@@ -501,6 +518,10 @@ void MqttPacket::handleConnect()
 
             if (username.empty())
                 throw ProtocolError("Username flagged as present, but it's 0 bytes.", ReasonCodes::MalformedPacket);
+
+            if (!settings.allowUnsafeUsernameChars && containsDangerousCharacters(username))
+                throw ProtocolError(formatString("Username '%s' contains unsafe characters and 'allow_unsafe_username_chars' is false.", username.c_str()),
+                                    ReasonCodes::BadUserNameOrPassword);
         }
         if (password_flag)
         {
@@ -568,27 +589,7 @@ void MqttPacket::handleConnect()
         if (will_flag)
             sender->setWill(std::move(willpublish));
 
-        bool accessGranted = false;
-        std::string denyLogMsg;
-
-        Authentication &authentication = *ThreadGlobals::getAuth();
-
-        if (!user_name_flag && settings.allowAnonymous)
-        {
-            accessGranted = true;
-        }
-        else if (!settings.allowUnsafeUsernameChars && containsDangerousCharacters(username))
-        {
-            denyLogMsg = formatString("Username '%s' has + or # in the id and 'allow_unsafe_username_chars' is false.", username.c_str());
-            sender->setDisconnectReason("Invalid username character");
-            accessGranted = false;
-        }
-        else if (authentication.unPwdCheck(username, password, getUserProperties()) == AuthResult::success)
-        {
-            accessGranted = true;
-        }
-
-        if (accessGranted)
+        // Stage connack, for immediate or delayed use when auth succeeds.
         {
             bool sessionPresent = false;
             std::shared_ptr<Session> existingSession;
@@ -600,46 +601,195 @@ void MqttPacket::handleConnect()
                     sessionPresent = true;
             }
 
-            sender->setAuthenticated(true);
-            ConnAck connAck(protocolVersion, ReasonCodes::Success, sessionPresent);
+            std::unique_ptr<ConnAck> connAck = std::make_unique<ConnAck>(protocolVersion, ReasonCodes::Success, sessionPresent);
 
             if (protocolVersion >= ProtocolVersion::Mqtt5)
             {
-                connAck.propertyBuilder = std::make_shared<Mqtt5PropertyBuilder>();
-                connAck.propertyBuilder->writeSessionExpiry(session_expire);
-                connAck.propertyBuilder->writeReceiveMax(max_qos_packets);
-                connAck.propertyBuilder->writeRetainAvailable(1);
-                connAck.propertyBuilder->writeMaxPacketSize(sender->getMaxIncomingPacketSize());
+                connAck->propertyBuilder = std::make_shared<Mqtt5PropertyBuilder>();
+                connAck->propertyBuilder->writeSessionExpiry(session_expire);
+                connAck->propertyBuilder->writeReceiveMax(max_qos_packets);
+                connAck->propertyBuilder->writeRetainAvailable(1);
+                connAck->propertyBuilder->writeMaxPacketSize(sender->getMaxIncomingPacketSize());
                 if (clientIdGenerated)
-                    connAck.propertyBuilder->writeAssignedClientId(client_id);
-                connAck.propertyBuilder->writeMaxTopicAliases(settings.maxIncomingTopicAliasValue);
-                connAck.propertyBuilder->writeWildcardSubscriptionAvailable(1);
-                connAck.propertyBuilder->writeSubscriptionIdentifiersAvailable(0);
-                connAck.propertyBuilder->writeSharedSubscriptionAvailable(0);
+                    connAck->propertyBuilder->writeAssignedClientId(client_id);
+                connAck->propertyBuilder->writeMaxTopicAliases(settings.maxIncomingTopicAliasValue);
+                connAck->propertyBuilder->writeWildcardSubscriptionAvailable(1);
+                connAck->propertyBuilder->writeSubscriptionIdentifiersAvailable(0);
+                connAck->propertyBuilder->writeSharedSubscriptionAvailable(0);
+
+                if (!authenticationMethod.empty())
+                {
+                    connAck->propertyBuilder->writeAuthenticationMethod(authenticationMethod);
+                }
             }
 
-            MqttPacket response(connAck);
-            sender->writeMqttPacket(response);
-            logger->logf(LOG_NOTICE, "Client '%s' logged in successfully", sender->repr().c_str());
+            sender->stageConnack(std::move(connAck));
+        }
 
-            subscriptionStore->registerClientAndKickExistingOne(sender, clean_start, max_qos_packets, session_expire);
+        sender->setRegistrationData(clean_start, max_qos_packets, session_expire);
+
+        Authentication &authentication = *ThreadGlobals::getAuth();
+        AuthResult authResult = AuthResult::login_denied;
+
+        if (!user_name_flag && authenticationMethod.empty() && settings.allowAnonymous)
+        {
+            authResult = AuthResult::success;
+        }
+        else if (!authenticationMethod.empty())
+        {
+            sender->setExtendedAuthenticationMethod(authenticationMethod);
+
+            std::string returnData;
+            authResult = authentication.extendedAuth(client_id, ExtendedAuthStage::Auth, authenticationMethod, authenticationData,
+                                                     getUserProperties(), returnData, sender->getMutableUsername());
+
+            if (authResult == AuthResult::auth_continue)
+            {
+                Auth auth(ReasonCodes::ContinueAuthentication, authenticationMethod, returnData);
+                MqttPacket pack(auth);
+                sender->writeMqttPacket(pack);
+                return;
+            }
+            if (authResult == AuthResult::success)
+            {
+                sender->addAuthReturnDataToStagedConnAck(returnData);
+            }
         }
         else
         {
-            ConnAck connDeny(protocolVersion, ReasonCodes::NotAuthorized, false);
-            MqttPacket response(connDeny);
-            sender->setDisconnectReason("Access denied");
-            sender->setReadyForDisconnect();
-            sender->writeMqttPacket(response);
-            if (!denyLogMsg.empty())
-                logger->logf(LOG_NOTICE, denyLogMsg.c_str());
-            else
-                logger->logf(LOG_NOTICE, "User '%s' access denied", username.c_str());
+            authResult = authentication.unPwdCheck(username, password, getUserProperties());
+        }
+
+        if (authResult == AuthResult::success)
+        {
+            sender->sendConnackSuccess();
+            subscriptionStore->registerClientAndKickExistingOne(sender);
+        }
+        else
+        {
+            const ReasonCodes reason = authResultToReasonCode(authResult);
+            sender->sendConnackDeny(reason);
         }
     }
     else
     {
         throw ProtocolError("Invalid variable header length. Garbage?", ReasonCodes::MalformedPacket);
+    }
+}
+
+void MqttPacket::handleExtendedAuth()
+{
+    const ReasonCodes reasonCode = static_cast<ReasonCodes>(readByte());
+
+    if (this->protocolVersion < ProtocolVersion::Mqtt5)
+        throw ProtocolError("AUTH packet needs MQTT5 or higher");
+
+    std::string authMethod;
+    std::string authData;
+
+    if (!atEnd())
+    {
+        const size_t proplen = decodeVariableByteIntAtPos();
+        const size_t prop_end_at = pos + proplen;
+
+        while (pos < prop_end_at)
+        {
+            const Mqtt5Properties prop = static_cast<Mqtt5Properties>(readByte());
+
+            switch (prop)
+            {
+            case Mqtt5Properties::AuthenticationMethod:
+                authMethod = readBytesToString();
+                break;
+            case Mqtt5Properties::AuthenticationData:
+                authData = readBytesToString(false);
+                break;
+            case Mqtt5Properties::ReasonString:
+                readBytesToString();
+                break;
+            case Mqtt5Properties::UserProperty:
+                readUserProperty();
+                break;
+            default:
+                throw ProtocolError("Invalid property in auth packet.", ReasonCodes::ProtocolError);
+            }
+        }
+    }
+
+    if (authMethod != sender->getExtendedAuthenticationMethod())
+        throw ProtocolError("Client continued with another authentication method that it started with.", ReasonCodes::ProtocolError);
+
+    ExtendedAuthStage authStage = ExtendedAuthStage::None;
+
+    switch(reasonCode)
+    {
+    case ReasonCodes::ContinueAuthentication:
+        authStage = ExtendedAuthStage::Continue;
+        break;
+    case ReasonCodes::ReAuthenticate:
+        authStage = ExtendedAuthStage::Reauth;
+        break;
+    default:
+        throw ProtocolError(formatString("Invalid reason code '%d' in auth packet", static_cast<uint8_t>(reasonCode)), ReasonCodes::MalformedPacket);
+    }
+
+    if (authStage == ExtendedAuthStage::Reauth && !sender->getAuthenticated())
+    {
+        throw ProtocolError("Trying to reauth when client was not authenticated.", ReasonCodes::ProtocolError);
+    }
+
+    Authentication &authentication = *ThreadGlobals::getAuth();
+
+    std::string returnData;
+    const AuthResult authResult = authentication.extendedAuth(sender->getClientId(), authStage, authMethod, authData,
+                                                              getUserProperties(), returnData, sender->getMutableUsername());
+
+    if (authResult == AuthResult::auth_continue)
+    {
+        Auth auth(ReasonCodes::ContinueAuthentication, authMethod, returnData);
+        MqttPacket pack(auth);
+        sender->writeMqttPacket(pack);
+        return;
+    }
+
+    if (authResult == AuthResult::success)
+    {
+        sender->addAuthReturnDataToStagedConnAck(returnData);
+    }
+
+    const ReasonCodes finalResult = authResultToReasonCode(authResult);
+
+    if (!sender->getAuthenticated()) // First auth sends connack packets.
+    {
+        if (finalResult == ReasonCodes::Success)
+        {
+            sender->sendConnackSuccess();
+            std::shared_ptr<SubscriptionStore> subscriptionStore = sender->getThreadData()->getSubscriptionStore();
+            subscriptionStore->registerClientAndKickExistingOne(sender);
+        }
+        else
+        {
+            sender->sendConnackDeny(finalResult);
+        }
+    }
+    else // Reauth sends either AUTH or DISCONNECT
+    {
+        if (finalResult == ReasonCodes::Success)
+        {
+            Auth auth(ReasonCodes::Success, authMethod, returnData);
+            MqttPacket authPack(auth);
+            sender->writeMqttPacket(authPack);
+            logger->logf(LOG_NOTICE, "Client '%s', user '%s' reauthentication successful.", sender->getClientId().c_str(), sender->getUsername().c_str());
+        }
+        else
+        {
+            Disconnect disconnect(protocolVersion, finalResult);
+            MqttPacket disconnectPack(disconnect);
+            sender->setDisconnectReason("Reauth denied");
+            sender->setReadyForDisconnect();
+            sender->writeMqttPacket(disconnectPack);
+            logger->logf(LOG_NOTICE, "Client '%s', user '%s' reauthentication denied.", sender->getClientId().c_str(), sender->getUsername().c_str());
+        }
     }
 }
 

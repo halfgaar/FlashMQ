@@ -682,3 +682,23 @@ std::chrono::time_point<std::chrono::steady_clock> timepointFromAge(const uint32
     std::chrono::time_point<std::chrono::steady_clock> newPoint = std::chrono::steady_clock::now() + seconds;
     return newPoint;
 }
+
+ReasonCodes authResultToReasonCode(AuthResult authResult)
+{
+    switch (authResult)
+    {
+    case AuthResult::success:
+        return ReasonCodes::Success;
+    case AuthResult::auth_method_not_supported:
+        return ReasonCodes::BadAuthenticationMethod;
+    case AuthResult::acl_denied:
+    case AuthResult::login_denied:
+        return ReasonCodes::NotAuthorized;
+    case AuthResult::error:
+        return ReasonCodes::UnspecifiedError;
+    case AuthResult::auth_continue:
+        return ReasonCodes::ContinueAuthentication;
+    default:
+        return ReasonCodes::UnspecifiedError;
+    }
+}

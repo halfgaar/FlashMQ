@@ -27,6 +27,14 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "utils.h"
 #include "threadglobals.h"
 
+StowedClientRegistrationData::StowedClientRegistrationData(bool clean_start, uint16_t maxQosPackets, uint32_t sessionExpiryInterval) :
+    clean_start(clean_start),
+    maxQosPackets(maxQosPackets),
+    sessionExpiryInterval(sessionExpiryInterval)
+{
+
+}
+
 Client::Client(int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, bool websocket, struct sockaddr *addr, const Settings *settings, bool fuzzMode) :
     fd(fd),
     fuzzMode(fuzzMode),
@@ -433,6 +441,88 @@ void Client::serverInitiatedDisconnect(ReasonCodes reason)
     }
 }
 
+/**
+ * @brief Client::setRegistrationData sets parameters for the session to be registered. We set them as arguments here to
+ * possibly use later, because with extended authentication, session registration doesn't happen on the first CONNECT packet.
+ * @param clean_start
+ * @param maxQosPackets
+ * @param sessionExpiryInterval
+ */
+void Client::setRegistrationData(bool clean_start, uint16_t maxQosPackets, uint32_t sessionExpiryInterval)
+{
+    this->registrationData = std::make_unique<StowedClientRegistrationData>(clean_start, maxQosPackets, sessionExpiryInterval);
+}
+
+const std::unique_ptr<StowedClientRegistrationData> &Client::getRegistrationData() const
+{
+    return this->registrationData;
+}
+
+void Client::clearRegistrationData()
+{
+    this->registrationData.reset();
+}
+
+/**
+ * @brief Client::stageConnack saves the success connack for later use.
+ * @param c
+ *
+ * The connack to be generated is known on the initial connect packet, but in extended authentication, the client won't get it
+ * until the authentication is complete.
+ */
+void Client::stageConnack(std::unique_ptr<ConnAck> &&c)
+{
+    this->stagedConnack = std::move(c);
+}
+
+void Client::sendConnackSuccess()
+{
+    if (!stagedConnack)
+    {
+        throw ProtocolError("Programming bug: trying to send a prepared connack when there is none.", ReasonCodes::ProtocolError);
+    }
+
+    ConnAck &connAck = *this->stagedConnack.get();
+    setAuthenticated(true);
+    MqttPacket response(connAck);
+    writeMqttPacket(response);
+    logger->logf(LOG_NOTICE, "Client '%s' logged in successfully", repr().c_str());
+    this->stagedConnack.reset();
+}
+
+void Client::sendConnackDeny(ReasonCodes reason)
+{
+    ConnAck connDeny(protocolVersion, reason, false);
+    MqttPacket response(connDeny);
+    setDisconnectReason("Access denied");
+    setReadyForDisconnect();
+    writeMqttPacket(response);
+    logger->logf(LOG_NOTICE, "User '%s' access denied", username.c_str());
+}
+
+void Client::addAuthReturnDataToStagedConnAck(const std::string &authData)
+{
+    if (authData.empty())
+        return;
+
+    if (!stagedConnack)
+    {
+        throw ProtocolError("Programming bug: trying to add auth return data when there is no staged connack.", ReasonCodes::ProtocolError);
+    }
+
+    stagedConnack->propertyBuilder->writeAuthenticationData(authData);
+}
+
+void Client::setExtendedAuthenticationMethod(const std::string &authMethod)
+{
+    this->extendedAuthenticationMethod = authMethod;
+}
+
+const std::string &Client::getExtendedAuthenticationMethod() const
+{
+    return this->extendedAuthenticationMethod;
+}
+
 #ifndef NDEBUG
 /**
  * @brief IoWrapper::setFakeUpgraded().
@@ -561,5 +651,10 @@ void Client::clearWill()
 {
     willPublish.reset();
     session->clearWill();
+}
+
+std::string &Client::getMutableUsername()
+{
+    return this->username;
 }
 

@@ -201,10 +201,26 @@ void SubscriptionStore::removeSubscription(std::shared_ptr<Client> &client, cons
 
 }
 
+/**
+ * @brief SubscriptionStore::registerClientAndKickExistingOne registers a client with previously set parameters for the session.
+ * @param client
+ *
+ * Under normal MQTT operation, the 'if' clause is always used. The 'else' is only in (fuzz) testing and other rare conditions.
+ */
 void SubscriptionStore::registerClientAndKickExistingOne(std::shared_ptr<Client> &client)
 {
-    const Settings *settings = ThreadGlobals::getSettings();
-    registerClientAndKickExistingOne(client, true, settings->maxQosMsgPendingPerClient, settings->expireSessionsAfterSeconds);
+    const std::unique_ptr<StowedClientRegistrationData> &registrationData = client->getRegistrationData();
+
+    if (registrationData)
+    {
+        registerClientAndKickExistingOne(client, registrationData->clean_start, registrationData->maxQosPackets, registrationData->sessionExpiryInterval);
+        client->clearRegistrationData();
+    }
+    else
+    {
+        const Settings *settings = ThreadGlobals::getSettings();
+        registerClientAndKickExistingOne(client, true, settings->maxQosMsgPendingPerClient, settings->expireSessionsAfterSeconds);
+    }
 }
 
 // Removes an existing client when it already exists [MQTT-3.1.4-2].
@@ -1047,3 +1063,4 @@ bool willDelayCompare(const std::shared_ptr<WillPublish> &a, const QueuedWill &b
 
     return a->will_delay < _b->will_delay;
 };
+

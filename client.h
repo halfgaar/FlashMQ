@@ -41,6 +41,18 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 
 #define MQTT_HEADER_LENGH 2
 
+/**
+ * @brief The StowedClient struct stores the client when doing an extended authentication, and we need to keep the info around how
+ * the client will be registered once the authentication succeeds.
+ */
+struct StowedClientRegistrationData
+{
+    const bool clean_start;
+    const uint16_t maxQosPackets;
+    const uint32_t sessionExpiryInterval;
+
+    StowedClientRegistrationData(bool clean_start, uint16_t maxQosPackets, uint32_t sessionExpiryInterval);
+};
 
 class Client
 {
@@ -89,6 +101,11 @@ class Client
     uint16_t curOutgoingTopicAlias = 0;
     std::unordered_map<std::string, uint16_t> outgoingTopicAliases;
 
+    std::string extendedAuthenticationMethod;
+    std::unique_ptr<ConnAck> stagedConnack;
+
+    std::unique_ptr<StowedClientRegistrationData> registrationData;
+
     Logger *logger = Logger::getInstance();
 
     void setReadyForWriting(bool val);
@@ -123,6 +140,7 @@ public:
     std::shared_ptr<ThreadData> getThreadData() { return threadData; }
     std::string &getClientId() { return this->clientid; }
     const std::string &getUsername() const { return this->username; }
+    std::string &getMutableUsername();
     std::shared_ptr<WillPublish> &getWill() { return this->willPublish; }
     void assignSession(std::shared_ptr<Session> &session);
     std::shared_ptr<Session> getSession();
@@ -152,6 +170,18 @@ public:
 
     void sendOrQueueWill();
     void serverInitiatedDisconnect(ReasonCodes reason);
+
+    void setRegistrationData(bool clean_start, uint16_t maxQosPackets, uint32_t sessionExpiryInterval);
+    const std::unique_ptr<StowedClientRegistrationData> &getRegistrationData() const;
+    void clearRegistrationData();
+
+    void stageConnack(std::unique_ptr<ConnAck> &&c);
+    void sendConnackSuccess();
+    void sendConnackDeny(ReasonCodes reason);
+    void addAuthReturnDataToStagedConnAck(const std::string &authData);
+
+    void setExtendedAuthenticationMethod(const std::string &authMethod);
+    const std::string &getExtendedAuthenticationMethod() const;
 
 #ifndef NDEBUG
     void setFakeUpgraded();

@@ -51,7 +51,7 @@ ConnAck::ConnAck(const ProtocolVersion protVersion, ReasonCodes return_code, boo
             mqtt3_return = ConnAckReturnCodes::NotAuthorized;
             break;
         default:
-            assert(false);
+            throw ProtocolError("CONNACK error situation. As per MQTT3 spec, closing connection without sending any return code.");
         }
 
         // [MQTT-3.2.2-4]
@@ -319,6 +319,23 @@ size_t Disconnect::getLengthWithoutFixedHeader() const
     return result;
 }
 
+Auth::Auth(ReasonCodes reasonCode, const std::string &authMethod, const std::string &authData) :
+    reasonCode(reasonCode),
+    propertyBuilder(std::make_shared<Mqtt5PropertyBuilder>())
+{
+    if (!authMethod.empty())
+        propertyBuilder->writeAuthenticationMethod(authMethod);
+    if (!authData.empty())
+        propertyBuilder->writeAuthenticationData(authData);
+}
+
+size_t Auth::getLengthWithoutFixedHeader() const
+{
+    size_t result = 1;
+    const size_t proplen = propertyBuilder ? propertyBuilder->getLength() : 1;
+    result += proplen;
+    return result;
+}
 
 
 

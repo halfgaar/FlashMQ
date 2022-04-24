@@ -130,6 +130,16 @@ void Mqtt5PropertyBuilder::writeTopicAlias(const uint16_t id)
     writeUint16(Mqtt5Properties::TopicAlias, id, clientSpecificBytes);
 }
 
+void Mqtt5PropertyBuilder::writeAuthenticationMethod(const std::string &method)
+{
+    writeStr(Mqtt5Properties::AuthenticationMethod, method);
+}
+
+void Mqtt5PropertyBuilder::writeAuthenticationData(const std::string &data)
+{
+    writeStr(Mqtt5Properties::AuthenticationData, data);
+}
+
 void Mqtt5PropertyBuilder::setNewUserProperties(const std::shared_ptr<std::vector<std::pair<std::string, std::string>>> &userProperties)
 {
     assert(!this->userProperties);

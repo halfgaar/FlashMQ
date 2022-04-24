@@ -45,6 +45,8 @@ public:
     void writeUserProperty(std::string &&key, std::string &&value);
     void writeCorrelationData(const std::string &correlationData);
     void writeTopicAlias(const uint16_t id);
+    void writeAuthenticationMethod(const std::string &method);
+    void writeAuthenticationData(const std::string &data);
     void setNewUserProperties(const std::shared_ptr<std::vector<std::pair<std::string, std::string>>> &userProperties);
 };
 

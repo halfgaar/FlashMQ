@@ -104,11 +104,13 @@ public:
     MqttPacket(const ProtocolVersion protocolVersion, Publish &_publish);
     MqttPacket(const PubResponse &pubAck);
     MqttPacket(const Disconnect &disconnect);
+    MqttPacket(const Auth &auth);
 
     static void bufferToMqttPackets(CirBuf &buf, std::vector<MqttPacket> &packetQueueIn, std::shared_ptr<Client> &sender);
 
     void handle();
     void handleConnect();
+    void handleExtendedAuth();
     void handleDisconnect();
     void handleSubscribe();
     void handleUnsubscribe();

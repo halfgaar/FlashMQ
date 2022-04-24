@@ -144,6 +144,7 @@ void Authentication::loadPlugin(const std::string &pathToSoFile)
         flashmq_auth_plugin_acl_check_v1 = (F_flashmq_auth_plugin_acl_check_v1)loadSymbol(r, "flashmq_auth_plugin_acl_check");
         flashmq_auth_plugin_login_check_v1 = (F_flashmq_auth_plugin_login_check_v1)loadSymbol(r, "flashmq_auth_plugin_login_check");
         flashmq_auth_plugin_periodic_event_v1 = (F_flashmq_auth_plugin_periodic_event)loadSymbol(r, "flashmq_auth_plugin_periodic_event", false);
+        flashmq_auth_plugin_extended_auth_v1 = (F_flashmq_auth_plugin_extended_auth_v1)loadSymbol(r, "flashmq_extended_auth", false);
     }
 
     initialized = true;
@@ -381,6 +382,48 @@ AuthResult Authentication::unPwdCheck(const std::string &username, const std::st
             logger->logf(LOG_ERR, "Error doing login check in plugin: '%s'", ex.what());
             logger->logf(LOG_WARNING, "Throwing exceptions from auth plugin login/ACL checks is slow. There's no need.");
         }
+    }
+
+    return AuthResult::error;
+}
+
+AuthResult Authentication::extendedAuth(const std::string &clientid, ExtendedAuthStage stage, const std::string &authMethod,
+                                        const std::string &authData, const std::vector<std::pair<std::string, std::string>> *userProperties,
+                                        std::string &returnData, std::string &username)
+{
+    if (pluginVersion == PluginVersion::None)
+        return AuthResult::auth_method_not_supported;
+
+    if (!initialized)
+    {
+        logger->logf(LOG_ERR, "Extended auth check with plugin wanted, but initialization failed. Can't perform check.");
+        return AuthResult::error;
+    }
+
+    UnscopedLock lock(authChecksMutex);
+    if (settings.authPluginSerializeAuthChecks)
+        lock.lock();
+
+    if (pluginVersion == PluginVersion::FlashMQv1)
+    {
+        if (!flashmq_auth_plugin_extended_auth_v1)
+            return AuthResult::auth_method_not_supported;
+
+        // I'm using this try/catch because propagating the exception higher up conflicts with who gets the blame, and then the publisher
+        // gets disconnected.
+        try
+        {
+            return flashmq_auth_plugin_extended_auth_v1(pluginData, clientid, stage, authMethod, authData, userProperties, returnData, username);
+        }
+        catch (std::exception &ex)
+        {
+            logger->logf(LOG_ERR, "Error doing login check in plugin: '%s'", ex.what());
+            logger->logf(LOG_WARNING, "Throwing exceptions from auth plugin login/ACL checks is slow. There's no need.");
+        }
+    }
+    else if (pluginVersion == PluginVersion::MosquittoV2)
+    {
+        throw ProtocolError("Mosquitto v2 plugin doesn't support extended auth.", ReasonCodes::BadAuthenticationMethod);
     }
 
     return AuthResult::error;
