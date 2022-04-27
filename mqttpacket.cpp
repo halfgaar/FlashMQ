@@ -297,17 +297,7 @@ void MqttPacket::handle()
         }
     }
 
-    if (packetType == PacketType::CONNECT)
-        handleConnect();
-    else if (packetType == PacketType::DISCONNECT)
-        handleDisconnect();
-    else if (packetType == PacketType::PINGREQ)
-        sender->writePingResp();
-    else if (packetType == PacketType::SUBSCRIBE)
-        handleSubscribe();
-    else if (packetType == PacketType::UNSUBSCRIBE)
-        handleUnsubscribe();
-    else if (packetType == PacketType::PUBLISH)
+    if (packetType == PacketType::PUBLISH)
         handlePublish();
     else if (packetType == PacketType::PUBACK)
         handlePubAck();
@@ -317,6 +307,16 @@ void MqttPacket::handle()
         handlePubRel();
     else if (packetType == PacketType::PUBCOMP)
         handlePubComp();
+    else if (packetType == PacketType::PINGREQ)
+        sender->writePingResp();
+    else if (packetType == PacketType::SUBSCRIBE)
+        handleSubscribe();
+    else if (packetType == PacketType::UNSUBSCRIBE)
+        handleUnsubscribe();
+    else if (packetType == PacketType::CONNECT)
+        handleConnect();
+    else if (packetType == PacketType::DISCONNECT)
+        handleDisconnect();
     else if (packetType == PacketType::AUTH)
         handleExtendedAuth();
 }
