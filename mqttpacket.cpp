@@ -1449,8 +1449,6 @@ size_t MqttPacket::remainingAfterPos()
 
 size_t MqttPacket::decodeVariableByteIntAtPos()
 {
-    assert(pos < bites.size());
-
     uint64_t multiplier = 1;
     size_t value = 0;
     uint8_t encodedByte = 0;
