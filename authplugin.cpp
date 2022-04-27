@@ -143,7 +143,7 @@ void Authentication::loadPlugin(const std::string &pathToSoFile)
         flashmq_auth_plugin_deinit_v1 = (F_flashmq_auth_plugin_deinit_v1)loadSymbol(r, "flashmq_auth_plugin_deinit");
         flashmq_auth_plugin_acl_check_v1 = (F_flashmq_auth_plugin_acl_check_v1)loadSymbol(r, "flashmq_auth_plugin_acl_check");
         flashmq_auth_plugin_login_check_v1 = (F_flashmq_auth_plugin_login_check_v1)loadSymbol(r, "flashmq_auth_plugin_login_check");
-        flashmq_auth_plugin_periodic_event_v1 = (F_flashmq_auth_plugin_periodic_event)loadSymbol(r, "flashmq_auth_plugin_periodic_event", false);
+        flashmq_auth_plugin_periodic_event_v1 = (F_flashmq_auth_plugin_periodic_event_v1)loadSymbol(r, "flashmq_auth_plugin_periodic_event", false);
         flashmq_auth_plugin_extended_auth_v1 = (F_flashmq_auth_plugin_extended_auth_v1)loadSymbol(r, "flashmq_extended_auth", false);
     }
 

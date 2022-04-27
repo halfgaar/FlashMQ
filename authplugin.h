@@ -67,7 +67,7 @@ typedef void(*F_flashmq_auth_plugin_deinit_v1)(void *thread_data, std::unordered
 typedef AuthResult(*F_flashmq_auth_plugin_acl_check_v1)(void *thread_data, AclAccess access, const std::string &clientid, const std::string &username, const FlashMQMessage &msg);
 typedef AuthResult(*F_flashmq_auth_plugin_login_check_v1)(void *thread_data, const std::string &username, const std::string &password,
                                                           const std::vector<std::pair<std::string, std::string>> *userProperties);
-typedef void (*F_flashmq_auth_plugin_periodic_event)(void *thread_data);
+typedef void (*F_flashmq_auth_plugin_periodic_event_v1)(void *thread_data);
 typedef AuthResult(*F_flashmq_auth_plugin_extended_auth_v1)(void *thread_data, const std::string &clientid, ExtendedAuthStage stage, const std::string &authMethod,
                                                             const std::string &authData, const std::vector<std::pair<std::string, std::string>> *userProperties,
                                                             std::string &returnData, std::string &username);
@@ -111,7 +111,7 @@ class Authentication
     F_flashmq_auth_plugin_deinit_v1 flashmq_auth_plugin_deinit_v1 = nullptr;
     F_flashmq_auth_plugin_acl_check_v1 flashmq_auth_plugin_acl_check_v1 = nullptr;
     F_flashmq_auth_plugin_login_check_v1 flashmq_auth_plugin_login_check_v1 = nullptr;
-    F_flashmq_auth_plugin_periodic_event flashmq_auth_plugin_periodic_event_v1 = nullptr;
+    F_flashmq_auth_plugin_periodic_event_v1 flashmq_auth_plugin_periodic_event_v1 = nullptr;
     F_flashmq_auth_plugin_extended_auth_v1 flashmq_auth_plugin_extended_auth_v1 = nullptr;
 
     static std::mutex initMutex;
