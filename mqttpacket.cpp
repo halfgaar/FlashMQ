@@ -801,10 +801,10 @@ void MqttPacket::handleDisconnect()
 
     if (this->protocolVersion >= ProtocolVersion::Mqtt5)
     {
-        reasonCode = static_cast<ReasonCodes>(readByte());
-
         if (!atEnd())
         {
+            reasonCode = static_cast<ReasonCodes>(readByte());
+
             const size_t proplen = decodeVariableByteIntAtPos();
             const size_t prop_end_at = pos + proplen;
 
