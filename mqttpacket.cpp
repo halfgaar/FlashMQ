@@ -332,68 +332,134 @@ void MqttPacket::handleConnect()
 
     const Settings &settings = *ThreadGlobals::getSettings();
 
-    if (variable_header_length == 4 || variable_header_length == 6)
+    if (!(variable_header_length == 4 || variable_header_length == 6))
     {
-        char *c = readBytes(variable_header_length);
-        std::string magic_marker(c, variable_header_length);
+        throw ProtocolError("Invalid variable header length. Garbage?", ReasonCodes::MalformedPacket);
+    }
 
-        char protocol_level = readByte();
+    char *c = readBytes(variable_header_length);
+    std::string magic_marker(c, variable_header_length);
 
-        if (magic_marker == "MQTT")
+    char protocol_level = readByte();
+
+    if (magic_marker == "MQTT")
+    {
+        if (protocol_level == 0x04)
+            protocolVersion = ProtocolVersion::Mqtt311;
+        if (protocol_level == 0x05)
+            protocolVersion = ProtocolVersion::Mqtt5;
+    }
+    else if (magic_marker == "MQIsdp" && protocol_level == 0x03)
+    {
+        protocolVersion = ProtocolVersion::Mqtt31;
+    }
+    else
+    {
+        // The specs are unclear when to use the version 3 codes or version 5 codes.
+        ProtocolVersion fuzzyProtocolVersion = protocol_level < 0x05 ? ProtocolVersion::Mqtt31 : ProtocolVersion::Mqtt5;
+
+        ConnAck connAck(fuzzyProtocolVersion, ReasonCodes::UnsupportedProtocolVersion);
+        MqttPacket response(connAck);
+        sender->setReadyForDisconnect();
+        sender->writeMqttPacket(response);
+        logger->logf(LOG_ERR, "Rejecting because of invalid protocol version: %s", sender->repr().c_str());
+        return;
+    }
+
+    char flagByte = readByte();
+    bool reserved = !!(flagByte & 0b00000001);
+
+    if (reserved)
+        throw ProtocolError("Protocol demands reserved flag in CONNECT is 0", ReasonCodes::MalformedPacket);
+
+
+    bool user_name_flag = !!(flagByte & 0b10000000);
+    bool password_flag = !!(flagByte & 0b01000000);
+    bool will_retain = !!(flagByte & 0b00100000);
+    char will_qos = (flagByte & 0b00011000) >> 3;
+    bool will_flag = !!(flagByte & 0b00000100);
+    bool clean_start = !!(flagByte & 0b00000010);
+
+    if (will_qos > 2)
+        throw ProtocolError("Invalid QoS for will.", ReasonCodes::MalformedPacket);
+
+    uint16_t keep_alive = readTwoBytesToUInt16();
+
+    uint16_t max_qos_packets = settings.maxQosMsgPendingPerClient;
+    uint32_t session_expire = settings.getExpireSessionAfterSeconds();
+    uint32_t max_outgoing_packet_size = settings.maxPacketSize;
+    uint16_t max_outgoing_topic_aliases = 0; // Default MUST BE 0, meaning server won't initiate aliases
+    bool request_response_information = false;
+    bool request_problem_information = false;
+
+    std::string authenticationMethod;
+    std::string authenticationData;
+
+    if (protocolVersion == ProtocolVersion::Mqtt5)
+    {
+        const size_t proplen = decodeVariableByteIntAtPos();
+        const size_t prop_end_at = pos + proplen;
+
+        while (pos < prop_end_at)
         {
-            if (protocol_level == 0x04)
-                protocolVersion = ProtocolVersion::Mqtt311;
-            if (protocol_level == 0x05)
-                protocolVersion = ProtocolVersion::Mqtt5;
+            const Mqtt5Properties prop = static_cast<Mqtt5Properties>(readByte());
+
+            switch (prop)
+            {
+            case Mqtt5Properties::SessionExpiryInterval:
+                session_expire = std::min<uint32_t>(readFourBytesToUint32(), session_expire);
+                break;
+            case Mqtt5Properties::ReceiveMaximum:
+                max_qos_packets = std::min<int16_t>(readTwoBytesToUInt16(), max_qos_packets);
+                break;
+            case Mqtt5Properties::MaximumPacketSize:
+                max_outgoing_packet_size = std::min<uint32_t>(readFourBytesToUint32(), max_outgoing_packet_size);
+                break;
+            case Mqtt5Properties::TopicAliasMaximum:
+                max_outgoing_topic_aliases = std::min<uint16_t>(readTwoBytesToUInt16(), settings.maxOutgoingTopicAliasValue);
+                break;
+            case Mqtt5Properties::RequestResponseInformation:
+                request_response_information = !!readByte();
+                UNUSED(request_response_information);
+                break;
+            case Mqtt5Properties::RequestProblemInformation:
+                request_problem_information = !!readByte();
+                UNUSED(request_problem_information);
+                break;
+            case Mqtt5Properties::UserProperty:
+                readUserProperty();
+                break;
+            case Mqtt5Properties::AuthenticationMethod:
+            {
+                authenticationMethod = readBytesToString();
+                break;
+            }
+            case Mqtt5Properties::AuthenticationData:
+            {
+                authenticationData = readBytesToString(false);
+                break;
+            }
+            default:
+                throw ProtocolError("Invalid connect property.", ReasonCodes::ProtocolError);
+            }
         }
-        else if (magic_marker == "MQIsdp" && protocol_level == 0x03)
-        {
-            protocolVersion = ProtocolVersion::Mqtt31;
-        }
-        else
-        {
-            // The specs are unclear when to use the version 3 codes or version 5 codes.
-            ProtocolVersion fuzzyProtocolVersion = protocol_level < 0x05 ? ProtocolVersion::Mqtt31 : ProtocolVersion::Mqtt5;
+    }
 
-            ConnAck connAck(fuzzyProtocolVersion, ReasonCodes::UnsupportedProtocolVersion);
-            MqttPacket response(connAck);
-            sender->setReadyForDisconnect();
-            sender->writeMqttPacket(response);
-            logger->logf(LOG_ERR, "Rejecting because of invalid protocol version: %s", sender->repr().c_str());
-            return;
-        }
+    std::string client_id = readBytesToString();
 
-        char flagByte = readByte();
-        bool reserved = !!(flagByte & 0b00000001);
+    std::string username;
+    std::string password;
 
-        if (reserved)
-            throw ProtocolError("Protocol demands reserved flag in CONNECT is 0", ReasonCodes::MalformedPacket);
+    WillPublish willpublish;
+    willpublish.qos = will_qos;
+    willpublish.retain = will_retain;
 
-
-        bool user_name_flag = !!(flagByte & 0b10000000);
-        bool password_flag = !!(flagByte & 0b01000000);
-        bool will_retain = !!(flagByte & 0b00100000);
-        char will_qos = (flagByte & 0b00011000) >> 3;
-        bool will_flag = !!(flagByte & 0b00000100);
-        bool clean_start = !!(flagByte & 0b00000010);
-
-        if (will_qos > 2)
-            throw ProtocolError("Invalid QoS for will.", ReasonCodes::MalformedPacket);
-
-        uint16_t keep_alive = readTwoBytesToUInt16();
-
-        uint16_t max_qos_packets = settings.maxQosMsgPendingPerClient;
-        uint32_t session_expire = settings.getExpireSessionAfterSeconds();
-        uint32_t max_outgoing_packet_size = settings.maxPacketSize;
-        uint16_t max_outgoing_topic_aliases = 0; // Default MUST BE 0, meaning server won't initiate aliases
-        bool request_response_information = false;
-        bool request_problem_information = false;
-
-        std::string authenticationMethod;
-        std::string authenticationData;
-
+    if (will_flag)
+    {
         if (protocolVersion == ProtocolVersion::Mqtt5)
         {
+            willpublish.constructPropertyBuilder();
+
             const size_t proplen = decodeVariableByteIntAtPos();
             const size_t prop_end_at = pos + proplen;
 
@@ -403,277 +469,209 @@ void MqttPacket::handleConnect()
 
                 switch (prop)
                 {
-                case Mqtt5Properties::SessionExpiryInterval:
-                    session_expire = std::min<uint32_t>(readFourBytesToUint32(), session_expire);
+                case Mqtt5Properties::WillDelayInterval:
+                    willpublish.will_delay = readFourBytesToUint32();
                     break;
-                case Mqtt5Properties::ReceiveMaximum:
-                    max_qos_packets = std::min<int16_t>(readTwoBytesToUInt16(), max_qos_packets);
+                case Mqtt5Properties::PayloadFormatIndicator:
+                    willpublish.propertyBuilder->writePayloadFormatIndicator(readByte());
                     break;
-                case Mqtt5Properties::MaximumPacketSize:
-                    max_outgoing_packet_size = std::min<uint32_t>(readFourBytesToUint32(), max_outgoing_packet_size);
-                    break;
-                case Mqtt5Properties::TopicAliasMaximum:
-                    max_outgoing_topic_aliases = std::min<uint16_t>(readTwoBytesToUInt16(), settings.maxOutgoingTopicAliasValue);
-                    break;
-                case Mqtt5Properties::RequestResponseInformation:
-                    request_response_information = !!readByte();
-                    UNUSED(request_response_information);
-                    break;
-                case Mqtt5Properties::RequestProblemInformation:
-                    request_problem_information = !!readByte();
-                    UNUSED(request_problem_information);
-                    break;
-                case Mqtt5Properties::UserProperty:
-                    readUserProperty();
-                    break;
-                case Mqtt5Properties::AuthenticationMethod:
+                case Mqtt5Properties::ContentType:
                 {
-                    authenticationMethod = readBytesToString();
+                    const std::string contentType = readBytesToString();
+                    willpublish.propertyBuilder->writeContentType(contentType);
                     break;
                 }
-                case Mqtt5Properties::AuthenticationData:
+                case Mqtt5Properties::ResponseTopic:
                 {
-                    authenticationData = readBytesToString(false);
+                    const std::string responseTopic = readBytesToString();
+                    willpublish.propertyBuilder->writeResponseTopic(responseTopic);
+                    break;
+                }
+                case Mqtt5Properties::MessageExpiryInterval:
+                {
+                    const uint32_t expiresAfter = readFourBytesToUint32();
+                    willpublish.setExpireAfter(expiresAfter);
+                    break;
+                }
+                case Mqtt5Properties::CorrelationData:
+                {
+                    const std::string correlationData = readBytesToString(false);
+                    willpublish.propertyBuilder->writeCorrelationData(correlationData);
+                    break;
+                }
+                case Mqtt5Properties::UserProperty:
+                {
+                    readUserProperty();
                     break;
                 }
                 default:
-                    throw ProtocolError("Invalid connect property.", ReasonCodes::ProtocolError);
+                    throw ProtocolError("Invalid will property in connect.", ReasonCodes::ProtocolError);
                 }
             }
         }
 
-        std::string client_id = readBytesToString();
+        willpublish.topic = readBytesToString(true, true);
 
-        std::string username;
-        std::string password;
+        uint16_t will_payload_length = readTwoBytesToUInt16();
+        willpublish.payload = std::string(readBytes(will_payload_length), will_payload_length);
+    }
+    if (user_name_flag)
+    {
+        username = readBytesToString(false);
 
-        WillPublish willpublish;
-        willpublish.qos = will_qos;
-        willpublish.retain = will_retain;
+        if (username.empty())
+            throw ProtocolError("Username flagged as present, but it's 0 bytes.", ReasonCodes::MalformedPacket);
 
-        if (will_flag)
+        if (!settings.allowUnsafeUsernameChars && containsDangerousCharacters(username))
+            throw ProtocolError(formatString("Username '%s' contains unsafe characters and 'allow_unsafe_username_chars' is false.", username.c_str()),
+                                ReasonCodes::BadUserNameOrPassword);
+    }
+    if (password_flag)
+    {
+        if (this->protocolVersion <= ProtocolVersion::Mqtt311 && !user_name_flag)
         {
-            if (protocolVersion == ProtocolVersion::Mqtt5)
+            throw ProtocolError("MQTT 3.1.1: If the User Name Flag is set to 0, the Password Flag MUST be set to 0.");
+        }
+
+        password = readBytesToString(false);
+
+        if (password.empty())
+            throw ProtocolError("Password flagged as present, but it's 0 bytes.", ReasonCodes::MalformedPacket);
+    }
+
+    // I deferred the initial UTF8 check on username to be able to give an appropriate connack here, but to me, the specs
+    // are actually vague whether 'BadUserNameOrPassword' should be given on invalid UTF8.
+    if (!isValidUtf8(username))
+    {
+        ConnAck connAck(protocolVersion, ReasonCodes::BadUserNameOrPassword);
+        MqttPacket response(connAck);
+        sender->setReadyForDisconnect();
+        sender->writeMqttPacket(response);
+        logger->logf(LOG_ERR, "Username has invalid UTF8: %s", username.c_str());
+        return;
+    }
+
+    bool validClientId = true;
+
+    // Check for wildcard chars in case the client_id ever appears in topics.
+    if (!settings.allowUnsafeClientidChars && containsDangerousCharacters(client_id))
+    {
+        logger->logf(LOG_ERR, "ClientID '%s' has + or # in the id and 'allow_unsafe_clientid_chars' is false.", client_id.c_str());
+        validClientId = false;
+    }
+    else if (!clean_start && client_id.empty())
+    {
+        logger->logf(LOG_ERR, "ClientID empty and clean start 0, which is incompatible");
+        validClientId = false;
+    }
+    else if (protocolVersion < ProtocolVersion::Mqtt311 && client_id.empty())
+    {
+        logger->logf(LOG_ERR, "Empty clientID. Connect with protocol 3.1.1 or higher to have one generated securely.");
+        validClientId = false;
+    }
+
+    if (!validClientId)
+    {
+        ConnAck connAck(protocolVersion, ReasonCodes::ClientIdentifierNotValid);
+        MqttPacket response(connAck);
+        sender->setDisconnectReason("Invalid clientID");
+        sender->setReadyForDisconnect();
+        sender->writeMqttPacket(response);
+        return;
+    }
+
+    bool clientIdGenerated = false;
+    if (client_id.empty())
+    {
+        client_id = getSecureRandomString(23);
+        clientIdGenerated = true;
+    }
+
+    sender->setClientProperties(protocolVersion, client_id, username, true, keep_alive, max_outgoing_packet_size, max_outgoing_topic_aliases);
+
+    if (will_flag)
+        sender->setWill(std::move(willpublish));
+
+    // Stage connack, for immediate or delayed use when auth succeeds.
+    {
+        bool sessionPresent = false;
+        std::shared_ptr<Session> existingSession;
+
+        if (protocolVersion >= ProtocolVersion::Mqtt311 && !clean_start)
+        {
+            existingSession = subscriptionStore->lockSession(client_id);
+            if (existingSession)
+                sessionPresent = true;
+        }
+
+        std::unique_ptr<ConnAck> connAck = std::make_unique<ConnAck>(protocolVersion, ReasonCodes::Success, sessionPresent);
+
+        if (protocolVersion >= ProtocolVersion::Mqtt5)
+        {
+            connAck->propertyBuilder = std::make_shared<Mqtt5PropertyBuilder>();
+            connAck->propertyBuilder->writeSessionExpiry(session_expire);
+            connAck->propertyBuilder->writeReceiveMax(max_qos_packets);
+            connAck->propertyBuilder->writeRetainAvailable(1);
+            connAck->propertyBuilder->writeMaxPacketSize(sender->getMaxIncomingPacketSize());
+            if (clientIdGenerated)
+                connAck->propertyBuilder->writeAssignedClientId(client_id);
+            connAck->propertyBuilder->writeMaxTopicAliases(settings.maxIncomingTopicAliasValue);
+            connAck->propertyBuilder->writeWildcardSubscriptionAvailable(1);
+            connAck->propertyBuilder->writeSubscriptionIdentifiersAvailable(0);
+            connAck->propertyBuilder->writeSharedSubscriptionAvailable(0);
+
+            if (!authenticationMethod.empty())
             {
-                willpublish.constructPropertyBuilder();
-
-                const size_t proplen = decodeVariableByteIntAtPos();
-                const size_t prop_end_at = pos + proplen;
-
-                while (pos < prop_end_at)
-                {
-                    const Mqtt5Properties prop = static_cast<Mqtt5Properties>(readByte());
-
-                    switch (prop)
-                    {
-                    case Mqtt5Properties::WillDelayInterval:
-                        willpublish.will_delay = readFourBytesToUint32();
-                        break;
-                    case Mqtt5Properties::PayloadFormatIndicator:
-                        willpublish.propertyBuilder->writePayloadFormatIndicator(readByte());
-                        break;
-                    case Mqtt5Properties::ContentType:
-                    {
-                        const std::string contentType = readBytesToString();
-                        willpublish.propertyBuilder->writeContentType(contentType);
-                        break;
-                    }
-                    case Mqtt5Properties::ResponseTopic:
-                    {
-                        const std::string responseTopic = readBytesToString();
-                        willpublish.propertyBuilder->writeResponseTopic(responseTopic);
-                        break;
-                    }
-                    case Mqtt5Properties::MessageExpiryInterval:
-                    {
-                        const uint32_t expiresAfter = readFourBytesToUint32();
-                        willpublish.setExpireAfter(expiresAfter);
-                        break;
-                    }
-                    case Mqtt5Properties::CorrelationData:
-                    {
-                        const std::string correlationData = readBytesToString(false);
-                        willpublish.propertyBuilder->writeCorrelationData(correlationData);
-                        break;
-                    }
-                    case Mqtt5Properties::UserProperty:
-                    {
-                        readUserProperty();
-                        break;
-                    }
-                    default:
-                        throw ProtocolError("Invalid will property in connect.", ReasonCodes::ProtocolError);
-                    }
-                }
+                connAck->propertyBuilder->writeAuthenticationMethod(authenticationMethod);
             }
-
-            willpublish.topic = readBytesToString(true, true);
-
-            uint16_t will_payload_length = readTwoBytesToUInt16();
-            willpublish.payload = std::string(readBytes(will_payload_length), will_payload_length);
-        }
-        if (user_name_flag)
-        {
-            username = readBytesToString(false);
-
-            if (username.empty())
-                throw ProtocolError("Username flagged as present, but it's 0 bytes.", ReasonCodes::MalformedPacket);
-
-            if (!settings.allowUnsafeUsernameChars && containsDangerousCharacters(username))
-                throw ProtocolError(formatString("Username '%s' contains unsafe characters and 'allow_unsafe_username_chars' is false.", username.c_str()),
-                                    ReasonCodes::BadUserNameOrPassword);
-        }
-        if (password_flag)
-        {
-            if (this->protocolVersion <= ProtocolVersion::Mqtt311 && !user_name_flag)
-            {
-                throw ProtocolError("MQTT 3.1.1: If the User Name Flag is set to 0, the Password Flag MUST be set to 0.");
-            }
-
-            password = readBytesToString(false);
-
-            if (password.empty())
-                throw ProtocolError("Password flagged as present, but it's 0 bytes.", ReasonCodes::MalformedPacket);
         }
 
-        // I deferred the initial UTF8 check on username to be able to give an appropriate connack here, but to me, the specs
-        // are actually vague whether 'BadUserNameOrPassword' should be given on invalid UTF8.
-        if (!isValidUtf8(username))
+        sender->stageConnack(std::move(connAck));
+    }
+
+    sender->setRegistrationData(clean_start, max_qos_packets, session_expire);
+
+    Authentication &authentication = *ThreadGlobals::getAuth();
+    AuthResult authResult = AuthResult::login_denied;
+
+    if (!user_name_flag && authenticationMethod.empty() && settings.allowAnonymous)
+    {
+        authResult = AuthResult::success;
+    }
+    else if (!authenticationMethod.empty())
+    {
+        sender->setExtendedAuthenticationMethod(authenticationMethod);
+
+        std::string returnData;
+        authResult = authentication.extendedAuth(client_id, ExtendedAuthStage::Auth, authenticationMethod, authenticationData,
+                                                 getUserProperties(), returnData, sender->getMutableUsername());
+
+        if (authResult == AuthResult::auth_continue)
         {
-            ConnAck connAck(protocolVersion, ReasonCodes::BadUserNameOrPassword);
-            MqttPacket response(connAck);
-            sender->setReadyForDisconnect();
-            sender->writeMqttPacket(response);
-            logger->logf(LOG_ERR, "Username has invalid UTF8: %s", username.c_str());
+            Auth auth(ReasonCodes::ContinueAuthentication, authenticationMethod, returnData);
+            MqttPacket pack(auth);
+            sender->writeMqttPacket(pack);
             return;
         }
-
-        bool validClientId = true;
-
-        // Check for wildcard chars in case the client_id ever appears in topics.
-        if (!settings.allowUnsafeClientidChars && containsDangerousCharacters(client_id))
-        {
-            logger->logf(LOG_ERR, "ClientID '%s' has + or # in the id and 'allow_unsafe_clientid_chars' is false.", client_id.c_str());
-            validClientId = false;
-        }
-        else if (!clean_start && client_id.empty())
-        {
-            logger->logf(LOG_ERR, "ClientID empty and clean start 0, which is incompatible");
-            validClientId = false;
-        }
-        else if (protocolVersion < ProtocolVersion::Mqtt311 && client_id.empty())
-        {
-            logger->logf(LOG_ERR, "Empty clientID. Connect with protocol 3.1.1 or higher to have one generated securely.");
-            validClientId = false;
-        }
-
-        if (!validClientId)
-        {
-            ConnAck connAck(protocolVersion, ReasonCodes::ClientIdentifierNotValid);
-            MqttPacket response(connAck);
-            sender->setDisconnectReason("Invalid clientID");
-            sender->setReadyForDisconnect();
-            sender->writeMqttPacket(response);
-            return;
-        }
-
-        bool clientIdGenerated = false;
-        if (client_id.empty())
-        {
-            client_id = getSecureRandomString(23);
-            clientIdGenerated = true;
-        }
-
-        sender->setClientProperties(protocolVersion, client_id, username, true, keep_alive, max_outgoing_packet_size, max_outgoing_topic_aliases);
-
-        if (will_flag)
-            sender->setWill(std::move(willpublish));
-
-        // Stage connack, for immediate or delayed use when auth succeeds.
-        {
-            bool sessionPresent = false;
-            std::shared_ptr<Session> existingSession;
-
-            if (protocolVersion >= ProtocolVersion::Mqtt311 && !clean_start)
-            {
-                existingSession = subscriptionStore->lockSession(client_id);
-                if (existingSession)
-                    sessionPresent = true;
-            }
-
-            std::unique_ptr<ConnAck> connAck = std::make_unique<ConnAck>(protocolVersion, ReasonCodes::Success, sessionPresent);
-
-            if (protocolVersion >= ProtocolVersion::Mqtt5)
-            {
-                connAck->propertyBuilder = std::make_shared<Mqtt5PropertyBuilder>();
-                connAck->propertyBuilder->writeSessionExpiry(session_expire);
-                connAck->propertyBuilder->writeReceiveMax(max_qos_packets);
-                connAck->propertyBuilder->writeRetainAvailable(1);
-                connAck->propertyBuilder->writeMaxPacketSize(sender->getMaxIncomingPacketSize());
-                if (clientIdGenerated)
-                    connAck->propertyBuilder->writeAssignedClientId(client_id);
-                connAck->propertyBuilder->writeMaxTopicAliases(settings.maxIncomingTopicAliasValue);
-                connAck->propertyBuilder->writeWildcardSubscriptionAvailable(1);
-                connAck->propertyBuilder->writeSubscriptionIdentifiersAvailable(0);
-                connAck->propertyBuilder->writeSharedSubscriptionAvailable(0);
-
-                if (!authenticationMethod.empty())
-                {
-                    connAck->propertyBuilder->writeAuthenticationMethod(authenticationMethod);
-                }
-            }
-
-            sender->stageConnack(std::move(connAck));
-        }
-
-        sender->setRegistrationData(clean_start, max_qos_packets, session_expire);
-
-        Authentication &authentication = *ThreadGlobals::getAuth();
-        AuthResult authResult = AuthResult::login_denied;
-
-        if (!user_name_flag && authenticationMethod.empty() && settings.allowAnonymous)
-        {
-            authResult = AuthResult::success;
-        }
-        else if (!authenticationMethod.empty())
-        {
-            sender->setExtendedAuthenticationMethod(authenticationMethod);
-
-            std::string returnData;
-            authResult = authentication.extendedAuth(client_id, ExtendedAuthStage::Auth, authenticationMethod, authenticationData,
-                                                     getUserProperties(), returnData, sender->getMutableUsername());
-
-            if (authResult == AuthResult::auth_continue)
-            {
-                Auth auth(ReasonCodes::ContinueAuthentication, authenticationMethod, returnData);
-                MqttPacket pack(auth);
-                sender->writeMqttPacket(pack);
-                return;
-            }
-            if (authResult == AuthResult::success)
-            {
-                sender->addAuthReturnDataToStagedConnAck(returnData);
-            }
-        }
-        else
-        {
-            authResult = authentication.unPwdCheck(username, password, getUserProperties());
-        }
-
         if (authResult == AuthResult::success)
         {
-            sender->sendConnackSuccess();
-            subscriptionStore->registerClientAndKickExistingOne(sender);
-        }
-        else
-        {
-            const ReasonCodes reason = authResultToReasonCode(authResult);
-            sender->sendConnackDeny(reason);
+            sender->addAuthReturnDataToStagedConnAck(returnData);
         }
     }
     else
     {
-        throw ProtocolError("Invalid variable header length. Garbage?", ReasonCodes::MalformedPacket);
+        authResult = authentication.unPwdCheck(username, password, getUserProperties());
+    }
+
+    if (authResult == AuthResult::success)
+    {
+        sender->sendConnackSuccess();
+        subscriptionStore->registerClientAndKickExistingOne(sender);
+    }
+    else
+    {
+        const ReasonCodes reason = authResultToReasonCode(authResult);
+        sender->sendConnackDeny(reason);
     }
 }
 
