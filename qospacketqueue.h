@@ -30,7 +30,7 @@ class QoSPublishQueue
     ssize_t qosQueueBytes = 0;
 
 public:
-    void erase(const uint16_t packet_id);
+    bool erase(const uint16_t packet_id);
     std::list<QueuedPublish>::iterator erase(std::list<QueuedPublish>::iterator pos);
     size_t size() const;
     size_t getByteSize() const;

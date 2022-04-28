@@ -445,9 +445,9 @@ void ConfigFileParser::loadFile(bool test)
                 if (key == "max_qos_msg_pending_per_client")
                 {
                     int newVal = std::stoi(value);
-                    if (newVal < 32 || newVal > 65530)
+                    if (newVal < 32 || newVal > 65535)
                     {
-                        throw ConfigFileException(formatString("max_qos_msg_pending_per_client value '%d' is invalid. Valid values between 32 and 65530.", newVal));
+                        throw ConfigFileException(formatString("max_qos_msg_pending_per_client value '%d' is invalid. Valid values between 32 and 65535.", newVal));
                     }
                     tmpSettings->maxQosMsgPendingPerClient = newVal;
                 }

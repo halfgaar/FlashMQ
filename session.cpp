@@ -27,12 +27,20 @@ Session::Session()
     const Settings &settings = *ThreadGlobals::getSettings();
 
     // Sessions also get defaults from the handleConnect() method, but when you create sessions elsewhere, we do need some sensible defaults.
-    this->maxQosMsgPending = settings.maxQosMsgPendingPerClient;
+    this->flowControlQuota = settings.maxQosMsgPendingPerClient;
     this->sessionExpiryInterval = settings.expireSessionsAfterSeconds;
 }
 
-bool Session::requiresPacketRetransmission() const
+void Session::increaseFlowControlQuota()
 {
+    flowControlQuota++;
+    this->flowControlQuota = std::min<int>(flowControlQuota, flowControlCealing);
+}
+
+bool Session::requiresQoSQueueing() const
+{
+    return  true;
+
     const std::shared_ptr<Client> client = makeSharedClient();
 
     if (!client)
@@ -49,8 +57,7 @@ bool Session::requiresPacketRetransmission() const
 void Session::increasePacketId()
 {
     nextPacketId++;
-    if (nextPacketId == 0)
-        nextPacketId++;
+    nextPacketId = std::max<uint16_t>(nextPacketId, 1);
 }
 
 /**
@@ -146,81 +153,65 @@ void Session::writePacket(PublishCopyFactory &copyFactory, const char max_qos, u
         }
         else if (effectiveQos > 0)
         {
-            const bool requiresRetransmission = requiresPacketRetransmission();
+            std::unique_lock<std::mutex> locker(qosQueueMutex);
 
-            if (requiresRetransmission)
+            if (this->flowControlQuota <= 0 || (qosPacketQueue.getByteSize() >= settings->maxQosBytesPendingPerClient && qosPacketQueue.size() > 0))
             {
-                std::unique_lock<std::mutex> locker(qosQueueMutex);
-
-                const size_t totalQosPacketsInTransit = qosPacketQueue.size() + incomingQoS2MessageIds.size() + outgoingQoS2MessageIds.size();
-                if (totalQosPacketsInTransit >= maxQosMsgPending
-                    || (qosPacketQueue.getByteSize() >= settings->maxQosBytesPendingPerClient && qosPacketQueue.size() > 0))
+                if (QoSLogPrintedAtId != nextPacketId)
                 {
-                    if (QoSLogPrintedAtId != nextPacketId)
-                    {
-                        logger->logf(LOG_WARNING, "Dropping QoS message(s) for client '%s', because max in-transit packet count reached.", client_id.c_str());
-                        QoSLogPrintedAtId = nextPacketId;
-                    }
-                    return;
+                    logger->logf(LOG_WARNING, "Dropping QoS message(s) for client '%s', because it hasn't seen enough PUBACK/PUBCOMP/PUBRECs to release places "
+                                              "or it exceeded 'max_qos_bytes_pending_per_client'.", client_id.c_str());
+                    QoSLogPrintedAtId = nextPacketId;
                 }
+                return;
+            }
 
-                increasePacketId();
+            increasePacketId();
+            flowControlQuota--;
 
+            if (requiresQoSQueueing())
                 qosPacketQueue.queuePublish(copyFactory, nextPacketId, effectiveQos);
 
-                if (c)
-                {
-                    count += c->writeMqttPacketAndBlameThisClient(copyFactory, effectiveQos, nextPacketId);
-                }
-            }
-            else
+            if (c)
             {
-                // We don't need to make a copy of the packet in this branch, because:
-                // - The packet to give the client won't shrink in size because source and client have a packet_id.
-                // - We don't have to store the copy in the session for retransmission, see Session::requiresPacketRetransmission()
-                // So, we just keep altering the original published packet.
-
-                std::unique_lock<std::mutex> locker(qosQueueMutex);
-
-                if (qosInFlightCounter >= 65530) // Includes a small safety margin.
-                {
-                    if (QoSLogPrintedAtId != nextPacketId)
-                    {
-                        logger->logf(LOG_WARNING, "Dropping QoS message(s) for client '%s', because it hasn't seen enough PUBACKs to release places.", client_id.c_str());
-                        QoSLogPrintedAtId = nextPacketId;
-                    }
-                    return;
-                }
-
-                increasePacketId();
-
-                qosInFlightCounter++;
-                assert(c); // with requiresRetransmission==false, there must be a client.
                 count += c->writeMqttPacketAndBlameThisClient(copyFactory, effectiveQos, nextPacketId);
             }
         }
     }
 }
 
-void Session::clearQosMessage(uint16_t packet_id)
+/**
+ * @brief Session::clearQosMessage clears a QOS message from the queue. Note that in QoS 2, that doesn't complete the handshake.
+ * @param packet_id
+ * @param qosHandshakeEnds can be set to true when you know the QoS handshake ends, (like) when PUBREC contains an error.
+ * @return whether the packet_id in question was found.
+ */
+bool Session::clearQosMessage(uint16_t packet_id, bool qosHandshakeEnds)
 {
 #ifndef NDEBUG
     logger->logf(LOG_DEBUG, "Clearing QoS message for '%s', packet id '%d'. Left in queue: %d", client_id.c_str(), packet_id, qosPacketQueue.size());
 #endif
 
+    bool result = false;
+
     std::lock_guard<std::mutex> locker(qosQueueMutex);
-    if (requiresPacketRetransmission())
-        qosPacketQueue.erase(packet_id);
+    if (requiresQoSQueueing())
+        result = qosPacketQueue.erase(packet_id);
     else
     {
-        qosInFlightCounter--;
-        qosInFlightCounter = std::max<int>(0, qosInFlightCounter); // Should never happen, but in case we receive too many PUBACKs.
+        result = true;
     }
+
+    if (qosHandshakeEnds)
+    {
+        increaseFlowControlQuota();
+    }
+
+    return result;
 }
 
-
 /**
- * @brief Session::sendPendingQosMessages sends pending publishes and QoS2 control packets.
+ * @brief Session::sendAllPendingQosData sends pending publishes and QoS2 control packets.
  * @return the amount of messages/packets published.
  *
  * [MQTT-4.4.0-1] (about MQTT 3.1.1): "When a Client reconnects with CleanSession set to 0, both the Client and Server MUST
@@ -234,7 +225,7 @@ void Session::clearQosMessage(uint16_t packet_id)
  * never know that, because IT will have received the PUBACK from FlashMQ. The QoS system is not between publisher
  * and subscriber. Users are required to implement something themselves.
  */
-uint64_t Session::sendPendingQosMessages()
+uint64_t Session::sendAllPendingQosData()
 {
     uint64_t count = 0;
 
@@ -254,12 +245,23 @@ uint64_t Session::sendPendingQosMessages()
                 pos = qosPacketQueue.erase(pos);
                 continue;
             }
-            pos++;
+
+            if (flowControlQuota <= 0)
+            {
+                logger->logf(LOG_WARNING, "Dropping QoS message(s) for client '%s', because it exceeds its receive maximum.", client_id.c_str());
+                pos = qosPacketQueue.erase(pos);
+                continue;
+            }
+
+            flowControlQuota--;
 
             MqttPacket p(c->getProtocolVersion(), pub);
-            p.setDuplicate();
+            p.setPacketId(queuedPublish.getPacketId());
+            //p.setDuplicate(); // TODO: this is wrong. Until we have a retransmission system, no packets can have the DUP bit set.
 
             count += c->writeMqttPacketAndBlameThisClient(p);
+
+            pos++;
         }
 
         for (const uint16_t packet_id : outgoingQoS2MessageIds)
@@ -310,7 +312,7 @@ bool Session::incomingQoS2MessageIdInTransit(uint16_t packet_id)
     return it != incomingQoS2MessageIds.end();
 }
 
-void Session::removeIncomingQoS2MessageId(u_int16_t packet_id)
+bool Session::removeIncomingQoS2MessageId(u_int16_t packet_id)
 {
     assert(packet_id > 0);
 
@@ -320,9 +322,16 @@ void Session::removeIncomingQoS2MessageId(u_int16_t packet_id)
     logger->logf(LOG_DEBUG, "As QoS 2 receiver: publish released (PUBREL) for '%s', packet id '%d'. Left in queue: %d", client_id.c_str(), packet_id, incomingQoS2MessageIds.size());
 #endif
 
+    bool result = false;
+
     const auto it = incomingQoS2MessageIds.find(packet_id);
     if (it != incomingQoS2MessageIds.end())
+    {
         incomingQoS2MessageIds.erase(it);
+        result = true;
+    }
+
+    return result;
 }
 
 void Session::addOutgoingQoS2MessageId(uint16_t packet_id)
@@ -342,6 +351,8 @@ void Session::removeOutgoingQoS2MessageId(u_int16_t packet_id)
     const auto it = outgoingQoS2MessageIds.find(packet_id);
     if (it != outgoingQoS2MessageIds.end())
         outgoingQoS2MessageIds.erase(it);
+
+    increaseFlowControlQuota();
 }
 
 /**
@@ -355,9 +366,10 @@ bool Session::getDestroyOnDisconnect() const
     return destroyOnDisconnect;
 }
 
-void Session::setSessionProperties(uint16_t maxQosPackets, uint32_t sessionExpiryInterval, bool clean_start, ProtocolVersion protocol_version)
+void Session::setSessionProperties(uint16_t clientReceiveMax, uint32_t sessionExpiryInterval, bool clean_start, ProtocolVersion protocol_version)
 {
-    this->maxQosMsgPending = maxQosPackets;
+    this->flowControlQuota = clientReceiveMax;
+    this->flowControlCealing = clientReceiveMax;
     this->sessionExpiryInterval = sessionExpiryInterval;
 
     if (protocol_version <= ProtocolVersion::Mqtt311 && clean_start)

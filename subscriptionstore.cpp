@@ -213,7 +213,7 @@ void SubscriptionStore::registerClientAndKickExistingOne(std::shared_ptr<Client>
 
     if (registrationData)
     {
-        registerClientAndKickExistingOne(client, registrationData->clean_start, registrationData->maxQosPackets, registrationData->sessionExpiryInterval);
+        registerClientAndKickExistingOne(client, registrationData->clean_start, registrationData->clientReceiveMax, registrationData->sessionExpiryInterval);
         client->clearRegistrationData();
     }
     else
@@ -224,7 +224,7 @@ void SubscriptionStore::registerClientAndKickExistingOne(std::shared_ptr<Client>
 }
 
 // Removes an existing client when it already exists [MQTT-3.1.4-2].
-void SubscriptionStore::registerClientAndKickExistingOne(std::shared_ptr<Client> &client, bool clean_start, uint16_t maxQosPackets, uint32_t sessionExpiryInterval)
+void SubscriptionStore::registerClientAndKickExistingOne(std::shared_ptr<Client> &client, bool clean_start, uint16_t clientReceiveMax, uint32_t sessionExpiryInterval)
 {
     RWLockGuard lock_guard(&subscriptionsRwlock);
     lock_guard.wrlock();
@@ -261,8 +261,8 @@ void SubscriptionStore::registerClientAndKickExistingOne(std::shared_ptr<Client>
 
     session->assignActiveConnection(client);
     client->assignSession(session);
-    session->setSessionProperties(maxQosPackets, sessionExpiryInterval, clean_start, client->getProtocolVersion());
-    uint64_t count = session->sendPendingQosMessages();
+    session->setSessionProperties(clientReceiveMax, sessionExpiryInterval, clean_start, client->getProtocolVersion());
+    uint64_t count = session->sendAllPendingQosData();
     client->getThreadData()->incrementSentMessageCount(count);
 }
 

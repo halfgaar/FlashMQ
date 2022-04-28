@@ -385,7 +385,7 @@ void MqttPacket::handleConnect()
 
     uint16_t keep_alive = readTwoBytesToUInt16();
 
-    uint16_t max_qos_packets = settings.maxQosMsgPendingPerClient;
+    uint16_t client_receive_max = settings.maxQosMsgPendingPerClient;
     uint32_t session_expire = settings.getExpireSessionAfterSeconds();
     uint32_t max_outgoing_packet_size = settings.maxPacketSize;
     uint16_t max_outgoing_topic_aliases = 0; // Default MUST BE 0, meaning server won't initiate aliases
@@ -410,7 +410,7 @@ void MqttPacket::handleConnect()
                 session_expire = std::min<uint32_t>(readFourBytesToUint32(), session_expire);
                 break;
             case Mqtt5Properties::ReceiveMaximum:
-                max_qos_packets = std::min<int16_t>(readTwoBytesToUInt16(), max_qos_packets);
+                client_receive_max = std::min<int16_t>(readTwoBytesToUInt16(), client_receive_max);
                 break;
             case Mqtt5Properties::MaximumPacketSize:
                 max_outgoing_packet_size = std::min<uint32_t>(readFourBytesToUint32(), max_outgoing_packet_size);
@@ -443,6 +443,11 @@ void MqttPacket::handleConnect()
                 throw ProtocolError("Invalid connect property.", ReasonCodes::ProtocolError);
             }
         }
+    }
+
+    if (client_receive_max == 0 || max_outgoing_packet_size == 0)
+    {
+        throw ProtocolError("Receive max or max outgoing packet size can't be 0.", ReasonCodes::ProtocolError);
     }
 
     std::string client_id = readBytesToString();
@@ -610,7 +615,7 @@ void MqttPacket::handleConnect()
         {
             connAck->propertyBuilder = std::make_shared<Mqtt5PropertyBuilder>();
             connAck->propertyBuilder->writeSessionExpiry(session_expire);
-            connAck->propertyBuilder->writeReceiveMax(max_qos_packets);
+            connAck->propertyBuilder->writeReceiveMax(settings.maxQosMsgPendingPerClient);
             connAck->propertyBuilder->writeRetainAvailable(1);
             connAck->propertyBuilder->writeMaxPacketSize(sender->getMaxIncomingPacketSize());
             if (clientIdGenerated)
@@ -629,7 +634,7 @@ void MqttPacket::handleConnect()
         sender->stageConnack(std::move(connAck));
     }
 
-    sender->setRegistrationData(clean_start, max_qos_packets, session_expire);
+    sender->setRegistrationData(clean_start, client_receive_max, session_expire);
 
     Authentication &authentication = *ThreadGlobals::getAuth();
     AuthResult authResult = AuthResult::login_denied;
@@ -1176,7 +1181,7 @@ void MqttPacket::handlePublish()
 void MqttPacket::handlePubAck()
 {
     uint16_t packet_id = readTwoBytesToUInt16();
-    sender->getSession()->clearQosMessage(packet_id);
+    sender->getSession()->clearQosMessage(packet_id, true);
 }
 
 /**
@@ -1185,12 +1190,29 @@ void MqttPacket::handlePubAck()
 void MqttPacket::handlePubRec()
 {
     const uint16_t packet_id = readTwoBytesToUInt16();
-    sender->getSession()->clearQosMessage(packet_id);
-    sender->getSession()->addOutgoingQoS2MessageId(packet_id);
 
-    PubResponse pubRel(this->protocolVersion, PacketType::PUBREL, ReasonCodes::Success, packet_id);
-    MqttPacket response(pubRel);
-    sender->writeMqttPacket(response);
+    ReasonCodes reasonCode = ReasonCodes::Success; // Default when not specified, or MQTT3
+
+    if (!atEnd())
+    {
+        reasonCode = static_cast<ReasonCodes>(readByte());
+    }
+
+    const bool publishTerminatesHere = reasonCode >= ReasonCodes::UnspecifiedError;
+    const bool foundAndRemoved = sender->getSession()->clearQosMessage(packet_id, publishTerminatesHere);
+
+    // "If it has sent a PUBREC with a Reason Code of 0x80 or greater, the receiver MUST treat any subsequent PUBLISH packet
+    // that contains that Packet Identifier as being a new Application Message."
+    if (!publishTerminatesHere)
+    {
+        sender->getSession()->addOutgoingQoS2MessageId(packet_id);
+
+        // MQTT5: "[The sender] MUST send a PUBREL packet when it receives a PUBREC packet from the receiver with a Reason Code value less than 0x80"
+        const ReasonCodes reason = foundAndRemoved ? ReasonCodes::Success : ReasonCodes::PacketIdentifierNotFound;
+        PubResponse pubRel(this->protocolVersion, PacketType::PUBREL, reason, packet_id);
+        MqttPacket response(pubRel);
+        sender->writeMqttPacket(response);
+    }
 }
 
 /**
@@ -1203,9 +1225,10 @@ void MqttPacket::handlePubRel()
         throw ProtocolError("PUBREL first byte LSB must be 0010.", ReasonCodes::MalformedPacket);
 
     const uint16_t packet_id = readTwoBytesToUInt16();
-    sender->getSession()->removeIncomingQoS2MessageId(packet_id);
+    const bool foundAndRemoved = sender->getSession()->removeIncomingQoS2MessageId(packet_id);
+    const ReasonCodes reason = foundAndRemoved ? ReasonCodes::Success : ReasonCodes::PacketIdentifierNotFound;
 
-    PubResponse pubcomp(this->protocolVersion, PacketType::PUBCOMP, ReasonCodes::Success, packet_id);
+    PubResponse pubcomp(this->protocolVersion, PacketType::PUBCOMP, reason, packet_id);
     MqttPacket response(pubcomp);
     sender->writeMqttPacket(response);
 }

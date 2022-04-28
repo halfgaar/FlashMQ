@@ -48,10 +48,10 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 struct StowedClientRegistrationData
 {
     const bool clean_start;
-    const uint16_t maxQosPackets;
+    const uint16_t clientReceiveMax;
     const uint32_t sessionExpiryInterval;
 
-    StowedClientRegistrationData(bool clean_start, uint16_t maxQosPackets, uint32_t sessionExpiryInterval);
+    StowedClientRegistrationData(bool clean_start, uint16_t clientReceiveMax, uint32_t sessionExpiryInterval);
 };
 
 class Client
@@ -171,7 +171,7 @@ public:
     void sendOrQueueWill();
     void serverInitiatedDisconnect(ReasonCodes reason);
 
-    void setRegistrationData(bool clean_start, uint16_t maxQosPackets, uint32_t sessionExpiryInterval);
+    void setRegistrationData(bool clean_start, uint16_t client_receive_max, uint32_t sessionExpiryInterval);
     const std::unique_ptr<StowedClientRegistrationData> &getRegistrationData() const;
     void clearRegistrationData();
 

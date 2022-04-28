@@ -132,6 +132,7 @@ enum class ReasonCodes
     TopicFilterInvalid = 143,
     TopicNameInvalid = 144,
     PacketIdentifierInUse = 145,
+    PacketIdentifierNotFound = 146,
     ReceiveMaximumExceeded = 147,
     TopicAliasInvalid = 148,
     PacketTooLarge = 149,

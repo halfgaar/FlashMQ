@@ -161,12 +161,10 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV2()
             const uint32_t compensatedSessionExpiry = persistence_state_age > originalSessionExpiryInterval ? 0 : originalSessionExpiryInterval - persistence_state_age;
             const uint32_t sessionExpiryInterval = std::min<uint32_t>(compensatedSessionExpiry, settings->getExpireSessionAfterSeconds());
 
-            const uint16_t maxQosPending = std::min<uint16_t>(readUint16(eofFound), settings->maxQosMsgPendingPerClient);
-
             // We will set the session expiry interval as it would have had time continued. If a connection picks up session, it will update
             // it with a more relevant value.
             // The protocol version 5 is just dummy, to get the behavior I want.
-            ses->setSessionProperties(maxQosPending, sessionExpiryInterval, 0, ProtocolVersion::Mqtt5);
+            ses->setSessionProperties(0xFFFF, sessionExpiryInterval, 0, ProtocolVersion::Mqtt5);
 
             const uint16_t hasWill = readUint16(eofFound);
 
@@ -314,7 +312,6 @@ void SessionsAndSubscriptionsDB::saveData(const std::vector<std::unique_ptr<Sess
         writeUint16(ses->nextPacketId);
 
         writeUint32(ses->getCurrentSessionExpiryInterval());
-        writeUint16(ses->maxQosMsgPending);
 
         const bool hasWillThatShouldSurviveRestart = ses->getWill().operator bool() && ses->getWill()->will_delay > 0;
         writeUint16(static_cast<uint16_t>(hasWillThatShouldSurviveRestart));

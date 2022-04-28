@@ -27,9 +27,9 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "utils.h"
 #include "threadglobals.h"
 
-StowedClientRegistrationData::StowedClientRegistrationData(bool clean_start, uint16_t maxQosPackets, uint32_t sessionExpiryInterval) :
+StowedClientRegistrationData::StowedClientRegistrationData(bool clean_start, uint16_t clientReceiveMax, uint32_t sessionExpiryInterval) :
     clean_start(clean_start),
-    maxQosPackets(maxQosPackets),
+    clientReceiveMax(clientReceiveMax),
     sessionExpiryInterval(sessionExpiryInterval)
 {
 
@@ -448,9 +448,9 @@ void Client::serverInitiatedDisconnect(ReasonCodes reason)
  * @param maxQosPackets
  * @param sessionExpiryInterval
  */
-void Client::setRegistrationData(bool clean_start, uint16_t maxQosPackets, uint32_t sessionExpiryInterval)
+void Client::setRegistrationData(bool clean_start, uint16_t client_receive_max, uint32_t sessionExpiryInterval)
 {
-    this->registrationData = std::make_unique<StowedClientRegistrationData>(clean_start, maxQosPackets, sessionExpiryInterval);
+    this->registrationData = std::make_unique<StowedClientRegistrationData>(clean_start, client_receive_max, sessionExpiryInterval);
 }
 
 const std::unique_ptr<StowedClientRegistrationData> &Client::getRegistrationData() const

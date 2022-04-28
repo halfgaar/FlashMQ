@@ -27,8 +27,10 @@ size_t QueuedPublish::getApproximateMemoryFootprint() const
 }
 
 
-void QoSPublishQueue::erase(const uint16_t packet_id)
+bool QoSPublishQueue::erase(const uint16_t packet_id)
 {
+    bool result = false;
+
     auto it = queue.begin();
     auto end = queue.end();
     while (it != end)
@@ -43,12 +45,15 @@ void QoSPublishQueue::erase(const uint16_t packet_id)
                 qosQueueBytes = 0;
 
             queue.erase(it);
+            result = true;
 
             break;
         }
 
         it++;
     }
+
+    return  result;
 }
 
 std::list<QueuedPublish>::iterator QoSPublishQueue::erase(std::list<QueuedPublish>::iterator pos)
