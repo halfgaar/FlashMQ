@@ -682,6 +682,9 @@ void MqttPacket::handleConnect()
 
 void MqttPacket::handleExtendedAuth()
 {
+    if (first_byte & 0b1111)
+        throw ProtocolError("AUTH packet first 4 bits should be 0.", ReasonCodes::MalformedPacket);
+
     const ReasonCodes reasonCode = static_cast<ReasonCodes>(readByte());
 
     if (this->protocolVersion < ProtocolVersion::Mqtt5)
