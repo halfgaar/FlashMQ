@@ -121,6 +121,14 @@ PublishBase::PublishBase(const std::string &topic, const std::string &payload, c
 
 }
 
+/**
+ * @brief PublishBase::getLengthWithoutFixedHeader gets the size for packet buffer allocation, but without the MQTT5 properties.
+ * @return
+ *
+ * The protocol version is not part of the Publish object, because it's used to send publishes to MQTT3 and MQTT5 clients, so that
+ * has to be added later. See the `MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, Publish &_publish)`
+ * constructor.
+ */
 size_t PublishBase::getLengthWithoutFixedHeader() const
 {
     const int topicLength = this->skipTopic ? 0 : topic.length();
