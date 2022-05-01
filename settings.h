@@ -24,6 +24,8 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "mosquittoauthoptcompatwrap.h"
 #include "listener.h"
 
+#define ABSOLUTE_MAX_PACKET_SIZE 268435461 // 256 MB + 5
+
 class Settings
 {
     friend class ConfigFileParser;
@@ -41,7 +43,9 @@ public:
     bool authPluginSerializeInit = false;
     bool authPluginSerializeAuthChecks = false;
     int clientInitialBufferSize = 1024; // Must be power of 2
-    int maxPacketSize = 268435461; // 256 MB + 5
+    int maxPacketSize = ABSOLUTE_MAX_PACKET_SIZE;
+    uint16_t maxIncomingTopicAliasValue = 65535;
+    uint16_t maxOutgoingTopicAliasValue = 65535;
 #ifdef TESTING
     bool logDebug = true;
 #else
@@ -52,11 +56,11 @@ public:
     std::string mosquittoAclFile;
     bool allowAnonymous = false;
     int rlimitNoFile = 1000000;
-    uint64_t expireSessionsAfterSeconds = 1209600;
+    uint32_t expireSessionsAfterSeconds = 1209600;
     int authPluginTimerPeriod = 60;
     std::string storageDir;
     int threadCount = 0;
-    uint maxQosMsgPendingPerClient = 512;
+    uint16_t maxQosMsgPendingPerClient = 512;
     uint maxQosBytesPendingPerClient = 65536;
     std::list<std::shared_ptr<Listener>> listeners; // Default one is created later, when none are defined.
 
@@ -65,6 +69,8 @@ public:
 
     std::string getRetainedMessagesDBFile() const;
     std::string getSessionsDBFile() const;
+
+    uint32_t getExpireSessionAfterSeconds() const;
 };
 
 #endif // SETTINGS_H

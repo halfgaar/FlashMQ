@@ -34,6 +34,9 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "cirbuf.h"
 #include "bindaddr.h"
 #include "types.h"
+#include "flashmq_plugin.h"
+
+#define UNUSED(expr) do { (void)(expr); } while (0)
 
 template<typename T> int check(int rc)
 {
@@ -126,6 +129,11 @@ template<typename ex> void checkWritableDir(const std::string &path)
 const std::string websocketCloseCodeToString(uint16_t code);
 
 const std::string protocolVersionString(ProtocolVersion p);
+
+uint32_t ageFromTimePoint(const std::chrono::time_point<std::chrono::steady_clock> &point);
+std::chrono::time_point<std::chrono::steady_clock> timepointFromAge(const uint32_t age);
+
+ReasonCodes authResultToReasonCode(AuthResult authResult);
 
 
 #endif // UTILS_H

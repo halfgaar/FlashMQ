@@ -57,6 +57,8 @@ class MainTests : public QObject
 
     QScopedPointer<MainAppThread> mainApp;
 
+    void testParsePacketHelper(const std::string &topic, char from_qos, bool retain);
+
 public:
     MainTests();
     ~MainTests();
@@ -102,7 +104,7 @@ private slots:
 
     void testSavingSessions();
 
-    void testCopyPacket();
+    void testParsePacket();
 
     void testDowngradeQoSOnSubscribeQos2to2();
     void testDowngradeQoSOnSubscribeQos2to1();
@@ -112,6 +114,8 @@ private slots:
     void testDowngradeQoSOnSubscribeQos0to0();
 
     void testNotMessingUpQosLevels();
+
+    void testUnSubscribe();
 
 };
 
@@ -848,7 +852,7 @@ void MainTests::testPacketInt16Parse()
     for (const uint16_t id : tests)
     {
         Publish pub("hallo", "content", 1);
-        MqttPacket packet(pub);
+        MqttPacket packet(ProtocolVersion::Mqtt311, pub);
         packet.setPacketId(id);
         packet.pos -= 2;
         uint16_t idParsed = packet.readTwoBytesToUInt16();
@@ -891,20 +895,19 @@ void MainTests::testRetainedMessageDB()
         std::string longTopic = formatString("one/two/%s", getSecureRandomString(4000).c_str());
 
         std::vector<RetainedMessage> messages;
-        messages.emplace_back("one/two/three", "payload", 0);
-        messages.emplace_back("one/two/wer", "payload", 1);
-        messages.emplace_back("one/e/wer", "payload", 1);
-        messages.emplace_back("one/wee/wer", "asdfasdfasdf", 1);
-        messages.emplace_back("one/two/wer", "µsdf", 1);
-        messages.emplace_back("/boe/bah", longpayload, 1);
-        messages.emplace_back("one/two/wer", "paylasdfaoad", 1);
-        messages.emplace_back("one/two/wer", "payload", 1);
-        messages.emplace_back(longTopic, "payload", 1);
-        messages.emplace_back(longTopic, longpayload, 1);
-        messages.emplace_back("one", "µsdf", 1);
-        messages.emplace_back("/boe", longpayload, 1);
-        messages.emplace_back("one", "µsdf", 1);
-        messages.emplace_back("", "foremptytopic", 0);
+        messages.emplace_back(Publish("one/two/three", "payload", 0));
+        messages.emplace_back(Publish("one/two/wer", "payload", 1));
+        messages.emplace_back(Publish("one/e/wer", "payload", 1));
+        messages.emplace_back(Publish("one/wee/wer", "asdfasdfasdf", 1));
+        messages.emplace_back(Publish("one/two/wer", "µsdf", 1));
+        messages.emplace_back(Publish("/boe/bah", longpayload, 1));
+        messages.emplace_back(Publish("one/two/wer", "paylasdfaoad", 1));
+        messages.emplace_back(Publish("one/two/wer", "payload", 1));
+        messages.emplace_back(Publish(longTopic, "payload", 1));
+        messages.emplace_back(Publish(longTopic, longpayload, 1));
+        messages.emplace_back(Publish("one", "µsdf", 1));
+        messages.emplace_back(Publish("/boe", longpayload, 1));
+        messages.emplace_back(Publish("one", "µsdf", 1));
 
         RetainedMessagesDB db("/tmp/flashmqtests_retained.db");
         db.openWrite();
@@ -916,7 +919,7 @@ void MainTests::testRetainedMessageDB()
         std::list<RetainedMessage> messagesLoaded = db2.readData();
         db2.closeFile();
 
-        QCOMPARE(messages.size(), messagesLoaded.size());
+        QCOMPARE(messagesLoaded.size(), messages.size());
 
         auto itOrg = messages.begin();
         auto itLoaded = messagesLoaded.begin();
@@ -926,9 +929,9 @@ void MainTests::testRetainedMessageDB()
             RetainedMessage &two = *itLoaded;
 
             // Comparing the fields because the RetainedMessage class has an == operator that only looks at topic.
-            QCOMPARE(one.topic, two.topic);
-            QCOMPARE(one.payload, two.payload);
-            QCOMPARE(one.qos, two.qos);
+            QCOMPARE(one.publish.topic, two.publish.topic);
+            QCOMPARE(one.publish.payload, two.publish.payload);
+            QCOMPARE(one.publish.qos, two.publish.qos);
 
             itOrg++;
             itLoaded++;
@@ -1000,17 +1003,15 @@ void MainTests::testSavingSessions()
         Authentication auth(*settings.get());
         ThreadGlobals::assign(&auth);
 
-        std::shared_ptr<Client> c1(new Client(0, t, nullptr, false, nullptr, settings, false));
-        c1->setClientProperties(ProtocolVersion::Mqtt311, "c1", "user1", true, 60, false);
-        store->registerClientAndKickExistingOne(c1);
-        c1->getSession()->touch();
+        std::shared_ptr<Client> c1(new Client(0, t, nullptr, false, nullptr, settings.get(), false));
+        c1->setClientProperties(ProtocolVersion::Mqtt311, "c1", "user1", true, 60);
+        store->registerClientAndKickExistingOne(c1, false, 512, 120);
         c1->getSession()->addIncomingQoS2MessageId(2);
         c1->getSession()->addIncomingQoS2MessageId(3);
 
-        std::shared_ptr<Client> c2(new Client(0, t, nullptr, false, nullptr, settings, false));
-        c2->setClientProperties(ProtocolVersion::Mqtt311, "c2", "user2", true, 60, false);
-        store->registerClientAndKickExistingOne(c2);
-        c2->getSession()->touch();
+        std::shared_ptr<Client> c2(new Client(0, t, nullptr, false, nullptr, settings.get(), false));
+        c2->setClientProperties(ProtocolVersion::Mqtt311, "c2", "user2", true, 60);
+        store->registerClientAndKickExistingOne(c2, false, 512, 120);
         c2->getSession()->addOutgoingQoS2MessageId(55);
         c2->getSession()->addOutgoingQoS2MessageId(66);
 
@@ -1038,8 +1039,8 @@ void MainTests::testSavingSessions()
 
         std::shared_ptr<Session> c1ses = c1->getSession();
         c1.reset();
-        MqttPacket publishPacket(publish);
-        PublishCopyFactory fac(publishPacket);
+        MqttPacket publishPacket(ProtocolVersion::Mqtt311, publish);
+        PublishCopyFactory fac(&publishPacket);
         c1ses->writePacket(fac, 1, count);
 
         store->saveSessionsAndSubscriptions("/tmp/flashmqtests_sessions.db");
@@ -1104,10 +1105,8 @@ void MainTests::testSavingSessions()
     }
 }
 
-void testCopyPacketHelper(const std::string &topic, char from_qos, char to_qos, bool retain)
+void MainTests::testParsePacketHelper(const std::string &topic, char from_qos, bool retain)
 {
-    assert(to_qos <= from_qos);
-
     Logger::getInstance()->setFlags(false, false, true);
 
     std::shared_ptr<Settings> settings(new Settings());
@@ -1119,9 +1118,9 @@ void testCopyPacketHelper(const std::string &topic, char from_qos, char to_qos, 
     Authentication auth(*settings.get());
     ThreadGlobals::assign(&auth);
 
-    std::shared_ptr<Client> dummyClient(new Client(0, t, nullptr, false, nullptr, settings, false));
-    dummyClient->setClientProperties(ProtocolVersion::Mqtt311, "qostestclient", "user1", true, 60, false);
-    store->registerClientAndKickExistingOne(dummyClient);
+    std::shared_ptr<Client> dummyClient(new Client(0, t, nullptr, false, nullptr, settings.get(), false));
+    dummyClient->setClientProperties(ProtocolVersion::Mqtt311, "qostestclient", "user1", true, 60);
+    store->registerClientAndKickExistingOne(dummyClient, false, 512, 120);
 
     uint16_t packetid = 66;
     for (int len = 0; len < 150; len++ )
@@ -1133,7 +1132,7 @@ void testCopyPacketHelper(const std::string &topic, char from_qos, char to_qos, 
         const std::string payloadOne = getSecureRandomString(len);
         Publish pubOne(topic, payloadOne, from_qos);
         pubOne.retain = retain;
-        MqttPacket stagingPacketOne(pubOne);
+        MqttPacket stagingPacketOne(ProtocolVersion::Mqtt311, pubOne);
         if (from_qos > 0)
             stagingPacketOne.setPacketId(pack_id);
         CirBuf stagingBufOne(1024);
@@ -1142,49 +1141,32 @@ void testCopyPacketHelper(const std::string &topic, char from_qos, char to_qos, 
         MqttPacket::bufferToMqttPackets(stagingBufOne, parsedPackets, dummyClient);
         QVERIFY(parsedPackets.size() == 1);
         MqttPacket parsedPacketOne = std::move(parsedPackets.front());
-        parsedPacketOne.handlePublish();
+        parsedPacketOne.parsePublishData();
         if (retain) // A normal handled packet always has retain=0, so I force setting it here.
             parsedPacketOne.setRetain();
+
         QCOMPARE(stagingPacketOne.getTopic(), parsedPacketOne.getTopic());
         QCOMPARE(stagingPacketOne.getPayloadCopy(), parsedPacketOne.getPayloadCopy());
-
-        std::shared_ptr<MqttPacket> copiedPacketOne = parsedPacketOne.getCopy(to_qos);
-
-        QCOMPARE(payloadOne, copiedPacketOne->getPayloadCopy());
-
-        // Now compare the written buffer of our copied packet to one that was written with our known good reference packet.
-
-        Publish pubReference(topic, payloadOne, to_qos);
-        pubReference.retain = retain;
-        MqttPacket packetReference(pubReference);
-        QCOMPARE(packetReference.getQos(), copiedPacketOne->getQos());
-        if (to_qos > 0)
-            packetReference.setPacketId(pack_id);
-        CirBuf bufOfReference(1024);
-        CirBuf bufOfCopied(1024);
-        packetReference.readIntoBuf(bufOfReference);
-        copiedPacketOne->readIntoBuf(bufOfCopied);
-        QVERIFY2(bufOfCopied == bufOfReference, formatString("Failure on length %d for topic %s, from qos %d to qos %d, retain: %d.",
-                                                             len, topic.c_str(), from_qos, to_qos, retain).c_str());
+        QCOMPARE(stagingPacketOne.getRetain(), parsedPacketOne.getRetain());
+        QCOMPARE(stagingPacketOne.getQos(), parsedPacketOne.getQos());
+        QCOMPARE(stagingPacketOne.first_byte, parsedPacketOne.first_byte);
     }
 }
 
 /**
- * @brief MainTests::testCopyPacket tests the actual bytes of a copied that would be written to a client.
- *
- * This is specifically to test the optimiziations in getCopy(). It indirectly also tests packet parsing.
+ * @brief MainTests::testCopyPacket tests the actual bytes of a published packet that would be written to a client.
  */
-void MainTests::testCopyPacket()
+void MainTests::testParsePacket()
 {
     for (int retain = 0; retain < 2; retain++)
     {
-        testCopyPacketHelper("John/McLane", 0, 0, retain);
-        testCopyPacketHelper("Ben/Sisko", 1, 1, retain);
-        testCopyPacketHelper("Rebecca/Bunch", 2, 2, retain);
+        testParsePacketHelper("John/McLane", 0, retain);
+        testParsePacketHelper("Ben/Sisko", 1, retain);
+        testParsePacketHelper("Rebecca/Bunch", 2, retain);
 
-        testCopyPacketHelper("Buffy/Slayer", 1, 0, retain);
-        testCopyPacketHelper("Sarah/Connor", 2, 0, retain);
-        testCopyPacketHelper("Susan/Mayer", 2, 1, retain);
+        testParsePacketHelper("Buffy/Slayer", 1, retain);
+        testParsePacketHelper("Sarah/Connor", 2, retain);
+        testParsePacketHelper("Susan/Mayer", 2, retain);
     }
 }
 
@@ -1306,6 +1288,58 @@ void MainTests::testNotMessingUpQosLevels()
     QCOMPARE(testContextReceiver3.receivedMessages.first().id(), 1);
     QCOMPARE(testContextReceiver4.receivedMessages.first().id(), 1);
     QCOMPARE(testContextReceiver5.receivedMessages.first().id(), 0);
+}
+
+void MainTests::testUnSubscribe()
+{
+    TwoClientTestContext testContext;
+
+    testContext.connectSender();
+    testContext.connectReceiver();
+
+    testContext.subscribeReceiver("Rebecca/Bunch", 2);
+    testContext.subscribeReceiver("Josh/Chan", 1);
+    testContext.subscribeReceiver("White/Josh", 1);
+
+    testContext.publish("Rebecca/Bunch", "Bunch here", 2);
+    testContext.publish("White/Josh", "Anteater", 2);
+    testContext.publish("Josh/Chan", "Human flip-flop", 2);
+
+    testContext.waitReceiverReceived(3);
+
+    QVERIFY(std::any_of(testContext.receivedMessages.begin(), testContext.receivedMessages.end(), [](const QMQTT::Message &msg) {
+        return msg.payload() == "Bunch here" && msg.topic() == "Rebecca/Bunch";
+    }));
+
+    QVERIFY(std::any_of(testContext.receivedMessages.begin(), testContext.receivedMessages.end(), [](const QMQTT::Message &msg) {
+        return msg.payload() == "Anteater" && msg.topic() == "White/Josh";
+    }));
+
+    QVERIFY(std::any_of(testContext.receivedMessages.begin(), testContext.receivedMessages.end(), [](const QMQTT::Message &msg) {
+        return msg.payload() == "Human flip-flop" && msg.topic() == "Josh/Chan";
+    }));
+
+    QCOMPARE(testContext.receivedMessages.count(), 3);
+
+    testContext.receivedMessages.clear();
+
+    testContext.unsubscribeReceiver("Josh/Chan");
+
+    testContext.publish("Rebecca/Bunch", "Bunch here", 2);
+    testContext.publish("White/Josh", "Anteater", 2);
+    testContext.publish("Josh/Chan", "Human flip-flop", 2);
+
+    testContext.waitReceiverReceived(2);
+
+    QCOMPARE(testContext.receivedMessages.count(), 2);
+
+    QVERIFY(std::any_of(testContext.receivedMessages.begin(), testContext.receivedMessages.end(), [](const QMQTT::Message &msg) {
+        return msg.payload() == "Bunch here" && msg.topic() == "Rebecca/Bunch";
+    }));
+
+    QVERIFY(std::any_of(testContext.receivedMessages.begin(), testContext.receivedMessages.end(), [](const QMQTT::Message &msg) {
+        return msg.payload() == "Anteater" && msg.topic() == "White/Josh";
+    }));
 }
 
 

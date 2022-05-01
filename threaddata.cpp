@@ -89,6 +89,26 @@ void ThreadData::queuePublishStatsOnDollarTopic(std::vector<std::shared_ptr<Thre
     wakeUpThread();
 }
 
+void ThreadData::queueSendingQueuedWills()
+{
+    std::lock_guard<std::mutex> locker(taskQueueMutex);
+
+    auto f = std::bind(&ThreadData::sendQueuedWills, this);
+    taskQueue.push_front(f);
+
+    wakeUpThread();
+}
+
+void ThreadData::queueRemoveExpiredSessions()
+{
+    std::lock_guard<std::mutex> locker(taskQueueMutex);
+
+    auto f = std::bind(&ThreadData::removeExpiredSessions, this);
+    taskQueue.push_front(f);
+
+    wakeUpThread();
+}
+
 void ThreadData::publishStatsOnDollarTopic(std::vector<std::shared_ptr<ThreadData>> &threads)
 {
     uint nrOfClients = 0;
@@ -125,13 +145,56 @@ void ThreadData::publishStatsOnDollarTopic(std::vector<std::shared_ptr<ThreadDat
 
 void ThreadData::publishStat(const std::string &topic, uint64_t n)
 {
-    std::vector<std::string> subtopics;
-    splitTopic(topic, subtopics);
     const std::string payload = std::to_string(n);
     Publish p(topic, payload, 0);
-    MqttPacket pack(p);
-    subscriptionStore->queuePacketAtSubscribers(subtopics, pack, true);
-    subscriptionStore->setRetainedMessage(topic, subtopics, payload, 0);
+    PublishCopyFactory factory(&p);
+    subscriptionStore->queuePacketAtSubscribers(factory, true);
+    subscriptionStore->setRetainedMessage(p, factory.getSubtopics());
+}
+
+void ThreadData::sendQueuedWills()
+{
+    subscriptionStore->sendQueuedWillMessages();
+}
+
+void ThreadData::removeExpiredSessions()
+{
+    subscriptionStore->removeExpiredSessionsClients();
+}
+
+void ThreadData::sendAllWills()
+{
+    std::lock_guard<std::mutex> lck(clients_by_fd_mutex);
+
+    for(auto &pair : clients_by_fd)
+    {
+        std::shared_ptr<Client> &c = pair.second;
+        c->sendOrQueueWill();
+    }
+
+    allWillsQueued = true;
+}
+
+void ThreadData::sendAllDisconnects()
+{
+    std::vector<std::shared_ptr<Client>> clientsFound;
+
+    {
+        std::lock_guard<std::mutex> lck(clients_by_fd_mutex);
+        clientsFound.reserve(clients_by_fd.size());
+
+        for(auto &pair : clients_by_fd)
+        {
+            clientsFound.push_back(pair.second);
+        }
+    }
+
+    for (std::shared_ptr<Client> &c : clientsFound)
+    {
+        c->serverInitiatedDisconnect(ReasonCodes::ServerShuttingDown);
+    }
+
+    allDisconnectsSent = true;
 }
 
 void ThreadData::removeQueuedClients()
@@ -359,6 +422,26 @@ void ThreadData::queueAuthPluginPeriodicEvent()
 void ThreadData::authPluginPeriodicEvent()
 {
     authentication.periodicEvent();
+}
+
+void ThreadData::queueSendWills()
+{
+    std::lock_guard<std::mutex> locker(taskQueueMutex);
+
+    auto f = std::bind(&ThreadData::sendAllWills, this);
+    taskQueue.push_front(f);
+
+    wakeUpThread();
+}
+
+void ThreadData::queueSendDisconnects()
+{
+    std::lock_guard<std::mutex> locker(taskQueueMutex);
+
+    auto f = std::bind(&ThreadData::sendAllDisconnects, this);
+    taskQueue.push_front(f);
+
+    wakeUpThread();
 }
 
 // TODO: profile how fast hash iteration is. Perhaps having a second list/vector is beneficial?

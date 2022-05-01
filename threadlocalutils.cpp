@@ -51,6 +51,12 @@ std::vector<std::string> *SimdUtils::splitTopic(const std::string &topic, std::v
     return &output;
 }
 
+/**
+ * @brief SimdUtils::isValidUtf8 checks UTF-8 validity 16 bytes at a time, using SSE 4.2.
+ * @param s
+ * @param alsoCheckInvalidPublishChars is for checking the presence of '#' and '+' which is not allowed in publishes.
+ * @return
+ */
 bool SimdUtils::isValidUtf8(const std::string &s, bool alsoCheckInvalidPublishChars)
 {
     const int len = s.size();

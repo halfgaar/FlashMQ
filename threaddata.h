@@ -64,6 +64,10 @@ class ThreadData
     void quit();
     void publishStatsOnDollarTopic(std::vector<std::shared_ptr<ThreadData>> &threads);
     void publishStat(const std::string &topic, uint64_t n);
+    void sendQueuedWills();
+    void removeExpiredSessions();
+    void sendAllWills();
+    void sendAllDisconnects();
 
     void removeQueuedClients();
 
@@ -72,6 +76,8 @@ public:
     Authentication authentication;
     bool running = true;
     bool finished = false;
+    bool allWillsQueued = false;
+    bool allDisconnectsSent = false;
     std::thread thread;
     int threadnr = 0;
     int epollfd = 0;
@@ -100,6 +106,8 @@ public:
     void waitForQuit();
     void queuePasswdFileReload();
     void queuePublishStatsOnDollarTopic(std::vector<std::shared_ptr<ThreadData>> &threads);
+    void queueSendingQueuedWills();
+    void queueRemoveExpiredSessions();
 
     int getNrOfClients() const;
 
@@ -113,6 +121,9 @@ public:
 
     void queueAuthPluginPeriodicEvent();
     void authPluginPeriodicEvent();
+
+    void queueSendWills();
+    void queueSendDisconnects();
 };
 
 #endif // THREADDATA_H

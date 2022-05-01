@@ -22,10 +22,18 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include <stdexcept>
 #include <sstream>
 
+#include "types.h"
+
 class ProtocolError : public std::runtime_error
 {
 public:
-    ProtocolError(const std::string &msg) : std::runtime_error(msg) {}
+    const ReasonCodes reasonCode;
+
+    ProtocolError(const std::string &msg, ReasonCodes reasonCode = ReasonCodes::UnspecifiedError) : std::runtime_error(msg),
+        reasonCode(reasonCode)
+    {
+
+    }
 };
 
 class NotImplementedException : public std::runtime_error

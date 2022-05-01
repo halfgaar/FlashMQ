@@ -30,8 +30,6 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "listener.h"
 #include "settings.h"
 
-#define ABSOLUTE_MAX_PACKET_SIZE 268435461 // 256 MB + 5
-
 enum class ConfigParseLevel
 {
     Root,

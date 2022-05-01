@@ -62,9 +62,9 @@ MainApp::MainApp(const std::string &configFilePath) :
     if (settings->expireSessionsAfterSeconds > 0)
     {
         auto f = std::bind(&MainApp::queueCleanup, this);
-        const uint64_t derrivedSessionCheckInterval = std::max<uint64_t>((settings->expireSessionsAfterSeconds)*1000*2, 600000);
-        const uint64_t sessionCheckInterval = std::min<uint64_t>(derrivedSessionCheckInterval, 86400000);
-        timer.addCallback(f, sessionCheckInterval, "session expiration");
+        //const uint64_t derrivedSessionCheckInterval = std::max<uint64_t>((settings->expireSessionsAfterSeconds)*1000*2, 600000);
+        //const uint64_t sessionCheckInterval = std::min<uint64_t>(derrivedSessionCheckInterval, 86400000);
+        timer.addCallback(f, 10000, "session expiration");
     }
 
     auto fKeepAlive = std::bind(&MainApp::queueKeepAliveCheckAtAllThreads, this);
@@ -90,6 +90,9 @@ MainApp::MainApp(const std::string &configFilePath) :
 
     auto fSaveState = std::bind(&MainApp::saveStateInThread, this);
     timer.addCallback(fSaveState, 900000, "Save state.");
+
+    auto fSendPendingWills = std::bind(&MainApp::queueSendQueuedWills, this);
+    timer.addCallback(fSendPendingWills, 2000, "Publish pending wills.");
 }
 
 MainApp::~MainApp()
@@ -252,6 +255,50 @@ void MainApp::saveStateInThread()
 
     pthread_t native = saveStateThread.native_handle();
     pthread_setname_np(native, "SaveState");
+}
+
+void MainApp::queueSendQueuedWills()
+{
+    std::lock_guard<std::mutex> locker(eventMutex);
+
+    if (!threads.empty())
+    {
+        std::shared_ptr<ThreadData> t = threads[nextThreadForTasks++ % threads.size()];
+        auto f = std::bind(&ThreadData::queueSendingQueuedWills, t.get());
+        taskQueue.push_front(f);
+
+        wakeUpThread();
+    }
+}
+
+void MainApp::queueRemoveExpiredSessions()
+{
+    std::lock_guard<std::mutex> locker(eventMutex);
+
+    if (!threads.empty())
+    {
+        std::shared_ptr<ThreadData> t = threads[nextThreadForTasks++ % threads.size()];
+        auto f = std::bind(&ThreadData::queueRemoveExpiredSessions, t.get());
+        taskQueue.push_front(f);
+
+        wakeUpThread();
+    }
+}
+
+void MainApp::waitForWillsQueued()
+{
+    while(std::any_of(threads.begin(), threads.end(), [](std::shared_ptr<ThreadData> t){ return !t->allWillsQueued; }))
+    {
+        usleep(1000);
+    }
+}
+
+void MainApp::waitForDisconnectsInitiated()
+{
+    while(std::any_of(threads.begin(), threads.end(), [](std::shared_ptr<ThreadData> t){ return !t->allDisconnectsSent; }))
+    {
+        usleep(1000);
+    }
 }
 
 void MainApp::saveState()
@@ -440,13 +487,13 @@ void MainApp::start()
 
             std::shared_ptr<ThreadData> threaddata = std::make_shared<ThreadData>(0, subscriptionStore, settings);
 
-            std::shared_ptr<Client> client = std::make_shared<Client>(fd, threaddata, nullptr, fuzzWebsockets, nullptr, settings, true);
-            std::shared_ptr<Client> subscriber = std::make_shared<Client>(fdnull, threaddata, nullptr, fuzzWebsockets, nullptr, settings, true);
-            subscriber->setClientProperties(ProtocolVersion::Mqtt311, "subscriber", "subuser", true, 60, true);
+            std::shared_ptr<Client> client = std::make_shared<Client>(fd, threaddata, nullptr, fuzzWebsockets, nullptr, settings.get(), true);
+            std::shared_ptr<Client> subscriber = std::make_shared<Client>(fdnull, threaddata, nullptr, fuzzWebsockets, nullptr, settings.get(), true);
+            subscriber->setClientProperties(ProtocolVersion::Mqtt311, "subscriber", "subuser", true, 60);
             subscriber->setAuthenticated(true);
 
-            std::shared_ptr<Client> websocketsubscriber = std::make_shared<Client>(fdnull2, threaddata, nullptr, true, nullptr, settings, true);
-            websocketsubscriber->setClientProperties(ProtocolVersion::Mqtt311, "websocketsubscriber", "websocksubuser", true, 60, true);
+            std::shared_ptr<Client> websocketsubscriber = std::make_shared<Client>(fdnull2, threaddata, nullptr, true, nullptr, settings.get(), true);
+            websocketsubscriber->setClientProperties(ProtocolVersion::Mqtt311, "websocketsubscriber", "websocksubuser", true, 60);
             websocketsubscriber->setAuthenticated(true);
             websocketsubscriber->setFakeUpgraded();
             subscriptionStore->registerClientAndKickExistingOne(websocketsubscriber);
@@ -543,7 +590,7 @@ void MainApp::start()
                         SSL_set_fd(clientSSL, fd);
                     }
 
-                    std::shared_ptr<Client> client = std::make_shared<Client>(fd, thread_data, clientSSL, listener->websocket, addr, settings);
+                    std::shared_ptr<Client> client = std::make_shared<Client>(fd, thread_data, clientSSL, listener->websocket, addr, settings.get());
                     thread_data->giveClient(client);
                 }
                 else
@@ -575,6 +622,20 @@ void MainApp::start()
 
         }
     }
+
+    logger->logf(LOG_DEBUG, "Having all client in all threads send or queue their will.");
+    for(std::shared_ptr<ThreadData> &thread : threads)
+    {
+        thread->queueSendWills();
+    }
+    waitForWillsQueued();
+
+    logger->logf(LOG_DEBUG, "Having all client in all threads send a disconnect packet.");
+    for(std::shared_ptr<ThreadData> &thread : threads)
+    {
+        thread->queueSendDisconnects();
+    }
+    waitForDisconnectsInitiated();
 
     oneInstanceLock.unlock();
 
@@ -713,7 +774,7 @@ void MainApp::queueCleanup()
 {
     std::lock_guard<std::mutex> locker(eventMutex);
 
-    auto f = std::bind(&SubscriptionStore::removeExpiredSessionsClients, subscriptionStore.get(), settings->expireSessionsAfterSeconds);
+    auto f = std::bind(&MainApp::queueRemoveExpiredSessions, this);
     taskQueue.push_front(f);
 
     wakeUpThread();

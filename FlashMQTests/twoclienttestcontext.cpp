@@ -95,19 +95,37 @@ void TwoClientTestContext::subscribeReceiver(const QString &topic, const quint8 
     waiter.exec();
 }
 
-void TwoClientTestContext::waitReceiverReceived(int count)
+void TwoClientTestContext::unsubscribeReceiver(const QString &topic)
 {
-    if (count > 0 && receivedMessages.count() == count)
-        return;
+    receiver->unsubscribe(topic);
 
     QEventLoop waiter;
     QTimer timeout;
     timeout.setSingleShot(true);
-    timeout.setInterval(3000);
+    timeout.setInterval(1000);
     connect(&timeout, &QTimer::timeout, &waiter, &QEventLoop::quit);
-    connect(receiver.data(), &QMQTT::Client::received, &waiter, &QEventLoop::quit);
+    connect(receiver.data(), &QMQTT::Client::unsubscribed, &waiter, &QEventLoop::quit);
     timeout.start();
     waiter.exec();
+}
+
+void TwoClientTestContext::waitReceiverReceived(const int count)
+{
+    if (count > 0 && receivedMessages.count() == count)
+        return;
+
+    int attempt = 0;
+    while(receivedMessages.count() != count && attempt++ < count)
+    {
+        QEventLoop waiter;
+        QTimer timeout;
+        timeout.setSingleShot(true);
+        timeout.setInterval(3000);
+        connect(&timeout, &QTimer::timeout, &waiter, &QEventLoop::quit);
+        connect(receiver.data(), &QMQTT::Client::received, &waiter, &QEventLoop::quit);
+        timeout.start();
+        waiter.exec();
+    }
 }
 
 void TwoClientTestContext::onClientError(const QMQTT::ClientError error)

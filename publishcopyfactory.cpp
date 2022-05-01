@@ -3,24 +3,60 @@
 #include "publishcopyfactory.h"
 #include "mqttpacket.h"
 
-PublishCopyFactory::PublishCopyFactory(MqttPacket &packet) :
+PublishCopyFactory::PublishCopyFactory(MqttPacket *packet) :
     packet(packet),
-    orgQos(packet.getQos())
+    orgQos(packet->getQos())
 {
 
 }
 
-MqttPacket &PublishCopyFactory::getOptimumPacket(char max_qos)
+PublishCopyFactory::PublishCopyFactory(Publish *publish) :
+    publish(publish),
+    orgQos(publish->qos)
 {
-    if (max_qos == 0 && max_qos < packet.getQos())
+
+}
+
+MqttPacket *PublishCopyFactory::getOptimumPacket(const char max_qos, const ProtocolVersion protocolVersion, uint16_t topic_alias, bool skip_topic)
+{
+    if (packet)
     {
-        if (!downgradedQos0PacketCopy)
-            downgradedQos0PacketCopy = packet.getCopy(max_qos);
-        assert(downgradedQos0PacketCopy->getQos() == 0);
-        return *downgradedQos0PacketCopy.get();
+        if (protocolVersion >= ProtocolVersion::Mqtt5 && (packet->containsClientSpecificProperties() || topic_alias > 0))
+        {
+            Publish newPublish(packet->getPublishData());
+            newPublish.splitTopic = false;
+            newPublish.qos = max_qos;
+            newPublish.topicAlias = topic_alias;
+            newPublish.skipTopic = skip_topic;
+            this->oneShotPacket = std::make_unique<MqttPacket>(protocolVersion, newPublish);
+            return this->oneShotPacket.get();
+        }
+
+        if (packet->getProtocolVersion() == protocolVersion && orgQos == max_qos)
+        {
+            assert(orgQos == packet->getQos());
+            return packet;
+        }
+
+        const int cache_key = (static_cast<uint8_t>(protocolVersion) * 10) + max_qos;
+        std::unique_ptr<MqttPacket> &cachedPack = constructedPacketCache[cache_key];
+
+        if (!cachedPack)
+        {
+            Publish newPublish(packet->getPublishData());
+            newPublish.splitTopic = false;
+            newPublish.qos = max_qos;
+            cachedPack = std::make_unique<MqttPacket>(protocolVersion, newPublish);
+        }
+
+        return cachedPack.get();
     }
 
-    return packet;
+    // Getting an instance of a Publish object happens at least on retained messages, will messages and SYS topics. It's low traffic, anyway.
+    assert(publish);
+
+    this->oneShotPacket = std::make_unique<MqttPacket>(protocolVersion, *publish);
+    return this->oneShotPacket.get();
 }
 
 char PublishCopyFactory::getEffectiveQos(char max_qos) const
@@ -31,23 +67,74 @@ char PublishCopyFactory::getEffectiveQos(char max_qos) const
 
 const std::string &PublishCopyFactory::getTopic() const
 {
-    return packet.getTopic();
+    if (packet)
+        return packet->getTopic();
+    assert(publish);
+    return publish->topic;
 }
 
-const std::vector<std::string> &PublishCopyFactory::getSubtopics() const
+const std::vector<std::string> &PublishCopyFactory::getSubtopics()
 {
-    return packet.getSubtopics();
+    if (packet)
+    {
+        assert(!packet->getSubtopics().empty());
+        return packet->getSubtopics();
+    }
+    else if (publish)
+    {
+        if (publish->subtopics.empty())
+            splitTopic(publish->topic, publish->subtopics);
+        return publish->subtopics;
+    }
+
+    throw std::runtime_error("Bug in &PublishCopyFactory::getSubtopics()");
 }
 
 bool PublishCopyFactory::getRetain() const
 {
-    return packet.getRetain();
+    if (packet)
+        return packet->getRetain();
+    assert(publish);
+    return publish->retain;
 }
 
-Publish PublishCopyFactory::getPublish() const
+Publish PublishCopyFactory::getNewPublish() const
 {
-    assert(packet.getQos() > 0);
+    assert(packet->getQos() > 0);
+    assert(orgQos > 0); // We only need to construct new publishes for QoS. If you're doing it elsewhere, it's a bug.
 
-    Publish p(packet.getTopic(), packet.getPayloadCopy(), packet.getQos());
+    if (packet)
+    {
+        Publish p(packet->getPublishData());
+        p.qos = orgQos;
+        return p;
+    }
+
+    Publish p(*publish);
+    p.qos = orgQos;
     return p;
+}
+
+std::shared_ptr<Client> PublishCopyFactory::getSender()
+{
+    if (packet)
+        return packet->getSender();
+    return std::shared_ptr<Client>(0);
+}
+
+const std::vector<std::pair<std::string, std::string> > *PublishCopyFactory::getUserProperties() const
+{
+    if (packet)
+    {
+        return packet->getUserProperties();
+    }
+
+    assert(publish);
+
+    if (publish->propertyBuilder)
+    {
+        return publish->propertyBuilder->getUserProperties().get();
+    }
+
+    return nullptr;
 }

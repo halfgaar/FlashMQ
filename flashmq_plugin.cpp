@@ -12,9 +12,11 @@ void flashmq_logf(int level, const char *str, ...)
     va_end(valist);
 }
 
-FlashMQMessage::FlashMQMessage(const std::string &topic, const std::vector<std::string> &subtopics, const char qos, const bool retain) :
+FlashMQMessage::FlashMQMessage(const std::string &topic, const std::vector<std::string> &subtopics, const char qos, const bool retain,
+                               const std::vector<std::pair<std::string, std::string>> *userProperties) :
     topic(topic),
     subtopics(subtopics),
+    userProperties(userProperties),
     qos(qos),
     retain(retain)
 {

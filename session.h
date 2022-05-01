@@ -45,14 +45,25 @@ class Session
     std::set<uint16_t> outgoingQoS2MessageIds;
     std::mutex qosQueueMutex;
     uint16_t nextPacketId = 0;
-    uint16_t qosInFlightCounter = 0;
+
+    /**
+     * Even though flow control data is not part of the session state, I'm keeping it here because there are already
+     * mutexes that they can be placed under, saving additional synchronization.
+     */
+    int flowControlCealing = 0xFFFF;
+    int flowControlQuota = 0xFFFF;
+
+    uint32_t sessionExpiryInterval = 0;
     uint16_t QoSLogPrintedAtId = 0;
-    std::chrono::time_point<std::chrono::steady_clock> lastTouched = std::chrono::steady_clock::now();
+    bool destroyOnDisconnect = false;
+    std::shared_ptr<WillPublish> willPublish;
+    bool removalQueued = false;
+    std::chrono::time_point<std::chrono::steady_clock> removalQueuedAt;
     Logger *logger = Logger::getInstance();
 
-    int64_t getSessionRelativeAgeInMs() const;
-    void setSessionTouch(int64_t ageInMs);
-    bool requiresPacketRetransmission() const;
+    void increaseFlowControlQuota();
+
+    bool requiresQoSQueueing() const;
     void increasePacketId();
 
     Session(const Session &other);
@@ -62,29 +73,33 @@ public:
     Session(Session &&other) = delete;
     ~Session();
 
-    static int64_t getProgramStartedAtUnixTimestamp();
-    static void setProgramStartedAtUnixTimestamp(const int64_t unix_timestamp);
-
     std::unique_ptr<Session> getCopy() const;
 
     const std::string &getClientId() const { return client_id; }
     std::shared_ptr<Client> makeSharedClient() const;
     void assignActiveConnection(std::shared_ptr<Client> &client);
     void writePacket(PublishCopyFactory &copyFactory, const char max_qos, uint64_t &count);
-    void clearQosMessage(uint16_t packet_id);
-    uint64_t sendPendingQosMessages();
-    void touch(std::chrono::time_point<std::chrono::steady_clock> val);
-    void touch();
-    bool hasExpired(int expireAfterSeconds);
+    bool clearQosMessage(uint16_t packet_id, bool qosHandshakeEnds);
+    uint64_t sendAllPendingQosData();
+    bool hasActiveClient() const;
+    void clearWill();
+    std::shared_ptr<WillPublish> &getWill();
+    void setWill(WillPublish &&pub);
 
     void addIncomingQoS2MessageId(uint16_t packet_id);
     bool incomingQoS2MessageIdInTransit(uint16_t packet_id);
-    void removeIncomingQoS2MessageId(u_int16_t packet_id);
+    bool removeIncomingQoS2MessageId(u_int16_t packet_id);
 
     void addOutgoingQoS2MessageId(uint16_t packet_id);
     void removeOutgoingQoS2MessageId(u_int16_t packet_id);
 
-    bool getCleanSession() const;
+    bool getDestroyOnDisconnect() const;
+
+    void setSessionProperties(uint16_t clientReceiveMax, uint32_t sessionExpiryInterval, bool clean_start, ProtocolVersion protocol_version);
+    void setSessionExpiryInterval(uint32_t newVal);
+    void setQueuedRemovalAt();
+    uint32_t getSessionExpiryInterval() const;
+    uint32_t getCurrentSessionExpiryInterval() const;
 };
 
 #endif // SESSION_H

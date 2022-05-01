@@ -16,6 +16,7 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <memory>
 
 #define FLASHMQ_PLUGIN_VERSION 1
 
@@ -53,9 +54,11 @@ enum class AclAccess
 enum class AuthResult
 {
     success = 0,
+    auth_method_not_supported = 10,
     acl_denied = 12,
     login_denied = 11,
-    error = 13
+    error = 13,
+    auth_continue = -4
 };
 
 /**
@@ -72,10 +75,20 @@ struct FlashMQMessage
 {
     const std::string &topic;
     const std::vector<std::string> &subtopics;
+    const std::vector<std::pair<std::string, std::string>> *userProperties;
     const char qos;
     const bool retain;
 
-    FlashMQMessage(const std::string &topic, const std::vector<std::string> &subtopics, const char qos, const bool retain);
+    FlashMQMessage(const std::string &topic, const std::vector<std::string> &subtopics, const char qos, const bool retain,
+                   const std::vector<std::pair<std::string, std::string>> *userProperties);
+};
+
+enum class ExtendedAuthStage
+{
+    None = 0,
+    Auth = 10,
+    Reauth = 20,
+    Continue = 30
 };
 
 /**
@@ -177,7 +190,8 @@ void flashmq_auth_plugin_periodic_event(void *thread_data);
  * Note that there is a setting 'auth_plugin_serialize_auth_checks'. Use only as a last resort if your plugin is not
  * thread-safe. It will negate much of FlashMQ's multi-core model.
  */
-AuthResult flashmq_auth_plugin_login_check(void *thread_data, const std::string &username, const std::string &password);
+AuthResult flashmq_auth_plugin_login_check(void *thread_data, const std::string &username, const std::string &password,
+                                           const std::vector<std::pair<std::string, std::string>> *userProperties);
 
 /**
  * @brief flashmq_auth_plugin_acl_check is called on publish, deliver and subscribe.
@@ -203,6 +217,22 @@ AuthResult flashmq_auth_plugin_login_check(void *thread_data, const std::string 
  * thread-safe. It will negate much of FlashMQ's multi-core model.
  */
 AuthResult flashmq_auth_plugin_acl_check(void *thread_data, AclAccess access, const std::string &clientid, const std::string &username, const FlashMQMessage &msg);
+
+/**
+ * @brief flashmq_extended_auth can be used to implement MQTT 5 extended auth. This is optional.
+ * @param thread_data is the memory you allocated in flashmq_auth_plugin_allocate_thread_memory.
+ * @param clientid
+ * @param stage
+ * @param authMethod
+ * @param authData
+ * @param userProperties are optional (and are nullptr in that case)
+ * @param returnData is a non-const string, that you can set to include data back to the client in an AUTH packet.
+ * @param username is a non-const string. You can set it, which will then apply to ACL checking and show in the logs.
+ * @return an AuthResult enum class value
+ */
+AuthResult flashmq_extended_auth(void *thread_data, const std::string &clientid, ExtendedAuthStage stage, const std::string &authMethod,
+                                 const std::string &authData, const std::vector<std::pair<std::string, std::string>> *userProperties, std::string &returnData,
+                                 std::string &username);
 
 }
 

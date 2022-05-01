@@ -17,6 +17,8 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 
 #include "sessionsandsubscriptionsdb.h"
 #include "mqttpacket.h"
+#include "threadglobals.h"
+#include "utils.h"
 
 #include "cassert"
 
@@ -41,7 +43,7 @@ SessionsAndSubscriptionsDB::SessionsAndSubscriptionsDB(const std::string &filePa
 
 void SessionsAndSubscriptionsDB::openWrite()
 {
-    PersistenceFile::openWrite(MAGIC_STRING_SESSION_FILE_V1);
+    PersistenceFile::openWrite(MAGIC_STRING_SESSION_FILE_V2);
 }
 
 void SessionsAndSubscriptionsDB::openRead()
@@ -50,35 +52,46 @@ void SessionsAndSubscriptionsDB::openRead()
 
     if (detectedVersionString == MAGIC_STRING_SESSION_FILE_V1)
         readVersion = ReadVersion::v1;
+    else if (detectedVersionString == MAGIC_STRING_SESSION_FILE_V2)
+        readVersion = ReadVersion::v2;
     else
         throw std::runtime_error("Unknown file version.");
 }
 
-SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV1()
+SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV2()
 {
+    const Settings *settings = ThreadGlobals::getSettings();
+
     SessionsAndSubscriptionsResult result;
 
     while (!feof(f))
     {
         bool eofFound = false;
 
-        const int64_t programStartAge = readInt64(eofFound);
+        const int64_t fileSavedAt = readInt64(eofFound);
         if (eofFound)
             continue;
 
-        logger->logf(LOG_DEBUG, "Setting first app start time to timestamp %ld", programStartAge);
-        Session::setProgramStartedAtUnixTimestamp(programStartAge);
+        const int64_t now_epoch = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+        const int64_t persistence_state_age = fileSavedAt > now_epoch ? 0 : now_epoch - fileSavedAt;
+
+        logger->logf(LOG_DEBUG, "Session file was saved at %ld. That's %ld seconds ago.", fileSavedAt, persistence_state_age);
 
         const uint32_t nrOfSessions = readUint32(eofFound);
 
         if (eofFound)
             continue;
 
-        std::vector<char> reserved(RESERVED_SPACE_SESSIONS_DB_V1);
+        std::vector<char> reserved(RESERVED_SPACE_SESSIONS_DB_V2);
+        CirBuf cirbuf(1024);
+
+        std::shared_ptr<ThreadData> dummyThreadData; // which thread am I going get/use here?
+        std::shared_ptr<Client> dummyClient(new Client(0, dummyThreadData, nullptr, false, nullptr, settings, false));
+        dummyClient->setClientProperties(ProtocolVersion::Mqtt5, "Dummyforloadingqueuedqos", "nobody", true, 60);
 
         for (uint32_t i = 0; i < nrOfSessions; i++)
         {
-            readCheck(buf.data(), 1, RESERVED_SPACE_SESSIONS_DB_V1, f);
+            readCheck(buf.data(), 1, RESERVED_SPACE_SESSIONS_DB_V2, f);
 
             uint32_t usernameLength = readUint32(eofFound);
             readCheck(buf.data(), 1, usernameLength, f);
@@ -98,24 +111,27 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV1()
             const uint32_t nrOfQueuedQoSPackets = readUint32(eofFound);
             for (uint32_t i = 0; i < nrOfQueuedQoSPackets; i++)
             {
+                const uint16_t fixed_header_length = readUint16(eofFound);
                 const uint16_t id = readUint16(eofFound);
-                const uint32_t topicSize = readUint32(eofFound);
-                const uint32_t payloadSize = readUint32(eofFound);
+                const uint32_t originalPubAge = readUint32(eofFound);
+                const uint32_t packlen = readUint32(eofFound);
 
                 assert(id > 0);
 
-                readCheck(buf.data(), 1, 1, f);
-                const unsigned char qos = buf[0];
+                cirbuf.reset();
+                cirbuf.ensureFreeSpace(packlen + 32);
 
-                readCheck(buf.data(), 1, topicSize, f);
-                const std::string topic(buf.data(), topicSize);
+                readCheck(cirbuf.headPtr(), 1, packlen, f);
+                cirbuf.advanceHead(packlen);
+                MqttPacket pack(cirbuf, packlen, fixed_header_length, dummyClient);
 
-                makeSureBufSize(payloadSize);
-                readCheck(buf.data(), 1, payloadSize, f);
-                const std::string payload(buf.data(), payloadSize);
+                pack.parsePublishData();
+                Publish pub(pack.getPublishData());
 
-                Publish pub(topic, payload, qos);
-                logger->logf(LOG_DEBUG, "Loaded QoS %d message for topic '%s'.", pub.qos, pub.topic.c_str());
+                const uint32_t newPubAge = persistence_state_age + originalPubAge;
+                pub.createdAt = timepointFromAge(newPubAge);
+
+                logger->logf(LOG_DEBUG, "Loaded QoS %d message for topic '%s' for session '%s'.", pub.qos, pub.topic.c_str(), ses->getClientId().c_str());
                 ses->qosPacketQueue.queuePublish(std::move(pub), id);
             }
 
@@ -141,9 +157,40 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV1()
             logger->logf(LOG_DEBUG, "Loaded next packetid %d.", ses->nextPacketId);
             ses->nextPacketId = nextPacketId;
 
-            int64_t sessionAge = readInt64(eofFound);
-            logger->logf(LOG_DEBUG, "Loaded session age: %ld ms.", sessionAge);
-            ses->setSessionTouch(sessionAge);
+            const uint32_t originalSessionExpiryInterval = readUint32(eofFound);
+            const uint32_t compensatedSessionExpiry = persistence_state_age > originalSessionExpiryInterval ? 0 : originalSessionExpiryInterval - persistence_state_age;
+            const uint32_t sessionExpiryInterval = std::min<uint32_t>(compensatedSessionExpiry, settings->getExpireSessionAfterSeconds());
+
+            // We will set the session expiry interval as it would have had time continued. If a connection picks up session, it will update
+            // it with a more relevant value.
+            // The protocol version 5 is just dummy, to get the behavior I want.
+            ses->setSessionProperties(0xFFFF, sessionExpiryInterval, 0, ProtocolVersion::Mqtt5);
+
+            const uint16_t hasWill = readUint16(eofFound);
+
+            if (hasWill)
+            {
+                const uint16_t fixed_header_length = readUint16(eofFound);
+                const uint32_t originalWillDelay = readUint32(eofFound);
+                const uint32_t originalWillQueueAge = readUint32(eofFound);
+                const uint32_t newWillDelayAfterMaybeAlreadyBeingQueued = originalWillQueueAge < originalWillDelay ? originalWillDelay - originalWillQueueAge : 0;
+                const uint32_t packlen = readUint32(eofFound);
+
+                const uint32_t stateAgecompensatedWillDelay =
+                        persistence_state_age > newWillDelayAfterMaybeAlreadyBeingQueued ? 0 : newWillDelayAfterMaybeAlreadyBeingQueued - persistence_state_age;
+
+                cirbuf.reset();
+                cirbuf.ensureFreeSpace(packlen + 32);
+
+                readCheck(cirbuf.headPtr(), 1, packlen, f);
+                cirbuf.advanceHead(packlen);
+                MqttPacket publishpack(cirbuf, packlen, fixed_header_length, dummyClient);
+                publishpack.parsePublishData();
+                WillPublish willPublish = publishpack.getPublishData();
+                willPublish.will_delay = stateAgecompensatedWillDelay;
+
+                ses->setWill(std::move(willPublish));
+            }
         }
 
         const uint32_t nrOfSubscriptions = readUint32(eofFound);
@@ -188,14 +235,16 @@ void SessionsAndSubscriptionsDB::saveData(const std::vector<std::unique_ptr<Sess
     if (!f)
         return;
 
-    char reserved[RESERVED_SPACE_SESSIONS_DB_V1];
-    std::memset(reserved, 0, RESERVED_SPACE_SESSIONS_DB_V1);
+    char reserved[RESERVED_SPACE_SESSIONS_DB_V2];
+    std::memset(reserved, 0, RESERVED_SPACE_SESSIONS_DB_V2);
 
-    const int64_t start_stamp = Session::getProgramStartedAtUnixTimestamp();
-    logger->logf(LOG_DEBUG, "Saving program first start time stamp as %ld", start_stamp);
-    writeInt64(start_stamp);
+    const int64_t now_epoch = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    logger->logf(LOG_DEBUG, "Saving current time stamp %ld", now_epoch);
+    writeInt64(now_epoch);
 
     writeUint32(sessions.size());
+
+    CirBuf cirbuf(1024);
 
     for (const std::unique_ptr<Session> &ses : sessions)
     {
@@ -203,7 +252,7 @@ void SessionsAndSubscriptionsDB::saveData(const std::vector<std::unique_ptr<Sess
 
         writeRowHeader();
 
-        writeCheck(reserved, 1, RESERVED_SPACE_SESSIONS_DB_V1, f);
+        writeCheck(reserved, 1, RESERVED_SPACE_SESSIONS_DB_V2, f);
 
         writeUint32(ses->username.length());
         writeCheck(ses->username.c_str(), 1, ses->username.length(), f);
@@ -215,24 +264,32 @@ void SessionsAndSubscriptionsDB::saveData(const std::vector<std::unique_ptr<Sess
         size_t qosPacketsCounted = 0;
         writeUint32(qosPacketsExpected);
 
-        for (const QueuedPublish &p: ses->qosPacketQueue)
+        for (QueuedPublish &p: ses->qosPacketQueue)
         {
-            const Publish &pub = p.getPublish();
+            qosPacketsCounted++;
+
+            Publish &pub = p.getPublish();
+
+            assert(!pub.splitTopic);
+            assert(!pub.skipTopic);
+            assert(pub.topicAlias == 0);
 
             logger->logf(LOG_DEBUG, "Saving QoS %d message for topic '%s'.", pub.qos, pub.topic.c_str());
 
-            qosPacketsCounted++;
+            MqttPacket pack(ProtocolVersion::Mqtt5, pub);
+            pack.setPacketId(p.getPacketId());
+            const uint32_t packSize = pack.getSizeIncludingNonPresentHeader();
+            cirbuf.reset();
+            cirbuf.ensureFreeSpace(packSize + 32);
+            pack.readIntoBuf(cirbuf);
 
+            const uint32_t pubAge = ageFromTimePoint(pub.getCreatedAt());
+
+            writeUint16(pack.getFixedHeaderLength());
             writeUint16(p.getPacketId());
-
-            writeUint32(pub.topic.length());
-            writeUint32(pub.payload.size());
-
-            const char qos = pub.qos;
-            writeCheck(&qos, 1, 1, f);
-
-            writeCheck(pub.topic.c_str(), 1, pub.topic.length(), f);
-            writeCheck(pub.payload.c_str(), 1, pub.payload.length(), f);
+            writeUint32(pubAge);
+            writeUint32(packSize);
+            writeCheck(cirbuf.tailPtr(), 1, cirbuf.usedBytes(), f);
         }
 
         assert(qosPacketsExpected == qosPacketsCounted);
@@ -254,9 +311,31 @@ void SessionsAndSubscriptionsDB::saveData(const std::vector<std::unique_ptr<Sess
         logger->logf(LOG_DEBUG, "Writing next packetid %d.", ses->nextPacketId);
         writeUint16(ses->nextPacketId);
 
-        const int64_t sInMs = ses->getSessionRelativeAgeInMs();
-        logger->logf(LOG_DEBUG, "Writing session age: %ld ms.", sInMs);
-        writeInt64(sInMs);
+        writeUint32(ses->getCurrentSessionExpiryInterval());
+
+        const bool hasWillThatShouldSurviveRestart = ses->getWill().operator bool() && ses->getWill()->will_delay > 0;
+        writeUint16(static_cast<uint16_t>(hasWillThatShouldSurviveRestart));
+
+        if (hasWillThatShouldSurviveRestart)
+        {
+            WillPublish &will = *ses->getWill().get();
+            MqttPacket willpacket(ProtocolVersion::Mqtt5, will);
+
+            // Dummy, to please the parser on reading.
+            if (will.qos > 0)
+                willpacket.setPacketId(666);
+
+            const uint32_t packSize = willpacket.getSizeIncludingNonPresentHeader();
+            cirbuf.reset();
+            cirbuf.ensureFreeSpace(packSize + 32);
+            willpacket.readIntoBuf(cirbuf);
+
+            writeUint16(willpacket.getFixedHeaderLength());
+            writeUint32(will.will_delay);
+            writeUint32(will.getQueuedAtAge());
+            writeUint32(packSize);
+            writeCheck(cirbuf.tailPtr(), 1, cirbuf.usedBytes(), f);
+        }
     }
 
     writeUint32(subscriptions.size());
@@ -294,7 +373,9 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readData()
         return defaultResult;
 
     if (readVersion == ReadVersion::v1)
-        return readDataV1();
+        logger->logf(LOG_WARNING, "File '%s' is version 1, an internal development version that was never finalized. Not reading.", getFilePath().c_str());
+    if (readVersion == ReadVersion::v2)
+        return readDataV2();
 
     return defaultResult;
 }

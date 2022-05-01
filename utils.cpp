@@ -662,7 +662,43 @@ const std::string protocolVersionString(ProtocolVersion p)
         return "3.1";
     case ProtocolVersion::Mqtt311:
         return "3.1.1";
+    case ProtocolVersion::Mqtt5:
+        return "5.0";
     default:
         return "unknown";
+    }
+}
+
+uint32_t ageFromTimePoint(const std::chrono::time_point<std::chrono::steady_clock> &point)
+{
+    auto duration = std::chrono::steady_clock::now() - point;
+    auto seconds = std::chrono::duration_cast<std::chrono::seconds>(duration);
+    return seconds.count();
+}
+
+std::chrono::time_point<std::chrono::steady_clock> timepointFromAge(const uint32_t age)
+{
+    std::chrono::seconds seconds(age);
+    std::chrono::time_point<std::chrono::steady_clock> newPoint = std::chrono::steady_clock::now() + seconds;
+    return newPoint;
+}
+
+ReasonCodes authResultToReasonCode(AuthResult authResult)
+{
+    switch (authResult)
+    {
+    case AuthResult::success:
+        return ReasonCodes::Success;
+    case AuthResult::auth_method_not_supported:
+        return ReasonCodes::BadAuthenticationMethod;
+    case AuthResult::acl_denied:
+    case AuthResult::login_denied:
+        return ReasonCodes::NotAuthorized;
+    case AuthResult::error:
+        return ReasonCodes::UnspecifiedError;
+    case AuthResult::auth_continue:
+        return ReasonCodes::ContinueAuthentication;
+    default:
+        return ReasonCodes::UnspecifiedError;
     }
 }

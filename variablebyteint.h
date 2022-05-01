@@ -12,6 +12,7 @@ public:
     void readIntoBuf(CirBuf &buf) const;
     VariableByteInt &operator=(uint32_t x);
     uint8_t getLen() const;
+    const char *data() const;
 };
 
 #endif // VARIABLEBYTEINT_H

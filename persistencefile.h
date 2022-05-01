@@ -87,6 +87,8 @@ public:
     void openWrite(const std::string &versionString);
     void openRead();
     void closeFile();
+
+    const std::string &getFilePath() const;
 };
 
 #endif // PERSISTENCEFILE_H

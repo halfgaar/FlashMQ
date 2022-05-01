@@ -320,3 +320,8 @@ void PersistenceFile::closeFile()
             throw std::runtime_error(formatString("Saving '%s' failed: rename of temp file to target failed with: %s", filePath.c_str(), strerror(errno)));
     }
 }
+
+const std::string &PersistenceFile::getFilePath() const
+{
+    return this->filePath;
+}

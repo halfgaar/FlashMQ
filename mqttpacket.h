@@ -34,19 +34,25 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "mainapp.h"
 
 #include "variablebyteint.h"
+#include "mqtt5properties.h"
 
+/**
+ * @brief The MqttPacket class represents incoming and outgonig packets.
+ *
+ * Be sure to understand the 'externallyReceived' member. See in-code documentation.
+ *
+ * TODO: I could perhaps make a subclass for the externally received one.
+ */
 class MqttPacket
 {
 #ifdef TESTING
     friend class MainTests;
 #endif
 
-    std::string topic;
-    std::vector<std::string> subtopics;
     std::vector<char> bites;
+    Publish publishData;
     size_t fixed_header_length = 0; // if 0, this packet does not contain the bytes of the fixed header.
     VariableByteInt remainingLength;
-    char qos = 0;
     std::shared_ptr<Client> sender;
     char first_byte = 0;
     size_t pos = 0;
@@ -55,6 +61,13 @@ class MqttPacket
     ProtocolVersion protocolVersion = ProtocolVersion::None;
     size_t payloadStart = 0;
     size_t payloadLen = 0;
+    bool hasTopicAlias = false;
+
+    // It's important to understand that this class is used for incoming packets as well as new outgoing packets. When we create
+    // new outgoing packets, we generally know exactly who it's for and the information is only stored in this->bites. So, the
+    // publishData and fields like hasTopicAlias are invalid in those cases.
+    bool externallyReceived = false;
+
     Logger *logger = Logger::getInstance();
 
     char *readBytes(size_t length);
@@ -62,49 +75,59 @@ class MqttPacket
     void writeByte(char b);
     void writeUint16(uint16_t x);
     void writeBytes(const char *b, size_t len);
+    void writeProperties(const std::shared_ptr<Mqtt5PropertyBuilder> &properties);
+    void writeVariableByteInt(const VariableByteInt &v);
     uint16_t readTwoBytesToUInt16();
+    uint32_t readFourBytesToUint32();
     size_t remainingAfterPos();
+    size_t decodeVariableByteIntAtPos();
+    void readUserProperty();
+    std::string readBytesToString(bool validateUtf8 = true, bool alsoCheckInvalidPublishChars = false);
 
     void calculateRemainingLength();
-    void pubCommonConstruct(const uint16_t packet_id, PacketType packetType, uint8_t firstByteDefaultBits = 0);
 
-    MqttPacket(const MqttPacket &other) = default;
+    bool atEnd() const;
+
+    MqttPacket(const MqttPacket &other) = delete;
 public:
     PacketType packetType = PacketType::Reserved;
     MqttPacket(CirBuf &buf, size_t packet_len, size_t fixed_header_length, std::shared_ptr<Client> &sender); // Constructor for parsing incoming packets.
 
     MqttPacket(MqttPacket &&other) = default;
 
-    std::shared_ptr<MqttPacket> getCopy(char new_max_qos) const;
+    size_t setClientSpecificPropertiesAndGetRequiredSizeForPublish(const ProtocolVersion protocolVersion, Publish &publishData) const;
 
     // Constructor for outgoing packets. These may not allocate room for the fixed header, because we don't (always) know the length in advance.
     MqttPacket(const ConnAck &connAck);
     MqttPacket(const SubAck &subAck);
     MqttPacket(const UnsubAck &unsubAck);
-    MqttPacket(const Publish &publish);
-    MqttPacket(const PubAck &pubAck);
-    MqttPacket(const PubRec &pubRec);
-    MqttPacket(const PubComp &pubComp);
-    MqttPacket(const PubRel &pubRel);
+    MqttPacket(const ProtocolVersion protocolVersion, Publish &_publish);
+    MqttPacket(const PubResponse &pubAck);
+    MqttPacket(const Disconnect &disconnect);
+    MqttPacket(const Auth &auth);
 
     static void bufferToMqttPackets(CirBuf &buf, std::vector<MqttPacket> &packetQueueIn, std::shared_ptr<Client> &sender);
 
     void handle();
     void handleConnect();
+    void handleExtendedAuth();
     void handleDisconnect();
     void handleSubscribe();
     void handleUnsubscribe();
     void handlePing();
+    void parsePublishData();
     void handlePublish();
     void handlePubAck();
     void handlePubRec();
     void handlePubRel();
     void handlePubComp();
 
+    uint8_t getFixedHeaderLength() const;
     size_t getSizeIncludingNonPresentHeader() const;
     const std::vector<char> &getBites() const { return bites; }
-    char getQos() const { return qos; }
+    char getQos() const { return publishData.qos; }
     void setQos(const char new_qos);
+    ProtocolVersion getProtocolVersion() const { return protocolVersion;}
     const std::string &getTopic() const;
     const std::vector<std::string> &getSubtopics() const;
     std::shared_ptr<Client> getSender() const;
@@ -117,6 +140,9 @@ public:
     std::string getPayloadCopy() const;
     bool getRetain() const;
     void setRetain();
+    const Publish &getPublishData();
+    bool containsClientSpecificProperties() const;
+    const std::vector<std::pair<std::string, std::string>> *getUserProperties() const;
 };
 
 #endif // MQTTPACKET_H

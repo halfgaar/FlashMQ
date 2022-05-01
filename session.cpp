@@ -20,47 +20,27 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "session.h"
 #include "client.h"
 #include "threadglobals.h"
-
-std::chrono::time_point<std::chrono::steady_clock> appStartTime = std::chrono::steady_clock::now();
+#include "threadglobals.h"
 
 Session::Session()
 {
+    const Settings &settings = *ThreadGlobals::getSettings();
 
+    // Sessions also get defaults from the handleConnect() method, but when you create sessions elsewhere, we do need some sensible defaults.
+    this->flowControlQuota = settings.maxQosMsgPendingPerClient;
+    this->sessionExpiryInterval = settings.expireSessionsAfterSeconds;
 }
 
-int64_t Session::getProgramStartedAtUnixTimestamp()
+void Session::increaseFlowControlQuota()
 {
-    auto secondsSinceEpoch = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-    const std::chrono::seconds age = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - appStartTime);
-    int64_t result = secondsSinceEpoch - age.count();
-    return result;
+    flowControlQuota++;
+    this->flowControlQuota = std::min<int>(flowControlQuota, flowControlCealing);
 }
 
-void Session::setProgramStartedAtUnixTimestamp(const int64_t unix_timestamp)
+bool Session::requiresQoSQueueing() const
 {
-    auto secondsSinceEpoch = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch());
-    const std::chrono::seconds _unix_timestamp = std::chrono::seconds(unix_timestamp);
-    const std::chrono::seconds age_in_s = secondsSinceEpoch - _unix_timestamp;
-    appStartTime = std::chrono::steady_clock::now() - age_in_s;
-}
+    return  true;
 
-
-int64_t Session::getSessionRelativeAgeInMs() const
-{
-    const std::chrono::milliseconds sessionAge = std::chrono::duration_cast<std::chrono::milliseconds>(lastTouched - appStartTime);
-    const int64_t sInMs = sessionAge.count();
-    return sInMs;
-}
-
-void Session::setSessionTouch(int64_t ageInMs)
-{
-    std::chrono::milliseconds ms(ageInMs);
-    std::chrono::time_point<std::chrono::steady_clock> point = appStartTime + ms;
-    lastTouched = point;
-}
-
-bool Session::requiresPacketRetransmission() const
-{
     const std::shared_ptr<Client> client = makeSharedClient();
 
     if (!client)
@@ -71,15 +51,13 @@ bool Session::requiresPacketRetransmission() const
     if (client->getProtocolVersion() < ProtocolVersion::Mqtt311)
         return true;
 
-    // TODO: for MQTT5, the rules are different.
-    return !client->getCleanSession();
+    return !destroyOnDisconnect;
 }
 
 void Session::increasePacketId()
 {
     nextPacketId++;
-    if (nextPacketId == 0)
-        nextPacketId++;
+    nextPacketId = std::max<uint16_t>(nextPacketId, 1);
 }
 
 /**
@@ -99,7 +77,13 @@ Session::Session(const Session &other)
     this->incomingQoS2MessageIds = other.incomingQoS2MessageIds;
     this->outgoingQoS2MessageIds = other.outgoingQoS2MessageIds;
     this->nextPacketId = other.nextPacketId;
-    this->lastTouched = other.lastTouched;
+    this->sessionExpiryInterval = other.sessionExpiryInterval;
+    this->willPublish = other.willPublish;
+    this->removalQueued = other.removalQueued;
+    this->removalQueuedAt = other.removalQueuedAt;
+
+
+    // TODO: perhaps this copy constructor is nonsense now.
 
     // TODO: see git history for a change here. We now copy the whole queued publish. Do we want to address that?
     this->qosPacketQueue = other.qosPacketQueue;
@@ -134,6 +118,8 @@ void Session::assignActiveConnection(std::shared_ptr<Client> &client)
     this->client = client;
     this->client_id = client->getClientId();
     this->username = client->getUsername();
+    this->willPublish = client->getWill();
+    this->removalQueued = false;
 }
 
 /**
@@ -155,7 +141,7 @@ void Session::writePacket(PublishCopyFactory &copyFactory, const char max_qos, u
     Authentication *_auth = ThreadGlobals::getAuth();
     assert(_auth);
     Authentication &auth = *_auth;
-    if (auth.aclCheck(client_id, username, copyFactory.getTopic(), copyFactory.getSubtopics(), AclAccess::read, effectiveQos, copyFactory.getRetain()) == AuthResult::success)
+    if (auth.aclCheck(client_id, username, copyFactory.getTopic(), copyFactory.getSubtopics(), AclAccess::read, effectiveQos, copyFactory.getRetain(), copyFactory.getUserProperties()) == AuthResult::success)
     {
         std::shared_ptr<Client> c = makeSharedClient();
         if (effectiveQos == 0)
@@ -167,85 +153,79 @@ void Session::writePacket(PublishCopyFactory &copyFactory, const char max_qos, u
         }
         else if (effectiveQos > 0)
         {
-            const bool requiresRetransmission = requiresPacketRetransmission();
+            std::unique_lock<std::mutex> locker(qosQueueMutex);
 
-            if (requiresRetransmission)
+            if (this->flowControlQuota <= 0 || (qosPacketQueue.getByteSize() >= settings->maxQosBytesPendingPerClient && qosPacketQueue.size() > 0))
             {
-                std::unique_lock<std::mutex> locker(qosQueueMutex);
-
-                const size_t totalQosPacketsInTransit = qosPacketQueue.size() + incomingQoS2MessageIds.size() + outgoingQoS2MessageIds.size();
-                if (totalQosPacketsInTransit >= settings->maxQosMsgPendingPerClient
-                    || (qosPacketQueue.getByteSize() >= settings->maxQosBytesPendingPerClient && qosPacketQueue.size() > 0))
+                if (QoSLogPrintedAtId != nextPacketId)
                 {
-                    if (QoSLogPrintedAtId != nextPacketId)
-                    {
-                        logger->logf(LOG_WARNING, "Dropping QoS message(s) for client '%s', because max in-transit packet count reached.", client_id.c_str());
-                        QoSLogPrintedAtId = nextPacketId;
-                    }
-                    return;
+                    logger->logf(LOG_WARNING, "Dropping QoS message(s) for client '%s', because it hasn't seen enough PUBACK/PUBCOMP/PUBRECs to release places "
+                                              "or it exceeded 'max_qos_bytes_pending_per_client'.", client_id.c_str());
+                    QoSLogPrintedAtId = nextPacketId;
                 }
+                return;
+            }
 
-                increasePacketId();
+            increasePacketId();
+            flowControlQuota--;
 
+            if (requiresQoSQueueing())
                 qosPacketQueue.queuePublish(copyFactory, nextPacketId, effectiveQos);
 
-                if (c)
-                {
-                    count += c->writeMqttPacketAndBlameThisClient(copyFactory, effectiveQos, nextPacketId);
-                }
-            }
-            else
+            if (c)
             {
-                // We don't need to make a copy of the packet in this branch, because:
-                // - The packet to give the client won't shrink in size because source and client have a packet_id.
-                // - We don't have to store the copy in the session for retransmission, see Session::requiresPacketRetransmission()
-                // So, we just keep altering the original published packet.
-
-                std::unique_lock<std::mutex> locker(qosQueueMutex);
-
-                if (qosInFlightCounter >= 65530) // Includes a small safety margin.
-                {
-                    if (QoSLogPrintedAtId != nextPacketId)
-                    {
-                        logger->logf(LOG_WARNING, "Dropping QoS message(s) for client '%s', because it hasn't seen enough PUBACKs to release places.", client_id.c_str());
-                        QoSLogPrintedAtId = nextPacketId;
-                    }
-                    return;
-                }
-
-                increasePacketId();
-
-                qosInFlightCounter++;
-                assert(c); // with requiresRetransmission==false, there must be a client.
                 count += c->writeMqttPacketAndBlameThisClient(copyFactory, effectiveQos, nextPacketId);
             }
         }
     }
 }
 
-void Session::clearQosMessage(uint16_t packet_id)
+/**
+ * @brief Session::clearQosMessage clears a QOS message from the queue. Note that in QoS 2, that doesn't complete the handshake.
+ * @param packet_id
+ * @param qosHandshakeEnds can be set to true when you know the QoS handshake ends, (like) when PUBREC contains an error.
+ * @return whether the packet_id in question was found.
+ */
+bool Session::clearQosMessage(uint16_t packet_id, bool qosHandshakeEnds)
 {
 #ifndef NDEBUG
     logger->logf(LOG_DEBUG, "Clearing QoS message for '%s', packet id '%d'. Left in queue: %d", client_id.c_str(), packet_id, qosPacketQueue.size());
 #endif
 
+    bool result = false;
+
     std::lock_guard<std::mutex> locker(qosQueueMutex);
-    if (requiresPacketRetransmission())
-        qosPacketQueue.erase(packet_id);
+    if (requiresQoSQueueing())
+        result = qosPacketQueue.erase(packet_id);
     else
     {
-        qosInFlightCounter--;
-        qosInFlightCounter = std::max<int>(0, qosInFlightCounter); // Should never happen, but in case we receive too many PUBACKs.
+        result = true;
     }
+
+    if (qosHandshakeEnds)
+    {
+        increaseFlowControlQuota();
+    }
+
+    return result;
 }
 
-// [MQTT-4.4.0-1]: "When a Client reconnects with CleanSession set to 0, both the Client and Server MUST re-send any
-// unacknowledged PUBLISH Packets (where QoS > 0) and PUBREL Packets using their original Packet Identifiers. This
-// is the only circumstance where a Client or Server is REQUIRED to redeliver messages."
-//
-// There is a bit of a hole there, I think. When we write out a packet to a receiver, it may decide to drop it, if its buffers
-// are full, for instance. We are not required to (periodically) retry. TODO Perhaps I will implement that retry anyway.
-uint64_t Session::sendPendingQosMessages()
+/**
+ * @brief Session::sendAllPendingQosData sends pending publishes and QoS2 control packets.
+ * @return the amount of messages/packets published.
+ *
+ * [MQTT-4.4.0-1] (about MQTT 3.1.1): "When a Client reconnects with CleanSession set to 0, both the Client and Server MUST
+ * re-send any unacknowledged PUBLISH Packets (where QoS > 0) and PUBREL Packets using their original Packet Identifiers. This
+ * is the only circumstance where a Client or Server is REQUIRED to redeliver messages."
+ *
+ * Only MQTT 3.1 requires retransmission. MQTT 3.1.1 and MQTT 5 only send on reconnect. At time of writing this comment,
+ * FlashMQ doesn't have a retransmission system. I don't think I want to implement one for the sake of 3.1 compliance,
+ * because it's just not that great an idea in terms of server load and quality of modern TCP. However, receiving clients
+ * can still decide to drop packets, like when their buffers are full. The clients from where the packet originates will
+ * never know that, because IT will have received the PUBACK from FlashMQ. The QoS system is not between publisher
+ * and subscriber. Users are required to implement something themselves.
+ */
+uint64_t Session::sendAllPendingQosData()
 {
     uint64_t count = 0;
 
@@ -253,17 +233,40 @@ uint64_t Session::sendPendingQosMessages()
     if (c)
     {
         std::lock_guard<std::mutex> locker(qosQueueMutex);
-        for (const QueuedPublish &queuedPublish : qosPacketQueue)
+
+        auto pos = qosPacketQueue.begin();
+        while (pos != qosPacketQueue.end())
         {
-            MqttPacket p(queuedPublish.getPublish());
-            p.setDuplicate();
+            QueuedPublish &queuedPublish = *pos;
+            Publish &pub = queuedPublish.getPublish();
+
+            if (pub.hasExpired())
+            {
+                pos = qosPacketQueue.erase(pos);
+                continue;
+            }
+
+            if (flowControlQuota <= 0)
+            {
+                logger->logf(LOG_WARNING, "Dropping QoS message(s) for client '%s', because it exceeds its receive maximum.", client_id.c_str());
+                pos = qosPacketQueue.erase(pos);
+                continue;
+            }
+
+            flowControlQuota--;
+
+            MqttPacket p(c->getProtocolVersion(), pub);
+            p.setPacketId(queuedPublish.getPacketId());
+            //p.setDuplicate(); // TODO: this is wrong. Until we have a retransmission system, no packets can have the DUP bit set.
 
             count += c->writeMqttPacketAndBlameThisClient(p);
+
+            pos++;
         }
 
         for (const uint16_t packet_id : outgoingQoS2MessageIds)
         {
-            PubRel pubRel(packet_id);
+            PubResponse pubRel(c->getProtocolVersion(), PacketType::PUBREL, ReasonCodes::Success, packet_id);
             MqttPacket packet(pubRel);
             count += c->writeMqttPacketAndBlameThisClient(packet);
         }
@@ -272,51 +275,63 @@ uint64_t Session::sendPendingQosMessages()
     return count;
 }
 
-/**
- * @brief Session::touch with a time value allowed touching without causing another sys/lib call to get the time.
- * @param newval
- */
-void Session::touch(std::chrono::time_point<std::chrono::steady_clock> newval)
+bool Session::hasActiveClient() const
 {
-    lastTouched = newval;
+    return !client.expired();
 }
 
-void Session::touch()
+void Session::clearWill()
 {
-    lastTouched = std::chrono::steady_clock::now();
+    this->willPublish.reset();
 }
 
-bool Session::hasExpired(int expireAfterSeconds)
+std::shared_ptr<WillPublish> &Session::getWill()
 {
-    std::chrono::seconds expireAfter(expireAfterSeconds);
-    std::chrono::time_point<std::chrono::steady_clock> now = std::chrono::steady_clock::now();
-    return client.expired() && (lastTouched + expireAfter) < now;
+    return this->willPublish;
+}
+
+void Session::setWill(WillPublish &&pub)
+{
+    this->willPublish = std::make_shared<WillPublish>(std::move(pub));
 }
 
 void Session::addIncomingQoS2MessageId(uint16_t packet_id)
 {
+    assert(packet_id > 0);
+
     std::unique_lock<std::mutex> locker(qosQueueMutex);
     incomingQoS2MessageIds.insert(packet_id);
 }
 
 bool Session::incomingQoS2MessageIdInTransit(uint16_t packet_id)
 {
+    assert(packet_id > 0);
+
     std::unique_lock<std::mutex> locker(qosQueueMutex);
     const auto it = incomingQoS2MessageIds.find(packet_id);
     return it != incomingQoS2MessageIds.end();
 }
 
-void Session::removeIncomingQoS2MessageId(u_int16_t packet_id)
+bool Session::removeIncomingQoS2MessageId(u_int16_t packet_id)
 {
+    assert(packet_id > 0);
+
     std::unique_lock<std::mutex> locker(qosQueueMutex);
 
 #ifndef NDEBUG
     logger->logf(LOG_DEBUG, "As QoS 2 receiver: publish released (PUBREL) for '%s', packet id '%d'. Left in queue: %d", client_id.c_str(), packet_id, incomingQoS2MessageIds.size());
 #endif
 
+    bool result = false;
+
     const auto it = incomingQoS2MessageIds.find(packet_id);
     if (it != incomingQoS2MessageIds.end())
+    {
         incomingQoS2MessageIds.erase(it);
+        result = true;
+    }
+
+    return result;
 }
 
 void Session::addOutgoingQoS2MessageId(uint16_t packet_id)
@@ -336,14 +351,63 @@ void Session::removeOutgoingQoS2MessageId(u_int16_t packet_id)
     const auto it = outgoingQoS2MessageIds.find(packet_id);
     if (it != outgoingQoS2MessageIds.end())
         outgoingQoS2MessageIds.erase(it);
+
+    increaseFlowControlQuota();
 }
 
-bool Session::getCleanSession() const
+/**
+ * @brief Session::getDestroyOnDisconnect
+ * @return
+ *
+ * MQTT5: Setting Clean Start to 1 and a Session Expiry Interval of 0, is equivalent to setting CleanSession to 1 in the MQTT Specification Version 3.1.1.
+ */
+bool Session::getDestroyOnDisconnect() const
 {
-    auto c = client.lock();
-
-    if (!c)
-        return false;
-
-    return c->getCleanSession();
+    return destroyOnDisconnect;
 }
+
+void Session::setSessionProperties(uint16_t clientReceiveMax, uint32_t sessionExpiryInterval, bool clean_start, ProtocolVersion protocol_version)
+{
+    this->flowControlQuota = clientReceiveMax;
+    this->flowControlCealing = clientReceiveMax;
+    this->sessionExpiryInterval = sessionExpiryInterval;
+
+    if (protocol_version <= ProtocolVersion::Mqtt311 && clean_start)
+        destroyOnDisconnect = true;
+    else
+        destroyOnDisconnect = sessionExpiryInterval == 0;
+}
+
+void Session::setSessionExpiryInterval(uint32_t newVal)
+{
+    // This is only the case on disconnect, but there's no other place where this method is called (so far...)
+    if (this->sessionExpiryInterval == 0 && newVal > 0)
+    {
+        throw ProtocolError("Setting a non-zero session expiry after it was 0 initially is a protocol error.", ReasonCodes::ProtocolError);
+    }
+
+    this->sessionExpiryInterval = newVal;
+}
+
+void Session::setQueuedRemovalAt()
+{
+    this->removalQueuedAt = std::chrono::steady_clock::now();
+    this->removalQueued = true;
+}
+
+uint32_t Session::getSessionExpiryInterval() const
+{
+    return this->sessionExpiryInterval;
+}
+
+uint32_t Session::getCurrentSessionExpiryInterval() const
+{
+    if (!this->removalQueued || hasActiveClient())
+        return this->sessionExpiryInterval;
+
+    const std::chrono::seconds age = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - this->removalQueuedAt);
+    const uint32_t ageInSeconds = age.count();
+    const uint32_t result = ageInSeconds <= this->sessionExpiryInterval ? this->sessionExpiryInterval - age.count() : 0;
+    return result;
+}
+

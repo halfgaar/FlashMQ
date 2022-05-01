@@ -25,12 +25,22 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 
 #include "logger.h"
 #include "utils.h"
+#include "threadglobals.h"
 
-Client::Client(int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, bool websocket, struct sockaddr *addr, std::shared_ptr<Settings> settings, bool fuzzMode) :
+StowedClientRegistrationData::StowedClientRegistrationData(bool clean_start, uint16_t clientReceiveMax, uint32_t sessionExpiryInterval) :
+    clean_start(clean_start),
+    clientReceiveMax(clientReceiveMax),
+    sessionExpiryInterval(sessionExpiryInterval)
+{
+
+}
+
+Client::Client(int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, bool websocket, struct sockaddr *addr, const Settings *settings, bool fuzzMode) :
     fd(fd),
     fuzzMode(fuzzMode),
     initialBufferSize(settings->clientInitialBufferSize), // The client is constructed in the main thread, so we need to use its settings copy
-    maxPacketSize(settings->maxPacketSize), // Same as initialBufferSize comment.
+    maxOutgoingPacketSize(settings->maxPacketSize), // Same as initialBufferSize comment.
+    maxIncomingPacketSize(settings->maxPacketSize),
     ioWrapper(ssl, websocket, initialBufferSize, this),
     readbuf(initialBufferSize),
     writebuf(initialBufferSize),
@@ -49,23 +59,22 @@ Client::Client(int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, bool we
 
 Client::~Client()
 {
-    std::shared_ptr<SubscriptionStore> &store = getThreadData()->getSubscriptionStore();
-
-    // Will payload can be empty, apparently.
-    if (!will_topic.empty())
-    {
-        Publish will(will_topic, will_payload, will_qos);
-        will.retain = will_retain;
-        MqttPacket willPacket(will);
-
-        const std::vector<std::string> subtopics = splitToVector(will_topic, '/');
-        store->queuePacketAtSubscribers(subtopics, willPacket);
-    }
+    // Dummy clients, that I sometimes need just because the interface demands it but there's not actually a client, have no thread.
+    if (!this->threadData)
+        return;
 
     if (disconnectReason.empty())
         disconnectReason = "not specified";
 
     logger->logf(LOG_NOTICE, "Removing client '%s'. Reason(s): %s", repr().c_str(), disconnectReason.c_str());
+
+    std::shared_ptr<SubscriptionStore> &store = this->threadData->getSubscriptionStore();
+
+    if (willPublish)
+    {
+        store->queueWillMessage(willPublish, session);
+    }
+
     if (fd > 0) // this check is essentially for testing, when working with a dummy fd.
     {
         if (epoll_ctl(threadData->epollfd, EPOLL_CTL_DEL, fd, NULL) != 0)
@@ -73,10 +82,13 @@ Client::~Client()
         close(fd);
     }
 
-    // MQTT-3.1.2-6
-    if (cleanSession)
+    if (session && session->getDestroyOnDisconnect())
     {
-        store->removeSession(clientid);
+        store->removeSession(session);
+    }
+    else
+    {
+        store->queueSessionRemoval(session);
     }
 }
 
@@ -142,7 +154,7 @@ bool Client::readFdIntoBuffer()
         // Make sure we either always have enough space for a next call of this method, or stop reading the fd.
         if (readbuf.freeSpace() == 0)
         {
-            if (readbuf.getSize() * 2 < maxPacketSize)
+            if (readbuf.getSize() * 2 < this->maxIncomingPacketSize)
             {
                 readbuf.doubleSize();
             }
@@ -160,8 +172,6 @@ bool Client::readFdIntoBuffer()
     }
 
     lastActivity = std::chrono::steady_clock::now();
-    if (session)
-        session->touch(lastActivity);
 
     return true;
 }
@@ -182,18 +192,27 @@ void Client::writeText(const std::string &text)
 
 int Client::writeMqttPacket(const MqttPacket &packet)
 {
+    const size_t packetSize = packet.getSizeIncludingNonPresentHeader();
+
+    // "Where a Packet is too large to send, the Server MUST discard it without sending it and then behave as if it had completed
+    // sending that Application Message [MQTT-3.1.2-25]."
+    if (packetSize > this->maxOutgoingPacketSize)
+    {
+        return 0;
+    }
+
     std::lock_guard<std::mutex> locker(writeBufMutex);
 
     // We have to allow big packets, yet don't allow a slow loris subscriber to grow huge write buffers. This
     // could be enhanced a lot, but it's a start.
-    const uint32_t growBufMaxTo = std::min<int>(packet.getSizeIncludingNonPresentHeader() * 1000, maxPacketSize);
+    const uint32_t growBufMaxTo = std::min<int>(packetSize * 1000, this->maxOutgoingPacketSize);
 
     // Grow as far as we can. We have to make room for one MQTT packet.
-    writebuf.ensureFreeSpace(packet.getSizeIncludingNonPresentHeader(), growBufMaxTo);
+    writebuf.ensureFreeSpace(packetSize, growBufMaxTo);
 
     // And drop a publish when it doesn't fit, even after resizing. This means we do allow pings. And
     // QoS packet are queued and limited elsewhere.
-    if (packet.packetType == PacketType::PUBLISH && packet.getQos() == 0 && packet.getSizeIncludingNonPresentHeader() > writebuf.freeSpace())
+    if (packet.packetType == PacketType::PUBLISH && packet.getQos() == 0 && packetSize > writebuf.freeSpace())
     {
         return 0;
     }
@@ -209,17 +228,34 @@ int Client::writeMqttPacket(const MqttPacket &packet)
 
 int Client::writeMqttPacketAndBlameThisClient(PublishCopyFactory &copyFactory, char max_qos, uint16_t packet_id)
 {
-    MqttPacket &p = copyFactory.getOptimumPacket(max_qos);
+    uint16_t topic_alias = 0;
+    bool skip_topic = false;
 
-    if (p.getQos() > 0)
+    if (protocolVersion >= ProtocolVersion::Mqtt5 && this->maxOutgoingTopicAliasValue > this->curOutgoingTopicAlias)
+    {
+        uint16_t &id = this->outgoingTopicAliases[copyFactory.getTopic()];
+
+        if (id > 0)
+            skip_topic = true;
+        else
+            id = ++this->curOutgoingTopicAlias;
+
+        topic_alias = id;
+    }
+
+    MqttPacket *p = copyFactory.getOptimumPacket(max_qos, this->protocolVersion, topic_alias, skip_topic);
+
+    assert(p->getQos() <= max_qos);
+
+    if (p->getQos() > 0)
     {
         // This may change the packet ID and QoS of the incoming packet for each subscriber, but because we don't store that packet anywhere,
         // that should be fine.
-        p.setPacketId(packet_id);
-        p.setQos(max_qos);
+        p->setPacketId(packet_id);
+        p->setQos(max_qos);
     }
 
-    return writeMqttPacketAndBlameThisClient(p);
+    return writeMqttPacketAndBlameThisClient(*p);
 }
 
 // Helper method to avoid the exception ending up at the sender of messages, which would then get disconnected.
@@ -285,9 +321,9 @@ bool Client::writeBufIntoFd()
 
 std::string Client::repr()
 {
-    std::string s = formatString("[ClientID='%s', username='%s', fd=%d, keepalive=%ds, transport='%s', address='%s', cleanses=%d, prot=%s]",
+    std::string s = formatString("[ClientID='%s', username='%s', fd=%d, keepalive=%ds, transport='%s', address='%s', prot=%s]",
                                  clientid.c_str(), username.c_str(), fd, keepalive, this->transportStr.c_str(), this->address.c_str(),
-                                 cleanSession, protocolVersionString(protocolVersion).c_str());
+                                 protocolVersionString(protocolVersion).c_str());
     return s;
 }
 
@@ -333,9 +369,158 @@ void Client::resetBuffersIfEligible()
     writebuf.resetSizeIfEligable(initialBufferSize);
 }
 
-void Client::setCleanSession(bool val)
+void Client::setTopicAlias(const uint16_t alias_id, const std::string &topic)
 {
-    this->cleanSession = val;
+    if (alias_id == 0)
+        throw ProtocolError("Client tried to set topic alias 0, which is a protocol error.", ReasonCodes::ProtocolError);
+
+    if (topic.empty())
+        return;
+
+    const Settings *settings = ThreadGlobals::getSettings();
+
+    // The specs actually say "The Client MUST NOT send a Topic Alias [...] to the Server greater than this value [Topic Alias Maximum]". So, it's not about count.
+    if (alias_id > settings->maxIncomingTopicAliasValue)
+        throw ProtocolError(formatString("Client tried to set more topic aliases than the server max of %d per client", settings->maxIncomingTopicAliasValue),
+                            ReasonCodes::TopicAliasInvalid);
+
+    this->incomingTopicAliases[alias_id] = topic;
+}
+
+const std::string &Client::getTopicAlias(const uint16_t id)
+{
+    return this->incomingTopicAliases[id];
+}
+
+/**
+ * @brief We use this for doing the checks on client traffic, as opposed to using settings.maxPacketSize, because the latter than change on config reload,
+ *        possibly resulting in exceeding what the other side uses as maximum.
+ * @return
+ */
+uint32_t Client::getMaxIncomingPacketSize() const
+{
+    return this->maxIncomingPacketSize;
+}
+
+void Client::sendOrQueueWill()
+{
+    if (!this->threadData)
+        return;
+
+    if (!this->willPublish)
+        return;
+
+    std::shared_ptr<SubscriptionStore> &store = this->threadData->getSubscriptionStore();
+    store->queueWillMessage(willPublish, session);
+    this->willPublish.reset();
+}
+
+/**
+ * @brief Client::serverInitiatedDisconnect queues a disconnect packet and when the last bytes are written, the thread loop will disconnect it.
+ * @param reason is an MQTT5 reason code.
+ *
+ * There is a chance that an client's TCP buffers are full (when the client is gone, for example) and epoll will not report the
+ * fd as EPOLLOUT, which means the disconnect will not happen. It will then be up to the keep-alive mechanism to kick the client out.
+ *
+ * Sending clients disconnect packets is only supported by MQTT >= 5, so in case of MQTT3, just close the connection.
+ */
+void Client::serverInitiatedDisconnect(ReasonCodes reason)
+{
+    setDisconnectReason(formatString("Server initiating disconnect with reason code '%d'", static_cast<uint8_t>(reason)));
+
+    if (this->protocolVersion >= ProtocolVersion::Mqtt5)
+    {
+        setReadyForDisconnect();
+        Disconnect d(ProtocolVersion::Mqtt5, reason);
+        writeMqttPacket(d);
+    }
+    else
+    {
+        markAsDisconnecting();
+        threadData->removeClientQueued(fd);
+    }
+}
+
+/**
+ * @brief Client::setRegistrationData sets parameters for the session to be registered. We set them as arguments here to
+ * possibly use later, because with extended authentication, session registration doesn't happen on the first CONNECT packet.
+ * @param clean_start
+ * @param maxQosPackets
+ * @param sessionExpiryInterval
+ */
+void Client::setRegistrationData(bool clean_start, uint16_t client_receive_max, uint32_t sessionExpiryInterval)
+{
+    this->registrationData = std::make_unique<StowedClientRegistrationData>(clean_start, client_receive_max, sessionExpiryInterval);
+}
+
+const std::unique_ptr<StowedClientRegistrationData> &Client::getRegistrationData() const
+{
+    return this->registrationData;
+}
+
+void Client::clearRegistrationData()
+{
+    this->registrationData.reset();
+}
+
+/**
+ * @brief Client::stageConnack saves the success connack for later use.
+ * @param c
+ *
+ * The connack to be generated is known on the initial connect packet, but in extended authentication, the client won't get it
+ * until the authentication is complete.
+ */
+void Client::stageConnack(std::unique_ptr<ConnAck> &&c)
+{
+    this->stagedConnack = std::move(c);
+}
+
+void Client::sendConnackSuccess()
+{
+    if (!stagedConnack)
+    {
+        throw ProtocolError("Programming bug: trying to send a prepared connack when there is none.", ReasonCodes::ProtocolError);
+    }
+
+    ConnAck &connAck = *this->stagedConnack.get();
+    setAuthenticated(true);
+    MqttPacket response(connAck);
+    writeMqttPacket(response);
+    logger->logf(LOG_NOTICE, "Client '%s' logged in successfully", repr().c_str());
+    this->stagedConnack.reset();
+}
+
+void Client::sendConnackDeny(ReasonCodes reason)
+{
+    ConnAck connDeny(protocolVersion, reason, false);
+    MqttPacket response(connDeny);
+    setDisconnectReason("Access denied");
+    setReadyForDisconnect();
+    writeMqttPacket(response);
+    logger->logf(LOG_NOTICE, "User '%s' access denied", username.c_str());
+}
+
+void Client::addAuthReturnDataToStagedConnAck(const std::string &authData)
+{
+    if (authData.empty())
+        return;
+
+    if (!stagedConnack)
+    {
+        throw ProtocolError("Programming bug: trying to add auth return data when there is no staged connack.", ReasonCodes::ProtocolError);
+    }
+
+    stagedConnack->propertyBuilder->writeAuthenticationData(authData);
+}
+
+void Client::setExtendedAuthenticationMethod(const std::string &authMethod)
+{
+    this->extendedAuthenticationMethod = authMethod;
+}
+
+const std::string &Client::getExtendedAuthenticationMethod() const
+{
+    return this->extendedAuthenticationMethod;
 }
 
 #ifndef NDEBUG
@@ -420,22 +605,29 @@ void Client::bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn, std::sh
     setReadyForReading(readbuf.freeSpace() > 0);
 }
 
-void Client::setClientProperties(ProtocolVersion protocolVersion, const std::string &clientId, const std::string username, bool connectPacketSeen, uint16_t keepalive, bool cleanSession)
+void Client::setClientProperties(ProtocolVersion protocolVersion, const std::string &clientId, const std::string username, bool connectPacketSeen, uint16_t keepalive)
+{
+    const Settings *settings = ThreadGlobals::getSettings();
+
+    setClientProperties(protocolVersion, clientId, username, connectPacketSeen, keepalive, settings->maxPacketSize, 0);
+}
+
+
+void Client::setClientProperties(ProtocolVersion protocolVersion, const std::string &clientId, const std::string username, bool connectPacketSeen, uint16_t keepalive,
+                                 uint32_t maxOutgoingPacketSize, uint16_t maxOutgoingTopicAliasValue)
 {
     this->protocolVersion = protocolVersion;
     this->clientid = clientId;
     this->username = username;
     this->connectPacketSeen = connectPacketSeen;
     this->keepalive = keepalive;
-    this->cleanSession = cleanSession;
+    this->maxOutgoingPacketSize = maxOutgoingPacketSize;
+    this->maxOutgoingTopicAliasValue = maxOutgoingTopicAliasValue;
 }
 
-void Client::setWill(const std::string &topic, const std::string &payload, bool retain, char qos)
+void Client::setWill(WillPublish &&willPublish)
 {
-    this->will_topic = topic;
-    this->will_payload = payload;
-    this->will_retain = retain;
-    this->will_qos = qos;
+    this->willPublish = std::make_shared<WillPublish>(std::move(willPublish));
 }
 
 void Client::assignSession(std::shared_ptr<Session> &session)
@@ -457,9 +649,12 @@ void Client::setDisconnectReason(const std::string &reason)
 
 void Client::clearWill()
 {
-    will_topic.clear();
-    will_payload.clear();
-    will_retain = false;
-    will_qos = 0;
+    willPublish.reset();
+    session->clearWill();
+}
+
+std::string &Client::getMutableUsername()
+{
+    return this->username;
 }
 

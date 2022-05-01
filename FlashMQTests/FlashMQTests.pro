@@ -51,6 +51,7 @@ SOURCES +=  tst_maintests.cpp \
     ../threadloop.cpp \
     ../publishcopyfactory.cpp \
     ../variablebyteint.cpp \
+    ../mqtt5properties.cpp \
     mainappthread.cpp \
     twoclienttestcontext.cpp
 
@@ -94,6 +95,7 @@ HEADERS += \
     ../threadloop.h \
     ../publishcopyfactory.h \
     ../variablebyteint.h \
+    ../mqtt5properties.h \
     mainappthread.h \
     twoclienttestcontext.h
 

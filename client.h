@@ -41,6 +41,18 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 
 #define MQTT_HEADER_LENGH 2
 
+/**
+ * @brief The StowedClient struct stores the client when doing an extended authentication, and we need to keep the info around how
+ * the client will be registered once the authentication succeeds.
+ */
+struct StowedClientRegistrationData
+{
+    const bool clean_start;
+    const uint16_t clientReceiveMax;
+    const uint32_t sessionExpiryInterval;
+
+    StowedClientRegistrationData(bool clean_start, uint16_t clientReceiveMax, uint32_t sessionExpiryInterval);
+};
 
 class Client
 {
@@ -52,7 +64,10 @@ class Client
     ProtocolVersion protocolVersion = ProtocolVersion::None;
 
     const size_t initialBufferSize = 0;
-    const size_t maxPacketSize = 0;
+    uint32_t maxOutgoingPacketSize;
+    const uint32_t maxIncomingPacketSize;
+
+    uint16_t maxOutgoingTopicAliasValue = 0;
 
     IoWrapper ioWrapper;
     std::string transportStr;
@@ -73,17 +88,23 @@ class Client
     std::string clientid;
     std::string username;
     uint16_t keepalive = 0;
-    bool cleanSession = false;
 
-    std::string will_topic;
-    std::string will_payload;
-    bool will_retain = false;
-    char will_qos = 0;
+    std::shared_ptr<WillPublish> willPublish;
 
     std::shared_ptr<ThreadData> threadData;
     std::mutex writeBufMutex;
 
     std::shared_ptr<Session> session;
+
+    std::unordered_map<uint16_t, std::string> incomingTopicAliases;
+
+    uint16_t curOutgoingTopicAlias = 0;
+    std::unordered_map<std::string, uint16_t> outgoingTopicAliases;
+
+    std::string extendedAuthenticationMethod;
+    std::unique_ptr<ConnAck> stagedConnack;
+
+    std::unique_ptr<StowedClientRegistrationData> registrationData;
 
     Logger *logger = Logger::getInstance();
 
@@ -91,7 +112,7 @@ class Client
     void setReadyForReading(bool val);
 
 public:
-    Client(int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, bool websocket, struct sockaddr *addr, std::shared_ptr<Settings> settings, bool fuzzMode=false);
+    Client(int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, bool websocket, struct sockaddr *addr, const Settings *settings, bool fuzzMode=false);
     Client(const Client &other) = delete;
     Client(Client &&other) = delete;
     ~Client();
@@ -107,8 +128,11 @@ public:
     void markAsDisconnecting();
     bool readFdIntoBuffer();
     void bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn, std::shared_ptr<Client> &sender);
-    void setClientProperties(ProtocolVersion protocolVersion, const std::string &clientId, const std::string username, bool connectPacketSeen, uint16_t keepalive, bool cleanSession);
+    void setClientProperties(ProtocolVersion protocolVersion, const std::string &clientId, const std::string username, bool connectPacketSeen, uint16_t keepalive);
+    void setClientProperties(ProtocolVersion protocolVersion, const std::string &clientId, const std::string username, bool connectPacketSeen, uint16_t keepalive,
+                             uint32_t maxOutgoingPacketSize, uint16_t maxOutgoingTopicAliasValue);
     void setWill(const std::string &topic, const std::string &payload, bool retain, char qos);
+    void setWill(WillPublish &&willPublish);
     void clearWill();
     void setAuthenticated(bool value) { authenticated = value;}
     bool getAuthenticated() { return authenticated; }
@@ -116,7 +140,8 @@ public:
     std::shared_ptr<ThreadData> getThreadData() { return threadData; }
     std::string &getClientId() { return this->clientid; }
     const std::string &getUsername() const { return this->username; }
-    bool getCleanSession() { return cleanSession; }
+    std::string &getMutableUsername();
+    std::shared_ptr<WillPublish> &getWill() { return this->willPublish; }
     void assignSession(std::shared_ptr<Session> &session);
     std::shared_ptr<Session> getSession();
     void setDisconnectReason(const std::string &reason);
@@ -127,6 +152,7 @@ public:
     int writeMqttPacketAndBlameThisClient(PublishCopyFactory &copyFactory, char max_qos, uint16_t packet_id);
     int writeMqttPacketAndBlameThisClient(const MqttPacket &packet);
     bool writeBufIntoFd();
+    bool isBeingDisconnected() const { return disconnectWhenBytesWritten; }
     bool readyForDisconnecting() const { return disconnectWhenBytesWritten && writebuf.usedBytes() == 0; }
 
     // Do this before calling an action that makes this client ready for writing, so that the EPOLLOUT will handle it.
@@ -137,7 +163,25 @@ public:
     std::string getKeepAliveInfoString() const;
     void resetBuffersIfEligible();
 
-    void setCleanSession(bool val);
+    void setTopicAlias(const uint16_t alias_id, const std::string &topic);
+    const std::string &getTopicAlias(const uint16_t id);
+
+    uint32_t getMaxIncomingPacketSize() const;
+
+    void sendOrQueueWill();
+    void serverInitiatedDisconnect(ReasonCodes reason);
+
+    void setRegistrationData(bool clean_start, uint16_t client_receive_max, uint32_t sessionExpiryInterval);
+    const std::unique_ptr<StowedClientRegistrationData> &getRegistrationData() const;
+    void clearRegistrationData();
+
+    void stageConnack(std::unique_ptr<ConnAck> &&c);
+    void sendConnackSuccess();
+    void sendConnackDeny(ReasonCodes reason);
+    void addAuthReturnDataToStagedConnAck(const std::string &authData);
+
+    void setExtendedAuthenticationMethod(const std::string &authMethod);
+    const std::string &getExtendedAuthenticationMethod() const;
 
 #ifndef NDEBUG
     void setFakeUpgraded();

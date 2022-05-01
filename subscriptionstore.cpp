@@ -22,6 +22,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "rwlockguard.h"
 #include "retainedmessagesdb.h"
 #include "publishcopyfactory.h"
+#include "threadglobals.h"
 
 ReceivingSubscriber::ReceivingSubscriber(const std::shared_ptr<Session> &ses, char qos) :
     session(ses),
@@ -200,16 +201,37 @@ void SubscriptionStore::removeSubscription(std::shared_ptr<Client> &client, cons
 
 }
 
-// Removes an existing client when it already exists [MQTT-3.1.4-2].
+/**
+ * @brief SubscriptionStore::registerClientAndKickExistingOne registers a client with previously set parameters for the session.
+ * @param client
+ *
+ * Under normal MQTT operation, the 'if' clause is always used. The 'else' is only in (fuzz) testing and other rare conditions.
+ */
 void SubscriptionStore::registerClientAndKickExistingOne(std::shared_ptr<Client> &client)
+{
+    const std::unique_ptr<StowedClientRegistrationData> &registrationData = client->getRegistrationData();
+
+    if (registrationData)
+    {
+        registerClientAndKickExistingOne(client, registrationData->clean_start, registrationData->clientReceiveMax, registrationData->sessionExpiryInterval);
+        client->clearRegistrationData();
+    }
+    else
+    {
+        const Settings *settings = ThreadGlobals::getSettings();
+        registerClientAndKickExistingOne(client, true, settings->maxQosMsgPendingPerClient, settings->expireSessionsAfterSeconds);
+    }
+}
+
+// Removes an existing client when it already exists [MQTT-3.1.4-2].
+void SubscriptionStore::registerClientAndKickExistingOne(std::shared_ptr<Client> &client, bool clean_start, uint16_t clientReceiveMax, uint32_t sessionExpiryInterval)
 {
     RWLockGuard lock_guard(&subscriptionsRwlock);
     lock_guard.wrlock();
 
     if (client->getClientId().empty())
-        throw ProtocolError("Trying to store client without an ID.");
+        throw ProtocolError("Trying to store client without an ID.", ReasonCodes::ProtocolError);
 
-    bool originalClientDemandsSessionDestruction = false;
     std::shared_ptr<Session> session;
     auto session_it = sessionsById.find(client->getClientId());
     if (session_it != sessionsById.end())
@@ -224,21 +246,13 @@ void SubscriptionStore::registerClientAndKickExistingOne(std::shared_ptr<Client>
             {
                 logger->logf(LOG_NOTICE, "Disconnecting existing client with id '%s'", cl->getClientId().c_str());
                 cl->setDisconnectReason("Another client with this ID connected");
-
-                // We have to set session to false, because it's no longer up to the destruction of that client
-                // to destroy the session. We either do it in this function, or not at all.
-                originalClientDemandsSessionDestruction = cl->getCleanSession();
-                cl->setCleanSession(false);
-
-                cl->setReadyForDisconnect();
-                cl->getThreadData()->removeClientQueued(cl);
-                cl->markAsDisconnecting();
+                cl->serverInitiatedDisconnect(ReasonCodes::SessionTakenOver);
             }
 
         }
     }
 
-    if (!session || client->getCleanSession() || originalClientDemandsSessionDestruction)
+    if (!session || session->getDestroyOnDisconnect())
     {
         session = std::make_shared<Session>();
 
@@ -247,24 +261,114 @@ void SubscriptionStore::registerClientAndKickExistingOne(std::shared_ptr<Client>
 
     session->assignActiveConnection(client);
     client->assignSession(session);
-    uint64_t count = session->sendPendingQosMessages();
+    session->setSessionProperties(clientReceiveMax, sessionExpiryInterval, clean_start, client->getProtocolVersion());
+    uint64_t count = session->sendAllPendingQosData();
     client->getThreadData()->incrementSentMessageCount(count);
 }
 
-bool SubscriptionStore::sessionPresent(const std::string &clientid)
+/**
+ * @brief SubscriptionStore::lockSession returns the session if it exists. Returning is done keep the shared pointer active, to
+ * avoid race conditions with session removal.
+ * @param clientid
+ * @return
+ */
+std::shared_ptr<Session> SubscriptionStore::lockSession(const std::string &clientid)
 {
     RWLockGuard lock_guard(&subscriptionsRwlock);
     lock_guard.rdlock();
 
-    bool result = false;
-
     auto it = sessionsByIdConst.find(clientid);
     if (it != sessionsByIdConst.end())
     {
-        it->second->touch(); // Touching to avoid a race condition between using the session after this, and it expiring.
-        result = true;
+        return it->second;
     }
-    return result;
+    return std::shared_ptr<Session>();
+}
+
+/**
+ * @brief SubscriptionStore::sendQueuedWillMessages sends queued will messages.
+ *
+ * The list of pendingWillMessages is sorted. This allows for fast insertion and dequeueing of wills that have expired.
+ *
+ * The expiry interval as set in the properties of the will message is not used to check for expiration here. To
+ * quote the specs: "If present, the Four Byte value is the lifetime of the Will Message in seconds and is sent as
+ * the Publication Expiry Interval when the Server publishes the Will Message."
+ *
+ * If a new Network Connection to this Session is made before the Will Delay Interval has passed, the Server
+ * MUST NOT send the Will Message [MQTT-3.1.3-9].
+ */
+void SubscriptionStore::sendQueuedWillMessages()
+{
+    const auto now = std::chrono::steady_clock::now();
+    std::lock_guard<std::mutex>(this->pendingWillsMutex);
+
+    auto it = pendingWillMessages.begin();
+    while (it != pendingWillMessages.end())
+    {
+        QueuedWill &qw = *it;
+
+        std::shared_ptr<Publish> p = qw.getWill().lock();
+        if (p)
+        {
+            if (qw.getSendAt() > now)
+                break;
+
+            std::shared_ptr<Session> s = qw.getSession();
+
+            if (!s || s->hasActiveClient())
+            {
+                it = pendingWillMessages.erase(it);
+                continue;
+            }
+
+            logger->logf(LOG_DEBUG, "Sending delayed will on topic '%s'.", p->topic.c_str() );
+            PublishCopyFactory factory(p.get());
+            queuePacketAtSubscribers(factory);
+
+            if (p->retain)
+                setRetainedMessage(*p.get(), (*p.get()).subtopics);
+
+            s->clearWill();
+        }
+        it = pendingWillMessages.erase(it);
+    }
+}
+
+/**
+ * @brief SubscriptionStore::queueWillMessage queues the will message by bin-searching its place in the sorted list.
+ * @param willMessage
+ * @param forceNow
+ */
+void SubscriptionStore::queueWillMessage(const std::shared_ptr<WillPublish> &willMessage, const std::shared_ptr<Session> &session, bool forceNow)
+{
+    if (!willMessage)
+        return;
+
+    const int delay = forceNow ? 0 : willMessage->will_delay;
+    logger->logf(LOG_DEBUG, "Queueing will on topic '%s', with delay %d seconds.", willMessage->topic.c_str(), delay );
+
+    if (delay == 0)
+    {
+        PublishCopyFactory factory(willMessage.get());
+        queuePacketAtSubscribers(factory);
+
+        if (willMessage->retain)
+            setRetainedMessage(*willMessage.get(), (*willMessage.get()).subtopics);
+
+        // Avoid sending two immediate wills when a session is destroyed with the client disconnect.
+        if (session) // session is null when you're destroying a client before a session is assigned.
+            session->clearWill();
+
+        return;
+    }
+
+    willMessage->setQueuedAt();
+
+    QueuedWill queuedWill(willMessage, session);
+
+    std::lock_guard<std::mutex>(this->pendingWillsMutex);
+    auto pos = std::upper_bound(this->pendingWillMessages.begin(), this->pendingWillMessages.end(), willMessage, willDelayCompare);
+    this->pendingWillMessages.insert(pos, queuedWill);
 }
 
 void SubscriptionStore::publishNonRecursively(const std::unordered_map<std::string, Subscription> &subscribers,
@@ -332,45 +436,42 @@ void SubscriptionStore::publishRecursively(std::vector<std::string>::const_itera
     }
 }
 
-void SubscriptionStore::queuePacketAtSubscribers(const std::vector<std::string> &subtopics, MqttPacket &packet, bool dollar)
+void SubscriptionStore::queuePacketAtSubscribers(PublishCopyFactory &copyFactory, bool dollar)
 {
-    assert(subtopics.size() > 0);
-
     SubscriptionNode *startNode = dollar ? &rootDollar : &root;
 
     uint64_t count = 0;
     std::forward_list<ReceivingSubscriber> subscriberSessions;
 
     {
+        const std::vector<std::string> &subtopics = copyFactory.getSubtopics();
         RWLockGuard lock_guard(&subscriptionsRwlock);
         lock_guard.rdlock();
         publishRecursively(subtopics.begin(), subtopics.end(), startNode, subscriberSessions);
     }
 
-    PublishCopyFactory copyFactory(packet);
     for(const ReceivingSubscriber &x : subscriberSessions)
     {
         x.session->writePacket(copyFactory, x.qos, count);
     }
 
-    std::shared_ptr<Client> sender = packet.getSender();
+    std::shared_ptr<Client> sender = copyFactory.getSender();
     if (sender)
     {
         sender->getThreadData()->incrementSentMessageCount(count);
     }
 }
 
-void SubscriptionStore::giveClientRetainedMessagesRecursively(std::vector<std::string>::const_iterator cur_subtopic_it, std::vector<std::string>::const_iterator end,
-                                                              RetainedMessageNode *this_node,
-                                                              bool poundMode, std::forward_list<MqttPacket> &packetList) const
+void SubscriptionStore::giveClientRetainedMessagesRecursively(std::vector<std::string>::const_iterator cur_subtopic_it,
+                                                              std::vector<std::string>::const_iterator end, RetainedMessageNode *this_node,
+                                                              bool poundMode, std::forward_list<Publish> &packetList) const
 {
     if (cur_subtopic_it == end)
     {
         for(const RetainedMessage &rm : this_node->retainedMessages)
         {
-            Publish publish(rm.topic, rm.payload, rm.qos);
-            publish.retain = true;
-            packetList.emplace_front(publish);
+            // TODO: hmm, const stuff forces me/it to make copy
+            packetList.emplace_front(rm.publish);
         }
         if (poundMode)
         {
@@ -408,7 +509,8 @@ void SubscriptionStore::giveClientRetainedMessagesRecursively(std::vector<std::s
     }
 }
 
-uint64_t SubscriptionStore::giveClientRetainedMessages(const std::shared_ptr<Session> &ses, const std::vector<std::string> &subscribeSubtopics, char max_qos)
+uint64_t SubscriptionStore::giveClientRetainedMessages(const std::shared_ptr<Session> &ses,
+                                                       const std::vector<std::string> &subscribeSubtopics, char max_qos)
 {
     uint64_t count = 0;
 
@@ -416,7 +518,7 @@ uint64_t SubscriptionStore::giveClientRetainedMessages(const std::shared_ptr<Ses
     if (!subscribeSubtopics.empty() && !subscribeSubtopics[0].empty() > 0 && subscribeSubtopics[0][0] == '$')
         startNode = &retainedMessagesRootDollar;
 
-    std::forward_list<MqttPacket> packetList;
+    std::forward_list<Publish> packetList;
 
     {
         RWLockGuard locker(&retainedMessagesRwlock);
@@ -424,17 +526,19 @@ uint64_t SubscriptionStore::giveClientRetainedMessages(const std::shared_ptr<Ses
         giveClientRetainedMessagesRecursively(subscribeSubtopics.begin(), subscribeSubtopics.end(), startNode, false, packetList);
     }
 
-    for(MqttPacket &packet : packetList)
+    for(Publish &publish : packetList)
     {
-        PublishCopyFactory copyFactory(packet);
+        PublishCopyFactory copyFactory(&publish);
         ses->writePacket(copyFactory, max_qos, count);
     }
 
     return count;
 }
 
-void SubscriptionStore::setRetainedMessage(const std::string &topic, const std::vector<std::string> &subtopics, const std::string &payload, char qos)
+void SubscriptionStore::setRetainedMessage(const Publish &publish, const std::vector<std::string> &subtopics)
 {
+    assert(!subtopics.empty());
+
     RetainedMessageNode *deepestNode = &retainedMessagesRoot;
     if (!subtopics.empty() && !subtopics[0].empty() > 0 && subtopics[0][0] == '$')
         deepestNode = &retainedMessagesRootDollar;
@@ -457,7 +561,7 @@ void SubscriptionStore::setRetainedMessage(const std::string &topic, const std::
 
     if (deepestNode)
     {
-        deepestNode->addPayload(topic, payload, qos, retainedMessageCount);
+        deepestNode->addPayload(publish, retainedMessageCount);
     }
 
     locker.unlock();
@@ -519,12 +623,19 @@ int SubscriptionNode::cleanSubscriptions()
     return subscribers.size() + subscribersLeftInChildren;
 }
 
-void SubscriptionStore::removeSession(const std::string &clientid)
+void SubscriptionStore::removeSession(const std::shared_ptr<Session> &session)
 {
+    const std::string &clientid = session->getClientId();
+    logger->logf(LOG_DEBUG, "Removing session of client '%s'.", clientid.c_str());
+
+    std::shared_ptr<WillPublish> &will = session->getWill();
+    if (will)
+    {
+        queueWillMessage(will, session, true);
+    }
+
     RWLockGuard lock_guard(&subscriptionsRwlock);
     lock_guard.wrlock();
-
-    logger->logf(LOG_DEBUG, "Removing session of client '%s'.", clientid.c_str());
 
     auto session_it = sessionsById.find(clientid);
     if (session_it != sessionsById.end())
@@ -533,31 +644,75 @@ void SubscriptionStore::removeSession(const std::string &clientid)
     }
 }
 
-// This is not MQTT compliant, but the standard doesn't keep real world constraints into account.
-void SubscriptionStore::removeExpiredSessionsClients(int expireSessionsAfterSeconds)
+/**
+ * @brief SubscriptionStore::removeExpiredSessionsClients removes expired sessions.
+ *
+ * For Mqtt3 this is non-standard, but the standard doesn't keep real world constraints into account.
+ */
+void SubscriptionStore::removeExpiredSessionsClients()
 {
-    RWLockGuard lock_guard(&subscriptionsRwlock);
-    lock_guard.wrlock();
+    logger->logf(LOG_DEBUG, "Cleaning out old sessions");
 
-    logger->logf(LOG_NOTICE, "Cleaning out old sessions");
+    const std::chrono::time_point<std::chrono::steady_clock> now = std::chrono::steady_clock::now();
 
-    auto session_it = sessionsById.begin();
-    while (session_it != sessionsById.end())
     {
-        std::shared_ptr<Session> &session = session_it->second;
+        std::lock_guard<std::mutex>(this->queuedSessionRemovalsMutex);
 
-        if (session->hasExpired(expireSessionsAfterSeconds))
+        auto it = queuedSessionRemovals.begin();
+        while (it != queuedSessionRemovals.end())
         {
-            logger->logf(LOG_DEBUG, "Removing expired session from store %s", session->getClientId().c_str());
-            session_it = sessionsById.erase(session_it);
+            QueuedSessionRemoval &qsr = *it;
+            std::shared_ptr<Session> session = (*it).getSession();
+            if (session)
+            {
+                if (qsr.getExpiresAt() > now)
+                {
+                    logger->logf(LOG_DEBUG, "Breaking from sorted list of queued session removals. %d left in the future.", queuedSessionRemovals.size());
+                    break;
+                }
+
+                // A session could have been picked up again, so we have to verify its expiration status.
+                if (!session->hasActiveClient())
+                {
+                    removeSession(session);
+                }
+            }
+            it = queuedSessionRemovals.erase(it);
         }
-        else
-            session_it++;
     }
 
-    logger->logf(LOG_NOTICE, "Rebuilding subscription tree");
+    if (lastTreeCleanup + std::chrono::minutes(30) < now)
+    {
+        RWLockGuard lock_guard(&subscriptionsRwlock);
+        lock_guard.wrlock();
 
-    root.cleanSubscriptions();
+        logger->logf(LOG_NOTICE, "Rebuilding subscription tree");
+        root.cleanSubscriptions();
+        lastTreeCleanup = now;
+    }
+}
+
+/**
+ * @brief SubscriptionStore::queueSessionRemoval places session efficiently in a sorted list that is periodically dequeued.
+ * @param session
+ */
+void SubscriptionStore::queueSessionRemoval(const std::shared_ptr<Session> &session)
+{
+    if (!session)
+        return;
+
+    QueuedSessionRemoval qsr(session);
+
+    auto comp = [](const QueuedSessionRemoval &a, const QueuedSessionRemoval &b)
+    {
+        return a.getExpiresAt() < b.getExpiresAt();
+    };
+
+    session->setQueuedRemovalAt();
+
+    std::lock_guard<std::mutex>(this->queuedSessionRemovalsMutex);
+    auto pos = std::upper_bound(this->queuedSessionRemovals.begin(), this->queuedSessionRemovals.end(), qsr, comp);
+    this->queuedSessionRemovals.insert(pos, qsr);
 }
 
 int64_t SubscriptionStore::getRetainedMessageCount() const
@@ -702,10 +857,10 @@ void SubscriptionStore::loadRetainedMessages(const std::string &filePath)
         locker.wrlock();
 
         std::vector<std::string> subtopics;
-        for (const RetainedMessage &rm : messages)
+        for (RetainedMessage &rm : messages)
         {
-            splitTopic(rm.topic, subtopics);
-            setRetainedMessage(rm.topic, subtopics, rm.payload, rm.qos);
+            splitTopic(rm.publish.topic, rm.publish.subtopics);
+            setRetainedMessage(rm.publish, rm.publish.subtopics);
         }
     }
     catch (PersistenceFileCantBeOpened &ex)
@@ -732,7 +887,7 @@ void SubscriptionStore::saveSessionsAndSubscriptions(const std::string &filePath
             const Session &org = *pair.second.get();
 
             // Sessions created with clean session need to be destroyed when disconnecting, so no point in saving them.
-            if (org.getCleanSession())
+            if (org.getDestroyOnDisconnect())
                 continue;
 
             sessionCopies.push_back(org.getCopy());
@@ -766,6 +921,8 @@ void SubscriptionStore::loadSessionsAndSubscriptions(const std::string &filePath
         for (std::shared_ptr<Session> &session : loadedData.sessions)
         {
             sessionsById[session->getClientId()] = session;
+            queueSessionRemoval(session);
+            queueWillMessage(session->getWill(), session);
         }
 
         std::vector<std::string> subtopics;
@@ -817,18 +974,18 @@ void Subscription::reset()
     qos = 0;
 }
 
-void RetainedMessageNode::addPayload(const std::string &topic, const std::string &payload, char qos, int64_t &totalCount)
+void RetainedMessageNode::addPayload(const Publish &publish, int64_t &totalCount)
 {
     const int64_t countBefore = retainedMessages.size();
-    RetainedMessage rm(topic, payload, qos);
+    RetainedMessage rm(publish);
 
     auto retained_ptr = retainedMessages.find(rm);
     bool retained_found = retained_ptr != retainedMessages.end();
 
-    if (!retained_found && payload.empty())
+    if (!retained_found && publish.payload.empty())
         return;
 
-    if (retained_found && payload.empty())
+    if (retained_found && publish.payload.empty())
     {
         retainedMessages.erase(rm);
         const int64_t diffCount = (retainedMessages.size() - countBefore);
@@ -856,3 +1013,54 @@ RetainedMessageNode *RetainedMessageNode::getChildren(const std::string &subtopi
         return it->second.get();
     return nullptr;
 }
+
+QueuedSessionRemoval::QueuedSessionRemoval(const std::shared_ptr<Session> &session) :
+    session(session),
+    expiresAt(std::chrono::steady_clock::now() + std::chrono::seconds(session->getSessionExpiryInterval()))
+{
+
+}
+
+std::chrono::time_point<std::chrono::steady_clock> QueuedSessionRemoval::getExpiresAt() const
+{
+    return this->expiresAt;
+}
+
+std::shared_ptr<Session> QueuedSessionRemoval::getSession() const
+{
+    return session.lock();
+}
+
+QueuedWill::QueuedWill(const std::shared_ptr<WillPublish> &will, const std::shared_ptr<Session> &session) :
+    will(will),
+    session(session),
+    sendAt(std::chrono::steady_clock::now() + std::chrono::seconds(will->will_delay))
+{
+
+}
+
+const std::weak_ptr<WillPublish> &QueuedWill::getWill() const
+{
+    return this->will;
+}
+
+std::chrono::time_point<std::chrono::steady_clock> QueuedWill::getSendAt() const
+{
+    return this->sendAt;
+}
+
+std::shared_ptr<Session> QueuedWill::getSession()
+{
+    return this->session.lock();
+}
+
+bool willDelayCompare(const std::shared_ptr<WillPublish> &a, const QueuedWill &b)
+{
+    std::shared_ptr<WillPublish> _b = b.getWill().lock();
+
+    if (!_b)
+        return true;
+
+    return a->will_delay < _b->will_delay;
+};
+

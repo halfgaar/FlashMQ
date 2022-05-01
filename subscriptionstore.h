@@ -80,8 +80,39 @@ class RetainedMessageNode
     std::unordered_map<std::string, std::unique_ptr<RetainedMessageNode>> children;
     std::unordered_set<RetainedMessage> retainedMessages;
 
-    void addPayload(const std::string &topic, const std::string &payload, char qos, int64_t &totalCount);
+    void addPayload(const Publish &publish, int64_t &totalCount);
     RetainedMessageNode *getChildren(const std::string &subtopic) const;
+};
+
+/**
+ * @brief A QueuedSessionRemoval is a sort of delayed request for removal. They are kept in a sorted list for fast insertion,
+ * and fast dequeueing of expired entries from the start.
+ *
+ * You can have multiple of these in the pending list. If a client has picked up the session again, the removal is not executed.
+ */
+class QueuedSessionRemoval
+{
+    std::weak_ptr<Session> session;
+    std::chrono::time_point<std::chrono::steady_clock> expiresAt;
+
+public:
+    QueuedSessionRemoval(const std::shared_ptr<Session> &session);
+    std::chrono::time_point<std::chrono::steady_clock> getExpiresAt() const;
+    std::shared_ptr<Session> getSession() const;
+};
+
+class QueuedWill
+{
+    std::weak_ptr<WillPublish> will;
+    std::weak_ptr<Session> session;
+    std::chrono::time_point<std::chrono::steady_clock> sendAt;
+
+public:
+    QueuedWill(const std::shared_ptr<WillPublish> &will, const std::shared_ptr<Session> &session);
+
+    const std::weak_ptr<WillPublish> &getWill() const;
+    std::chrono::time_point<std::chrono::steady_clock> getSendAt() const;
+    std::shared_ptr<Session> getSession();
 };
 
 class SubscriptionStore
@@ -96,10 +127,18 @@ class SubscriptionStore
     std::unordered_map<std::string, std::shared_ptr<Session>> sessionsById;
     const std::unordered_map<std::string, std::shared_ptr<Session>> &sessionsByIdConst;
 
+    std::mutex queuedSessionRemovalsMutex;
+    std::list<QueuedSessionRemoval> queuedSessionRemovals;
+
     pthread_rwlock_t retainedMessagesRwlock = PTHREAD_RWLOCK_INITIALIZER;
     RetainedMessageNode retainedMessagesRoot;
     RetainedMessageNode retainedMessagesRootDollar;
     int64_t retainedMessageCount = 0;
+
+    std::mutex pendingWillsMutex;
+    std::list<QueuedWill> pendingWillMessages;
+
+    std::chrono::time_point<std::chrono::steady_clock> lastTreeCleanup;
 
     Logger *logger = Logger::getInstance();
 
@@ -107,6 +146,9 @@ class SubscriptionStore
                                std::forward_list<ReceivingSubscriber> &targetSessions) const;
     void publishRecursively(std::vector<std::string>::const_iterator cur_subtopic_it, std::vector<std::string>::const_iterator end,
                             SubscriptionNode *this_node, std::forward_list<ReceivingSubscriber> &targetSessions) const;
+    void giveClientRetainedMessagesRecursively(std::vector<std::string>::const_iterator cur_subtopic_it,
+                                               std::vector<std::string>::const_iterator end, RetainedMessageNode *this_node, bool poundMode,
+                                               std::forward_list<Publish> &packetList) const;
     void getRetainedMessages(RetainedMessageNode *this_node, std::vector<RetainedMessage> &outputList) const;
     void getSubscriptions(SubscriptionNode *this_node, const std::string &composedTopic, bool root,
                           std::unordered_map<std::string, std::list<SubscriptionForSerializing>> &outputList) const;
@@ -119,17 +161,19 @@ public:
     void addSubscription(std::shared_ptr<Client> &client, const std::string &topic, const std::vector<std::string> &subtopics, char qos);
     void removeSubscription(std::shared_ptr<Client> &client, const std::string &topic);
     void registerClientAndKickExistingOne(std::shared_ptr<Client> &client);
-    bool sessionPresent(const std::string &clientid);
+    void registerClientAndKickExistingOne(std::shared_ptr<Client> &client, bool clean_start, uint16_t clientReceiveMax, uint32_t sessionExpiryInterval);
+    std::shared_ptr<Session> lockSession(const std::string &clientid);
 
-    void queuePacketAtSubscribers(const std::vector<std::string> &subtopics, MqttPacket &packet, bool dollar = false);
-    void giveClientRetainedMessagesRecursively(std::vector<std::string>::const_iterator cur_subtopic_it, std::vector<std::string>::const_iterator end,
-                                               RetainedMessageNode *this_node, bool poundMode, std::forward_list<MqttPacket> &packetList) const;
-    uint64_t giveClientRetainedMessages(const std::shared_ptr<Session> &ses, const std::vector<std::string> &subscribeSubtopics, char max_qos);
+    void sendQueuedWillMessages();
+    void queueWillMessage(const std::shared_ptr<WillPublish> &willMessage, const std::shared_ptr<Session> &session, bool forceNow = false);
+    void queuePacketAtSubscribers(PublishCopyFactory &copyFactory, bool dollar = false);
+    uint64_t giveClientRetainedMessages(const std::shared_ptr<Session> &ses,
+                                        const std::vector<std::string> &subscribeSubtopics, char max_qos);
 
-    void setRetainedMessage(const std::string &topic, const std::vector<std::string> &subtopics, const std::string &payload, char qos);
+    void setRetainedMessage(const Publish &publish, const std::vector<std::string> &subtopics);
 
-    void removeSession(const std::string &clientid);
-    void removeExpiredSessionsClients(int expireSessionsAfterSeconds);
+    void removeSession(const std::shared_ptr<Session> &session);
+    void removeExpiredSessionsClients();
 
     int64_t getRetainedMessageCount() const;
     uint64_t getSessionCount() const;
@@ -140,6 +184,10 @@ public:
 
     void saveSessionsAndSubscriptions(const std::string &filePath);
     void loadSessionsAndSubscriptions(const std::string &filePath);
+
+    void queueSessionRemoval(const std::shared_ptr<Session> &session);
 };
+
+bool willDelayCompare(const std::shared_ptr<WillPublish> &a, const QueuedWill &b);
 
 #endif // SUBSCRIPTIONSTORE_H

@@ -61,6 +61,7 @@ class MainApp
     int taskEventFd = -1;
     std::mutex eventMutex;
     Timer timer;
+    uint16_t nextThreadForTasks = 0;
 
     // We need to keep a settings copy as well as a shared pointer, depending on threads, queueing of config reloads, etc.
     std::shared_ptr<Settings> settings;
@@ -90,6 +91,10 @@ class MainApp
     void queuePublishStatsOnDollarTopic();
     void saveState();
     void saveStateInThread();
+    void queueSendQueuedWills();
+    void queueRemoveExpiredSessions();
+    void waitForWillsQueued();
+    void waitForDisconnectsInitiated();
 
     MainApp(const std::string &configFilePath);
 public:
