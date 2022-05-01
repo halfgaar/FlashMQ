@@ -124,7 +124,7 @@ void MainApp::doHelp(const char *arg)
 void MainApp::showLicense()
 {
     printf("FlashMQ Version %s\n", FLASHMQ_VERSION);
-    puts("Copyright (C) 2021 Wiebe Cazemier.");
+    puts("Copyright (C) 2021,2022 Wiebe Cazemier.");
     puts("License AGPLv3: GNU AGPL version 3. <https://www.gnu.org/licenses/agpl-3.0.html>.");
     puts("");
     puts("Author: Wiebe Cazemier <wiebe@halfgaar.net>");
