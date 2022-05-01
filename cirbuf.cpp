@@ -110,6 +110,11 @@ void CirBuf::ensureFreeSpace(size_t n, const size_t max)
     if (n <= freeSpace())
         return;
 
+    if (size >= 2147483648)
+    {
+        throw std::runtime_error("Trying to exceed circular buffer beyond its 2 GB limit.");
+    }
+
     const size_t _usedBytes = usedBytes();
 
     int mul = 1;
