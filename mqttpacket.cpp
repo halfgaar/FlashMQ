@@ -488,7 +488,7 @@ void MqttPacket::handleConnect()
                 }
                 case Mqtt5Properties::ResponseTopic:
                 {
-                    const std::string responseTopic = readBytesToString();
+                    const std::string responseTopic = readBytesToString(true, true);
                     willpublish.propertyBuilder->writeResponseTopic(responseTopic);
                     break;
                 }
@@ -1070,7 +1070,7 @@ void MqttPacket::parsePublishData()
             case Mqtt5Properties::ResponseTopic:
             {
                 publishData.constructPropertyBuilder();
-                const std::string responseTopic = readBytesToString();
+                const std::string responseTopic = readBytesToString(true, true);
                 publishData.propertyBuilder->writeResponseTopic(responseTopic);
                 break;
             }
