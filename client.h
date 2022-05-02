@@ -88,6 +88,7 @@ class Client
     std::string clientid;
     std::string username;
     uint16_t keepalive = 0;
+    bool clean_start = false;
 
     std::shared_ptr<WillPublish> willPublish;
 
