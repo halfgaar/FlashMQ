@@ -654,9 +654,14 @@ void SubscriptionStore::removeExpiredSessionsClients()
     logger->logf(LOG_DEBUG, "Cleaning out old sessions");
 
     const std::chrono::time_point<std::chrono::steady_clock> now = std::chrono::steady_clock::now();
+    int removedSessions = 0;
+    int processedRemovals = 0;
+    int queuedRemovalsLeft = -1;
 
     {
         std::lock_guard<std::mutex>(this->queuedSessionRemovalsMutex);
+
+        queuedRemovalsLeft = queuedSessionRemovals.size();
 
         auto it = queuedSessionRemovals.begin();
         while (it != queuedSessionRemovals.end())
@@ -667,7 +672,6 @@ void SubscriptionStore::removeExpiredSessionsClients()
             {
                 if (qsr.getExpiresAt() > now)
                 {
-                    logger->logf(LOG_DEBUG, "Breaking from sorted list of queued session removals. %d left in the future.", queuedSessionRemovals.size());
                     break;
                 }
 
@@ -675,11 +679,19 @@ void SubscriptionStore::removeExpiredSessionsClients()
                 if (!session->hasActiveClient())
                 {
                     removeSession(session);
+                    removedSessions++;
                 }
             }
             it = queuedSessionRemovals.erase(it);
+
+            processedRemovals++;
         }
+
+        queuedRemovalsLeft = queuedSessionRemovals.size();
     }
+
+    logger->logf(LOG_DEBUG, "Processed %d queued session removals, resuling in %d deleted expired sessions. %d queued removals in the future.",
+                 processedRemovals, removedSessions, queuedRemovalsLeft);
 
     if (lastTreeCleanup + std::chrono::minutes(30) < now)
     {
