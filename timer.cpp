@@ -27,18 +27,18 @@ void CallbackEntry::updateExectedAt()
     this->lastExecuted = std::chrono::steady_clock::now();
 }
 
-uint64_t CallbackEntry::getNextCallMs() const
+void CallbackEntry::calculateNewWaitTime()
 {
     const std::chrono::milliseconds elapsedSinceLastCall = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - lastExecuted);
     int64_t newDelay = this->interval - elapsedSinceLastCall.count();
     if (newDelay < 0)
         newDelay = 0;
-    return newDelay;
+    this->timeTillNext = newDelay;
 }
 
 bool CallbackEntry::operator <(const CallbackEntry &other) const
 {
-    return this->getNextCallMs() < other.getNextCallMs();
+    return this->timeTillNext < other.timeTillNext;
 }
 
 Timer::Timer()
@@ -93,8 +93,13 @@ void Timer::addCallback(std::function<void ()> f, uint64_t interval_ms, const st
 
 void Timer::sortAndSetSleeptimeTillNext()
 {
+    for(CallbackEntry &c : callbacks)
+    {
+        c.calculateNewWaitTime();
+    }
+
     std::sort(callbacks.begin(), callbacks.end());
-    this->sleeptime = callbacks.front().getNextCallMs();
+    this->sleeptime = callbacks.front().timeTillNext;
 }
 
 void Timer::process()
@@ -131,6 +136,7 @@ void Timer::process()
             continue;
         }
 
+        logger->logf(LOG_DEBUG, "Calling timed event '%s'.", callbacks.front().name.c_str());
         CallbackEntry &c = callbacks.front();
         c.updateExectedAt();
         c.f();

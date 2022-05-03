@@ -30,12 +30,13 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 struct CallbackEntry
 {
     std::chrono::time_point<std::chrono::steady_clock> lastExecuted = std::chrono::steady_clock::now();
+    int64_t timeTillNext = 1000;
     uint64_t interval = 0;
     std::function<void ()> f = nullptr;
     std::string name;
 
     void updateExectedAt();
-    uint64_t getNextCallMs() const;
+    void calculateNewWaitTime();
     bool operator <(const CallbackEntry &other) const;
 };
 
