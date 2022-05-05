@@ -90,13 +90,11 @@ class QueuedWill
 {
     std::weak_ptr<WillPublish> will;
     std::weak_ptr<Session> session;
-    std::chrono::time_point<std::chrono::steady_clock> sendAt;
 
 public:
     QueuedWill(const std::shared_ptr<WillPublish> &will, const std::shared_ptr<Session> &session);
 
     const std::weak_ptr<WillPublish> &getWill() const;
-    std::chrono::time_point<std::chrono::steady_clock> getSendAt() const;
     std::shared_ptr<Session> getSession();
 };
 
@@ -121,7 +119,7 @@ class SubscriptionStore
     int64_t retainedMessageCount = 0;
 
     std::mutex pendingWillsMutex;
-    std::list<QueuedWill> pendingWillMessages;
+    std::map<std::chrono::time_point<std::chrono::steady_clock>, std::vector<QueuedWill>> pendingWillMessages;
 
     std::chrono::time_point<std::chrono::steady_clock> lastTreeCleanup;
 
@@ -172,7 +170,5 @@ public:
 
     void queueSessionRemoval(const std::shared_ptr<Session> &session);
 };
-
-bool willDelayCompare(const std::shared_ptr<WillPublish> &a, const QueuedWill &b);
 
 #endif // SUBSCRIPTIONSTORE_H

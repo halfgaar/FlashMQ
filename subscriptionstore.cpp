@@ -288,8 +288,6 @@ std::shared_ptr<Session> SubscriptionStore::lockSession(const std::string &clien
 /**
  * @brief SubscriptionStore::sendQueuedWillMessages sends queued will messages.
  *
- * The list of pendingWillMessages is sorted. This allows for fast insertion and dequeueing of wills that have expired.
- *
  * The expiry interval as set in the properties of the will message is not used to check for expiration here. To
  * quote the specs: "If present, the Four Byte value is the lifetime of the Will Message in seconds and is sent as
  * the Publication Expiry Interval when the Server publishes the Will Message."
@@ -305,39 +303,48 @@ void SubscriptionStore::sendQueuedWillMessages()
     auto it = pendingWillMessages.begin();
     while (it != pendingWillMessages.end())
     {
-        QueuedWill &qw = *it;
+        const std::chrono::time_point<std::chrono::steady_clock> &sendAt = it->first;
 
-        std::shared_ptr<Publish> p = qw.getWill().lock();
-        if (p)
+        if (sendAt > now)
+            break;
+
+        std::vector<QueuedWill> &willsOfSlot = it->second;
+
+        for(QueuedWill &will : willsOfSlot)
         {
-            if (qw.getSendAt() > now)
-                break;
+            std::shared_ptr<Publish> p = will.getWill().lock();
 
-            std::shared_ptr<Session> s = qw.getSession();
-
-            if (!s || s->hasActiveClient())
+            // If sessions get a new will, or the will is cleared from a new connecting client, this entry
+            // will be null and we can ignore it.
+            if (p)
             {
-                it = pendingWillMessages.erase(it);
-                continue;
+                std::shared_ptr<Session> s = will.getSession();
+
+                // Check for stale wills, or sessions that have become active again.
+                if (s && !s->hasActiveClient())
+                {
+                    logger->logf(LOG_DEBUG, "Sending delayed will on topic '%s'.", p->topic.c_str() );
+                    PublishCopyFactory factory(p.get());
+                    queuePacketAtSubscribers(factory);
+
+                    if (p->retain)
+                        setRetainedMessage(*p, p->subtopics);
+
+                    s->clearWill();
+                }
             }
-
-            logger->logf(LOG_DEBUG, "Sending delayed will on topic '%s'.", p->topic.c_str() );
-            PublishCopyFactory factory(p.get());
-            queuePacketAtSubscribers(factory);
-
-            if (p->retain)
-                setRetainedMessage(*p.get(), (*p.get()).subtopics);
-
-            s->clearWill();
         }
         it = pendingWillMessages.erase(it);
     }
 }
 
 /**
- * @brief SubscriptionStore::queueWillMessage queues the will message by bin-searching its place in the sorted list.
+ * @brief SubscriptionStore::queueWillMessage queues the will message in a sorted map.
  * @param willMessage
  * @param forceNow
+ *
+ * The queued will is only valid for that time. Should a new will be placed in the map for a session, the original shared_ptr
+ * will be cleared and the previously queued entry is void (but still there, so it needs to be checked).
  */
 void SubscriptionStore::queueWillMessage(const std::shared_ptr<WillPublish> &willMessage, const std::shared_ptr<Session> &session, bool forceNow)
 {
@@ -365,10 +372,10 @@ void SubscriptionStore::queueWillMessage(const std::shared_ptr<WillPublish> &wil
     willMessage->setQueuedAt();
 
     QueuedWill queuedWill(willMessage, session);
+    const std::chrono::time_point<std::chrono::steady_clock> sendWillAt = std::chrono::steady_clock::now() + std::chrono::seconds(willMessage->will_delay);
 
     std::lock_guard<std::mutex> locker(this->pendingWillsMutex);
-    auto pos = std::upper_bound(this->pendingWillMessages.begin(), this->pendingWillMessages.end(), willMessage, willDelayCompare);
-    this->pendingWillMessages.insert(pos, queuedWill);
+    this->pendingWillMessages[sendWillAt].push_back(queuedWill);
 }
 
 void SubscriptionStore::publishNonRecursively(const std::unordered_map<std::string, Subscription> &subscribers,
@@ -1025,8 +1032,7 @@ RetainedMessageNode *RetainedMessageNode::getChildren(const std::string &subtopi
 
 QueuedWill::QueuedWill(const std::shared_ptr<WillPublish> &will, const std::shared_ptr<Session> &session) :
     will(will),
-    session(session),
-    sendAt(std::chrono::steady_clock::now() + std::chrono::seconds(will->will_delay))
+    session(session)
 {
 
 }
@@ -1036,23 +1042,9 @@ const std::weak_ptr<WillPublish> &QueuedWill::getWill() const
     return this->will;
 }
 
-std::chrono::time_point<std::chrono::steady_clock> QueuedWill::getSendAt() const
-{
-    return this->sendAt;
-}
-
 std::shared_ptr<Session> QueuedWill::getSession()
 {
     return this->session.lock();
 }
 
-bool willDelayCompare(const std::shared_ptr<WillPublish> &a, const QueuedWill &b)
-{
-    std::shared_ptr<WillPublish> _b = b.getWill().lock();
-
-    if (!_b)
-        return true;
-
-    return a->will_delay < _b->will_delay;
-};
 
