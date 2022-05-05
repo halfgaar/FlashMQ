@@ -300,7 +300,7 @@ std::shared_ptr<Session> SubscriptionStore::lockSession(const std::string &clien
 void SubscriptionStore::sendQueuedWillMessages()
 {
     const auto now = std::chrono::steady_clock::now();
-    std::lock_guard<std::mutex>(this->pendingWillsMutex);
+    std::lock_guard<std::mutex> locker(this->pendingWillsMutex);
 
     auto it = pendingWillMessages.begin();
     while (it != pendingWillMessages.end())
@@ -366,7 +366,7 @@ void SubscriptionStore::queueWillMessage(const std::shared_ptr<WillPublish> &wil
 
     QueuedWill queuedWill(willMessage, session);
 
-    std::lock_guard<std::mutex>(this->pendingWillsMutex);
+    std::lock_guard<std::mutex> locker(this->pendingWillsMutex);
     auto pos = std::upper_bound(this->pendingWillMessages.begin(), this->pendingWillMessages.end(), willMessage, willDelayCompare);
     this->pendingWillMessages.insert(pos, queuedWill);
 }
@@ -659,7 +659,7 @@ void SubscriptionStore::removeExpiredSessionsClients()
     int queuedRemovalsLeft = -1;
 
     {
-        std::lock_guard<std::mutex>(this->queuedSessionRemovalsMutex);
+        std::lock_guard<std::mutex> locker(this->queuedSessionRemovalsMutex);
 
         queuedRemovalsLeft = queuedSessionRemovals.size();
 
@@ -720,7 +720,7 @@ void SubscriptionStore::queueSessionRemoval(const std::shared_ptr<Session> &sess
     std::chrono::time_point<std::chrono::steady_clock> removeAt = std::chrono::steady_clock::now() + std::chrono::seconds(session->getSessionExpiryInterval());
     session->setQueuedRemovalAt();
 
-    std::lock_guard<std::mutex>(this->queuedSessionRemovalsMutex);
+    std::lock_guard<std::mutex> locker(this->queuedSessionRemovalsMutex);
     queuedSessionRemovals[removeAt].push_back(session);
 }
 
