@@ -82,6 +82,8 @@ void Timer::addCallback(std::function<void ()> f, uint64_t interval_ms, const st
 {
     logger->logf(LOG_DEBUG, "Adding event '%s' to the timer with an interval of %ld ms.", name.c_str(), interval_ms);
 
+    std::lock_guard<std::mutex> locker(this->callbacksMutex);
+
     CallbackEntry c;
     c.f = f;
     c.interval = interval_ms;
@@ -137,6 +139,9 @@ void Timer::process()
         }
 
         logger->logf(LOG_DEBUG, "Calling timed event '%s'.", callbacks.front().name.c_str());
+
+        std::lock_guard<std::mutex> locker(this->callbacksMutex);
+
         CallbackEntry &c = callbacks.front();
         c.updateExectedAt();
         c.f();

@@ -50,6 +50,7 @@ class Timer
     int running = false;
     Logger *logger = Logger::getInstance();
     std::vector<CallbackEntry> callbacks;
+    std::mutex callbacksMutex;
 
     void sortAndSetSleeptimeTillNext();
     void process();
