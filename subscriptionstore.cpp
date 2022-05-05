@@ -666,19 +666,23 @@ void SubscriptionStore::removeExpiredSessionsClients()
         auto it = queuedSessionRemovals.begin();
         while (it != queuedSessionRemovals.end())
         {
-            QueuedSessionRemoval &qsr = *it;
-            std::shared_ptr<Session> session = (*it).getSession();
-            if (session)
+            const std::chrono::time_point<std::chrono::steady_clock> &removeAt = it->first;
+
+            if (removeAt > now)
             {
-                if (qsr.getExpiresAt() > now)
-                {
-                    break;
-                }
+                break;
+            }
+
+            std::vector<std::weak_ptr<Session>> &sessionsFromSlot = it->second;
+
+            for (std::weak_ptr<Session> ses : sessionsFromSlot)
+            {
+                std::shared_ptr<Session> lockedSession = ses.lock();
 
                 // A session could have been picked up again, so we have to verify its expiration status.
-                if (!session->hasActiveClient())
+                if (lockedSession && !lockedSession->hasActiveClient())
                 {
-                    removeSession(session);
+                    removeSession(lockedSession);
                     removedSessions++;
                 }
             }
@@ -690,7 +694,7 @@ void SubscriptionStore::removeExpiredSessionsClients()
         queuedRemovalsLeft = queuedSessionRemovals.size();
     }
 
-    logger->logf(LOG_DEBUG, "Processed %d queued session removals, resuling in %d deleted expired sessions. %d queued removals in the future.",
+    logger->logf(LOG_DEBUG, "Processed %d queued session removals, resulting in %d deleted expired sessions. %d queued removals in the future.",
                  processedRemovals, removedSessions, queuedRemovalsLeft);
 
     if (lastTreeCleanup + std::chrono::minutes(30) < now)
@@ -705,7 +709,7 @@ void SubscriptionStore::removeExpiredSessionsClients()
 }
 
 /**
- * @brief SubscriptionStore::queueSessionRemoval places session efficiently in a sorted list that is periodically dequeued.
+ * @brief SubscriptionStore::queueSessionRemoval places session efficiently in a sorted map that is periodically dequeued.
  * @param session
  */
 void SubscriptionStore::queueSessionRemoval(const std::shared_ptr<Session> &session)
@@ -713,18 +717,11 @@ void SubscriptionStore::queueSessionRemoval(const std::shared_ptr<Session> &sess
     if (!session)
         return;
 
-    QueuedSessionRemoval qsr(session);
-
-    auto comp = [](const QueuedSessionRemoval &a, const QueuedSessionRemoval &b)
-    {
-        return a.getExpiresAt() < b.getExpiresAt();
-    };
-
+    std::chrono::time_point<std::chrono::steady_clock> removeAt = std::chrono::steady_clock::now() + std::chrono::seconds(session->getSessionExpiryInterval());
     session->setQueuedRemovalAt();
 
     std::lock_guard<std::mutex>(this->queuedSessionRemovalsMutex);
-    auto pos = std::upper_bound(this->queuedSessionRemovals.begin(), this->queuedSessionRemovals.end(), qsr, comp);
-    this->queuedSessionRemovals.insert(pos, qsr);
+    queuedSessionRemovals[removeAt].push_back(session);
 }
 
 int64_t SubscriptionStore::getRetainedMessageCount() const
@@ -1024,23 +1021,6 @@ RetainedMessageNode *RetainedMessageNode::getChildren(const std::string &subtopi
     if (it != children.end())
         return it->second.get();
     return nullptr;
-}
-
-QueuedSessionRemoval::QueuedSessionRemoval(const std::shared_ptr<Session> &session) :
-    session(session),
-    expiresAt(std::chrono::steady_clock::now() + std::chrono::seconds(session->getSessionExpiryInterval()))
-{
-
-}
-
-std::chrono::time_point<std::chrono::steady_clock> QueuedSessionRemoval::getExpiresAt() const
-{
-    return this->expiresAt;
-}
-
-std::shared_ptr<Session> QueuedSessionRemoval::getSession() const
-{
-    return session.lock();
 }
 
 QueuedWill::QueuedWill(const std::shared_ptr<WillPublish> &will, const std::shared_ptr<Session> &session) :

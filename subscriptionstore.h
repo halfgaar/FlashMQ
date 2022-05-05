@@ -22,6 +22,8 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include <forward_list>
 #include <list>
 #include <mutex>
+#include <map>
+#include <vector>
 #include <pthread.h>
 
 #include "forward_declarations.h"
@@ -84,23 +86,6 @@ class RetainedMessageNode
     RetainedMessageNode *getChildren(const std::string &subtopic) const;
 };
 
-/**
- * @brief A QueuedSessionRemoval is a sort of delayed request for removal. They are kept in a sorted list for fast insertion,
- * and fast dequeueing of expired entries from the start.
- *
- * You can have multiple of these in the pending list. If a client has picked up the session again, the removal is not executed.
- */
-class QueuedSessionRemoval
-{
-    std::weak_ptr<Session> session;
-    std::chrono::time_point<std::chrono::steady_clock> expiresAt;
-
-public:
-    QueuedSessionRemoval(const std::shared_ptr<Session> &session);
-    std::chrono::time_point<std::chrono::steady_clock> getExpiresAt() const;
-    std::shared_ptr<Session> getSession() const;
-};
-
 class QueuedWill
 {
     std::weak_ptr<WillPublish> will;
@@ -128,7 +113,7 @@ class SubscriptionStore
     const std::unordered_map<std::string, std::shared_ptr<Session>> &sessionsByIdConst;
 
     std::mutex queuedSessionRemovalsMutex;
-    std::list<QueuedSessionRemoval> queuedSessionRemovals;
+    std::map<std::chrono::time_point<std::chrono::steady_clock>, std::vector<std::weak_ptr<Session>>> queuedSessionRemovals;
 
     pthread_rwlock_t retainedMessagesRwlock = PTHREAD_RWLOCK_INITIALIZER;
     RetainedMessageNode retainedMessagesRoot;
