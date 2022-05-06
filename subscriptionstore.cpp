@@ -661,6 +661,8 @@ void SubscriptionStore::removeExpiredSessionsClients()
     logger->logf(LOG_DEBUG, "Cleaning out old sessions");
 
     const std::chrono::time_point<std::chrono::steady_clock> now = std::chrono::steady_clock::now();
+    const std::chrono::seconds secondsSinceEpoch = std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch());
+
     int removedSessions = 0;
     int processedRemovals = 0;
     int queuedRemovalsLeft = -1;
@@ -673,9 +675,9 @@ void SubscriptionStore::removeExpiredSessionsClients()
         auto it = queuedSessionRemovals.begin();
         while (it != queuedSessionRemovals.end())
         {
-            const std::chrono::time_point<std::chrono::steady_clock> &removeAt = it->first;
+            const std::chrono::seconds &removeAt = it->first;
 
-            if (removeAt > now)
+            if (removeAt > secondsSinceEpoch)
             {
                 break;
             }
@@ -725,10 +727,11 @@ void SubscriptionStore::queueSessionRemoval(const std::shared_ptr<Session> &sess
         return;
 
     std::chrono::time_point<std::chrono::steady_clock> removeAt = std::chrono::steady_clock::now() + std::chrono::seconds(session->getSessionExpiryInterval());
+    std::chrono::seconds secondsSinceEpoch = std::chrono::duration_cast<std::chrono::seconds>(removeAt.time_since_epoch());
     session->setQueuedRemovalAt();
 
     std::lock_guard<std::mutex> locker(this->queuedSessionRemovalsMutex);
-    queuedSessionRemovals[removeAt].push_back(session);
+    queuedSessionRemovals[secondsSinceEpoch].push_back(session);
 }
 
 int64_t SubscriptionStore::getRetainedMessageCount() const

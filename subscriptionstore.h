@@ -111,7 +111,7 @@ class SubscriptionStore
     const std::unordered_map<std::string, std::shared_ptr<Session>> &sessionsByIdConst;
 
     std::mutex queuedSessionRemovalsMutex;
-    std::map<std::chrono::time_point<std::chrono::steady_clock>, std::vector<std::weak_ptr<Session>>> queuedSessionRemovals;
+    std::map<std::chrono::seconds, std::vector<std::weak_ptr<Session>>> queuedSessionRemovals;
 
     pthread_rwlock_t retainedMessagesRwlock = PTHREAD_RWLOCK_INITIALIZER;
     RetainedMessageNode retainedMessagesRoot;
