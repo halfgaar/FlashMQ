@@ -298,14 +298,15 @@ std::shared_ptr<Session> SubscriptionStore::lockSession(const std::string &clien
 void SubscriptionStore::sendQueuedWillMessages()
 {
     const auto now = std::chrono::steady_clock::now();
+    const std::chrono::seconds secondsSinceEpoch = std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch());
     std::lock_guard<std::mutex> locker(this->pendingWillsMutex);
 
     auto it = pendingWillMessages.begin();
     while (it != pendingWillMessages.end())
     {
-        const std::chrono::time_point<std::chrono::steady_clock> &sendAt = it->first;
+        const std::chrono::seconds &sendAt = it->first;
 
-        if (sendAt > now)
+        if (sendAt > secondsSinceEpoch)
             break;
 
         std::vector<QueuedWill> &willsOfSlot = it->second;
@@ -373,9 +374,10 @@ void SubscriptionStore::queueWillMessage(const std::shared_ptr<WillPublish> &wil
 
     QueuedWill queuedWill(willMessage, session);
     const std::chrono::time_point<std::chrono::steady_clock> sendWillAt = std::chrono::steady_clock::now() + std::chrono::seconds(willMessage->will_delay);
+    std::chrono::seconds secondsSinceEpoch = std::chrono::duration_cast<std::chrono::seconds>(sendWillAt.time_since_epoch());
 
     std::lock_guard<std::mutex> locker(this->pendingWillsMutex);
-    this->pendingWillMessages[sendWillAt].push_back(queuedWill);
+    this->pendingWillMessages[secondsSinceEpoch].push_back(queuedWill);
 }
 
 void SubscriptionStore::publishNonRecursively(const std::unordered_map<std::string, Subscription> &subscribers,

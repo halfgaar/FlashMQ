@@ -119,7 +119,7 @@ class SubscriptionStore
     int64_t retainedMessageCount = 0;
 
     std::mutex pendingWillsMutex;
-    std::map<std::chrono::time_point<std::chrono::steady_clock>, std::vector<QueuedWill>> pendingWillMessages;
+    std::map<std::chrono::seconds, std::vector<QueuedWill>> pendingWillMessages;
 
     std::chrono::time_point<std::chrono::steady_clock> lastTreeCleanup;
 
