@@ -28,11 +28,4 @@ jobs:
       compiler: clang
 
 script:
-- set -e  # If any step reports a problem consider the whole build a failure
-- sudo apt update
-- sudo apt install -y shellcheck
-- shellcheck debian/post* debian/pre*
-- ./build.sh
-- ./FlashMQBuildRelease/FlashMQ --version
-- sudo dpkg -i ./FlashMQBuildRelease/*.deb
-- set +e  # Prevent Travis internals from breaking our build, see https://github.com/travis-ci/travis-ci/issues/891
+- ./.build-ci.sh
