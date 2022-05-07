@@ -106,6 +106,8 @@ add_executable(FlashMQ
 
 target_link_libraries(FlashMQ pthread dl ssl crypto)
 
+execute_process(COMMAND ../.get-os-codename-and-stamp.sh OUTPUT_VARIABLE OS_CODENAME)
+
 install(TARGETS FlashMQ
   RUNTIME DESTINATION "/usr/bin/")
 
@@ -121,6 +123,8 @@ SET(CPACK_DEBIAN_PACKAGE_MAINTAINER "Wiebe Cazemier <wiebe@halfgaar.net>")
 SET(CPACK_DEBIAN_PACKAGE_DESCRIPTION "Light-weight, high performance MQTT server capable of million+ messages per second.")
 SET(CPACK_PACKAGE_HOMEPAGE_URL "https://www.flashmq.org/")
 SET(CPACK_DEBIAN_PACKAGE_DEPENDS "libssl1.1 (>= 1.1.0)")
+SET(CPACK_DEBIAN_FILE_NAME "DEB-DEFAULT")
+SET(CPACK_DEBIAN_PACKAGE_RELEASE ${OS_CODENAME})
 SET(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
 SET(CPACK_PACKAGE_VERSION_MINOR ${PROJECT_VERSION_MINOR})
 SET(CPACK_PACKAGE_VERSION_PATCH ${PROJECT_VERSION_PATCH})
