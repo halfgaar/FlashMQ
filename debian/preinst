@@ -1,6 +1,6 @@
 #!/bin/bash -e
 
-if [[ ! -f /etc/lsb-release || ! -f /etc/debian_version ]]; then
+if [[ ! -f /etc/lsb-release && ! -f /etc/debian_version ]]; then
   echo "This is not a Debian or Ubuntu based system? Hmm"
   exit 1
 fi
