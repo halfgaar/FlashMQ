@@ -665,6 +665,9 @@ void SubscriptionStore::removeExpiredSessionsClients()
     const std::chrono::time_point<std::chrono::steady_clock> now = std::chrono::steady_clock::now();
     const std::chrono::seconds secondsSinceEpoch = std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch());
 
+    // Collect sessions to remove for a separate step, to avoid holding two locks at the same time.
+    std::vector<std::shared_ptr<Session>> sessionsToRemove;
+
     int removedSessions = 0;
     int processedRemovals = 0;
     int queuedRemovalsLeft = -1;
@@ -693,8 +696,7 @@ void SubscriptionStore::removeExpiredSessionsClients()
                 // A session could have been picked up again, so we have to verify its expiration status.
                 if (lockedSession && !lockedSession->hasActiveClient())
                 {
-                    removeSession(lockedSession);
-                    removedSessions++;
+                    sessionsToRemove.push_back(lockedSession);
                 }
             }
             it = queuedSessionRemovals.erase(it);
@@ -703,6 +705,12 @@ void SubscriptionStore::removeExpiredSessionsClients()
         }
 
         queuedRemovalsLeft = queuedSessionRemovals.size();
+    }
+
+    for(std::shared_ptr<Session> &session : sessionsToRemove)
+    {
+        removeSession(session);
+        removedSessions++;
     }
 
     logger->logf(LOG_DEBUG, "Processed %d queued session removals, resulting in %d deleted expired sessions. %d queued removals in the future.",
