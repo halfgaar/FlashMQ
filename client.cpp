@@ -345,7 +345,7 @@ bool Client::keepAliveExpired()
     if (!authenticated)
         return lastActivity + std::chrono::seconds(20) < now;
 
-    std::chrono::seconds x(keepalive*10/5);
+    std::chrono::seconds x(keepalive + keepalive/2);
     bool result = (lastActivity + x) < now;
     return result;
 }
@@ -646,6 +646,34 @@ void Client::setDisconnectReason(const std::string &reason)
     if (!this->disconnectReason.empty())
         this->disconnectReason += ", ";
     this->disconnectReason.append(reason);
+}
+
+/**
+ * @brief Client::getSecondsTillKillTime gets the amount of seconds from now at which this client should be killed when it was quiet.
+ * @return
+ *
+ * "If the Keep Alive value is non-zero and the Server does not receive an MQTT Control Packet from the Client within one and a
+ * half times the Keep Alive time period, it MUST close the Network Connection to the Client as if the network had failed [MQTT-3.1.2-22].
+ */
+std::chrono::seconds Client::getSecondsTillKillTime() const
+{
+    if (!this->authenticated)
+        return std::chrono::seconds(30);
+
+    if (this->keepalive == 0)
+        return std::chrono::seconds(0);
+
+    const uint32_t timeOfSilenceMeansKill = this->keepalive + (this->keepalive / 2) + 2;
+    std::chrono::time_point<std::chrono::steady_clock> killTime = this->lastActivity + std::chrono::seconds(timeOfSilenceMeansKill);
+
+    std::chrono::seconds secondsTillKillTime = std::chrono::duration_cast<std::chrono::seconds>(killTime - std::chrono::steady_clock::now());
+
+    // We floor it, but also protect against the theoretically impossible negative value. Kill time shouldn't be in the past, because then we would
+    // have killed it already.
+    if (secondsTillKillTime < std::chrono::seconds(5))
+        return std::chrono::seconds(5);
+
+    return secondsTillKillTime;
 }
 
 void Client::clearWill()

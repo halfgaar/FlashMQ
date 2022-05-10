@@ -397,6 +397,8 @@ void MqttPacket::handleConnect()
 
     if (protocolVersion == ProtocolVersion::Mqtt5)
     {
+        keep_alive = std::max<uint16_t>(keep_alive, 5);
+
         const size_t proplen = decodeVariableByteIntAtPos();
         const size_t prop_end_at = pos + proplen;
 
@@ -624,6 +626,7 @@ void MqttPacket::handleConnect()
             connAck->propertyBuilder->writeWildcardSubscriptionAvailable(1);
             connAck->propertyBuilder->writeSubscriptionIdentifiersAvailable(0);
             connAck->propertyBuilder->writeSharedSubscriptionAvailable(0);
+            connAck->propertyBuilder->writeServerKeepAlive(keep_alive);
 
             if (!authenticationMethod.empty())
             {

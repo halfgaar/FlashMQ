@@ -146,6 +146,7 @@ public:
     void assignSession(std::shared_ptr<Session> &session);
     std::shared_ptr<Session> getSession();
     void setDisconnectReason(const std::string &reason);
+    std::chrono::seconds getSecondsTillKillTime() const;
 
     void writeText(const std::string &text);
     void writePingResp();

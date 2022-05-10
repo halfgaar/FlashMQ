@@ -29,6 +29,7 @@ public:
     void clearClientSpecificBytes();
     std::shared_ptr<std::vector<std::pair<std::string, std::string>>> getUserProperties() const;
 
+    void writeServerKeepAlive(uint16_t val);
     void writeSessionExpiry(uint32_t val);
     void writeReceiveMax(uint16_t val);
     void writeRetainAvailable(uint8_t val);

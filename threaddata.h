@@ -40,6 +40,14 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 
 typedef void (*thread_f)(ThreadData *);
 
+struct KeepAliveCheck
+{
+    std::weak_ptr<Client> client;
+    bool recheck = true;
+
+    KeepAliveCheck(const std::shared_ptr<Client> client);
+};
+
 class ThreadData
 {
     std::unordered_map<int, std::shared_ptr<Client>> clients_by_fd;
@@ -58,6 +66,9 @@ class ThreadData
     std::mutex clientsToRemoveMutex;
     std::forward_list<std::weak_ptr<Client>> clientsQueuedForRemoving;
 
+    std::mutex queuedKeepAliveMutex;
+    std::map<std::chrono::seconds, std::vector<KeepAliveCheck>> queuedKeepAliveChecks;
+
     void reload(std::shared_ptr<Settings> settings);
     void wakeUpThread();
     void doKeepAliveCheck();
@@ -68,6 +79,7 @@ class ThreadData
     void removeExpiredSessions();
     void sendAllWills();
     void sendAllDisconnects();
+    void queueClientNextKeepAliveCheck(std::shared_ptr<Client> &client, bool keepRechecking);
 
     void removeQueuedClients();
 
@@ -108,6 +120,7 @@ public:
     void queuePublishStatsOnDollarTopic(std::vector<std::shared_ptr<ThreadData>> &threads);
     void queueSendingQueuedWills();
     void queueRemoveExpiredSessions();
+    void queueClientNextKeepAliveCheckLocked(std::shared_ptr<Client> &client, bool keepRechecking);
 
     int getNrOfClients() const;
 

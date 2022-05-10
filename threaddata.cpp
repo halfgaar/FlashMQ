@@ -20,6 +20,12 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include <sstream>
 #include <cassert>
 
+KeepAliveCheck::KeepAliveCheck(const std::shared_ptr<Client> client) :
+    client(client)
+{
+
+}
+
 ThreadData::ThreadData(int threadnr, std::shared_ptr<SubscriptionStore> &subscriptionStore, std::shared_ptr<Settings> settings) :
     subscriptionStore(subscriptionStore),
     settingsLocalCopy(*settings.get()),
@@ -107,6 +113,26 @@ void ThreadData::queueRemoveExpiredSessions()
     taskQueue.push_front(f);
 
     wakeUpThread();
+}
+
+void ThreadData::queueClientNextKeepAliveCheck(std::shared_ptr<Client> &client, bool keepRechecking)
+{
+    const std::chrono::seconds k = client->getSecondsTillKillTime();
+
+    if (k == std::chrono::seconds(0))
+        return;
+
+    const std::chrono::seconds when = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now().time_since_epoch() + k);
+
+    KeepAliveCheck check(client);
+    check.recheck = keepRechecking;
+    queuedKeepAliveChecks[when].push_back(check);
+}
+
+void ThreadData::queueClientNextKeepAliveCheckLocked(std::shared_ptr<Client> &client, bool keepRechecking)
+{
+    std::lock_guard<std::mutex> locker(this->queuedKeepAliveMutex);
+    queueClientNextKeepAliveCheck(client, keepRechecking);
 }
 
 void ThreadData::publishStatsOnDollarTopic(std::vector<std::shared_ptr<ThreadData>> &threads)
@@ -229,10 +255,14 @@ void ThreadData::removeQueuedClients()
 
 void ThreadData::giveClient(std::shared_ptr<Client> client)
 {
-    clients_by_fd_mutex.lock();
-    int fd = client->getFd();
-    clients_by_fd[fd] = client;
-    clients_by_fd_mutex.unlock();
+    const int fd = client->getFd();
+
+    {
+        std::lock_guard<std::mutex> locker(clients_by_fd_mutex);
+        clients_by_fd[fd] = client;
+    }
+
+    queueClientNextKeepAliveCheckLocked(client, false);
 
     struct epoll_event ev;
     memset(&ev, 0, sizeof (struct epoll_event));
@@ -444,32 +474,77 @@ void ThreadData::queueSendDisconnects()
     wakeUpThread();
 }
 
-// TODO: profile how fast hash iteration is. Perhaps having a second list/vector is beneficial?
 void ThreadData::doKeepAliveCheck()
 {
-    // We don't need to stall normal connects and disconnects for keep-alive checking. We can do it later.
-    std::unique_lock<std::mutex> lock(clients_by_fd_mutex, std::try_to_lock);
-    if (!lock.owns_lock())
-        return;
+    logger->logf(LOG_DEBUG, "doKeepAliveCheck in thread %d", threadnr);
 
-    logger->logf(LOG_DEBUG, "Doing keep-alive check in thread %d", threadnr);
+    const std::chrono::seconds now = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now().time_since_epoch());
 
     try
     {
-        auto it = clients_by_fd.begin();
-        while (it != clients_by_fd.end())
+        // Put clients to delete in here, to avoid holding two locks.
+        std::vector<std::shared_ptr<Client>> clientsToRemove;
+
+        std::vector<std::shared_ptr<Client>> clientsToRecheck;
+
+        const int slotsTotal = this->queuedKeepAliveChecks.size();
+        int slotsProcessed = 0;
+        int clientsChecked = 0;
+
         {
-            std::shared_ptr<Client> &client = it->second;
-            if (client && client->keepAliveExpired())
+            logger->logf(LOG_DEBUG, "Checking clients with pending keep-alive checks in thread %d", threadnr);
+
+            std::lock_guard<std::mutex> locker(this->queuedKeepAliveMutex);
+
+            auto pos = this->queuedKeepAliveChecks.begin();
+            while (pos != this->queuedKeepAliveChecks.end())
             {
-                client->setDisconnectReason("Keep-alive expired: " + client->getKeepAliveInfoString());
-                it = clients_by_fd.erase(it);
+                const std::chrono::seconds &doCheckAt = pos->first;
+
+                if (doCheckAt > now)
+                    break;
+
+                slotsProcessed++;
+
+                std::vector<KeepAliveCheck> &checks = pos->second;
+
+                for (KeepAliveCheck &k : checks)
+                {
+                    std::shared_ptr<Client> client = k.client.lock();
+                    if (client)
+                    {
+                        clientsChecked++;
+
+                        if (client->keepAliveExpired())
+                        {
+                            clientsToRemove.push_back(client);
+                        }
+                        else if (k.recheck)
+                        {
+                            clientsToRecheck.push_back(client);
+                        }
+                    }
+                }
+
+                pos = this->queuedKeepAliveChecks.erase(pos);
             }
-            else
+
+            for (std::shared_ptr<Client> &c : clientsToRecheck)
             {
-                if (client)
-                    client->resetBuffersIfEligible();
-                it++;
+                c->resetBuffersIfEligible();
+                queueClientNextKeepAliveCheck(c, true);
+            }
+        }
+
+        logger->logf(LOG_DEBUG, "Checked %d clients in %d of %d keep-alive slots in thread %d", clientsChecked, slotsProcessed, slotsTotal, threadnr);
+
+        {
+            std::unique_lock<std::mutex> lock(clients_by_fd_mutex);
+
+            for (std::shared_ptr<Client> c : clientsToRemove)
+            {
+                c->setDisconnectReason("Keep-alive expired: " + c->getKeepAliveInfoString());
+                clients_by_fd.erase(c->getFd());
             }
         }
     }

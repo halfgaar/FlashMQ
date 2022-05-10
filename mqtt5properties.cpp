@@ -44,6 +44,11 @@ std::shared_ptr<std::vector<std::pair<std::string, std::string>>> Mqtt5PropertyB
     return this->userProperties;
 }
 
+void Mqtt5PropertyBuilder::writeServerKeepAlive(uint16_t val)
+{
+    writeUint16(Mqtt5Properties::ServerKeepAlive, val);
+}
+
 void Mqtt5PropertyBuilder::writeSessionExpiry(uint32_t val)
 {
     writeUint32(Mqtt5Properties::SessionExpiryInterval, val, genericBytes);

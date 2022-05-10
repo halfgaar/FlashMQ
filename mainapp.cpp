@@ -68,7 +68,7 @@ MainApp::MainApp(const std::string &configFilePath) :
     }
 
     auto fKeepAlive = std::bind(&MainApp::queueKeepAliveCheckAtAllThreads, this);
-    timer.addCallback(fKeepAlive, 30000, "keep-alive check");
+    timer.addCallback(fKeepAlive, 5000, "keep-alive check");
 
     auto fPasswordFileReload = std::bind(&MainApp::queuePasswordFileReloadAllThreads, this);
     timer.addCallback(fPasswordFileReload, 2000, "Password file reload.");

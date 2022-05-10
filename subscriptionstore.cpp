@@ -226,6 +226,8 @@ void SubscriptionStore::registerClientAndKickExistingOne(std::shared_ptr<Client>
 // Removes an existing client when it already exists [MQTT-3.1.4-2].
 void SubscriptionStore::registerClientAndKickExistingOne(std::shared_ptr<Client> &client, bool clean_start, uint16_t clientReceiveMax, uint32_t sessionExpiryInterval)
 {
+    client->getThreadData()->queueClientNextKeepAliveCheckLocked(client, true);
+
     RWLockGuard lock_guard(&subscriptionsRwlock);
     lock_guard.wrlock();
 
