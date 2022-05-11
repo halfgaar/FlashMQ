@@ -192,7 +192,7 @@ bool PublishBase::hasExpired() const
         return false;
 
     const std::chrono::seconds age = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - this->createdAt);
-    return (expiresAfter > age);
+    return (age > expiresAfter);
 }
 
 void PublishBase::setExpireAfter(uint32_t s)
