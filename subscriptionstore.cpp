@@ -479,10 +479,14 @@ void SubscriptionStore::giveClientRetainedMessagesRecursively(std::vector<std::s
 {
     if (cur_subtopic_it == end)
     {
-        for(const RetainedMessage &rm : this_node->retainedMessages)
+        auto pos = this_node->retainedMessages.begin();
+        while (pos != this_node->retainedMessages.end())
         {
-            // TODO: hmm, const stuff forces me/it to make copy
-            packetList.emplace_front(rm.publish);
+            auto cur = pos++;
+            if (cur->publish.hasExpired())
+                this_node->retainedMessages.erase(cur);
+            else
+                packetList.emplace_front(cur->publish); // TODO: hmm, const stuff forces me/it to make copy
         }
         if (poundMode)
         {
