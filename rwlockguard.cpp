@@ -30,15 +30,15 @@ RWLockGuard::~RWLockGuard()
     unlock();
 }
 
+/**
+ * @brief RWLockGuard::wrlock locks for writing i.e. exclusive lock.
+ *
+ * Contrary to rdlock, we don't accept deadlock errors, because you may be trying to upgrade a read lock to a write lock, which will
+ * cause actualy dead locks.
+ */
 void RWLockGuard::wrlock()
 {
     const int rc = pthread_rwlock_wrlock(rwlock);
-
-    if (rc == EDEADLK)
-    {
-        rwlock = nullptr;
-        return;
-    }
 
     if (rc != 0)
         throw std::runtime_error("wrlock failed.");
@@ -47,7 +47,8 @@ void RWLockGuard::wrlock()
 /**
  * @brief RWLockGuard::rdlock locks for reading, and considers it OK of the current thread already owns the lock for writing.
  *
- * The man page says: "The current thread already owns the read-write lock for writing." I hope that is literally the case.
+ * The pthread_rwlock_rdlock man page says: "EDEADLK: The current thread already owns the read-write lock for writing." I hope
+ * that is literally the case.
  */
 void RWLockGuard::rdlock()
 {

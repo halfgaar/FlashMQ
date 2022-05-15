@@ -578,8 +578,6 @@ void SubscriptionStore::setRetainedMessage(const Publish &publish, const std::ve
     {
         deepestNode->addPayload(publish, retainedMessageCount);
     }
-
-    locker.unlock();
 }
 
 // Clean up the weak pointers to sessions and remove nodes that are empty.
@@ -887,9 +885,6 @@ void SubscriptionStore::loadRetainedMessages(const std::string &filePath)
         RetainedMessagesDB db(filePath);
         db.openRead();
         std::list<RetainedMessage> messages = db.readData();
-
-        RWLockGuard locker(&retainedMessagesRwlock);
-        locker.wrlock();
 
         std::vector<std::string> subtopics;
         for (RetainedMessage &rm : messages)
