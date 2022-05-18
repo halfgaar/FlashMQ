@@ -41,6 +41,7 @@ Client::Client(int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, bool we
     initialBufferSize(settings->clientInitialBufferSize), // The client is constructed in the main thread, so we need to use its settings copy
     maxOutgoingPacketSize(settings->maxPacketSize), // Same as initialBufferSize comment.
     maxIncomingPacketSize(settings->maxPacketSize),
+    maxIncomingTopicAliasValue(settings->maxIncomingTopicAliasValue), // Retaining snapshot of current setting, to not confuse clients when the setting changes.
     ioWrapper(ssl, websocket, initialBufferSize, this),
     readbuf(initialBufferSize),
     writebuf(initialBufferSize),
@@ -377,11 +378,9 @@ void Client::setTopicAlias(const uint16_t alias_id, const std::string &topic)
     if (topic.empty())
         return;
 
-    const Settings *settings = ThreadGlobals::getSettings();
-
     // The specs actually say "The Client MUST NOT send a Topic Alias [...] to the Server greater than this value [Topic Alias Maximum]". So, it's not about count.
-    if (alias_id > settings->maxIncomingTopicAliasValue)
-        throw ProtocolError(formatString("Client tried to set more topic aliases than the server max of %d per client", settings->maxIncomingTopicAliasValue),
+    if (alias_id > this->maxIncomingTopicAliasValue)
+        throw ProtocolError(formatString("Client tried to set more topic aliases than the server max of %d per client", this->maxIncomingTopicAliasValue),
                             ReasonCodes::TopicAliasInvalid);
 
     this->incomingTopicAliases[alias_id] = topic;
@@ -400,6 +399,15 @@ const std::string &Client::getTopicAlias(const uint16_t id)
 uint32_t Client::getMaxIncomingPacketSize() const
 {
     return this->maxIncomingPacketSize;
+}
+
+/**
+ * @brief We use this to send back in the connack, so we know we don't race with the value from settings, which may change during the connection handshake.
+ * @return
+ */
+uint16_t Client::getMaxIncomingTopicAliasValue() const
+{
+    return this->maxIncomingTopicAliasValue;
 }
 
 void Client::sendOrQueueWill()

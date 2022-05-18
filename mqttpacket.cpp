@@ -622,7 +622,7 @@ void MqttPacket::handleConnect()
             connAck->propertyBuilder->writeMaxPacketSize(sender->getMaxIncomingPacketSize());
             if (clientIdGenerated)
                 connAck->propertyBuilder->writeAssignedClientId(client_id);
-            connAck->propertyBuilder->writeMaxTopicAliases(settings.maxIncomingTopicAliasValue);
+            connAck->propertyBuilder->writeMaxTopicAliases(sender->getMaxIncomingTopicAliasValue());
             connAck->propertyBuilder->writeWildcardSubscriptionAvailable(1);
             connAck->propertyBuilder->writeSubscriptionIdentifiersAvailable(0);
             connAck->propertyBuilder->writeSharedSubscriptionAvailable(0);

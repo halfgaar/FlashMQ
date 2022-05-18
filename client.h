@@ -68,6 +68,7 @@ class Client
     const uint32_t maxIncomingPacketSize;
 
     uint16_t maxOutgoingTopicAliasValue = 0;
+    const uint16_t maxIncomingTopicAliasValue;
 
     IoWrapper ioWrapper;
     std::string transportStr;
@@ -169,6 +170,7 @@ public:
     const std::string &getTopicAlias(const uint16_t id);
 
     uint32_t getMaxIncomingPacketSize() const;
+    uint16_t getMaxIncomingTopicAliasValue() const;
 
     void sendOrQueueWill();
     void serverInitiatedDisconnect(ReasonCodes reason);
