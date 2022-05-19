@@ -147,7 +147,7 @@ public:
     void setQos(const char new_qos);
     ProtocolVersion getProtocolVersion() const { return protocolVersion;}
     const std::string &getTopic() const;
-    const std::vector<std::string> &getSubtopics() const;
+    const std::vector<std::string> &getSubtopics();
     std::shared_ptr<Client> getSender() const;
     void setSender(const std::shared_ptr<Client> &value);
     bool containsFixedHeader() const;

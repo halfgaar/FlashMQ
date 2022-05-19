@@ -21,7 +21,6 @@ RetainedMessage::RetainedMessage(const Publish &publish) :
     publish(publish)
 {
     this->publish.retain = true;
-    this->publish.splitTopic = false;
 }
 
 bool RetainedMessage::operator==(const RetainedMessage &rhs) const

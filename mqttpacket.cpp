@@ -141,10 +141,6 @@ MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, Publish &_publish)
     if (!_publish.skipTopic)
         this->publishData.topic = _publish.topic;
 
-    // We often don't need to split because we already did the ACL checks and subscriber searching. But we do split on fresh publishes like wills and $SYS messages.
-    if (_publish.splitTopic)
-        splitTopic(this->publishData.topic, this->publishData.subtopics);
-
     packetType = PacketType::PUBLISH;
     this->publishData.qos = _publish.qos;
     first_byte = static_cast<char>(packetType) << 4;
@@ -164,7 +160,7 @@ MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, Publish &_publish)
     if (protocolVersion >= ProtocolVersion::Mqtt5)
     {
         // Step 1: make certain properties available as objects, because FlashMQ needs access to them for internal logic (only ACL checking at this point).
-        if (_publish.splitTopic && _publish.hasUserProperties())
+        if (_publish.hasUserProperties())
         {
             this->publishData.constructPropertyBuilder();
             this->publishData.propertyBuilder->setNewUserProperties(_publish.propertyBuilder->getUserProperties());
@@ -1266,14 +1262,12 @@ void MqttPacket::handlePublish()
         if (publishData.qos == 2)
             sender->getSession()->addIncomingQoS2MessageId(_packet_id);
 
-        splitTopic(publishData.topic, publishData.subtopics);
-
-        if (authentication.aclCheck(sender->getClientId(), sender->getUsername(), publishData.topic, publishData.subtopics, AclAccess::write, publishData.qos, publishData.retain, getUserProperties()) == AuthResult::success)
+        if (authentication.aclCheck(sender->getClientId(), sender->getUsername(), publishData.topic, publishData.getSubtopics(), AclAccess::write, publishData.qos, publishData.retain, getUserProperties()) == AuthResult::success)
         {
             if (publishData.retain)
             {
                 publishData.payload = getPayloadCopy();
-                MainApp::getMainApp()->getSubscriptionStore()->setRetainedMessage(publishData, publishData.subtopics);
+                MainApp::getMainApp()->getSubscriptionStore()->setRetainedMessage(publishData, publishData.getSubtopics());
             }
 
             // Set dup flag to 0, because that must not be propagated [MQTT-3.3.1-3].
@@ -1556,15 +1550,10 @@ const std::string &MqttPacket::getTopic() const
     return this->publishData.topic;
 }
 
-/**
- * @brief MqttPacket::getSubtopics returns a pointer to the parsed subtopics. Use with care!
- * @return a pointer to a vector of subtopics that will be overwritten the next packet!
- */
-const std::vector<std::string> &MqttPacket::getSubtopics() const
+const std::vector<std::string> &MqttPacket::getSubtopics()
 {
-    return this->publishData.subtopics;
+    return this->publishData.getSubtopics();
 }
-
 
 std::shared_ptr<Client> MqttPacket::getSender() const
 {
@@ -1734,10 +1723,7 @@ std::string MqttPacket::readBytesToString(bool validateUtf8, bool alsoCheckInval
 
 const std::vector<std::pair<std::string, std::string>> *MqttPacket::getUserProperties() const
 {
-    if (this->publishData.propertyBuilder)
-        return this->publishData.propertyBuilder->getUserProperties().get();
-
-    return nullptr;
+    return this->publishData.getUserProperties();
 }
 
 bool MqttPacket::getRetain() const

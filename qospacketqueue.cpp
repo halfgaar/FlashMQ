@@ -77,7 +77,6 @@ void QoSPublishQueue::queuePublish(PublishCopyFactory &copyFactory, uint16_t id,
     assert(id > 0);
 
     Publish pub = copyFactory.getNewPublish();
-    pub.splitTopic = false;
     queue.emplace_back(std::move(pub), id);
     qosQueueBytes += queue.back().getApproximateMemoryFootprint();
 }
@@ -86,7 +85,6 @@ void QoSPublishQueue::queuePublish(Publish &&pub, uint16_t id)
 {
     assert(id > 0);
 
-    pub.splitTopic = false;
     queue.emplace_back(std::move(pub), id);
     qosQueueBytes += queue.back().getApproximateMemoryFootprint();
 }

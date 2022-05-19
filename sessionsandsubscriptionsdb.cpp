@@ -270,7 +270,6 @@ void SessionsAndSubscriptionsDB::saveData(const std::vector<std::unique_ptr<Sess
 
             Publish &pub = p.getPublish();
 
-            assert(!pub.splitTopic);
             assert(!pub.skipTopic);
             assert(pub.topicAlias == 0);
 

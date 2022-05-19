@@ -203,7 +203,6 @@ public:
     std::string payload;
     char qos = 0;
     bool retain = false; // Note: existing subscribers don't get publishes of retained messages with retain=1. [MQTT-3.3.1-9]
-    bool splitTopic = true;
     uint16_t topicAlias = 0;
     bool skipTopic = false;
     std::shared_ptr<Mqtt5PropertyBuilder> propertyBuilder; // Only contains data for sending, not receiving
@@ -216,6 +215,7 @@ public:
     void constructPropertyBuilder();
     bool hasUserProperties() const;
     bool hasExpired() const;
+    const std::vector<std::pair<std::string, std::string>> *getUserProperties() const;
 
     void setExpireAfter(uint32_t s);
     bool getHasExpireInfo() const;
@@ -224,12 +224,14 @@ public:
 
 class Publish : public PublishBase
 {
-public:
     std::vector<std::string> subtopics;
 
+public:
     Publish() = default;
     Publish(const Publish &other);
     Publish(const std::string &topic, const std::string &payload, char qos);
+
+    const std::vector<std::string> &getSubtopics();
 };
 
 class WillPublish : public Publish

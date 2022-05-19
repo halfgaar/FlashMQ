@@ -24,7 +24,6 @@ MqttPacket *PublishCopyFactory::getOptimumPacket(const char max_qos, const Proto
         if (protocolVersion >= ProtocolVersion::Mqtt5 && (packet->containsClientSpecificProperties() || topic_alias > 0))
         {
             Publish newPublish(packet->getPublishData());
-            newPublish.splitTopic = false;
             newPublish.qos = max_qos;
             newPublish.topicAlias = topic_alias;
             newPublish.skipTopic = skip_topic;
@@ -44,7 +43,6 @@ MqttPacket *PublishCopyFactory::getOptimumPacket(const char max_qos, const Proto
         if (!cachedPack)
         {
             Publish newPublish(packet->getPublishData());
-            newPublish.splitTopic = false;
             newPublish.qos = max_qos;
             cachedPack = std::make_unique<MqttPacket>(protocolVersion, newPublish);
         }
@@ -77,14 +75,11 @@ const std::vector<std::string> &PublishCopyFactory::getSubtopics()
 {
     if (packet)
     {
-        assert(!packet->getSubtopics().empty());
         return packet->getSubtopics();
     }
     else if (publish)
     {
-        if (publish->subtopics.empty())
-            splitTopic(publish->topic, publish->subtopics);
-        return publish->subtopics;
+        return publish->getSubtopics();
     }
 
     throw std::runtime_error("Bug in &PublishCopyFactory::getSubtopics()");
@@ -131,10 +126,5 @@ const std::vector<std::pair<std::string, std::string> > *PublishCopyFactory::get
 
     assert(publish);
 
-    if (publish->propertyBuilder)
-    {
-        return publish->propertyBuilder->getUserProperties().get();
-    }
-
-    return nullptr;
+    return publish->getUserProperties();
 }

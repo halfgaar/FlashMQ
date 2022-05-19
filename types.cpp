@@ -21,6 +21,8 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "mqtt5properties.h"
 #include "mqttpacket.h"
 
+#include "utils.h"
+
 ConnAck::ConnAck(const ProtocolVersion protVersion, ReasonCodes return_code, bool session_present) :
     protocol_version(protVersion),
     session_present(session_present)
@@ -195,6 +197,14 @@ bool PublishBase::hasExpired() const
     return (age > expiresAfter);
 }
 
+const std::vector<std::pair<std::string, std::string>> *PublishBase::getUserProperties() const
+{
+    if (this->propertyBuilder)
+        return this->propertyBuilder->getUserProperties().get();
+
+    return nullptr;
+}
+
 void PublishBase::setExpireAfter(uint32_t s)
 {
     this->createdAt = std::chrono::steady_clock::now();
@@ -222,6 +232,14 @@ Publish::Publish(const std::string &topic, const std::string &payload, char qos)
     PublishBase(topic, payload, qos)
 {
 
+}
+
+const std::vector<std::string> &Publish::getSubtopics()
+{
+    if (subtopics.empty())
+        splitTopic(this->topic, this->subtopics);
+
+    return this->subtopics;
 }
 
 WillPublish::WillPublish(const Publish &other) :

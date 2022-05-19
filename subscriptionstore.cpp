@@ -329,7 +329,7 @@ void SubscriptionStore::sendQueuedWillMessages()
                     queuePacketAtSubscribers(factory);
 
                     if (p->retain)
-                        setRetainedMessage(*p, p->subtopics);
+                        setRetainedMessage(*p, p->getSubtopics());
 
                     s->clearWill();
                 }
@@ -361,7 +361,7 @@ void SubscriptionStore::queueWillMessage(const std::shared_ptr<WillPublish> &wil
         queuePacketAtSubscribers(factory);
 
         if (willMessage->retain)
-            setRetainedMessage(*willMessage.get(), (*willMessage.get()).subtopics);
+            setRetainedMessage(*willMessage.get(), (*willMessage).getSubtopics());
 
         // Avoid sending two immediate wills when a session is destroyed with the client disconnect.
         if (session) // session is null when you're destroying a client before a session is assigned.
@@ -876,8 +876,7 @@ void SubscriptionStore::loadRetainedMessages(const std::string &filePath)
         std::vector<std::string> subtopics;
         for (RetainedMessage &rm : messages)
         {
-            splitTopic(rm.publish.topic, rm.publish.subtopics);
-            setRetainedMessage(rm.publish, rm.publish.subtopics);
+            setRetainedMessage(rm.publish, rm.publish.getSubtopics());
         }
     }
     catch (PersistenceFileCantBeOpened &ex)
