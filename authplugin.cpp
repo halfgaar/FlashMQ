@@ -278,6 +278,21 @@ void Authentication::securityCleanup(bool reloading)
     }
 }
 
+/**
+ * @brief Authentication::aclCheck performs a write ACL check on the incoming publish.
+ * @param publishData
+ * @return
+ */
+AuthResult Authentication::aclCheck(Publish &publishData)
+{
+    // Anonymous publishes come from FlashMQ internally, like SYS topics. We need to allow them.
+    if (publishData.client_id.empty())
+        return AuthResult::success;
+
+    return aclCheck(publishData.client_id, publishData.username, publishData.topic, publishData.getSubtopics(), AclAccess::write, publishData.qos,
+                    publishData.retain, publishData.getUserProperties());
+}
+
 AuthResult Authentication::aclCheck(const std::string &clientid, const std::string &username, const std::string &topic, const std::vector<std::string> &subtopics,
                                     AclAccess access, char qos, bool retain, const std::vector<std::pair<std::string, std::string>> *userProperties)
 {

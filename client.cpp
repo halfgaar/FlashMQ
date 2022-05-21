@@ -645,6 +645,8 @@ void Client::setClientProperties(ProtocolVersion protocolVersion, const std::str
 void Client::setWill(WillPublish &&willPublish)
 {
     this->willPublish = std::make_shared<WillPublish>(std::move(willPublish));
+    this->willPublish->client_id = this->clientid;
+    this->willPublish->username = this->username;
 }
 
 void Client::assignSession(std::shared_ptr<Session> &session)

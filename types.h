@@ -199,6 +199,8 @@ class PublishBase
     std::chrono::seconds expiresAfter;
 
 public:
+    std::string client_id;
+    std::string username;
     std::string topic;
     std::string payload;
     char qos = 0;

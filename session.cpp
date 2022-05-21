@@ -226,6 +226,8 @@ bool Session::clearQosMessage(uint16_t packet_id, bool qosHandshakeEnds)
  */
 void Session::sendAllPendingQosData()
 {
+    Authentication &authentication = *ThreadGlobals::getAuth();
+
     std::shared_ptr<Client> c = makeSharedClient();
     if (c)
     {
@@ -237,7 +239,7 @@ void Session::sendAllPendingQosData()
             QueuedPublish &queuedPublish = *pos;
             Publish &pub = queuedPublish.getPublish();
 
-            if (pub.hasExpired())
+            if (pub.hasExpired() || (authentication.aclCheck(pub) != AuthResult::success))
             {
                 pos = qosPacketQueue.erase(pos);
                 continue;

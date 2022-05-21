@@ -138,6 +138,9 @@ MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, Publish &_publish)
 
     this->protocolVersion = protocolVersion;
 
+    this->publishData.client_id = _publish.client_id;
+    this->publishData.username = _publish.username;
+
     if (!_publish.skipTopic)
         this->publishData.topic = _publish.topic;
 
@@ -1136,6 +1139,9 @@ void MqttPacket::parsePublishData()
     if (publishData.qos == 0 && duplicate)
         throw ProtocolError("Duplicate flag is set for QoS 0 packet. This is illegal.", ReasonCodes::MalformedPacket);
 
+    publishData.username = sender->getUsername();
+    publishData.client_id = sender->getClientId();
+
     publishData.topic = readBytesToString(true, true);
 
     if (publishData.qos)
@@ -1262,7 +1268,7 @@ void MqttPacket::handlePublish()
         if (publishData.qos == 2)
             sender->getSession()->addIncomingQoS2MessageId(_packet_id);
 
-        if (authentication.aclCheck(sender->getClientId(), sender->getUsername(), publishData.topic, publishData.getSubtopics(), AclAccess::write, publishData.qos, publishData.retain, getUserProperties()) == AuthResult::success)
+        if (authentication.aclCheck(this->publishData) == AuthResult::success)
         {
             if (publishData.retain)
             {

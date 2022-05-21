@@ -297,6 +297,8 @@ std::shared_ptr<Session> SubscriptionStore::lockSession(const std::string &clien
  */
 void SubscriptionStore::sendQueuedWillMessages()
 {
+    Authentication &auth = *ThreadGlobals::getAuth();
+
     const auto now = std::chrono::steady_clock::now();
     const std::chrono::seconds secondsSinceEpoch = std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch());
     std::lock_guard<std::mutex> locker(this->pendingWillsMutex);
@@ -325,11 +327,14 @@ void SubscriptionStore::sendQueuedWillMessages()
                 if (s && !s->hasActiveClient())
                 {
                     logger->logf(LOG_DEBUG, "Sending delayed will on topic '%s'.", p->topic.c_str() );
-                    PublishCopyFactory factory(p.get());
-                    queuePacketAtSubscribers(factory);
+                    if (auth.aclCheck(*p) == AuthResult::success)
+                    {
+                        PublishCopyFactory factory(p.get());
+                        queuePacketAtSubscribers(factory);
 
-                    if (p->retain)
-                        setRetainedMessage(*p, p->getSubtopics());
+                        if (p->retain)
+                            setRetainedMessage(*p, p->getSubtopics());
+                    }
 
                     s->clearWill();
                 }
@@ -352,16 +357,21 @@ void SubscriptionStore::queueWillMessage(const std::shared_ptr<WillPublish> &wil
     if (!willMessage)
         return;
 
+    Authentication &auth = *ThreadGlobals::getAuth();
+
     const int delay = forceNow ? 0 : willMessage->will_delay;
     logger->logf(LOG_DEBUG, "Queueing will on topic '%s', with delay %d seconds.", willMessage->topic.c_str(), delay );
 
     if (delay == 0)
     {
-        PublishCopyFactory factory(willMessage.get());
-        queuePacketAtSubscribers(factory);
+        if (auth.aclCheck(*willMessage) == AuthResult::success)
+        {
+            PublishCopyFactory factory(willMessage.get());
+            queuePacketAtSubscribers(factory);
 
-        if (willMessage->retain)
-            setRetainedMessage(*willMessage.get(), (*willMessage).getSubtopics());
+            if (willMessage->retain)
+                setRetainedMessage(*willMessage.get(), (*willMessage).getSubtopics());
+        }
 
         // Avoid sending two immediate wills when a session is destroyed with the client disconnect.
         if (session) // session is null when you're destroying a client before a session is assigned.
@@ -466,18 +476,23 @@ void SubscriptionStore::queuePacketAtSubscribers(PublishCopyFactory &copyFactory
 
 void SubscriptionStore::giveClientRetainedMessagesRecursively(std::vector<std::string>::const_iterator cur_subtopic_it,
                                                               std::vector<std::string>::const_iterator end, RetainedMessageNode *this_node,
-                                                              bool poundMode, std::forward_list<Publish> &packetList) const
+                                                              bool poundMode, std::forward_list<Publish> &packetList)
 {
     if (cur_subtopic_it == end)
     {
+        Authentication &auth = *ThreadGlobals::getAuth();
+
         auto pos = this_node->retainedMessages.begin();
         while (pos != this_node->retainedMessages.end())
         {
             auto cur = pos++;
-            if (cur->publish.hasExpired())
+
+            Publish publish = cur->publish;
+
+            if (publish.hasExpired())
                 this_node->retainedMessages.erase(cur);
-            else
-                packetList.emplace_front(cur->publish); // TODO: hmm, const stuff forces me/it to make copy
+            else if (auth.aclCheck(publish) == AuthResult::success)
+                packetList.push_front(std::move(publish));
         }
         if (poundMode)
         {

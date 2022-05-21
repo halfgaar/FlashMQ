@@ -156,6 +156,7 @@ public:
     void cleanup();
     void securityInit(bool reloading);
     void securityCleanup(bool reloading);
+    AuthResult aclCheck(Publish &publishData);
     AuthResult aclCheck(const std::string &clientid, const std::string &username, const std::string &topic, const std::vector<std::string> &subtopics,
                         AclAccess access, char qos, bool retain, const std::vector<std::pair<std::string, std::string>> *userProperties);
     AuthResult unPwdCheck(const std::string &username, const std::string &password,
