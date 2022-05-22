@@ -76,9 +76,11 @@ protected:
     void writeInt64(const int64_t val);
     void writeUint32(const uint32_t val);
     void writeUint16(const uint16_t val);
+    void writeString(const std::string &s);
     int64_t readInt64(bool &eofFound);
     uint32_t readUint32(bool &eofFound);
     uint16_t readUint16(bool &eofFound);
+    std::string readString(bool &eofFound);
 
 public:
     PersistenceFile(const std::string &filePath);

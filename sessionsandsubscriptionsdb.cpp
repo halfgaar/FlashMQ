@@ -115,6 +115,8 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV2()
                 const uint16_t id = readUint16(eofFound);
                 const uint32_t originalPubAge = readUint32(eofFound);
                 const uint32_t packlen = readUint32(eofFound);
+                const std::string sender_clientid = readString(eofFound);
+                const std::string sender_username = readString(eofFound);
 
                 assert(id > 0);
 
@@ -127,6 +129,9 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV2()
 
                 pack.parsePublishData();
                 Publish pub(pack.getPublishData());
+
+                pub.client_id = sender_clientid;
+                pub.username = sender_username;
 
                 const uint32_t newPubAge = persistence_state_age + originalPubAge;
                 pub.createdAt = timepointFromAge(newPubAge);
@@ -175,6 +180,8 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV2()
                 const uint32_t originalWillQueueAge = readUint32(eofFound);
                 const uint32_t newWillDelayAfterMaybeAlreadyBeingQueued = originalWillQueueAge < originalWillDelay ? originalWillDelay - originalWillQueueAge : 0;
                 const uint32_t packlen = readUint32(eofFound);
+                const std::string sender_clientid = readString(eofFound);
+                const std::string sender_username = readString(eofFound);
 
                 const uint32_t stateAgecompensatedWillDelay =
                         persistence_state_age > newWillDelayAfterMaybeAlreadyBeingQueued ? 0 : newWillDelayAfterMaybeAlreadyBeingQueued - persistence_state_age;
@@ -188,6 +195,9 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV2()
                 publishpack.parsePublishData();
                 WillPublish willPublish = publishpack.getPublishData();
                 willPublish.will_delay = stateAgecompensatedWillDelay;
+
+                willPublish.client_id = sender_clientid;
+                willPublish.username = sender_username;
 
                 ses->setWill(std::move(willPublish));
             }
@@ -288,6 +298,8 @@ void SessionsAndSubscriptionsDB::saveData(const std::vector<std::unique_ptr<Sess
             writeUint16(p.getPacketId());
             writeUint32(pubAge);
             writeUint32(packSize);
+            writeString(pub.client_id);
+            writeString(pub.username);
             writeCheck(cirbuf.tailPtr(), 1, cirbuf.usedBytes(), f);
         }
 
@@ -333,6 +345,8 @@ void SessionsAndSubscriptionsDB::saveData(const std::vector<std::unique_ptr<Sess
             writeUint32(will.will_delay);
             writeUint32(will.getQueuedAtAge());
             writeUint32(packSize);
+            writeString(will.client_id);
+            writeString(will.username);
             writeCheck(cirbuf.tailPtr(), 1, cirbuf.usedBytes(), f);
         }
     }

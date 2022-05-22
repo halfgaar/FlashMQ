@@ -219,6 +219,12 @@ void PersistenceFile::writeUint16(const uint16_t val)
     writeCheck(buf, 1, 2, f);
 }
 
+void PersistenceFile::writeString(const std::string &s)
+{
+    writeUint32(s.size());
+    writeCheck(s.c_str(), 1, s.size(), f);
+}
+
 int64_t PersistenceFile::readInt64(bool &eofFound)
 {
     if (readCheck(buf.data(), 1, 8, f) < 0)
@@ -251,6 +257,19 @@ uint16_t PersistenceFile::readUint16(bool &eofFound)
     unsigned char *buf_ = reinterpret_cast<unsigned char *>(buf.data());
     val = ((buf_[0]) << 8) | (buf_[1]);
     return val;
+}
+
+std::string PersistenceFile::readString(bool &eofFound)
+{
+    const uint32_t size = readUint32(eofFound);
+
+    if (size > 0xFFFF)
+        throw std::runtime_error("In MQTT world, strings are never longer than 65535 bytes.");
+
+    makeSureBufSize(size);
+    readCheck(buf.data(), 1, size, f);
+    std::string result(buf.data(), size);
+    return result;
 }
 
 /**

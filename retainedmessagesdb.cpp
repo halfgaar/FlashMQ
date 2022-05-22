@@ -88,6 +88,8 @@ void RetainedMessagesDB::saveData(const std::vector<RetainedMessage> &messages)
 
         writeUint16(pack.getFixedHeaderLength());
         writeUint32(packSize);
+        writeString(pcopy.client_id);
+        writeString(pcopy.username);
         writeCheck(cirbuf.tailPtr(), 1, cirbuf.usedBytes(), f);
     }
 
@@ -136,6 +138,9 @@ std::list<RetainedMessage> RetainedMessagesDB::readDataV2()
             const uint16_t fixed_header_length = readUint16(eofFound);
             const uint32_t packlen = readUint32(eofFound);
 
+            const std::string client_id = readString(eofFound);
+            const std::string username = readString(eofFound);
+
             if (eofFound)
                 continue;
 
@@ -148,6 +153,9 @@ std::list<RetainedMessage> RetainedMessagesDB::readDataV2()
 
             pack.parsePublishData();
             Publish pub(pack.getPublishData());
+
+            pub.client_id = client_id;
+            pub.username = username;
 
             RetainedMessage msg(pub);
             logger->logf(LOG_DEBUG, "Loading retained message for topic '%s' QoS %d.", msg.publish.topic.c_str(), msg.publish.qos);

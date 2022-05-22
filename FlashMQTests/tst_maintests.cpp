@@ -934,6 +934,14 @@ void MainTests::testRetainedMessageDB()
         messages.emplace_back(Publish("/boe", longpayload, 1));
         messages.emplace_back(Publish("one", "µsdf", 1));
 
+        int clientidCount = 1;
+        int usernameCount = 1;
+        for (RetainedMessage &rm : messages)
+        {
+            rm.publish.client_id = formatString("Clientid__%d", clientidCount++);
+            rm.publish.username = formatString("Username__%d", usernameCount++);
+        }
+
         RetainedMessagesDB db("/tmp/flashmqtests_retained.db");
         db.openWrite();
         db.saveData(messages);
@@ -957,6 +965,11 @@ void MainTests::testRetainedMessageDB()
             QCOMPARE(one.publish.topic, two.publish.topic);
             QCOMPARE(one.publish.payload, two.publish.payload);
             QCOMPARE(one.publish.qos, two.publish.qos);
+
+            QVERIFY(!two.publish.client_id.empty());
+            QVERIFY(!two.publish.username.empty());
+            QCOMPARE(two.publish.client_id, one.publish.client_id);
+            QCOMPARE(two.publish.username, one.publish.username);
 
             itOrg++;
             itLoaded++;
@@ -1060,6 +1073,8 @@ void MainTests::testSavingSessions()
         store->addSubscription(c2, topic4, subtopics, 0);
 
         Publish publish("a/b/c", "Hello Barry", 1);
+        publish.client_id = "ClientIdFromFakePublisher";
+        publish.username = "UsernameFromFakePublisher";
 
         std::shared_ptr<Session> c1ses = c1->getSession();
         c1.reset();
@@ -1087,7 +1102,6 @@ void MainTests::testSavingSessions()
             QCOMPARE(ses->outgoingQoS2MessageIds, ses2->outgoingQoS2MessageIds);
             QCOMPARE(ses->nextPacketId, ses2->nextPacketId);
         }
-
 
         std::unordered_map<std::string, std::list<SubscriptionForSerializing>> store1Subscriptions;
         store->getSubscriptions(&store->root, "", true, store1Subscriptions);
@@ -1121,7 +1135,14 @@ void MainTests::testSavingSessions()
 
         }
 
+        std::shared_ptr<Session> loadedSes = store2->sessionsById["c1"];
+        QueuedPublish queuedPublishLoaded = *loadedSes->qosPacketQueue.begin();
 
+        QCOMPARE(queuedPublishLoaded.getPublish().topic, "a/b/c");
+        QCOMPARE(queuedPublishLoaded.getPublish().payload, "Hello Barry");
+        QCOMPARE(queuedPublishLoaded.getPublish().qos, 1);
+        QCOMPARE(queuedPublishLoaded.getPublish().client_id, "ClientIdFromFakePublisher");
+        QCOMPARE(queuedPublishLoaded.getPublish().username, "UsernameFromFakePublisher");
     }
     catch (std::exception &ex)
     {
