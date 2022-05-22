@@ -43,7 +43,7 @@ SessionsAndSubscriptionsDB::SessionsAndSubscriptionsDB(const std::string &filePa
 
 void SessionsAndSubscriptionsDB::openWrite()
 {
-    PersistenceFile::openWrite(MAGIC_STRING_SESSION_FILE_V2);
+    PersistenceFile::openWrite(MAGIC_STRING_SESSION_FILE_V3);
 }
 
 void SessionsAndSubscriptionsDB::openRead()
@@ -54,11 +54,13 @@ void SessionsAndSubscriptionsDB::openRead()
         readVersion = ReadVersion::v1;
     else if (detectedVersionString == MAGIC_STRING_SESSION_FILE_V2)
         readVersion = ReadVersion::v2;
+    else if (detectedVersionString == MAGIC_STRING_SESSION_FILE_V3)
+        readVersion = ReadVersion::v3;
     else
         throw std::runtime_error("Unknown file version.");
 }
 
-SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV2()
+SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV3()
 {
     const Settings *settings = ThreadGlobals::getSettings();
 
@@ -388,7 +390,9 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readData()
     if (readVersion == ReadVersion::v1)
         logger->logf(LOG_WARNING, "File '%s' is version 1, an internal development version that was never finalized. Not reading.", getFilePath().c_str());
     if (readVersion == ReadVersion::v2)
-        return readDataV2();
+        logger->logf(LOG_WARNING, "File '%s' is version 2, an internal development version that was never finalized. Not reading.", getFilePath().c_str());
+    if (readVersion == ReadVersion::v3)
+        return readDataV3();
 
     return defaultResult;
 }

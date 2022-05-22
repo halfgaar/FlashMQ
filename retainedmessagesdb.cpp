@@ -37,7 +37,7 @@ RetainedMessagesDB::RetainedMessagesDB(const std::string &filePath) : Persistenc
 
 void RetainedMessagesDB::openWrite()
 {
-    PersistenceFile::openWrite(MAGIC_STRING_V2);
+    PersistenceFile::openWrite(MAGIC_STRING_V3);
 }
 
 void RetainedMessagesDB::openRead()
@@ -48,6 +48,8 @@ void RetainedMessagesDB::openRead()
         readVersion = ReadVersion::v1;
     else if (detectedVersionString == MAGIC_STRING_V2)
         readVersion = ReadVersion::v2;
+    else if (detectedVersionString == MAGIC_STRING_V3)
+        readVersion = ReadVersion::v3;
     else
         throw std::runtime_error("Unknown file version.");
 }
@@ -106,12 +108,14 @@ std::list<RetainedMessage> RetainedMessagesDB::readData()
     if (readVersion == ReadVersion::v1)
         logger->logf(LOG_WARNING, "File '%s' is version 1, an internal development version that was never finalized. Not reading.", getFilePath().c_str());
     if (readVersion == ReadVersion::v2)
-        return readDataV2();
+        logger->logf(LOG_WARNING, "File '%s' is version 2, an internal development version that was never finalized. Not reading.", getFilePath().c_str());
+    if (readVersion == ReadVersion::v3)
+        return readDataV3();
 
     return defaultResult;
 }
 
-std::list<RetainedMessage> RetainedMessagesDB::readDataV2()
+std::list<RetainedMessage> RetainedMessagesDB::readDataV3()
 {
     std::list<RetainedMessage> messages;
 

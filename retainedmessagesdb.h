@@ -25,6 +25,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 
 #define MAGIC_STRING_V1 "FlashMQRetainedDBv1"
 #define MAGIC_STRING_V2 "FlashMQRetainedDBv2"
+#define MAGIC_STRING_V3 "FlashMQRetainedDBv3"
 #define RESERVED_SPACE_RETAINED_DB_V2 64
 
 /**
@@ -45,7 +46,8 @@ class RetainedMessagesDB : public PersistenceFile
     {
         unknown,
         v1,
-        v2
+        v2,
+        v3
     };
 
     struct RowHeader
@@ -56,7 +58,7 @@ class RetainedMessagesDB : public PersistenceFile
 
     ReadVersion readVersion = ReadVersion::unknown;
 
-    std::list<RetainedMessage> readDataV2();
+    std::list<RetainedMessage> readDataV3();
 public:
     RetainedMessagesDB(const std::string &filePath);
 
