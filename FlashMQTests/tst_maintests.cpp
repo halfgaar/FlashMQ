@@ -1069,7 +1069,7 @@ void MainTests::testSavingSessions()
         store->getSubscriptions(&store->root, "", true, store1Subscriptions);
 
         std::unordered_map<std::string, std::list<SubscriptionForSerializing>> store2Subscriptions;
-        store->getSubscriptions(&store->root, "", true, store2Subscriptions);
+        store2->getSubscriptions(&store->root, "", true, store2Subscriptions);
 
         MYCASTCOMPARE(store1Subscriptions.size(), 4);
         MYCASTCOMPARE(store2Subscriptions.size(), 4);
