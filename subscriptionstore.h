@@ -125,10 +125,10 @@ class SubscriptionStore
 
     Logger *logger = Logger::getInstance();
 
-    void publishNonRecursively(const std::unordered_map<std::string, Subscription> &subscribers,
-                               std::forward_list<ReceivingSubscriber> &targetSessions) const;
-    void publishRecursively(std::vector<std::string>::const_iterator cur_subtopic_it, std::vector<std::string>::const_iterator end,
-                            SubscriptionNode *this_node, std::forward_list<ReceivingSubscriber> &targetSessions) const;
+    static void publishNonRecursively(const std::unordered_map<std::string, Subscription> &subscribers,
+                               std::forward_list<ReceivingSubscriber> &targetSessions);
+    static void publishRecursively(std::vector<std::string>::const_iterator cur_subtopic_it, std::vector<std::string>::const_iterator end,
+                            SubscriptionNode *this_node, std::forward_list<ReceivingSubscriber> &targetSessions);
     void giveClientRetainedMessagesRecursively(std::vector<std::string>::const_iterator cur_subtopic_it,
                                                std::vector<std::string>::const_iterator end, RetainedMessageNode *this_node, bool poundMode,
                                                std::forward_list<Publish> &packetList) const;

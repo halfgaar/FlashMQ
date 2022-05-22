@@ -383,7 +383,7 @@ void SubscriptionStore::queueWillMessage(const std::shared_ptr<WillPublish> &wil
 }
 
 void SubscriptionStore::publishNonRecursively(const std::unordered_map<std::string, Subscription> &subscribers,
-                                              std::forward_list<ReceivingSubscriber> &targetSessions) const
+                                              std::forward_list<ReceivingSubscriber> &targetSessions)
 {
     for (auto &pair : subscribers)
     {
@@ -410,7 +410,7 @@ void SubscriptionStore::publishNonRecursively(const std::unordered_map<std::stri
  * look at objdump --disassemble --demangle to see how many calls (not jumps) to itself are made and compare.
  */
 void SubscriptionStore::publishRecursively(std::vector<std::string>::const_iterator cur_subtopic_it, std::vector<std::string>::const_iterator end,
-                                           SubscriptionNode *this_node, std::forward_list<ReceivingSubscriber> &targetSessions) const
+                                           SubscriptionNode *this_node, std::forward_list<ReceivingSubscriber> &targetSessions)
 {
     if (cur_subtopic_it == end) // This is the end of the topic path, so look for subscribers here.
     {
