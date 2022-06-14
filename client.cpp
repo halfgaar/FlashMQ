@@ -191,7 +191,7 @@ void Client::writeText(const std::string &text)
     setReadyForWriting(true);
 }
 
-int Client::writeMqttPacket(const MqttPacket &packet)
+void Client::writeMqttPacket(const MqttPacket &packet)
 {
     const size_t packetSize = packet.getSizeIncludingNonPresentHeader();
 
@@ -199,7 +199,7 @@ int Client::writeMqttPacket(const MqttPacket &packet)
     // sending that Application Message [MQTT-3.1.2-25]."
     if (packetSize > this->maxOutgoingPacketSize)
     {
-        return 0;
+        return;
     }
 
     std::lock_guard<std::mutex> locker(writeBufMutex);
@@ -215,19 +215,23 @@ int Client::writeMqttPacket(const MqttPacket &packet)
     // QoS packet are queued and limited elsewhere.
     if (packet.packetType == PacketType::PUBLISH && packet.getQos() == 0 && packetSize > writebuf.freeSpace())
     {
-        return 0;
+        return;
     }
 
     packet.readIntoBuf(writebuf);
 
-    if (packet.packetType == PacketType::DISCONNECT)
+    if (packet.packetType == PacketType::PUBLISH)
+    {
+        ThreadData *td = ThreadGlobals::getThreadData();
+        td->incrementSentMessageCount(1);
+    }
+    else if (packet.packetType == PacketType::DISCONNECT)
         setReadyForDisconnect();
 
     setReadyForWriting(true);
-    return 1;
 }
 
-int Client::writeMqttPacketAndBlameThisClient(PublishCopyFactory &copyFactory, char max_qos, uint16_t packet_id)
+void Client::writeMqttPacketAndBlameThisClient(PublishCopyFactory &copyFactory, char max_qos, uint16_t packet_id)
 {
     uint16_t topic_alias = 0;
     bool skip_topic = false;
@@ -256,22 +260,20 @@ int Client::writeMqttPacketAndBlameThisClient(PublishCopyFactory &copyFactory, c
         p->setQos(max_qos);
     }
 
-    return writeMqttPacketAndBlameThisClient(*p);
+    writeMqttPacketAndBlameThisClient(*p);
 }
 
 // Helper method to avoid the exception ending up at the sender of messages, which would then get disconnected.
-int Client::writeMqttPacketAndBlameThisClient(const MqttPacket &packet)
+void Client::writeMqttPacketAndBlameThisClient(const MqttPacket &packet)
 {
     try
     {
-        return this->writeMqttPacket(packet);
+        this->writeMqttPacket(packet);
     }
     catch (std::exception &ex)
     {
         threadData->removeClientQueued(fd);
     }
-
-    return 0;
 }
 
 // Ping responses are always the same, so hardcoding it for optimization.

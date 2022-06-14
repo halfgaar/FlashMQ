@@ -78,9 +78,9 @@ public:
     const std::string &getClientId() const { return client_id; }
     std::shared_ptr<Client> makeSharedClient() const;
     void assignActiveConnection(std::shared_ptr<Client> &client);
-    void writePacket(PublishCopyFactory &copyFactory, const char max_qos, uint64_t &count);
+    void writePacket(PublishCopyFactory &copyFactory, const char max_qos);
     bool clearQosMessage(uint16_t packet_id, bool qosHandshakeEnds);
-    uint64_t sendAllPendingQosData();
+    void sendAllPendingQosData();
     bool hasActiveClient() const;
     void clearWill();
     std::shared_ptr<WillPublish> &getWill();

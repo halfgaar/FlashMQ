@@ -1033,15 +1033,13 @@ void MainTests::testSavingSessions()
         splitTopic(topic4, subtopics);
         store->addSubscription(c2, topic4, subtopics, 0);
 
-        uint64_t count = 0;
-
         Publish publish("a/b/c", "Hello Barry", 1);
 
         std::shared_ptr<Session> c1ses = c1->getSession();
         c1.reset();
         MqttPacket publishPacket(ProtocolVersion::Mqtt311, publish);
         PublishCopyFactory fac(&publishPacket);
-        c1ses->writePacket(fac, 1, count);
+        c1ses->writePacket(fac, 1);
 
         store->saveSessionsAndSubscriptions("/tmp/flashmqtests_sessions.db");
 

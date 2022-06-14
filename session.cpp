@@ -130,7 +130,7 @@ void Session::assignActiveConnection(std::shared_ptr<Client> &client)
  * @param retain. Keep MQTT-3.3.1-9 in mind: existing subscribers don't get retain=1 on packets.
  * @param count. Reference value is updated. It's for statistics.
  */
-void Session::writePacket(PublishCopyFactory &copyFactory, const char max_qos, uint64_t &count)
+void Session::writePacket(PublishCopyFactory &copyFactory, const char max_qos)
 {
     assert(max_qos <= 2);
 
@@ -148,7 +148,7 @@ void Session::writePacket(PublishCopyFactory &copyFactory, const char max_qos, u
         {
             if (c)
             {
-                count += c->writeMqttPacketAndBlameThisClient(copyFactory, effectiveQos, 0);
+                c->writeMqttPacketAndBlameThisClient(copyFactory, effectiveQos, 0);
             }
         }
         else if (effectiveQos > 0)
@@ -174,7 +174,7 @@ void Session::writePacket(PublishCopyFactory &copyFactory, const char max_qos, u
 
             if (c)
             {
-                count += c->writeMqttPacketAndBlameThisClient(copyFactory, effectiveQos, nextPacketId);
+                c->writeMqttPacketAndBlameThisClient(copyFactory, effectiveQos, nextPacketId);
             }
         }
     }
@@ -212,7 +212,6 @@ bool Session::clearQosMessage(uint16_t packet_id, bool qosHandshakeEnds)
 
 /**
  * @brief Session::sendAllPendingQosData sends pending publishes and QoS2 control packets.
- * @return the amount of messages/packets published.
  *
  * [MQTT-4.4.0-1] (about MQTT 3.1.1): "When a Client reconnects with CleanSession set to 0, both the Client and Server MUST
  * re-send any unacknowledged PUBLISH Packets (where QoS > 0) and PUBREL Packets using their original Packet Identifiers. This
@@ -225,10 +224,8 @@ bool Session::clearQosMessage(uint16_t packet_id, bool qosHandshakeEnds)
  * never know that, because IT will have received the PUBACK from FlashMQ. The QoS system is not between publisher
  * and subscriber. Users are required to implement something themselves.
  */
-uint64_t Session::sendAllPendingQosData()
+void Session::sendAllPendingQosData()
 {
-    uint64_t count = 0;
-
     std::shared_ptr<Client> c = makeSharedClient();
     if (c)
     {
@@ -259,7 +256,7 @@ uint64_t Session::sendAllPendingQosData()
             p.setPacketId(queuedPublish.getPacketId());
             //p.setDuplicate(); // TODO: this is wrong. Until we have a retransmission system, no packets can have the DUP bit set.
 
-            count += c->writeMqttPacketAndBlameThisClient(p);
+            c->writeMqttPacketAndBlameThisClient(p);
 
             pos++;
         }
@@ -268,11 +265,9 @@ uint64_t Session::sendAllPendingQosData()
         {
             PubResponse pubRel(c->getProtocolVersion(), PacketType::PUBREL, ReasonCodes::Success, packet_id);
             MqttPacket packet(pubRel);
-            count += c->writeMqttPacketAndBlameThisClient(packet);
+            c->writeMqttPacketAndBlameThisClient(packet);
         }
     }
-
-    return count;
 }
 
 bool Session::hasActiveClient() const

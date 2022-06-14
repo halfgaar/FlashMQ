@@ -147,8 +147,7 @@ void SubscriptionStore::addSubscription(std::shared_ptr<Client> &client, const s
             const std::shared_ptr<Session> &ses = session_it->second;
             deepestNode->addSubscriber(ses, qos);
             lock_guard.unlock();
-            uint64_t count = giveClientRetainedMessages(ses, subtopics, qos);
-            client->getThreadData()->incrementSentMessageCount(count);
+            giveClientRetainedMessages(ses, subtopics, qos);
         }
     }
 }
@@ -264,8 +263,7 @@ void SubscriptionStore::registerClientAndKickExistingOne(std::shared_ptr<Client>
     session->assignActiveConnection(client);
     client->assignSession(session);
     session->setSessionProperties(clientReceiveMax, sessionExpiryInterval, clean_start, client->getProtocolVersion());
-    uint64_t count = session->sendAllPendingQosData();
-    client->getThreadData()->incrementSentMessageCount(count);
+    session->sendAllPendingQosData();
 }
 
 /**
@@ -451,7 +449,6 @@ void SubscriptionStore::queuePacketAtSubscribers(PublishCopyFactory &copyFactory
 {
     SubscriptionNode *startNode = dollar ? &rootDollar : &root;
 
-    uint64_t count = 0;
     std::forward_list<ReceivingSubscriber> subscriberSessions;
 
     {
@@ -463,13 +460,7 @@ void SubscriptionStore::queuePacketAtSubscribers(PublishCopyFactory &copyFactory
 
     for(const ReceivingSubscriber &x : subscriberSessions)
     {
-        x.session->writePacket(copyFactory, x.qos, count);
-    }
-
-    std::shared_ptr<Client> sender = copyFactory.getSender();
-    if (sender)
-    {
-        sender->getThreadData()->incrementSentMessageCount(count);
+        x.session->writePacket(copyFactory, x.qos);
     }
 }
 
@@ -524,11 +515,9 @@ void SubscriptionStore::giveClientRetainedMessagesRecursively(std::vector<std::s
     }
 }
 
-uint64_t SubscriptionStore::giveClientRetainedMessages(const std::shared_ptr<Session> &ses,
-                                                       const std::vector<std::string> &subscribeSubtopics, char max_qos)
+void SubscriptionStore::giveClientRetainedMessages(const std::shared_ptr<Session> &ses,
+                                                   const std::vector<std::string> &subscribeSubtopics, char max_qos)
 {
-    uint64_t count = 0;
-
     RetainedMessageNode *startNode = &retainedMessagesRoot;
     if (!subscribeSubtopics.empty() && !subscribeSubtopics[0].empty() > 0 && subscribeSubtopics[0][0] == '$')
         startNode = &retainedMessagesRootDollar;
@@ -544,10 +533,8 @@ uint64_t SubscriptionStore::giveClientRetainedMessages(const std::shared_ptr<Ses
     for(Publish &publish : packetList)
     {
         PublishCopyFactory copyFactory(&publish);
-        ses->writePacket(copyFactory, max_qos, count);
+        ses->writePacket(copyFactory, max_qos);
     }
-
-    return count;
 }
 
 void SubscriptionStore::setRetainedMessage(const Publish &publish, const std::vector<std::string> &subtopics)

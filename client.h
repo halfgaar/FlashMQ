@@ -151,9 +151,9 @@ public:
 
     void writeText(const std::string &text);
     void writePingResp();
-    int writeMqttPacket(const MqttPacket &packet);
-    int writeMqttPacketAndBlameThisClient(PublishCopyFactory &copyFactory, char max_qos, uint16_t packet_id);
-    int writeMqttPacketAndBlameThisClient(const MqttPacket &packet);
+    void writeMqttPacket(const MqttPacket &packet);
+    void writeMqttPacketAndBlameThisClient(PublishCopyFactory &copyFactory, char max_qos, uint16_t packet_id);
+    void writeMqttPacketAndBlameThisClient(const MqttPacket &packet);
     bool writeBufIntoFd();
     bool isBeingDisconnected() const { return disconnectWhenBytesWritten; }
     bool readyForDisconnecting() const { return disconnectWhenBytesWritten && writebuf.usedBytes() == 0; }

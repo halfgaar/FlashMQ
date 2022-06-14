@@ -150,8 +150,8 @@ public:
     void sendQueuedWillMessages();
     void queueWillMessage(const std::shared_ptr<WillPublish> &willMessage, const std::shared_ptr<Session> &session, bool forceNow = false);
     void queuePacketAtSubscribers(PublishCopyFactory &copyFactory, bool dollar = false);
-    uint64_t giveClientRetainedMessages(const std::shared_ptr<Session> &ses,
-                                        const std::vector<std::string> &subscribeSubtopics, char max_qos);
+    void giveClientRetainedMessages(const std::shared_ptr<Session> &ses,
+                                    const std::vector<std::string> &subscribeSubtopics, char max_qos);
 
     void setRetainedMessage(const Publish &publish, const std::vector<std::string> &subtopics);
 
