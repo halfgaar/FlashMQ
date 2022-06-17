@@ -223,7 +223,7 @@ void Client::writeMqttPacket(const MqttPacket &packet)
     if (packet.packetType == PacketType::PUBLISH)
     {
         ThreadData *td = ThreadGlobals::getThreadData();
-        td->incrementSentMessageCount(1);
+        td->sentMessageCounter.inc();
     }
     else if (packet.packetType == PacketType::DISCONNECT)
         setReadyForDisconnect();

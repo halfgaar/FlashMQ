@@ -52,6 +52,8 @@ SOURCES +=  tst_maintests.cpp \
     ../publishcopyfactory.cpp \
     ../variablebyteint.cpp \
     ../mqtt5properties.cpp \
+    ../globalstats.cpp \
+    ../derivablecounter.cpp \
     mainappthread.cpp \
     twoclienttestcontext.cpp
 
@@ -96,6 +98,8 @@ HEADERS += \
     ../publishcopyfactory.h \
     ../variablebyteint.h \
     ../mqtt5properties.h \
+    ../globalstats.h \
+    ../derivablecounter.h \
     mainappthread.h \
     twoclienttestcontext.h
 

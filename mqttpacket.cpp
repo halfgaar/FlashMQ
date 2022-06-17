@@ -328,6 +328,8 @@ void MqttPacket::handleConnect()
 
     std::shared_ptr<SubscriptionStore> subscriptionStore = sender->getThreadData()->getSubscriptionStore();
 
+    sender->getThreadData()->mqttConnectCounter.inc();
+
     uint16_t variable_header_length = readTwoBytesToUInt16();
 
     const Settings &settings = *ThreadGlobals::getSettings();
@@ -1129,7 +1131,7 @@ void MqttPacket::handlePublish()
 
     ReasonCodes ackCode = ReasonCodes::Success;
 
-    sender->getThreadData()->incrementReceivedMessageCount();
+    sender->getThreadData()->receivedMessageCounter.inc();
 
     Authentication &authentication = *ThreadGlobals::getAuth();
 

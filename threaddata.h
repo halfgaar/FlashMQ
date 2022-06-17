@@ -37,6 +37,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "configfileparser.h"
 #include "authplugin.h"
 #include "logger.h"
+#include "derivablecounter.h"
 
 typedef void (*thread_f)(ThreadData *);
 
@@ -54,14 +55,6 @@ class ThreadData
     std::mutex clients_by_fd_mutex;
     std::shared_ptr<SubscriptionStore> subscriptionStore;
     Logger *logger;
-
-    uint64_t receivedMessageCount = 0;
-    uint64_t receivedMessageCountPrevious = 0;
-    std::chrono::time_point<std::chrono::steady_clock> receivedMessagePreviousTime = std::chrono::steady_clock::now();
-
-    uint64_t sentMessageCount = 0;
-    uint64_t sentMessageCountPrevious = 0;
-    std::chrono::time_point<std::chrono::steady_clock> sentMessagePreviousTime = std::chrono::steady_clock::now();
 
     std::mutex clientsToRemoveMutex;
     std::forward_list<std::weak_ptr<Client>> clientsQueuedForRemoving;
@@ -97,6 +90,10 @@ public:
     std::mutex taskQueueMutex;
     std::forward_list<std::function<void()>> taskQueue;
 
+    DerivableCounter receivedMessageCounter;
+    DerivableCounter sentMessageCounter;
+    DerivableCounter mqttConnectCounter;
+
     ThreadData(int threadnr, std::shared_ptr<SubscriptionStore> &subscriptionStore, std::shared_ptr<Settings> settings);
     ThreadData(const ThreadData &other) = delete;
     ThreadData(ThreadData &&other) = delete;
@@ -123,14 +120,6 @@ public:
     void queueClientNextKeepAliveCheckLocked(std::shared_ptr<Client> &client, bool keepRechecking);
 
     int getNrOfClients() const;
-
-    void incrementReceivedMessageCount();
-    uint64_t getReceivedMessageCount() const;
-    uint64_t getReceivedMessagePerSecond();
-
-    void incrementSentMessageCount(uint64_t n);
-    uint64_t getSentMessageCount() const;
-    uint64_t getSentMessagePerSecond();
 
     void queueAuthPluginPeriodicEvent();
     void authPluginPeriodicEvent();

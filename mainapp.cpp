@@ -33,6 +33,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "threadloop.h"
 #include "authplugin.h"
 #include "threadglobals.h"
+#include "globalstats.h"
 
 MainApp *MainApp::instance = nullptr;
 
@@ -529,6 +530,8 @@ void MainApp::start()
     }
 #endif
 
+    GlobalStats *globalStats = GlobalStats::getInstance();
+
     for (int i = 0; i < num_threads; i++)
     {
         std::shared_ptr<ThreadData> t = std::make_shared<ThreadData>(i, subscriptionStore, settings);
@@ -592,6 +595,8 @@ void MainApp::start()
 
                     std::shared_ptr<Client> client = std::make_shared<Client>(fd, thread_data, clientSSL, listener->websocket, addr, settings.get());
                     thread_data->giveClient(client);
+
+                    globalStats->socketConnects.inc();
                 }
                 else
                 {

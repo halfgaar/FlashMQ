@@ -20,6 +20,8 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include <sstream>
 #include <cassert>
 
+#include "globalstats.h"
+
 KeepAliveCheck::KeepAliveCheck(const std::shared_ptr<Client> client) :
     client(client)
 {
@@ -143,16 +145,30 @@ void ThreadData::publishStatsOnDollarTopic(std::vector<std::shared_ptr<ThreadDat
     uint64_t sentMessageCountPerSecond = 0;
     uint64_t sentMessageCount = 0;
 
+    uint64_t mqttConnectCountPerSecond = 0;
+    uint64_t mqttConnectCount = 0;
+
     for (const std::shared_ptr<ThreadData> &thread : threads)
     {
         nrOfClients += thread->getNrOfClients();
 
-        receivedMessageCountPerSecond += thread->getReceivedMessagePerSecond();
-        receivedMessageCount += thread->getReceivedMessageCount();
+        receivedMessageCountPerSecond += thread->receivedMessageCounter.getPerSecond();
+        receivedMessageCount += thread->receivedMessageCounter.get();
 
-        sentMessageCountPerSecond += thread->getSentMessagePerSecond();
-        sentMessageCount += thread->getSentMessageCount();
+        sentMessageCountPerSecond += thread->sentMessageCounter.getPerSecond();
+        sentMessageCount += thread->sentMessageCounter.get();
+
+        mqttConnectCountPerSecond += thread->mqttConnectCounter.getPerSecond();
+        mqttConnectCount += thread->mqttConnectCounter.get();
     }
+
+    GlobalStats *globalStats = GlobalStats::getInstance();
+
+    publishStat("$SYS/broker/network/socketconnects/total", globalStats->socketConnects.get());
+    publishStat("$SYS/broker/network/socketconnects/persecond", globalStats->socketConnects.getPerSecond());
+
+    publishStat("$SYS/broker/clients/mqttconnects/total", mqttConnectCount);
+    publishStat("$SYS/broker/clients/mqttconnects/persecond", mqttConnectCountPerSecond);
 
     publishStat("$SYS/broker/clients/total", nrOfClients);
 
@@ -389,54 +405,6 @@ void ThreadData::queuePasswdFileReload()
 int ThreadData::getNrOfClients() const
 {
     return clients_by_fd.size();
-}
-
-void ThreadData::incrementReceivedMessageCount()
-{
-    receivedMessageCount++;
-}
-
-uint64_t ThreadData::getReceivedMessageCount() const
-{
-    return receivedMessageCount;
-}
-
-/**
- * @brief ThreadData::getReceivedMessagePerSecond gets the amount of seconds received, averaged over the last time this was called.
- * @return
- *
- * Locking is not required, because the counter is not written to from here.
- */
-uint64_t ThreadData::getReceivedMessagePerSecond()
-{
-    std::chrono::time_point<std::chrono::steady_clock> now = std::chrono::steady_clock::now();
-    std::chrono::milliseconds msSinceLastTime = std::chrono::duration_cast<std::chrono::milliseconds>(now - receivedMessagePreviousTime);
-    uint64_t messagesTimes1000 = (receivedMessageCount - receivedMessageCountPrevious) * 1000;
-    uint64_t result = messagesTimes1000 / (msSinceLastTime.count() + 1); // branchless avoidance of div by 0;
-    receivedMessagePreviousTime = now;
-    receivedMessageCountPrevious = receivedMessageCount;
-    return result;
-}
-
-void ThreadData::incrementSentMessageCount(uint64_t n)
-{
-    sentMessageCount += n;
-}
-
-uint64_t ThreadData::getSentMessageCount() const
-{
-    return sentMessageCount;
-}
-
-uint64_t ThreadData::getSentMessagePerSecond()
-{
-    std::chrono::time_point<std::chrono::steady_clock> now = std::chrono::steady_clock::now();
-    std::chrono::milliseconds msSinceLastTime = std::chrono::duration_cast<std::chrono::milliseconds>(now - sentMessagePreviousTime);
-    uint64_t messagesTimes1000 = (sentMessageCount - sentMessageCountPrevious) * 1000;
-    uint64_t result = messagesTimes1000 / (msSinceLastTime.count() + 1); // branchless avoidance of div by 0;
-    sentMessagePreviousTime = now;
-    sentMessageCountPrevious = sentMessageCount;
-    return result;
 }
 
 void ThreadData::queueAuthPluginPeriodicEvent()

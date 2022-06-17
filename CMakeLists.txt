@@ -61,6 +61,8 @@ add_executable(FlashMQ
     publishcopyfactory.h
     variablebyteint.h
     mqtt5properties.h
+    globalstats.h
+    derivablecounter.h
 
     mainapp.cpp
     main.cpp
@@ -101,6 +103,8 @@ add_executable(FlashMQ
     publishcopyfactory.cpp
     variablebyteint.cpp
     mqtt5properties.cpp
+    globalstats.cpp
+    derivablecounter.cpp
 
     )
 
