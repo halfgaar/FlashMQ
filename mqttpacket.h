@@ -113,6 +113,7 @@ public:
     ConnectData parseConnectData();
     void handleConnect();
     void handleExtendedAuth();
+    DisconnectData parseDisconnectData();
     void handleDisconnect();
     void handleSubscribe();
     void handleUnsubscribe();

@@ -812,19 +812,23 @@ void MqttPacket::handleExtendedAuth()
     }
 }
 
-void MqttPacket::handleDisconnect()
+DisconnectData MqttPacket::parseDisconnectData()
 {
+    if (this->packetType != PacketType::DISCONNECT)
+        throw std::runtime_error("Packet must be disconnect packet.");
+
     if (first_byte & 0b1111)
         throw ProtocolError("Disconnect packet first 4 bits should be 0.", ReasonCodes::MalformedPacket);
 
-    ReasonCodes reasonCode = ReasonCodes::Success;
-    std::string reasonString;
+    setPosToDataStart();
+
+    DisconnectData result;
 
     if (this->protocolVersion >= ProtocolVersion::Mqtt5)
     {
         if (!atEnd())
         {
-            reasonCode = static_cast<ReasonCodes>(readByte());
+            result.reasonCode = static_cast<ReasonCodes>(readByte());
 
             const size_t proplen = decodeVariableByteIntAtPos();
             const size_t prop_end_at = pos + proplen;
@@ -839,12 +843,13 @@ void MqttPacket::handleDisconnect()
                 {
                     const Settings *settings = ThreadGlobals::getSettings();
                     const uint32_t session_expire = std::min<uint32_t>(readFourBytesToUint32(), settings->getExpireSessionAfterSeconds());
-                    sender->getSession()->setSessionExpiryInterval(session_expire);
+                    result.session_expiry_interval = session_expire;
+                    result.session_expiry_interval_set = true;
                     break;
                 }
                 case Mqtt5Properties::ReasonString:
                 {
-                    reasonString = readBytesToString();
+                    result.reasonString = readBytesToString();
                     break;
                 }
                 case Mqtt5Properties::ServerReference:
@@ -862,15 +867,25 @@ void MqttPacket::handleDisconnect()
         }
     }
 
-    std::string disconnectReason = formatString("MQTT Disconnect received (code %d).", static_cast<uint8_t>(reasonCode));
+    return result;
+}
 
-    if (!reasonString.empty())
-        disconnectReason += reasonString;
+void MqttPacket::handleDisconnect()
+{
+    DisconnectData data = parseDisconnectData();
+
+    std::string disconnectReason = formatString("MQTT Disconnect received (code %d).", static_cast<uint8_t>(data.reasonCode));
+
+    if (!data.reasonString.empty())
+        disconnectReason += data.reasonString;
+
+    if (data.session_expiry_interval_set)
+        sender->getSession()->setSessionExpiryInterval(data.session_expiry_interval);
 
     logger->logf(LOG_NOTICE, "Client '%s' cleanly disconnecting", sender->repr().c_str());
     sender->setDisconnectReason(disconnectReason);
     sender->markAsDisconnecting();
-    if (reasonCode == ReasonCodes::Success)
+    if (data.reasonCode == ReasonCodes::Success)
         sender->clearWill();
     ThreadGlobals::getThreadData()->removeClientQueued(sender);
 }

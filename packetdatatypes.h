@@ -38,5 +38,14 @@ struct ConnectData
     ConnectData();
 };
 
+struct DisconnectData
+{
+    ReasonCodes reasonCode = ReasonCodes::Success;
+    std::string reasonString;
+
+    bool session_expiry_interval_set = false;
+    uint32_t session_expiry_interval = 0;
+};
+
 
 #endif // PACKETDATATYPES_H
