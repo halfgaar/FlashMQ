@@ -35,6 +35,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 
 #include "variablebyteint.h"
 #include "mqtt5properties.h"
+#include "packetdatatypes.h"
 
 /**
  * @brief The MqttPacket class represents incoming and outgonig packets.
@@ -109,6 +110,7 @@ public:
     static void bufferToMqttPackets(CirBuf &buf, std::vector<MqttPacket> &packetQueueIn, std::shared_ptr<Client> &sender);
 
     void handle();
+    ConnectData parseConnectData();
     void handleConnect();
     void handleExtendedAuth();
     void handleDisconnect();

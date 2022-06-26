@@ -54,6 +54,7 @@ SOURCES +=  tst_maintests.cpp \
     ../mqtt5properties.cpp \
     ../globalstats.cpp \
     ../derivablecounter.cpp \
+    ../packetdatatypes.cpp \
     mainappthread.cpp \
     twoclienttestcontext.cpp
 
@@ -100,6 +101,7 @@ HEADERS += \
     ../mqtt5properties.h \
     ../globalstats.h \
     ../derivablecounter.h \
+    ../packetdatatypes.h \
     mainappthread.h \
     twoclienttestcontext.h
 

@@ -63,6 +63,7 @@ add_executable(FlashMQ
     mqtt5properties.h
     globalstats.h
     derivablecounter.h
+    packetdatatypes.h
 
     mainapp.cpp
     main.cpp
@@ -105,6 +106,7 @@ add_executable(FlashMQ
     mqtt5properties.cpp
     globalstats.cpp
     derivablecounter.cpp
+    packetdatatypes.cpp
 
     )
 
