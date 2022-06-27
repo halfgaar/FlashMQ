@@ -35,6 +35,8 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "threaddata.h"
 #include "threadglobals.h"
 
+#include "flashmqtestclient.h"
+
 // Dumb Qt version gives warnings when comparing uint with number literal.
 template <typename T1, typename T2>
 inline bool myCastCompare(const T1 &t1, const T2 &t2, const char *actual, const char *expected,
@@ -56,6 +58,7 @@ class MainTests : public QObject
     Q_OBJECT
 
     QScopedPointer<MainAppThread> mainApp;
+    std::shared_ptr<ThreadData> dummyThreadData;
 
     void testParsePacketHelper(const std::string &topic, char from_qos, bool retain);
 
@@ -117,6 +120,8 @@ private slots:
 
     void testUnSubscribe();
 
+    void testBasicsWithFlashMQTestClient();
+
 };
 
 MainTests::MainTests()
@@ -135,6 +140,12 @@ void MainTests::init()
     mainApp.reset(new MainAppThread());
     mainApp->start();
     mainApp->waitForStarted();
+
+    // We test functions directly that the server normally only calls from worker threads, in which thread data is available. This is kind of a dummy-fix, until
+    // we actually need correct thread data at those points (at this point, it's only to increase message counters).
+    std::shared_ptr<Settings> settings = std::make_shared<Settings>();
+    this->dummyThreadData = std::make_shared<ThreadData>(666, settings);
+    ThreadGlobals::assignThreadData(dummyThreadData.get());
 }
 
 void MainTests::cleanup()
@@ -1340,6 +1351,77 @@ void MainTests::testUnSubscribe()
     QVERIFY(std::any_of(testContext.receivedMessages.begin(), testContext.receivedMessages.end(), [](const QMQTT::Message &msg) {
         return msg.payload() == "Anteater" && msg.topic() == "White/Josh";
     }));
+}
+
+/**
+ * @brief MainTests::testBasicsWithFlashMQTestClient was used to develop FlashMQTestClient.
+ */
+void MainTests::testBasicsWithFlashMQTestClient()
+{
+    FlashMQTestClient client;
+    client.start();
+    client.connectClient(ProtocolVersion::Mqtt311);
+
+    MqttPacket &connAckPack = client.receivedPackets.front();
+    QVERIFY(connAckPack.packetType == PacketType::CONNACK);
+
+    {
+        client.subscribe("a/b", 1);
+
+        MqttPacket &subAck = client.receivedPackets.front();
+        SubAckData subAckData = subAck.parseSubAckData();
+
+        QVERIFY(subAckData.subAckCodes.size() == 1);
+        QVERIFY(subAckData.subAckCodes.front() == 1);
+    }
+
+    {
+        client.subscribe("c/d", 2);
+
+        MqttPacket &subAck = client.receivedPackets.front();
+        SubAckData subAckData = subAck.parseSubAckData();
+
+        QVERIFY(subAckData.subAckCodes.size() == 1);
+        QVERIFY(subAckData.subAckCodes.front() == 2);
+    }
+
+    client.clearReceivedLists();
+
+    FlashMQTestClient publisher;
+    publisher.start();
+    publisher.connectClient(ProtocolVersion::Mqtt5);
+
+    {
+        publisher.publish("a/b", "wave", 2);
+
+        client.waitForMessageCount(1);
+        MqttPacket &p = client.receivedPublishes.front();
+
+        QCOMPARE(p.getPublishData().topic, "a/b");
+        QCOMPARE(p.getPayloadCopy(), "wave");
+        QCOMPARE(p.getPublishData().qos, 1);
+        QVERIFY(p.getPacketId() > 0);
+        QVERIFY(p.protocolVersion == ProtocolVersion::Mqtt311);
+    }
+
+    client.clearReceivedLists();
+
+    {
+        publisher.publish("c/d", "asdfasdfasdf", 2);
+
+        client.waitForMessageCount(1);
+        MqttPacket &p = client.receivedPublishes.back();
+
+        MYCASTCOMPARE(client.receivedPublishes.size(), 1);
+
+        QCOMPARE(p.getPublishData().topic, "c/d");
+        QCOMPARE(p.getPayloadCopy(), "asdfasdfasdf");
+        QCOMPARE(p.getPublishData().qos, 2);
+        QVERIFY(p.getPacketId() > 1); // It's the same client, so it should not re-use packet id 1
+        QVERIFY(p.protocolVersion == ProtocolVersion::Mqtt311);
+    }
+
+
 }
 
 

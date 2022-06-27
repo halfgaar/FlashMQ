@@ -229,6 +229,60 @@ MqttPacket::MqttPacket(const Auth &auth) :
     calculateRemainingLength();
 }
 
+MqttPacket::MqttPacket(const Connect &connect) :
+    bites(connect.getLengthWithoutFixedHeader()),
+    protocolVersion(connect.protocolVersion),
+    packetType(PacketType::CONNECT)
+{
+#ifndef TESTING
+    throw NotImplementedException("Code is only for testing.");
+#endif
+
+    first_byte = static_cast<char>(packetType) << 4;
+
+    const std::string magicString = connect.getMagicString();
+    writeString(magicString);
+
+    writeByte(static_cast<char>(protocolVersion));
+    writeByte(2); // flags; The only bit set is 'clean session'.
+
+    // Keep-alive
+    writeUint16(60);
+
+    if (connect.protocolVersion >= ProtocolVersion::Mqtt5)
+    {
+        writeProperties(connect.propertyBuilder);
+    }
+
+    writeString(connect.clientid);
+
+    calculateRemainingLength();
+}
+
+MqttPacket::MqttPacket(const Subscribe &subscribe) :
+    bites(subscribe.getLengthWithoutFixedHeader()),
+    packetType(PacketType::SUBSCRIBE)
+{
+#ifndef TESTING
+    throw NotImplementedException("Code is only for testing.");
+#endif
+
+    first_byte = static_cast<char>(packetType) << 4;
+    first_byte |= 2; // required reserved bit
+
+    writeUint16(subscribe.packetId);
+
+    if (subscribe.protocolVersion >= ProtocolVersion::Mqtt5)
+    {
+        writeProperties(subscribe.propertyBuilder);
+    }
+
+    writeString(subscribe.topic);
+    writeByte(subscribe.qos);
+
+    calculateRemainingLength();
+}
+
 void MqttPacket::bufferToMqttPackets(CirBuf &buf, std::vector<MqttPacket> &packetQueueIn, std::shared_ptr<Client> &sender)
 {
     while (buf.usedBytes() >= MQTT_HEADER_LENGH)
@@ -1035,6 +1089,8 @@ void MqttPacket::handleUnsubscribe()
 
 void MqttPacket::parsePublishData()
 {
+    assert(externallyReceived);
+
     setPosToDataStart();
 
     publishData.retain = (first_byte & 0b00000001);
@@ -1214,6 +1270,7 @@ void MqttPacket::handlePublish()
 void MqttPacket::parsePubAckData()
 {
     setPosToDataStart();
+    this->publishData.qos = 1;
     this->packet_id = readTwoBytesToUInt16();
 }
 
@@ -1552,6 +1609,12 @@ void MqttPacket::writeProperties(const std::shared_ptr<Mqtt5PropertyBuilder> &pr
 void MqttPacket::writeVariableByteInt(const VariableByteInt &v)
 {
     writeBytes(v.data(), v.getLen());
+}
+
+void MqttPacket::writeString(const std::string &s)
+{
+    writeUint16(s.length());
+    writeBytes(s.c_str(), s.length());
 }
 
 uint16_t MqttPacket::readTwoBytesToUInt16()

@@ -345,9 +345,57 @@ size_t Auth::getLengthWithoutFixedHeader() const
     return result;
 }
 
+Connect::Connect(ProtocolVersion protocolVersion, const std::string &clientid) :
+    protocolVersion(protocolVersion),
+    clientid(clientid)
+{
 
+}
 
+size_t Connect::getLengthWithoutFixedHeader() const
+{
+    size_t result = clientid.length() + 2;
 
+    result += this->protocolVersion <= ProtocolVersion::Mqtt31 ? 6 : 4;
+    result += 6; // header stuff, lengths, keep-alive
 
+    if (this->protocolVersion >= ProtocolVersion::Mqtt5)
+    {
+        const size_t proplen = propertyBuilder ? propertyBuilder->getLength() : 1;
+        result += proplen;
+    }
+    return result;
 
+}
 
+std::string Connect::getMagicString() const
+{
+    if (protocolVersion <= ProtocolVersion::Mqtt31)
+        return "MQIsdp";
+    else
+        return "MQTT";
+}
+
+Subscribe::Subscribe(const ProtocolVersion protocolVersion, uint16_t packetId, const std::string &topic, char qos) :
+    protocolVersion(protocolVersion),
+    packetId(packetId),
+    topic(topic),
+    qos(qos)
+{
+
+}
+
+size_t Subscribe::getLengthWithoutFixedHeader() const
+{
+    size_t result = topic.size() + 2;
+    result += 2; // packet id
+    result += 1; // requested QoS
+
+    if (this->protocolVersion >= ProtocolVersion::Mqtt5)
+    {
+        const size_t proplen = propertyBuilder ? propertyBuilder->getLength() : 1;
+        result += proplen;
+    }
+
+    return result;
+}

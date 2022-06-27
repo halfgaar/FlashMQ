@@ -277,4 +277,34 @@ public:
     size_t getLengthWithoutFixedHeader() const;
 };
 
+struct Connect
+{
+    const ProtocolVersion protocolVersion;
+    std::string clientid;
+    std::string username;
+    std::string password;
+    std::shared_ptr<Mqtt5PropertyBuilder> propertyBuilder;
+
+    Connect(ProtocolVersion protocolVersion, const std::string &clientid);
+    size_t getLengthWithoutFixedHeader() const;
+    std::string getMagicString() const;
+};
+
+/**
+ * @brief The Subscribe struct can be used to construct a mqtt packet of type 'subscribe'.
+ *
+ * It's rudimentary. Offically you can subscribe to multiple topics at once, but I have no need for that.
+ */
+struct Subscribe
+{
+    const ProtocolVersion protocolVersion;
+    uint16_t packetId;
+    std::string topic;
+    char qos;
+    std::shared_ptr<Mqtt5PropertyBuilder> propertyBuilder;
+
+    Subscribe(const ProtocolVersion protocolVersion, uint16_t packetId, const std::string &topic, char qos);
+    size_t getLengthWithoutFixedHeader() const;
+};
+
 #endif // TYPES_H

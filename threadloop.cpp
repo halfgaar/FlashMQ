@@ -110,6 +110,11 @@ void do_thread_work(ThreadData *threadData)
 
                             for (MqttPacket &packet : packetQueueIn)
                             {
+#ifdef TESTING
+                                if (client->onPacketReceived)
+                                    client->onPacketReceived(packet);
+                                else
+#endif
                                 packet.handle();
                             }
 

@@ -187,6 +187,10 @@ public:
     void setExtendedAuthenticationMethod(const std::string &authMethod);
     const std::string &getExtendedAuthenticationMethod() const;
 
+#ifdef TESTING
+    std::function<void(MqttPacket &packet)> onPacketReceived;
+#endif
+
 #ifndef NDEBUG
     void setFakeUpgraded();
 #endif

@@ -62,7 +62,7 @@ Client::Client(int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, bool we
 Client::~Client()
 {
     // Dummy clients, that I sometimes need just because the interface demands it but there's not actually a client, have no thread.
-    if (this->threadData.expired())
+    if (this->epoll_fd == 0)
         return;
 
     if (disconnectReason.empty())

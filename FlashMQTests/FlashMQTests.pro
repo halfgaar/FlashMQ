@@ -55,6 +55,7 @@ SOURCES +=  tst_maintests.cpp \
     ../globalstats.cpp \
     ../derivablecounter.cpp \
     ../packetdatatypes.cpp \
+    ../flashmqtestclient.cpp \
     mainappthread.cpp \
     twoclienttestcontext.cpp
 
@@ -102,6 +103,7 @@ HEADERS += \
     ../globalstats.h \
     ../derivablecounter.h \
     ../packetdatatypes.h \
+    ../flashmqtestclient.h \
     mainappthread.h \
     twoclienttestcontext.h
 

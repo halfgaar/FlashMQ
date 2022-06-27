@@ -78,6 +78,7 @@ class MqttPacket
     void writeBytes(const char *b, size_t len);
     void writeProperties(const std::shared_ptr<Mqtt5PropertyBuilder> &properties);
     void writeVariableByteInt(const VariableByteInt &v);
+    void writeString(const std::string &s);
     uint16_t readTwoBytesToUInt16();
     uint32_t readFourBytesToUint32();
     size_t remainingAfterPos();
@@ -89,11 +90,18 @@ class MqttPacket
     void setPosToDataStart();
     bool atEnd() const;
 
+#ifndef TESTING
+    // In production, I want to be sure I don't accidentally copy packets, because it's slow.
     MqttPacket(const MqttPacket &other) = delete;
+#endif
 public:
+#ifdef TESTING
+    // In testing I need to copy packets for administrative purposes.
+    MqttPacket(const MqttPacket &other) = default;
+#endif
     PacketType packetType = PacketType::Reserved;
-    MqttPacket(CirBuf &buf, size_t packet_len, size_t fixed_header_length, std::shared_ptr<Client> &sender); // Constructor for parsing incoming packets.
 
+    MqttPacket(CirBuf &buf, size_t packet_len, size_t fixed_header_length, std::shared_ptr<Client> &sender); // Constructor for parsing incoming packets.
     MqttPacket(MqttPacket &&other) = default;
 
     size_t setClientSpecificPropertiesAndGetRequiredSizeForPublish(const ProtocolVersion protocolVersion, Publish &publishData) const;
@@ -106,6 +114,8 @@ public:
     MqttPacket(const PubResponse &pubAck);
     MqttPacket(const Disconnect &disconnect);
     MqttPacket(const Auth &auth);
+    MqttPacket(const Connect &connect);
+    MqttPacket(const Subscribe &subscribe);
 
     static void bufferToMqttPackets(CirBuf &buf, std::vector<MqttPacket> &packetQueueIn, std::shared_ptr<Client> &sender);
 
