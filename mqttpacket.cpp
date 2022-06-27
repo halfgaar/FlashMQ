@@ -1258,7 +1258,8 @@ void MqttPacket::calculateRemainingLength()
 
 bool MqttPacket::atEnd() const
 {
-    return pos == bites.size();
+    assert(pos <= bites.size());
+    return pos >= bites.size();
 }
 
 void MqttPacket::setPacketId(uint16_t packet_id)
