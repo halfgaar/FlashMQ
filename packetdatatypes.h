@@ -54,5 +54,10 @@ struct SubAckData
     std::vector<uint8_t> subAckCodes;
 };
 
+struct PubAckData
+{
+    uint16_t packet_id;
+};
+
 
 #endif // PACKETDATATYPES_H

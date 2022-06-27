@@ -120,6 +120,7 @@ public:
     void handlePing();
     void parsePublishData();
     void handlePublish();
+    void parsePubAckData();
     void handlePubAck();
     void handlePubRec();
     void handlePubRel();

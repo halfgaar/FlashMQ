@@ -1211,9 +1211,15 @@ void MqttPacket::handlePublish()
     }
 }
 
+void MqttPacket::parsePubAckData()
+{
+    setPosToDataStart();
+    this->packet_id = readTwoBytesToUInt16();
+}
+
 void MqttPacket::handlePubAck()
 {
-    uint16_t packet_id = readTwoBytesToUInt16();
+    parsePubAckData();
     sender->getSession()->clearQosMessage(packet_id, true);
 }
 
