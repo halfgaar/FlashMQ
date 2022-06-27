@@ -1223,21 +1223,29 @@ void MqttPacket::handlePubAck()
     sender->getSession()->clearQosMessage(packet_id, true);
 }
 
+PubRecData MqttPacket::parsePubRecData()
+{
+    setPosToDataStart();
+    this->publishData.qos = 2;
+    this->packet_id = readTwoBytesToUInt16();
+    PubRecData result;
+
+    if (!atEnd())
+    {
+        result.reasonCode = static_cast<ReasonCodes>(readByte());
+    }
+
+    return result;
+}
+
 /**
  * @brief MqttPacket::handlePubRec handles QoS 2 'publish received' packets. The publisher receives these.
  */
 void MqttPacket::handlePubRec()
 {
-    const uint16_t packet_id = readTwoBytesToUInt16();
+    PubRecData data = parsePubRecData();
 
-    ReasonCodes reasonCode = ReasonCodes::Success; // Default when not specified, or MQTT3
-
-    if (!atEnd())
-    {
-        reasonCode = static_cast<ReasonCodes>(readByte());
-    }
-
-    const bool publishTerminatesHere = reasonCode >= ReasonCodes::UnspecifiedError;
+    const bool publishTerminatesHere = data.reasonCode >= ReasonCodes::UnspecifiedError;
     const bool foundAndRemoved = sender->getSession()->clearQosMessage(packet_id, publishTerminatesHere);
 
     // "If it has sent a PUBREC with a Reason Code of 0x80 or greater, the receiver MUST treat any subsequent PUBLISH packet
@@ -1254,16 +1262,24 @@ void MqttPacket::handlePubRec()
     }
 }
 
-/**
- * @brief MqttPacket::handlePubRel handles QoS 2 'publish release'. The publisher sends these.
- */
-void MqttPacket::handlePubRel()
+void MqttPacket::parsePubRelData()
 {
     // MQTT-3.6.1-1, but why do we care, and only care for certain control packets?
     if (first_byte & 0b1101)
         throw ProtocolError("PUBREL first byte LSB must be 0010.", ReasonCodes::MalformedPacket);
 
-    const uint16_t packet_id = readTwoBytesToUInt16();
+    setPosToDataStart();
+    this->publishData.qos = 2;
+    this->packet_id = readTwoBytesToUInt16();
+}
+
+/**
+ * @brief MqttPacket::handlePubRel handles QoS 2 'publish release'. The publisher sends these.
+ */
+void MqttPacket::handlePubRel()
+{
+    parsePubRelData();
+
     const bool foundAndRemoved = sender->getSession()->removeIncomingQoS2MessageId(packet_id);
     const ReasonCodes reason = foundAndRemoved ? ReasonCodes::Success : ReasonCodes::PacketIdentifierNotFound;
 
@@ -1272,12 +1288,19 @@ void MqttPacket::handlePubRel()
     sender->writeMqttPacket(response);
 }
 
+void MqttPacket::parsePubComp()
+{
+    setPosToDataStart();
+    this->publishData.qos = 2;
+    this->packet_id = readTwoBytesToUInt16();
+}
+
 /**
  * @brief MqttPacket::handlePubComp handles QoS 2 'publish complete'. The publisher receives these.
  */
 void MqttPacket::handlePubComp()
 {
-    const uint16_t packet_id = readTwoBytesToUInt16();
+    parsePubComp();
     sender->getSession()->removeOutgoingQoS2MessageId(packet_id);
 }
 

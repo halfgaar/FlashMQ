@@ -54,10 +54,9 @@ struct SubAckData
     std::vector<uint8_t> subAckCodes;
 };
 
-struct PubAckData
+struct PubRecData
 {
-    uint16_t packet_id;
+    ReasonCodes reasonCode = ReasonCodes::Success; // Default when not specified, or MQTT3;
 };
-
 
 #endif // PACKETDATATYPES_H

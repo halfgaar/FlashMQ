@@ -122,8 +122,11 @@ public:
     void handlePublish();
     void parsePubAckData();
     void handlePubAck();
+    PubRecData parsePubRecData();
     void handlePubRec();
+    void parsePubRelData();
     void handlePubRel();
+    void parsePubComp();
     void handlePubComp();
     SubAckData parseSubAckData();
 
