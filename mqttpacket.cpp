@@ -1012,6 +1012,8 @@ void MqttPacket::handleUnsubscribe()
 
 void MqttPacket::parsePublishData()
 {
+    setPosToDataStart();
+
     publishData.retain = (first_byte & 0b00000001);
     const bool duplicate = !!(first_byte & 0b00001000);
     publishData.qos = (first_byte & 0b00000110) >> 1;
@@ -1254,6 +1256,11 @@ void MqttPacket::calculateRemainingLength()
 {
     assert(fixed_header_length == 0); // because you're not supposed to call this on packet that we already know the length of.
     this->remainingLength = bites.size();
+}
+
+void MqttPacket::setPosToDataStart()
+{
+    this->pos = this->fixed_header_length;
 }
 
 bool MqttPacket::atEnd() const

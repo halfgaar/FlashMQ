@@ -85,7 +85,7 @@ class MqttPacket
     std::string readBytesToString(bool validateUtf8 = true, bool alsoCheckInvalidPublishChars = false);
 
     void calculateRemainingLength();
-
+    void setPosToDataStart();
     bool atEnd() const;
 
     MqttPacket(const MqttPacket &other) = delete;
