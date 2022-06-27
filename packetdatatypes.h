@@ -47,5 +47,12 @@ struct DisconnectData
     uint32_t session_expiry_interval = 0;
 };
 
+struct SubAckData
+{
+    uint16_t packet_id;
+    std::string reasonString;
+    std::vector<uint8_t> subAckCodes;
+};
+
 
 #endif // PACKETDATATYPES_H

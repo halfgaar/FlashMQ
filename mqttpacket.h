@@ -124,6 +124,7 @@ public:
     void handlePubRec();
     void handlePubRel();
     void handlePubComp();
+    SubAckData parseSubAckData();
 
     uint8_t getFixedHeaderLength() const;
     size_t getSizeIncludingNonPresentHeader() const;

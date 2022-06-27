@@ -1275,6 +1275,52 @@ void MqttPacket::handlePubComp()
     sender->getSession()->removeOutgoingQoS2MessageId(packet_id);
 }
 
+SubAckData MqttPacket::parseSubAckData()
+{
+    if (this->packetType != PacketType::SUBACK)
+        throw std::runtime_error("Packet must be suback packet.");
+
+    setPosToDataStart();
+
+    SubAckData result;
+
+    result.packet_id = readTwoBytesToUInt16();
+    this->packet_id = result.packet_id;
+
+    if (this->protocolVersion >= ProtocolVersion::Mqtt5 )
+    {
+        const size_t proplen = decodeVariableByteIntAtPos();
+        const size_t prop_end_at = pos + proplen;
+
+        while (pos < prop_end_at)
+        {
+            const Mqtt5Properties prop = static_cast<Mqtt5Properties>(readByte());
+
+            switch (prop)
+            {
+            case Mqtt5Properties::ReasonString:
+                result.reasonString = readBytesToString();
+                break;
+            case Mqtt5Properties::UserProperty:
+                readUserProperty();
+                break;
+            default:
+                throw ProtocolError("Invalid property in suback.", ReasonCodes::ProtocolError);
+            }
+        }
+    }
+
+    // payload starts here
+
+    while (!atEnd())
+    {
+        uint8_t code = readByte();
+        result.subAckCodes.push_back(code);
+    }
+
+    return result;
+}
+
 void MqttPacket::calculateRemainingLength()
 {
     assert(fixed_header_length == 0); // because you're not supposed to call this on packet that we already know the length of.
