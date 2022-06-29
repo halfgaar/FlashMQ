@@ -486,7 +486,7 @@ void MainApp::start()
             Authentication auth(settingsLocalCopy);
             ThreadGlobals::assign(&auth);
 
-            std::shared_ptr<ThreadData> threaddata = std::make_shared<ThreadData>(0, subscriptionStore, settings);
+            std::shared_ptr<ThreadData> threaddata = std::make_shared<ThreadData>(0, settings);
 
             std::shared_ptr<Client> client = std::make_shared<Client>(fd, threaddata, nullptr, fuzzWebsockets, nullptr, settings.get(), true);
             std::shared_ptr<Client> subscriber = std::make_shared<Client>(fdnull, threaddata, nullptr, fuzzWebsockets, nullptr, settings.get(), true);
@@ -534,7 +534,7 @@ void MainApp::start()
 
     for (int i = 0; i < num_threads; i++)
     {
-        std::shared_ptr<ThreadData> t = std::make_shared<ThreadData>(i, subscriptionStore, settings);
+        std::shared_ptr<ThreadData> t = std::make_shared<ThreadData>(i, settings);
         t->start(&do_thread_work);
         threads.push_back(t);
     }
@@ -783,5 +783,10 @@ void MainApp::queueCleanup()
     taskQueue.push_front(f);
 
     wakeUpThread();
+}
+
+std::shared_ptr<SubscriptionStore> MainApp::getSubscriptionStore()
+{
+    return this->subscriptionStore;
 }
 

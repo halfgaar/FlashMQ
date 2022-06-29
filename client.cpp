@@ -69,7 +69,7 @@ Client::~Client()
 
     logger->logf(LOG_NOTICE, "Removing client '%s'. Reason(s): %s", repr().c_str(), disconnectReason.c_str());
 
-    std::shared_ptr<SubscriptionStore> &store = this->threadData->getSubscriptionStore();
+    std::shared_ptr<SubscriptionStore> store = MainApp::getMainApp()->getSubscriptionStore();
 
     if (willPublish)
     {
@@ -420,7 +420,7 @@ void Client::sendOrQueueWill()
     if (!this->willPublish)
         return;
 
-    std::shared_ptr<SubscriptionStore> &store = this->threadData->getSubscriptionStore();
+    std::shared_ptr<SubscriptionStore> store = MainApp::getMainApp()->getSubscriptionStore();
     store->queueWillMessage(willPublish, session);
     this->willPublish.reset();
 }

@@ -326,7 +326,7 @@ void MqttPacket::handleConnect()
     if (sender->hasConnectPacketSeen())
         throw ProtocolError("Client already sent a CONNECT.", ReasonCodes::ProtocolError);
 
-    std::shared_ptr<SubscriptionStore> subscriptionStore = sender->getThreadData()->getSubscriptionStore();
+    std::shared_ptr<SubscriptionStore> subscriptionStore = MainApp::getMainApp()->getSubscriptionStore();
 
     sender->getThreadData()->mqttConnectCounter.inc();
 
@@ -775,7 +775,7 @@ void MqttPacket::handleExtendedAuth()
         if (finalResult == ReasonCodes::Success)
         {
             sender->sendConnackSuccess();
-            std::shared_ptr<SubscriptionStore> subscriptionStore = sender->getThreadData()->getSubscriptionStore();
+            std::shared_ptr<SubscriptionStore> subscriptionStore = MainApp::getMainApp()->getSubscriptionStore();
             subscriptionStore->registerClientAndKickExistingOne(sender);
         }
         else
@@ -926,7 +926,7 @@ void MqttPacket::handleSubscribe()
         if (authentication.aclCheck(sender->getClientId(), sender->getUsername(), topic, subtopics, AclAccess::subscribe, qos, false, getUserProperties()) == AuthResult::success)
         {
             logger->logf(LOG_SUBSCRIBE, "Client '%s' subscribed to '%s' QoS %d", sender->repr().c_str(), topic.c_str(), qos);
-            sender->getThreadData()->getSubscriptionStore()->addSubscription(sender, topic, subtopics, qos);
+            MainApp::getMainApp()->getSubscriptionStore()->addSubscription(sender, topic, subtopics, qos);
             subs_reponse_codes.push_back(static_cast<ReasonCodes>(qos));
         }
         else
@@ -995,7 +995,7 @@ void MqttPacket::handleUnsubscribe()
         if (topic.empty())
             throw ProtocolError("Subscribe topic is empty.", ReasonCodes::MalformedPacket);
 
-        sender->getThreadData()->getSubscriptionStore()->removeSubscription(sender, topic);
+        MainApp::getMainApp()->getSubscriptionStore()->removeSubscription(sender, topic);
         logger->logf(LOG_UNSUBSCRIBE, "Client '%s' unsubscribed from '%s'", sender->repr().c_str(), topic.c_str());
     }
 
@@ -1155,7 +1155,7 @@ void MqttPacket::handlePublish()
             if (publishData.retain)
             {
                 publishData.payload = getPayloadCopy();
-                sender->getThreadData()->getSubscriptionStore()->setRetainedMessage(publishData, publishData.subtopics);
+                MainApp::getMainApp()->getSubscriptionStore()->setRetainedMessage(publishData, publishData.subtopics);
             }
 
             // Set dup flag to 0, because that must not be propagated [MQTT-3.3.1-3].
@@ -1164,7 +1164,7 @@ void MqttPacket::handlePublish()
             first_byte = bites[0];
 
             PublishCopyFactory factory(this);
-            sender->getThreadData()->getSubscriptionStore()->queuePacketAtSubscribers(factory);
+            MainApp::getMainApp()->getSubscriptionStore()->queuePacketAtSubscribers(factory);
         }
         else
         {

@@ -28,11 +28,11 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include <mutex>
 #include <functional>
 #include <chrono>
+#include <forward_list>
 
 #include "forward_declarations.h"
 
 #include "client.h"
-#include "subscriptionstore.h"
 #include "utils.h"
 #include "configfileparser.h"
 #include "authplugin.h"
@@ -53,7 +53,6 @@ class ThreadData
 {
     std::unordered_map<int, std::shared_ptr<Client>> clients_by_fd;
     std::mutex clients_by_fd_mutex;
-    std::shared_ptr<SubscriptionStore> subscriptionStore;
     Logger *logger;
 
     std::mutex clientsToRemoveMutex;
@@ -94,7 +93,7 @@ public:
     DerivableCounter sentMessageCounter;
     DerivableCounter mqttConnectCounter;
 
-    ThreadData(int threadnr, std::shared_ptr<SubscriptionStore> &subscriptionStore, std::shared_ptr<Settings> settings);
+    ThreadData(int threadnr, std::shared_ptr<Settings> settings);
     ThreadData(const ThreadData &other) = delete;
     ThreadData(ThreadData &&other) = delete;
 
@@ -105,7 +104,6 @@ public:
     void removeClientQueued(const std::shared_ptr<Client> &client);
     void removeClientQueued(int fd);
     void removeClient(std::shared_ptr<Client> client);
-    std::shared_ptr<SubscriptionStore> &getSubscriptionStore();
 
     void initAuthPlugin();
     void cleanupAuthPlugin();

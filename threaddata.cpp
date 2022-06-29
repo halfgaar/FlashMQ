@@ -28,8 +28,7 @@ KeepAliveCheck::KeepAliveCheck(const std::shared_ptr<Client> client) :
 
 }
 
-ThreadData::ThreadData(int threadnr, std::shared_ptr<SubscriptionStore> &subscriptionStore, std::shared_ptr<Settings> settings) :
-    subscriptionStore(subscriptionStore),
+ThreadData::ThreadData(int threadnr, std::shared_ptr<Settings> settings) :
     settingsLocalCopy(*settings.get()),
     authentication(settingsLocalCopy),
     threadnr(threadnr)
@@ -178,6 +177,8 @@ void ThreadData::publishStatsOnDollarTopic(std::vector<std::shared_ptr<ThreadDat
     publishStat("$SYS/broker/load/messages/sent/total", sentMessageCount);
     publishStat("$SYS/broker/load/messages/sent/persecond", sentMessageCountPerSecond);
 
+    std::shared_ptr<SubscriptionStore> subscriptionStore = MainApp::getMainApp()->getSubscriptionStore();
+
     publishStat("$SYS/broker/retained messages/count", subscriptionStore->getRetainedMessageCount());
 
     publishStat("$SYS/broker/sessions/total", subscriptionStore->getSessionCount());
@@ -190,17 +191,20 @@ void ThreadData::publishStat(const std::string &topic, uint64_t n)
     const std::string payload = std::to_string(n);
     Publish p(topic, payload, 0);
     PublishCopyFactory factory(&p);
+    std::shared_ptr<SubscriptionStore> subscriptionStore = MainApp::getMainApp()->getSubscriptionStore();
     subscriptionStore->queuePacketAtSubscribers(factory, true);
     subscriptionStore->setRetainedMessage(p, factory.getSubtopics());
 }
 
 void ThreadData::sendQueuedWills()
 {
+    std::shared_ptr<SubscriptionStore> subscriptionStore = MainApp::getMainApp()->getSubscriptionStore();
     subscriptionStore->sendQueuedWillMessages();
 }
 
 void ThreadData::removeExpiredSessions()
 {
+    std::shared_ptr<SubscriptionStore> subscriptionStore = MainApp::getMainApp()->getSubscriptionStore();
     subscriptionStore->removeExpiredSessionsClients();
 }
 
@@ -355,11 +359,6 @@ void ThreadData::removeClient(std::shared_ptr<Client> client)
 
     std::lock_guard<std::mutex> lck(clients_by_fd_mutex);
     clients_by_fd.erase(client->getFd());
-}
-
-std::shared_ptr<SubscriptionStore> &ThreadData::getSubscriptionStore()
-{
-    return subscriptionStore;
 }
 
 void ThreadData::queueDoKeepAliveCheck()

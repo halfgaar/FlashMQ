@@ -110,6 +110,8 @@ public:
 
     void queueConfigReload();
     void queueCleanup();
+
+    std::shared_ptr<SubscriptionStore> getSubscriptionStore();
 };
 
 #endif // MAINAPP_H

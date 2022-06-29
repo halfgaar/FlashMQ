@@ -997,7 +997,7 @@ void MainTests::testSavingSessions()
     {
         std::shared_ptr<Settings> settings(new Settings());
         std::shared_ptr<SubscriptionStore> store(new SubscriptionStore());
-        std::shared_ptr<ThreadData> t(new ThreadData(0, store, settings));
+        std::shared_ptr<ThreadData> t(new ThreadData(0, settings));
 
         // Kind of a hack...
         Authentication auth(*settings.get());
@@ -1110,7 +1110,7 @@ void MainTests::testParsePacketHelper(const std::string &topic, char from_qos, b
     std::shared_ptr<Settings> settings(new Settings());
     settings->logDebug = false;
     std::shared_ptr<SubscriptionStore> store(new SubscriptionStore());
-    std::shared_ptr<ThreadData> t(new ThreadData(0, store, settings));
+    std::shared_ptr<ThreadData> t(new ThreadData(0, settings));
 
     // Kind of a hack...
     Authentication auth(*settings.get());
