@@ -312,15 +312,17 @@ size_t UnsubAck::getLengthWithoutFixedHeader() const
 }
 
 Disconnect::Disconnect(const ProtocolVersion protVersion, ReasonCodes reason_code) :
+    protocolVersion(protVersion),
     reasonCode(reason_code)
 {
-    assert(protVersion >= ProtocolVersion::Mqtt5);
-
 
 }
 
 size_t Disconnect::getLengthWithoutFixedHeader() const
 {
+    if (this->protocolVersion < ProtocolVersion::Mqtt5)
+        return 0;
+
     size_t result = 1;
     const size_t proplen = propertyBuilder ? propertyBuilder->getLength() : 1;
     result += proplen;
@@ -364,8 +366,20 @@ size_t Connect::getLengthWithoutFixedHeader() const
         const size_t proplen = propertyBuilder ? propertyBuilder->getLength() : 1;
         result += proplen;
     }
-    return result;
 
+    if (will)
+    {
+        if (this->protocolVersion >= ProtocolVersion::Mqtt5)
+        {
+            const size_t proplen = will->propertyBuilder ? will->propertyBuilder->getLength() : 1;
+            result += proplen;
+        }
+
+        result += will->topic.length() + 2;
+        result += will->payload.length() + 2;
+    }
+
+    return result;
 }
 
 std::string Connect::getMagicString() const
@@ -374,6 +388,14 @@ std::string Connect::getMagicString() const
         return "MQIsdp";
     else
         return "MQTT";
+}
+
+void Connect::constructPropertyBuilder()
+{
+    if (this->propertyBuilder)
+        return;
+
+    this->propertyBuilder = std::make_shared<Mqtt5PropertyBuilder>();
 }
 
 Subscribe::Subscribe(const ProtocolVersion protocolVersion, uint16_t packetId, const std::string &topic, char qos) :

@@ -262,6 +262,7 @@ public:
 class Disconnect
 {
 public:
+    ProtocolVersion protocolVersion;
     ReasonCodes reasonCode;
     std::shared_ptr<Mqtt5PropertyBuilder> propertyBuilder;
     Disconnect(const ProtocolVersion protVersion, ReasonCodes reason_code);
@@ -280,14 +281,17 @@ public:
 struct Connect
 {
     const ProtocolVersion protocolVersion;
+    bool clean_start = true;
     std::string clientid;
     std::string username;
     std::string password;
+    std::shared_ptr<WillPublish> will;
     std::shared_ptr<Mqtt5PropertyBuilder> propertyBuilder;
 
     Connect(ProtocolVersion protocolVersion, const std::string &clientid);
     size_t getLengthWithoutFixedHeader() const;
     std::string getMagicString() const;
+    void constructPropertyBuilder();
 };
 
 /**

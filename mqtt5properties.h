@@ -48,6 +48,7 @@ public:
     void writeTopicAlias(const uint16_t id);
     void writeAuthenticationMethod(const std::string &method);
     void writeAuthenticationData(const std::string &data);
+    void writeWillDelay(uint32_t delay);
     void setNewUserProperties(const std::shared_ptr<std::vector<std::pair<std::string, std::string>>> &userProperties);
 };
 

@@ -65,7 +65,11 @@ MainApp::MainApp(const std::string &configFilePath) :
         auto f = std::bind(&MainApp::queueCleanup, this);
         //const uint64_t derrivedSessionCheckInterval = std::max<uint64_t>((settings->expireSessionsAfterSeconds)*1000*2, 600000);
         //const uint64_t sessionCheckInterval = std::min<uint64_t>(derrivedSessionCheckInterval, 86400000);
-        timer.addCallback(f, 10000, "session expiration");
+        uint64_t interval = 10000;
+#ifdef TESTING
+        interval = 1000;
+#endif
+        timer.addCallback(f, interval, "session expiration");
     }
 
     auto fKeepAlive = std::bind(&MainApp::queueKeepAliveCheckAtAllThreads, this);

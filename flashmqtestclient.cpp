@@ -32,10 +32,12 @@ FlashMQTestClient::~FlashMQTestClient()
     waitForQuit();
 }
 
-void FlashMQTestClient::waitForCondition(std::function<bool()> f)
+void FlashMQTestClient::waitForCondition(std::function<bool()> f, int timeout)
 {
+    const int loopCount = (timeout * 1000) / 10;
+
     int n = 0;
-    while(n++ < 100)
+    while(n++ < loopCount)
     {
         usleep(10000);
 
@@ -60,12 +62,29 @@ void FlashMQTestClient::clearReceivedLists()
     receivedPublishes.clear();
 }
 
+void FlashMQTestClient::setWill(std::shared_ptr<WillPublish> &will)
+{
+    this->will = will;
+}
+
+void FlashMQTestClient::disconnect(ReasonCodes reason)
+{
+    client->setReadyForDisconnect();
+    Disconnect d(this->client->getProtocolVersion(), reason);
+    client->writeMqttPacket(d);
+}
+
 void FlashMQTestClient::start()
 {
     testServerWorkerThreadData->start(&do_thread_work);
 }
 
 void FlashMQTestClient::connectClient(ProtocolVersion protocolVersion)
+{
+    connectClient(protocolVersion, true, 0);
+}
+
+void FlashMQTestClient::connectClient(ProtocolVersion protocolVersion, bool clean_start, uint32_t session_expiry_interval)
 {
     int sockfd = check<std::runtime_error>(socket(AF_INET, SOCK_STREAM, 0));
 
@@ -131,6 +150,10 @@ void FlashMQTestClient::connectClient(ProtocolVersion protocolVersion)
     };
 
     Connect connect(protocolVersion, client->getClientId());
+    connect.will = this->will;
+    connect.clean_start = clean_start;
+    connect.constructPropertyBuilder();
+    connect.propertyBuilder->writeSessionExpiry(session_expiry_interval);
     MqttPacket connectPack(connect);
     this->client->writeMqttPacketAndBlameThisClient(connectPack);
 
@@ -227,9 +250,9 @@ void FlashMQTestClient::waitForConnack()
     });
 }
 
-void FlashMQTestClient::waitForMessageCount(const size_t count)
+void FlashMQTestClient::waitForMessageCount(const size_t count, int timeout)
 {
     waitForCondition([&]() {
         return this->receivedPublishes.size() >= count;
-    });
+    }, timeout);
 }

@@ -204,16 +204,25 @@ MqttPacket::MqttPacket(const PubResponse &pubAck) :
     }
 }
 
+/**
+ * @brief Constructor to create a disconnect packet. In normal server mode, only MQTT5 is supposed to do that (MQTT3 has no concept of server-initiated
+ * disconnect packet). But, we also use it in the test client.
+ * @param disconnect
+ */
 MqttPacket::MqttPacket(const Disconnect &disconnect) :
     bites(disconnect.getLengthWithoutFixedHeader())
 {
-    this->protocolVersion = ProtocolVersion::Mqtt5;
+    this->protocolVersion = disconnect.protocolVersion;
 
     packetType = PacketType::DISCONNECT;
     first_byte = static_cast<char>(packetType) << 4;
 
-    writeByte(static_cast<uint8_t>(disconnect.reasonCode));
-    writeProperties(disconnect.propertyBuilder);
+    if (this->protocolVersion >= ProtocolVersion::Mqtt5)
+    {
+        writeByte(static_cast<uint8_t>(disconnect.reasonCode));
+        writeProperties(disconnect.propertyBuilder);
+    }
+
     calculateRemainingLength();
 }
 
@@ -244,7 +253,17 @@ MqttPacket::MqttPacket(const Connect &connect) :
     writeString(magicString);
 
     writeByte(static_cast<char>(protocolVersion));
-    writeByte(2); // flags; The only bit set is 'clean session'.
+
+    uint8_t flags = connect.clean_start << 1;
+
+    if (connect.will)
+    {
+        flags |= 4;
+        flags |= (connect.will->qos << 3);
+        flags |= (connect.will->retain << 5);
+    }
+
+    writeByte(flags);
 
     // Keep-alive
     writeUint16(60);
@@ -255,6 +274,17 @@ MqttPacket::MqttPacket(const Connect &connect) :
     }
 
     writeString(connect.clientid);
+
+    if (connect.will)
+    {
+        if (connect.protocolVersion >= ProtocolVersion::Mqtt5)
+        {
+            writeProperties(connect.will->propertyBuilder);
+        }
+
+        writeString(connect.will->topic);
+        writeString(connect.will->payload);
+    }
 
     calculateRemainingLength();
 }

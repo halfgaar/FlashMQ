@@ -14,6 +14,7 @@ class FlashMQTestClient
     std::shared_ptr<Settings> settings;
     std::shared_ptr<ThreadData> testServerWorkerThreadData;
     std::shared_ptr<Client> client;
+    std::shared_ptr<WillPublish> will;
 
     std::shared_ptr<ThreadData> dummyThreadData;
 
@@ -21,7 +22,7 @@ class FlashMQTestClient
 
     static int clientCount;
 
-    void waitForCondition(std::function<bool()> f);
+    void waitForCondition(std::function<bool()> f, int timeout = 1);
 
 
 public:
@@ -33,13 +34,16 @@ public:
 
     void start();
     void connectClient(ProtocolVersion protocolVersion);
+    void connectClient(ProtocolVersion protocolVersion, bool clean_start, uint32_t session_expiry_interval);
     void subscribe(const std::string topic, char qos);
     void publish(const std::string &topic, const std::string &payload, char qos);
     void clearReceivedLists();
+    void setWill(std::shared_ptr<WillPublish> &will);
+    void disconnect(ReasonCodes reason);
 
     void waitForQuit();
     void waitForConnack();
-    void waitForMessageCount(const size_t count);
+    void waitForMessageCount(const size_t count, int timeout = 1);
 };
 
 #endif // FLASHMQTESTCLIENT_H

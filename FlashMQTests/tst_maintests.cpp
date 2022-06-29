@@ -122,6 +122,12 @@ private slots:
 
     void testBasicsWithFlashMQTestClient();
 
+    void testMqtt3will();
+    void testMqtt3NoWillOnDisconnect();
+    void testMqtt5NoWillOnDisconnect();
+    void testMqtt5DelayedWill();
+    void testMqtt5DelayedWillAlwaysOnSessionEnd();
+
 };
 
 MainTests::MainTests()
@@ -1422,6 +1428,151 @@ void MainTests::testBasicsWithFlashMQTestClient()
     }
 
 
+}
+
+void MainTests::testMqtt3will()
+{
+    std::unique_ptr<FlashMQTestClient> sender = std::make_unique<FlashMQTestClient>();
+    sender->start();
+    std::shared_ptr<WillPublish> will = std::make_shared<WillPublish>();
+    will->topic = "my/will";
+    will->payload = "mypayload";
+    sender->setWill(will);
+    sender->connectClient(ProtocolVersion::Mqtt311);
+
+    FlashMQTestClient receiver;
+    receiver.start();
+    receiver.connectClient(ProtocolVersion::Mqtt311);
+    receiver.subscribe("my/will", 0);
+
+    sender.reset();
+
+    receiver.waitForMessageCount(1);
+
+    MqttPacket pubPack = receiver.receivedPublishes.front();
+    pubPack.parsePublishData();
+
+    QCOMPARE(pubPack.getPublishData().topic, "my/will");
+    QCOMPARE(pubPack.getPublishData().payload, "mypayload");
+    QCOMPARE(pubPack.getPublishData().qos, 0);
+}
+
+void MainTests::testMqtt3NoWillOnDisconnect()
+{
+    std::unique_ptr<FlashMQTestClient> sender = std::make_unique<FlashMQTestClient>();
+    sender->start();
+    std::shared_ptr<WillPublish> will = std::make_shared<WillPublish>();
+    will->topic = "my/will/testMqtt3NoWillOnDisconnect";
+    will->payload = "mypayload";
+    sender->setWill(will);
+    sender->connectClient(ProtocolVersion::Mqtt311);
+
+    FlashMQTestClient receiver;
+    receiver.start();
+    receiver.connectClient(ProtocolVersion::Mqtt311);
+    receiver.subscribe("my/will/testMqtt3NoWillOnDisconnect", 0);
+
+    receiver.clearReceivedLists();
+
+    sender->disconnect(ReasonCodes::Success);
+    sender.reset();
+
+    usleep(250000);
+
+    QVERIFY(receiver.receivedPackets.empty());
+}
+
+void MainTests::testMqtt5NoWillOnDisconnect()
+{
+    std::unique_ptr<FlashMQTestClient> sender = std::make_unique<FlashMQTestClient>();
+    sender->start();
+    std::shared_ptr<WillPublish> will = std::make_shared<WillPublish>();
+    will->topic = "my/will/testMqtt5NoWillOnDisconnect";
+    will->payload = "mypayload";
+    sender->setWill(will);
+    sender->connectClient(ProtocolVersion::Mqtt5);
+
+    FlashMQTestClient receiver;
+    receiver.start();
+    receiver.connectClient(ProtocolVersion::Mqtt5);
+    receiver.subscribe("my/will/testMqtt3NoWillOnDisconnect", 0);
+
+    receiver.clearReceivedLists();
+
+    sender->disconnect(ReasonCodes::Success);
+    sender.reset();
+
+    usleep(250000);
+
+    QVERIFY(receiver.receivedPackets.empty());
+}
+
+void MainTests::testMqtt5DelayedWill()
+{
+    std::unique_ptr<FlashMQTestClient> sender = std::make_unique<FlashMQTestClient>();
+    sender->start();
+    std::shared_ptr<WillPublish> will = std::make_shared<WillPublish>();
+    will->topic = "my/will/testMqtt5DelayedWill";
+    will->payload = "mypayload";
+    will->constructPropertyBuilder();
+    will->propertyBuilder->writeWillDelay(2);
+    sender->setWill(will);
+    sender->connectClient(ProtocolVersion::Mqtt5, true, 60);
+
+    FlashMQTestClient receiver;
+    receiver.start();
+    receiver.connectClient(ProtocolVersion::Mqtt5, true, 60);
+    receiver.subscribe("my/will/testMqtt5DelayedWill", 0);
+
+    receiver.clearReceivedLists();
+
+    sender.reset();
+
+    usleep(250000);
+    QVERIFY(receiver.receivedPackets.empty());
+
+    receiver.waitForMessageCount(1, 3);
+
+    MqttPacket pubPack = receiver.receivedPublishes.front();
+    pubPack.parsePublishData();
+
+    QCOMPARE(pubPack.getPublishData().topic, "my/will/testMqtt5DelayedWill");
+    QCOMPARE(pubPack.getPublishData().payload, "mypayload");
+    QCOMPARE(pubPack.getPublishData().qos, 0);
+}
+
+void MainTests::testMqtt5DelayedWillAlwaysOnSessionEnd()
+{
+    std::unique_ptr<FlashMQTestClient> sender = std::make_unique<FlashMQTestClient>();
+    sender->start();
+    std::shared_ptr<WillPublish> will = std::make_shared<WillPublish>();
+    will->topic = "my/will/testMqtt5DelayedWillAlwaysOnSessionEnd";
+    will->payload = "mypayload";
+    will->constructPropertyBuilder();
+    will->propertyBuilder->writeWillDelay(120); // This long delay should not matter, because the session expires after 2s.
+    sender->setWill(will);
+    sender->connectClient(ProtocolVersion::Mqtt5, true, 2);
+
+    FlashMQTestClient receiver;
+    receiver.start();
+    receiver.connectClient(ProtocolVersion::Mqtt5, true, 60);
+    receiver.subscribe("my/will/testMqtt5DelayedWillAlwaysOnSessionEnd", 0);
+
+    receiver.clearReceivedLists();
+
+    sender.reset();
+
+    usleep(1000000);
+    QVERIFY(receiver.receivedPackets.empty());
+
+    receiver.waitForMessageCount(1, 2);
+
+    MqttPacket pubPack = receiver.receivedPublishes.front();
+    pubPack.parsePublishData();
+
+    QCOMPARE(pubPack.getPublishData().topic, "my/will/testMqtt5DelayedWillAlwaysOnSessionEnd");
+    QCOMPARE(pubPack.getPublishData().payload, "mypayload");
+    QCOMPARE(pubPack.getPublishData().qos, 0);
 }
 
 

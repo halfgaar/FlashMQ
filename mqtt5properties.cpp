@@ -145,6 +145,11 @@ void Mqtt5PropertyBuilder::writeAuthenticationData(const std::string &data)
     writeStr(Mqtt5Properties::AuthenticationData, data);
 }
 
+void Mqtt5PropertyBuilder::writeWillDelay(uint32_t delay)
+{
+    writeUint32(Mqtt5Properties::WillDelayInterval, delay, genericBytes);
+}
+
 void Mqtt5PropertyBuilder::setNewUserProperties(const std::shared_ptr<std::vector<std::pair<std::string, std::string>>> &userProperties)
 {
     assert(!this->userProperties);
