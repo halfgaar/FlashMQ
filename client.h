@@ -93,7 +93,8 @@ class Client
 
     std::shared_ptr<WillPublish> willPublish;
 
-    std::shared_ptr<ThreadData> threadData;
+    const int epoll_fd;
+    std::weak_ptr<ThreadData> threadData; // The thread (data) that this client 'lives' in.
     std::mutex writeBufMutex;
 
     std::shared_ptr<Session> session;
@@ -139,7 +140,6 @@ public:
     void setAuthenticated(bool value) { authenticated = value;}
     bool getAuthenticated() { return authenticated; }
     bool hasConnectPacketSeen() { return connectPacketSeen; }
-    std::shared_ptr<ThreadData> getThreadData() { return threadData; }
     std::string &getClientId() { return this->clientid; }
     const std::string &getUsername() const { return this->username; }
     std::string &getMutableUsername();

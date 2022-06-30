@@ -45,6 +45,7 @@ Client::Client(int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, bool we
     ioWrapper(ssl, websocket, initialBufferSize, this),
     readbuf(initialBufferSize),
     writebuf(initialBufferSize),
+    epoll_fd(threadData ? threadData->epollfd : 0),
     threadData(threadData)
 {
     int flags = fcntl(fd, F_GETFL);
@@ -61,7 +62,7 @@ Client::Client(int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, bool we
 Client::~Client()
 {
     // Dummy clients, that I sometimes need just because the interface demands it but there's not actually a client, have no thread.
-    if (!this->threadData)
+    if (this->threadData.expired())
         return;
 
     if (disconnectReason.empty())
@@ -78,7 +79,7 @@ Client::~Client()
 
     if (fd > 0) // this check is essentially for testing, when working with a dummy fd.
     {
-        if (epoll_ctl(threadData->epollfd, EPOLL_CTL_DEL, fd, NULL) != 0)
+        if (epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, fd, NULL) != 0)
             logger->logf(LOG_ERR, "Removing fd %d of client '%s' from epoll produced error: %s", fd, repr().c_str(), strerror(errno));
         close(fd);
     }
@@ -272,7 +273,9 @@ void Client::writeMqttPacketAndBlameThisClient(const MqttPacket &packet)
     }
     catch (std::exception &ex)
     {
-        threadData->removeClientQueued(fd);
+        std::shared_ptr<ThreadData> td = this->threadData.lock();
+        if (td)
+            td->removeClientQueued(fd);
     }
 }
 
@@ -414,7 +417,7 @@ uint16_t Client::getMaxIncomingTopicAliasValue() const
 
 void Client::sendOrQueueWill()
 {
-    if (!this->threadData)
+    if (this->threadData.expired())
         return;
 
     if (!this->willPublish)
@@ -447,7 +450,10 @@ void Client::serverInitiatedDisconnect(ReasonCodes reason)
     else
     {
         markAsDisconnecting();
-        threadData->removeClientQueued(fd);
+
+        std::shared_ptr<ThreadData> td = this->threadData.lock();
+        if (td)
+            td->removeClientQueued(fd);
     }
 }
 
@@ -573,7 +579,7 @@ void Client::setReadyForWriting(bool val)
     memset(&ev, 0, sizeof (struct epoll_event));
     ev.data.fd = fd;
     ev.events = readyForReading*EPOLLIN | readyForWriting*EPOLLOUT;
-    check<std::runtime_error>(epoll_ctl(threadData->epollfd, EPOLL_CTL_MOD, fd, &ev));
+    check<std::runtime_error>(epoll_ctl(this->epoll_fd, EPOLL_CTL_MOD, fd, &ev));
 }
 
 void Client::setReadyForReading(bool val)
@@ -606,7 +612,7 @@ void Client::setReadyForReading(bool val)
         std::lock_guard<std::mutex> locker(writeBufMutex);
 
         ev.events = readyForReading*EPOLLIN | readyForWriting*EPOLLOUT;
-        check<std::runtime_error>(epoll_ctl(threadData->epollfd, EPOLL_CTL_MOD, fd, &ev));
+        check<std::runtime_error>(epoll_ctl(this->epoll_fd, EPOLL_CTL_MOD, fd, &ev));
     }
 }
 

@@ -328,7 +328,7 @@ void MqttPacket::handleConnect()
 
     std::shared_ptr<SubscriptionStore> subscriptionStore = MainApp::getMainApp()->getSubscriptionStore();
 
-    sender->getThreadData()->mqttConnectCounter.inc();
+    ThreadGlobals::getThreadData()->mqttConnectCounter.inc();
 
     uint16_t variable_header_length = readTwoBytesToUInt16();
 
@@ -864,7 +864,7 @@ void MqttPacket::handleDisconnect()
     sender->markAsDisconnecting();
     if (reasonCode == ReasonCodes::Success)
         sender->clearWill();
-    sender->getThreadData()->removeClientQueued(sender);
+    ThreadGlobals::getThreadData()->removeClientQueued(sender);
 }
 
 void MqttPacket::handleSubscribe()
@@ -1131,7 +1131,7 @@ void MqttPacket::handlePublish()
 
     ReasonCodes ackCode = ReasonCodes::Success;
 
-    sender->getThreadData()->receivedMessageCounter.inc();
+    ThreadGlobals::getThreadData()->receivedMessageCounter.inc();
 
     Authentication &authentication = *ThreadGlobals::getAuth();
 

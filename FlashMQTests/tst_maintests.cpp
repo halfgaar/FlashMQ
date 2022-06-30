@@ -1002,6 +1002,7 @@ void MainTests::testSavingSessions()
         // Kind of a hack...
         Authentication auth(*settings.get());
         ThreadGlobals::assign(&auth);
+        ThreadGlobals::assignThreadData(t.get());
 
         std::shared_ptr<Client> c1(new Client(0, t, nullptr, false, nullptr, settings.get(), false));
         c1->setClientProperties(ProtocolVersion::Mqtt311, "c1", "user1", true, 60);
