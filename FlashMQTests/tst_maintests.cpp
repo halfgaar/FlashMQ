@@ -228,9 +228,10 @@ void MainTests::test_circbuf_unwrapped_doubling()
     {
         QCOMPARE(tail[i], i+1);
     }
-    QCOMPARE(buf.buf[64], 0); // Vacant place, because of the circulerness.
+    QCOMPARE(buf.buf[63], 0); // Vacant place, because of the circulerness.
 
     MYCASTCOMPARE(buf.head, 63);
+    QCOMPARE(buf.freeSpace(), 0);
 
     buf.doubleSize();
     tail = buf.tailPtr();
