@@ -77,7 +77,7 @@ std::string str_tolower(std::string s);
 bool stringTruthiness(const std::string &val);
 bool isPowerOfTwo(int val);
 
-bool parseHttpHeader(CirBuf &buf, std::string &websocket_key, int &websocket_version);
+bool parseHttpHeader(CirBuf &buf, std::string &websocket_key, int &websocket_version, std::string &subprotocol);
 
 std::vector<char> base64Decode(const std::string &s);
 std::string base64Encode(const unsigned char *input, const int length);
@@ -85,7 +85,7 @@ std::string generateWebsocketAcceptString(const std::string &websocketKey);
 
 std::string generateInvalidWebsocketVersionHttpHeaders(const int wantedVersion);
 std::string generateBadHttpRequestReponse(const std::string &msg);
-std::string generateWebsocketAnswer(const std::string &acceptString);
+std::string generateWebsocketAnswer(const std::string &acceptString, const std::string &subprotocol);
 
 void testSsl(const std::string &fullchain, const std::string &privkey);
 

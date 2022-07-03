@@ -348,7 +348,7 @@ bool isPowerOfTwo(int n)
     return (n != 0) && (n & (n - 1)) == 0;
 }
 
-bool parseHttpHeader(CirBuf &buf, std::string &websocket_key, int &websocket_version)
+bool parseHttpHeader(CirBuf &buf, std::string &websocket_key, int &websocket_version, std::string &subprotocol)
 {
     const std::string s(buf.tailPtr(), buf.usedBytes());
     std::istringstream is(s);
@@ -397,8 +397,11 @@ bool parseHttpHeader(CirBuf &buf, std::string &websocket_key, int &websocket_ver
             websocket_key = value;
         else if (name == "sec-websocket-version")
             websocket_version = stoi(value);
-        else if (name == "sec-websocket-protocol" && value_lower == "mqtt")
+        else if (name == "sec-websocket-protocol" && strContains(value_lower, "mqtt"))
+        {
+            subprotocol = value;
             subprotocol_seen = true;
+        }
     }
 
     if (doubleEmptyLine)
@@ -489,14 +492,14 @@ std::string generateBadHttpRequestReponse(const std::string &msg)
     return oss.str();
 }
 
-std::string generateWebsocketAnswer(const std::string &acceptString)
+std::string generateWebsocketAnswer(const std::string &acceptString, const std::string &subprotocol)
 {
     std::ostringstream oss;
     oss << "HTTP/1.1 101 Switching Protocols\r\n";
     oss << "Upgrade: websocket\r\n";
     oss << "Connection: Upgrade\r\n";
     oss << "Sec-WebSocket-Accept: " << acceptString << "\r\n";
-    oss << "Sec-WebSocket-Protocol: mqtt\r\n";
+    oss << "Sec-WebSocket-Protocol: " << subprotocol << "\r\n";
     oss << "\r\n";
     oss.flush();
     return oss.str();

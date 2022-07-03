@@ -371,7 +371,8 @@ ssize_t IoWrapper::readWebsocketAndOrSsl(int fd, void *buf, size_t nbytes, IoWra
                 {
                     std::string websocketKey;
                     int websocketVersion;
-                    if (parseHttpHeader(websocketPendingBytes, websocketKey, websocketVersion))
+                    std::string subprotocol;
+                    if (parseHttpHeader(websocketPendingBytes, websocketKey, websocketVersion, subprotocol))
                     {
                         if (websocketKey.empty())
                             throw BadHttpRequest("No websocket key specified.");
@@ -380,7 +381,7 @@ ssize_t IoWrapper::readWebsocketAndOrSsl(int fd, void *buf, size_t nbytes, IoWra
 
                         const std::string acceptString = generateWebsocketAcceptString(websocketKey);
 
-                        std::string answer = generateWebsocketAnswer(acceptString);
+                        std::string answer = generateWebsocketAnswer(acceptString, subprotocol);
                         parentClient->writeText(answer);
                         websocketState = WebsocketState::Upgrading;
                         websocketPendingBytes.reset();
