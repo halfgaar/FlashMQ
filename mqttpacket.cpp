@@ -151,8 +151,7 @@ MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, Publish &_publish)
     first_byte |= (_publish.qos << 1);
     first_byte |= (static_cast<char>(_publish.retain) & 0b00000001);
 
-    writeUint16(publishData.topic.length());
-    writeBytes(publishData.topic.c_str(), publishData.topic.length());
+    writeString(publishData.topic);
 
     if (publishData.qos)
     {
