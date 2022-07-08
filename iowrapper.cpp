@@ -22,8 +22,8 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "logger.h"
 #include "client.h"
 
-IncompleteSslWrite::IncompleteSslWrite(const void *buf, size_t nbytes) :
-    buf(buf),
+IncompleteSslWrite::IncompleteSslWrite(size_t nbytes) :
+    valid(true),
     nbytes(nbytes)
 {
 
@@ -31,13 +31,13 @@ IncompleteSslWrite::IncompleteSslWrite(const void *buf, size_t nbytes) :
 
 void IncompleteSslWrite::reset()
 {
-    buf = nullptr;
+    valid = false;
     nbytes = 0;
 }
 
 bool IncompleteSslWrite::hasPendingWrite() const
 {
-    return buf != nullptr;
+    return valid;
 }
 
 void IncompleteWebsocketRead::reset()
@@ -264,7 +264,6 @@ ssize_t IoWrapper::writeOrSslWrite(int fd, const void *buf, size_t nbytes, IoWra
     }
     else
     {
-        const void *buf_ = buf;
         size_t nbytes_ = nbytes;
 
         /*
@@ -273,7 +272,6 @@ ssize_t IoWrapper::writeOrSslWrite(int fd, const void *buf, size_t nbytes, IoWra
          */
         if (this->incompleteSslWrite.hasPendingWrite())
         {
-            buf_ = this->incompleteSslWrite.buf;
             nbytes_ = this->incompleteSslWrite.nbytes;
         }
 
@@ -285,7 +283,7 @@ ssize_t IoWrapper::writeOrSslWrite(int fd, const void *buf, size_t nbytes, IoWra
 
         ERR_clear_error();
         char sslErrorBuf[OPENSSL_ERROR_STRING_SIZE];
-        n = SSL_write(ssl, buf_, nbytes_);
+        n = SSL_write(ssl, buf, nbytes_);
 
         if (n <= 0)
         {
@@ -295,7 +293,7 @@ ssize_t IoWrapper::writeOrSslWrite(int fd, const void *buf, size_t nbytes, IoWra
             {
                 logger->logf(LOG_DEBUG, "SSL Write is incomplete: %d. Will be retried later.", err);
                 *error = IoWrapResult::Wouldblock;
-                IncompleteSslWrite sslAction(buf_, nbytes_);
+                IncompleteSslWrite sslAction(nbytes_);
                 this->incompleteSslWrite = sslAction;
                 if (err == SSL_ERROR_WANT_READ)
                     this->sslWriteWantsRead = true;

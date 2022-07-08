@@ -56,17 +56,21 @@ enum class WebsocketOpcode
     Unknown = 0xF
 };
 
-/*
+/**
+ * @brief The IncompleteSslWrite struct facilities the SSL retry
+ *
  * OpenSSL doc: "When a write function call has to be repeated because SSL_get_error(3) returned
  * SSL_ERROR_WANT_READ or SSL_ERROR_WANT_WRITE, it must be repeated with the same arguments"
+ *
+ * Note that we use SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER.
  */
 struct IncompleteSslWrite
 {
-    const void *buf = nullptr;
+    bool valid = false;
     size_t nbytes = 0;
 
     IncompleteSslWrite() = default;
-    IncompleteSslWrite(const void *buf, size_t nbytes);
+    IncompleteSslWrite(size_t nbytes);
     bool hasPendingWrite() const;
 
     void reset();
