@@ -245,8 +245,8 @@ void ThreadData::sendAllDisconnects()
 
 void ThreadData::removeQueuedClients()
 {
-    std::vector<int> fds;
-    fds.reserve(1024); // 1024 is arbitrary...
+    // Using shared pointers to have a claiming reference in case we lose the clients between the two locks.
+    std::vector<std::shared_ptr<Client>> clients;
 
     {
         std::lock_guard<std::mutex> lck2(clientsToRemoveMutex);
@@ -256,8 +256,7 @@ void ThreadData::removeQueuedClients()
             std::shared_ptr<Client> client = c.lock();
             if (client)
             {
-                int fd = client->getFd();
-                fds.push_back(fd);
+                clients.push_back(client);
             }
         }
 
@@ -266,8 +265,9 @@ void ThreadData::removeQueuedClients()
 
     {
         std::lock_guard<std::mutex> lck(clients_by_fd_mutex);
-        for(int fd : fds)
+        for(const std::shared_ptr<Client> &client : clients)
         {
+            int fd = client->getFd();
             clients_by_fd.erase(fd);
         }
     }
