@@ -294,7 +294,13 @@ void ThreadData::giveClient(std::shared_ptr<Client> client)
 std::shared_ptr<Client> ThreadData::getClient(int fd)
 {
     std::lock_guard<std::mutex> lck(clients_by_fd_mutex);
-    return this->clients_by_fd[fd];
+
+    auto pos = clients_by_fd.find(fd);
+
+    if (pos == clients_by_fd.end())
+        return std::shared_ptr<Client>();
+
+    return pos->second;
 }
 
 void ThreadData::removeClientQueued(const std::shared_ptr<Client> &client)
