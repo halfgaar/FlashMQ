@@ -491,6 +491,7 @@ void MainApp::start()
             ThreadGlobals::assign(&auth);
 
             std::shared_ptr<ThreadData> threaddata = std::make_shared<ThreadData>(0, settings);
+            ThreadGlobals::assignThreadData(threaddata.get());
 
             std::shared_ptr<Client> client = std::make_shared<Client>(fd, threaddata, nullptr, fuzzWebsockets, nullptr, settings.get(), true);
             std::shared_ptr<Client> subscriber = std::make_shared<Client>(fdnull, threaddata, nullptr, fuzzWebsockets, nullptr, settings.get(), true);
