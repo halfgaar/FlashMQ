@@ -186,19 +186,18 @@ void FlashMQTestClient::subscribe(const std::string topic, char qos)
     }
 }
 
-void FlashMQTestClient::publish(const std::string &topic, const std::string &payload, char qos)
+void FlashMQTestClient::publish(Publish &pub)
 {
     clearReceivedLists();
 
     const uint16_t packet_id = 77;
 
-    Publish pub(topic, payload, qos);
     MqttPacket pubPack(client->getProtocolVersion(), pub);
-    if (qos > 0)
+    if (pub.qos > 0)
         pubPack.setPacketId(packet_id);
     client->writeMqttPacketAndBlameThisClient(pubPack);
 
-    if (qos == 1)
+    if (pub.qos == 1)
     {
         waitForCondition([&]() {
            return this->receivedPackets.size() == 1;
@@ -213,7 +212,7 @@ void FlashMQTestClient::publish(const std::string &topic, const std::string &pay
         if (pubAckPack.getPacketId() != packet_id || this->receivedPackets.size() != 1)
             throw std::runtime_error("Packet ID mismatch on QoS 1 publish or packet count wrong.");
     }
-    else if (qos == 2)
+    else if (pub.qos == 2)
     {
         waitForCondition([&]() {
            return this->receivedPackets.size() >= 2;
@@ -233,6 +232,12 @@ void FlashMQTestClient::publish(const std::string &topic, const std::string &pay
         if (pubRecPack.getPacketId() != packet_id || pubCompPack.getPacketId() != packet_id)
             throw std::runtime_error("Packet ID mismatch on QoS 2 publish.");
     }
+}
+
+void FlashMQTestClient::publish(const std::string &topic, const std::string &payload, char qos)
+{
+    Publish pub(topic, payload, qos);
+    publish(pub);
 }
 
 void FlashMQTestClient::waitForQuit()

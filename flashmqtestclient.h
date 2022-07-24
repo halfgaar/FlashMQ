@@ -26,8 +26,8 @@ class FlashMQTestClient
 
 
 public:
-    std::list<MqttPacket> receivedPackets;
-    std::list<MqttPacket> receivedPublishes;
+    std::vector<MqttPacket> receivedPackets;
+    std::vector<MqttPacket> receivedPublishes;
 
     FlashMQTestClient();
     ~FlashMQTestClient();
@@ -37,6 +37,7 @@ public:
     void connectClient(ProtocolVersion protocolVersion, bool clean_start, uint32_t session_expiry_interval);
     void subscribe(const std::string topic, char qos);
     void publish(const std::string &topic, const std::string &payload, char qos);
+    void publish(Publish &pub);
     void clearReceivedLists();
     void setWill(std::shared_ptr<WillPublish> &will);
     void disconnect(ReasonCodes reason);

@@ -128,6 +128,8 @@ private slots:
     void testMqtt5DelayedWill();
     void testMqtt5DelayedWillAlwaysOnSessionEnd();
 
+    void testIncomingTopicAlias();
+
 };
 
 MainTests::MainTests()
@@ -1573,6 +1575,44 @@ void MainTests::testMqtt5DelayedWillAlwaysOnSessionEnd()
     QCOMPARE(pubPack.getPublishData().topic, "my/will/testMqtt5DelayedWillAlwaysOnSessionEnd");
     QCOMPARE(pubPack.getPublishData().payload, "mypayload");
     QCOMPARE(pubPack.getPublishData().qos, 0);
+}
+
+void MainTests::testIncomingTopicAlias()
+{
+    FlashMQTestClient receiver;
+    receiver.start();
+    receiver.connectClient(ProtocolVersion::Mqtt5);
+
+    receiver.subscribe("just/a/path", 0);
+
+    FlashMQTestClient sender;
+    sender.start();
+    sender.connectClient(ProtocolVersion::Mqtt5);
+
+    {
+        Publish pub("just/a/path", "AAAAA", 0);
+        pub.constructPropertyBuilder();
+        pub.propertyBuilder->writeTopicAlias(1);
+        sender.publish(pub);
+    }
+
+    {
+        Publish pub2("", "BBBBB", 0);
+        pub2.constructPropertyBuilder();
+        pub2.propertyBuilder->writeTopicAlias(1);
+        sender.publish(pub2);
+    }
+
+    receiver.waitForMessageCount(2);
+
+    const MqttPacket &pack1 = receiver.receivedPublishes.at(0);
+    const MqttPacket &pack2 = receiver.receivedPublishes.at(1);
+
+    QCOMPARE(pack1.getTopic(), "just/a/path");
+    QCOMPARE(pack1.getPayloadCopy(), "AAAAA");
+
+    QCOMPARE(pack2.getTopic(), "just/a/path");
+    QCOMPARE(pack2.getPayloadCopy(), "BBBBB");
 }
 
 
