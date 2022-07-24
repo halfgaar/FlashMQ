@@ -728,6 +728,12 @@ void MainApp::loadConfig()
     if (settings->listeners.empty())
     {
         std::shared_ptr<Listener> defaultListener = std::make_shared<Listener>();
+
+        // Kind of a quick hack to do this this way.
+#ifdef TESTING
+        defaultListener->port = 21883;
+#endif
+
         defaultListener->isValid();
         settings->listeners.push_back(defaultListener);
     }

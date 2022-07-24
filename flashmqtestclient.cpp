@@ -95,7 +95,7 @@ void FlashMQTestClient::connectClient(ProtocolVersion protocolVersion, bool clea
 
     servaddr.sin_family = AF_INET;
     servaddr.sin_addr.s_addr = inet_addr(hostname.c_str());
-    servaddr.sin_port = htons(1883);
+    servaddr.sin_port = htons(21883);
 
     int flags = fcntl(sockfd, F_GETFL);
     fcntl(sockfd, F_SETFL, flags | O_NONBLOCK);

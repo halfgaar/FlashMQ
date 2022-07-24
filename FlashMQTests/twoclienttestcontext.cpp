@@ -26,9 +26,9 @@ TwoClientTestContext::TwoClientTestContext(int clientNr, QObject *parent) : QObj
 {
     QHostInfo targetHostInfo = QHostInfo::fromName("localhost");
     QHostAddress targetHost(targetHostInfo.addresses().first());
-    sender.reset(new QMQTT::Client(targetHost));
+    sender.reset(new QMQTT::Client(targetHost, 21883));
     sender->setClientId(QString("Sender%1").arg(clientNr));
-    receiver.reset(new QMQTT::Client(targetHost));
+    receiver.reset(new QMQTT::Client(targetHost, 21883));
     receiver->setClientId(QString("Receiver%1").arg(clientNr));
 
     connect(sender.data(), &QMQTT::Client::error, this, &TwoClientTestContext::onClientError);
