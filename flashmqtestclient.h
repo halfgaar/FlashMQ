@@ -35,6 +35,7 @@ public:
     void start();
     void connectClient(ProtocolVersion protocolVersion);
     void connectClient(ProtocolVersion protocolVersion, bool clean_start, uint32_t session_expiry_interval);
+    void connectClient(ProtocolVersion protocolVersion, bool clean_start, uint32_t session_expiry_interval, std::function<void(Connect&)> manipulateConnect);
     void subscribe(const std::string topic, char qos);
     void publish(const std::string &topic, const std::string &payload, char qos);
     void publish(Publish &pub);

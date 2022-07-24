@@ -81,10 +81,15 @@ void FlashMQTestClient::start()
 
 void FlashMQTestClient::connectClient(ProtocolVersion protocolVersion)
 {
-    connectClient(protocolVersion, true, 0);
+    connectClient(protocolVersion, true, 0, [](Connect&){});
 }
 
 void FlashMQTestClient::connectClient(ProtocolVersion protocolVersion, bool clean_start, uint32_t session_expiry_interval)
+{
+    connectClient(protocolVersion, clean_start, session_expiry_interval, [](Connect&){});
+}
+
+void FlashMQTestClient::connectClient(ProtocolVersion protocolVersion, bool clean_start, uint32_t session_expiry_interval, std::function<void(Connect&)> manipulateConnect)
 {
     int sockfd = check<std::runtime_error>(socket(AF_INET, SOCK_STREAM, 0));
 
@@ -154,6 +159,9 @@ void FlashMQTestClient::connectClient(ProtocolVersion protocolVersion, bool clea
     connect.clean_start = clean_start;
     connect.constructPropertyBuilder();
     connect.propertyBuilder->writeSessionExpiry(session_expiry_interval);
+
+    manipulateConnect(connect);
+
     MqttPacket connectPack(connect);
     this->client->writeMqttPacketAndBlameThisClient(connectPack);
 

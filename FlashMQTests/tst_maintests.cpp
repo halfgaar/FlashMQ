@@ -129,6 +129,7 @@ private slots:
     void testMqtt5DelayedWillAlwaysOnSessionEnd();
 
     void testIncomingTopicAlias();
+    void testOutgoingTopicAlias();
 
 };
 
@@ -1613,6 +1614,57 @@ void MainTests::testIncomingTopicAlias()
 
     QCOMPARE(pack2.getTopic(), "just/a/path");
     QCOMPARE(pack2.getPayloadCopy(), "BBBBB");
+}
+
+void MainTests::testOutgoingTopicAlias()
+{
+    FlashMQTestClient receiver1;
+    receiver1.start();
+    receiver1.connectClient(ProtocolVersion::Mqtt5, true, 300, [](Connect &connect){
+        connect.propertyBuilder->writeMaxTopicAliases(10);
+    });
+    receiver1.subscribe("don't/be/a/laywer", 0);
+
+    FlashMQTestClient receiver2;
+    receiver2.start();
+    receiver2.connectClient(ProtocolVersion::Mqtt5);
+    receiver2.subscribe("don't/be/a/laywer", 0);
+
+    FlashMQTestClient sender;
+    sender.start();
+    sender.connectClient(ProtocolVersion::Mqtt311);
+
+    sender.publish("don't/be/a/laywer", "ABCDEF", 0);
+    sender.publish("don't/be/a/laywer", "ABCDEF", 0);
+
+    receiver1.waitForMessageCount(2);
+    receiver2.waitForMessageCount(2);
+
+    {
+        const MqttPacket &fullPacket = receiver1.receivedPublishes.at(0);
+        QCOMPARE(fullPacket.getTopic(), "don't/be/a/laywer");
+        QCOMPARE(fullPacket.getPayloadCopy(), "ABCDEF");
+        MYCASTCOMPARE(fullPacket.bites.size(), 31);
+        std::string arrayContent(fullPacket.bites.data(), fullPacket.bites.size());
+        QVERIFY(strContains(arrayContent, "don't/be/a/laywer"));
+    }
+
+    {
+        const MqttPacket &shorterPacket = receiver1.receivedPublishes.at(1);
+        QCOMPARE(shorterPacket.getTopic(), "don't/be/a/laywer");
+        QCOMPARE(shorterPacket.getPayloadCopy(), "ABCDEF");
+        MYCASTCOMPARE(shorterPacket.bites.size(), 14);
+        std::string arrayContent(shorterPacket.bites.data(), shorterPacket.bites.size());
+        QVERIFY(!strContains(arrayContent, "don't/be/a/laywer"));
+    }
+
+    MYCASTCOMPARE(receiver2.receivedPublishes.size(), 2);
+
+    std::for_each(receiver2.receivedPublishes.begin(), receiver2.receivedPublishes.end(), [](MqttPacket &packet) {
+        QCOMPARE(packet.getTopic(), "don't/be/a/laywer");
+        QCOMPARE(packet.getPayloadCopy(), "ABCDEF");
+        MYCASTCOMPARE(packet.bites.size(), 28); // That's 3 less than the other one, because the alias id is not there.
+    });
 }
 
 
