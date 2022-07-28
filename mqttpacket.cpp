@@ -1011,6 +1011,8 @@ void MqttPacket::handleSubscribe()
 
     Authentication &authentication = *ThreadGlobals::getAuth();
 
+    std::forward_list<SubscriptionTuple> deferredSubscribes;
+
     std::list<ReasonCodes> subs_reponse_codes;
     while (remainingAfterPos() > 0)
     {
@@ -1031,8 +1033,7 @@ void MqttPacket::handleSubscribe()
         splitTopic(topic, subtopics);
         if (authentication.aclCheck(sender->getClientId(), sender->getUsername(), topic, subtopics, AclAccess::subscribe, qos, false, getUserProperties()) == AuthResult::success)
         {
-            logger->logf(LOG_SUBSCRIBE, "Client '%s' subscribed to '%s' QoS %d", sender->repr().c_str(), topic.c_str(), qos);
-            MainApp::getMainApp()->getSubscriptionStore()->addSubscription(sender, topic, subtopics, qos);
+            deferredSubscribes.emplace_front(topic, subtopics, qos);
             subs_reponse_codes.push_back(static_cast<ReasonCodes>(qos));
         }
         else
@@ -1054,6 +1055,13 @@ void MqttPacket::handleSubscribe()
     SubAck subAck(this->protocolVersion, packet_id, subs_reponse_codes);
     MqttPacket response(subAck);
     sender->writeMqttPacket(response);
+
+    // Adding the subscription will also send publishes for retained messages, so that's why we're doing it at the end.
+    for(const SubscriptionTuple &tup : deferredSubscribes)
+    {
+        logger->logf(LOG_SUBSCRIBE, "Client '%s' subscribed to '%s' QoS %d", sender->repr().c_str(), tup.topic.c_str(), tup.qos);
+        MainApp::getMainApp()->getSubscriptionStore()->addSubscription(sender, tup.topic, tup.subtopics, tup.qos);
+    }
 }
 
 void MqttPacket::handleUnsubscribe()
@@ -1802,6 +1810,14 @@ void MqttPacket::readIntoBuf(CirBuf &buf) const
     }
 
     buf.write(bites.data(), bites.size());
+}
+
+SubscriptionTuple::SubscriptionTuple(const std::string &topic, const std::vector<std::string> &subtopics, char qos) :
+    topic(topic),
+    subtopics(subtopics),
+    qos(qos)
+{
+
 }
 
 

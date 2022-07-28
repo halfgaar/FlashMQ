@@ -163,4 +163,13 @@ public:
     const std::vector<std::pair<std::string, std::string>> *getUserProperties() const;
 };
 
+struct SubscriptionTuple
+{
+    const std::string topic;
+    const std::vector<std::string> subtopics;
+    const char qos;
+
+    SubscriptionTuple(const std::string &topic, const std::vector<std::string> &subtopics, char qos);
+};
+
 #endif // MQTTPACKET_H

@@ -436,27 +436,31 @@ void MainTests::test_retained()
 
 void MainTests::test_retained_changed()
 {
-    TwoClientTestContext testContext;
+    FlashMQTestClient sender;
+    sender.start();
+    sender.connectClient(ProtocolVersion::Mqtt311);
 
-    QByteArray payload = "We are testing";
-    QString topic = "retaintopic";
+    const std::string topic = "retaintopic";
 
-    testContext.connectSender();
-    testContext.publish(topic, payload, true);
+    Publish p(topic, "We are testing", 0);
+    p.retain = true;
+    sender.publish(p);
 
-    payload = "Changed payload";
+    p.payload = "Changed payload";
+    sender.publish(p);
 
-    testContext.publish(topic, payload, true);
+    FlashMQTestClient receiver;
+    receiver.start();
+    receiver.connectClient(ProtocolVersion::Mqtt5);
+    receiver.subscribe(topic, 0);
 
-    testContext.connectReceiver();
-    testContext.subscribeReceiver(topic);
-    testContext.waitReceiverReceived(1);
+    receiver.waitForMessageCount(1);
 
-    QCOMPARE(testContext.receivedMessages.count(), 1);
+    MYCASTCOMPARE(receiver.receivedPublishes.size(), 1);
 
-    QMQTT::Message msg = testContext.receivedMessages.first();
-    QCOMPARE(msg.payload(), payload);
-    QVERIFY(msg.retain());
+    MqttPacket &pack = receiver.receivedPublishes.front();
+    QCOMPARE(pack.getPayloadCopy(), p.payload);
+    QVERIFY(pack.getRetain());
 }
 
 void MainTests::test_retained_removed()
