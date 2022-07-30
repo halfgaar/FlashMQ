@@ -60,6 +60,7 @@ void ThreadData::start(thread_f f)
     const char *c_str = name.c_str();
     pthread_setname_np(native, c_str);
 
+    /*
     cpu_set_t cpuset;
     CPU_ZERO(&cpuset);
     CPU_SET(threadnr, &cpuset);
@@ -73,6 +74,7 @@ void ThreadData::start(thread_f f)
             pinned_cpu = j;
 
     logger->logf(LOG_NOTICE, "Thread '%s' pinned to CPU %d", c_str, pinned_cpu);
+    */
 }
 
 void ThreadData::quit()
