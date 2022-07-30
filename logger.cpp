@@ -159,6 +159,8 @@ void Logger::setLogPath(const std::string &path)
 
 void Logger::setFlags(bool logDebug, bool logSubscriptions, bool quiet)
 {
+    curLogLevel = LOG_ERR | LOG_WARNING | LOG_NOTICE | LOG_INFO | LOG_SUBSCRIBE | LOG_UNSUBSCRIBE ;
+
     if (logDebug)
         curLogLevel |= LOG_DEBUG;
     else
