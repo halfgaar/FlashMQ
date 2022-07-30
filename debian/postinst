@@ -1,13 +1,23 @@
 #!/bin/bash -e
 
-if ! systemctl is-enabled --quiet flashmq.service; then
-  echo "Enabling FlashMQ systemd service."
-  systemctl enable flashmq.service
+FRESH_INSTALL=true
+
+if [[ "$1" == "configure" && "$2" != "" ]]; then
+  FRESH_INSTALL=false
 fi
 
-if ! systemctl is-active --quiet flashmq.service; then
-  echo "FlashMQ is not running, so we're starting it."
+if "$FRESH_INSTALL"; then
+  echo "Fresh installation: enabling FlashMQ systemd service."
+  systemctl enable flashmq.service
+else
+  echo "This is not a fresh installation: not (re)enabling FlashMQ systemd service."
+  # In case the service file changes, and to prevent systemd warnings 'service file changed' on upgrade.
+  systemctl daemon-reload
+fi
+
+if systemctl is-enabled --quiet flashmq.service; then
+  echo "FlashMQ is marked as enabled, so starting it."
   systemctl start flashmq.service
 else
-  echo "FlashMQ is already running."
+  echo "FlashMQ is marked as disabled, so not starting it."
 fi
