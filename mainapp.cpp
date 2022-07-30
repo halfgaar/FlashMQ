@@ -707,7 +707,8 @@ void MainApp::setlimits()
     struct rlimit v = { nofile, nofile };
     if (setrlimit(RLIMIT_NOFILE, &v) < 0)
     {
-        logger->logf(LOG_ERR, "Setting ulimit nofile failed: '%s'. This means the default is used.", strerror(errno));
+        logger->logf(LOG_ERR, "Setting ulimit nofile failed: '%s'. This means the default is used. Note. It's also subject to systemd's 'LimitNOFILE', "
+                              "which in turn is maxed to '/proc/sys/fs/nr_open', which can be set like 'sysctl fs.nr_open=15000000'", strerror(errno));
     }
 }
 
