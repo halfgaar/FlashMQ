@@ -1575,7 +1575,7 @@ void MainTests::testMqtt5DelayedWill()
     usleep(250000);
     QVERIFY(receiver.receivedPackets.empty());
 
-    receiver.waitForMessageCount(1, 3);
+    receiver.waitForMessageCount(1, 5);
 
     MqttPacket pubPack = receiver.receivedPublishes.front();
     pubPack.parsePublishData();
