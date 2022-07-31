@@ -95,22 +95,36 @@ bool PublishCopyFactory::getRetain() const
     return publish->retain;
 }
 
-Publish PublishCopyFactory::getNewPublish() const
+/**
+ * @brief PublishCopyFactory::getNewPublish gets a new publish object from an existing packet or publish.
+ * @param new_max_qos
+ * @return
+ *
+ * It being a public function, the idea is that it's only needed for creating publish objects for storing QoS messages for off-line
+ * clients. For on-line clients, you're always making a packet (with getOptimumPacket()).
+ */
+Publish PublishCopyFactory::getNewPublish(char new_max_qos) const
 {
+    // (At time of writing) we only need to construct new publishes for QoS (because we're storing QoS publishes for offline clients). If
+    // you're doing it elsewhere, it's a bug.
+    assert(orgQos > 0);
+    assert(new_max_qos > 0);
+
+    const char actualQos = getEffectiveQos(new_max_qos);
+
     if (packet)
     {
         assert(packet->getQos() > 0);
-        assert(orgQos > 0); // We only need to construct new publishes for QoS. If you're doing it elsewhere, it's a bug.
 
         Publish p(packet->getPublishData());
-        p.qos = orgQos;
+        p.qos = actualQos;
         return p;
     }
 
     assert(publish->qos > 0); // Same check as above, but then for Publish objects.
 
     Publish p(*publish);
-    p.qos = orgQos;
+    p.qos = actualQos;
     return p;
 }
 

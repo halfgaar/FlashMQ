@@ -34,7 +34,7 @@ public:
     const std::string &getTopic() const;
     const std::vector<std::string> &getSubtopics();
     bool getRetain() const;
-    Publish getNewPublish() const;
+    Publish getNewPublish(char new_max_qos) const;
     std::shared_ptr<Client> getSender();
     const std::vector<std::pair<std::string, std::string>> *getUserProperties() const;
 

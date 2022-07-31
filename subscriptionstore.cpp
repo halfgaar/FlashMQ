@@ -253,7 +253,7 @@ void SubscriptionStore::registerClientAndKickExistingOne(std::shared_ptr<Client>
         }
     }
 
-    if (!session || session->getDestroyOnDisconnect())
+    if (!session || session->getDestroyOnDisconnect() || clean_start)
     {
         session = std::make_shared<Session>();
 

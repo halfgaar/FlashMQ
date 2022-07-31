@@ -133,6 +133,8 @@ private slots:
 
     void testReceivingRetainedMessageWithQoS();
 
+    void testQosDowngradeOnOfflineClients();
+
 };
 
 MainTests::MainTests()
@@ -1748,6 +1750,66 @@ void MainTests::testReceivingRetainedMessageWithQoS()
     }
 
     MYCASTCOMPARE(9, testCount);
+}
+
+void MainTests::testQosDowngradeOnOfflineClients()
+{
+    int testCount = 0;
+
+    std::vector<std::string> subscribePaths {"topic1/FOOBAR", "+/+", "#"};
+
+    for (char sendQos = 1; sendQos < 3; sendQos++)
+    {
+        for (char subscribeQos = 1; subscribeQos < 3; subscribeQos++)
+        {
+            for (const std::string &subscribePath : subscribePaths)
+            {
+                testCount++;
+
+                // First start with clean_start to reset the session.
+                std::unique_ptr<FlashMQTestClient> receiver = std::make_unique<FlashMQTestClient>();
+                receiver->start();
+                receiver->connectClient(ProtocolVersion::Mqtt5, true, 600, [](Connect &connect) {
+                    connect.clientid = "TheReceiver";
+                });
+                receiver->subscribe(subscribePath, subscribeQos);
+                receiver->disconnect(ReasonCodes::Success);
+                receiver.reset();
+
+                const std::string payload = "We are testing";
+
+                FlashMQTestClient sender;
+                sender.start();
+                sender.connectClient(ProtocolVersion::Mqtt311);
+
+                Publish p1("topic1/FOOBAR", payload, sendQos);
+
+                for (int i = 0; i < 10; i++)
+                {
+                    sender.publish(p1);
+                }
+
+                // Now we connect again, and we should now pick up the existing session.
+                receiver = std::make_unique<FlashMQTestClient>();
+                receiver->start();
+                receiver->connectClient(ProtocolVersion::Mqtt5, false, 600, [](Connect &connect) {
+                    connect.clientid = "TheReceiver";
+                });
+
+                receiver->waitForMessageCount(10);
+
+                const char expQos = std::min<char>(sendQos, subscribeQos);
+
+                MYCASTCOMPARE(receiver->receivedPublishes.size(), 10);
+
+                QVERIFY(std::all_of(receiver->receivedPublishes.begin(), receiver->receivedPublishes.end(), [&](MqttPacket &pack) { return pack.getQos() == expQos;}));
+                QVERIFY(std::all_of(receiver->receivedPublishes.begin(), receiver->receivedPublishes.end(), [&](MqttPacket &pack) { return pack.getTopic() == "topic1/FOOBAR";}));
+                QVERIFY(std::all_of(receiver->receivedPublishes.begin(), receiver->receivedPublishes.end(), [&](MqttPacket &pack) { return pack.getPayloadCopy() == payload;}));
+            }
+        }
+    }
+
+    MYCASTCOMPARE(12, testCount);
 }
 
 int main(int argc, char *argv[])

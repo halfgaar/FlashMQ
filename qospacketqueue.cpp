@@ -76,7 +76,7 @@ void QoSPublishQueue::queuePublish(PublishCopyFactory &copyFactory, uint16_t id,
     assert(new_max_qos > 0);
     assert(id > 0);
 
-    Publish pub = copyFactory.getNewPublish();
+    Publish pub = copyFactory.getNewPublish(new_max_qos);
     queue.emplace_back(std::move(pub), id);
     qosQueueBytes += queue.back().getApproximateMemoryFootprint();
 }
