@@ -1710,32 +1710,45 @@ void MainTests::testOutgoingTopicAlias()
 
 void MainTests::testReceivingRetainedMessageWithQoS()
 {
-    FlashMQTestClient sender;
-    sender.start();
+    int testCount = 0;
 
-    const std::string payload = "We are testing";
+    for (char sendQos = 0; sendQos < 3; sendQos++)
+    {
+        for (char subscribeQos = 0; subscribeQos < 3; subscribeQos++)
+        {
+            testCount++;
 
-    sender.connectClient(ProtocolVersion::Mqtt311);
+            FlashMQTestClient sender;
+            sender.start();
 
-    Publish p1("topic1/FOOBAR", payload, 1);
-    p1.retain = true;
-    sender.publish(p1);
+            const std::string payload = "We are testing";
 
-    FlashMQTestClient receiver;
-    receiver.start();
-    receiver.connectClient(ProtocolVersion::Mqtt5);
+            sender.connectClient(ProtocolVersion::Mqtt311);
 
-    receiver.subscribe("+/+", 1);
+            Publish p1("topic1/FOOBAR", payload, sendQos);
+            p1.retain = true;
+            sender.publish(p1);
 
-    receiver.waitForMessageCount(1);
+            FlashMQTestClient receiver;
+            receiver.start();
+            receiver.connectClient(ProtocolVersion::Mqtt5);
 
-    MYCASTCOMPARE(receiver.receivedPublishes.size(), 1);
-    MYCASTCOMPARE(receiver.receivedPublishes.front().getQos(), 1);
-    MYCASTCOMPARE(receiver.receivedPublishes.front().getTopic(), "topic1/FOOBAR");
-    MYCASTCOMPARE(receiver.receivedPublishes.front().getPayloadCopy(), payload);
-    MYCASTCOMPARE(receiver.receivedPublishes.front().getRetain(), true);
+            receiver.subscribe("+/+", subscribeQos);
+
+            receiver.waitForMessageCount(1);
+
+            const char expQos = std::min<char>(sendQos, subscribeQos);
+
+            MYCASTCOMPARE(receiver.receivedPublishes.size(), 1);
+            MYCASTCOMPARE(receiver.receivedPublishes.front().getQos(), expQos);
+            MYCASTCOMPARE(receiver.receivedPublishes.front().getTopic(), "topic1/FOOBAR");
+            MYCASTCOMPARE(receiver.receivedPublishes.front().getPayloadCopy(), payload);
+            MYCASTCOMPARE(receiver.receivedPublishes.front().getRetain(), true);
+        }
+    }
+
+    MYCASTCOMPARE(9, testCount);
 }
-
 
 int main(int argc, char *argv[])
 {
