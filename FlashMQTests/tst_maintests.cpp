@@ -489,33 +489,47 @@ void MainTests::test_retained_removed()
  */
 void MainTests::test_retained_tree()
 {
-    TwoClientTestContext testContext;
+    FlashMQTestClient sender;
+    sender.start();
 
-    QByteArray payload = "We are testing";
-    const QString topic1 = "TopicA/B";
-    const QString topic2 = "Topic/C";
-    const QString topic3 = "TopicB/C";
-    const QStringList topics {topic1, topic2, topic3};
+    std::string payload = "We are testing";
+    const std::string topic1 = "TopicA/B";
+    const std::string topic2 = "Topic/C";
+    const std::string topic3 = "TopicB/C";
+    const std::list<std::string> topics {topic1, topic2, topic3};
 
-    testContext.connectSender();
-    testContext.publish(topic1, payload, true);
-    testContext.publish(topic2, payload, true);
-    testContext.publish(topic3, payload, true);
+    sender.connectClient(ProtocolVersion::Mqtt311);
 
-    testContext.connectReceiver();
-    testContext.subscribeReceiver("+/+");
-    testContext.waitReceiverReceived(1);
+    Publish p1(topic1, payload, 0);
+    p1.retain = true;
+    sender.publish(p1);
 
-    QCOMPARE(testContext.receivedMessages.count(), topics.count());
+    Publish p2(topic2, payload, 0);
+    p2.retain = true;
+    sender.publish(p2);
 
-    for (const QString &s : topics)
+    Publish p3(topic3, payload, 0);
+    p3.retain = true;
+    sender.publish(p3);
+
+    FlashMQTestClient receiver;
+    receiver.start();
+    receiver.connectClient(ProtocolVersion::Mqtt5);
+
+    receiver.subscribe("+/+", 0);
+
+    receiver.waitForMessageCount(3);
+
+    QCOMPARE(receiver.receivedPublishes.size(), topics.size());
+
+    for (const std::string &s : topics)
     {
-        bool r = std::any_of(testContext.receivedMessages.begin(), testContext.receivedMessages.end(), [&](QMQTT::Message &msg)
+        bool r = std::any_of(receiver.receivedPublishes.begin(), receiver.receivedPublishes.end(), [&](MqttPacket &pack)
         {
-            return msg.topic() == s && msg.payload() == payload;
+            return pack.getTopic() == s && pack.getPayloadCopy() == payload;
         });
 
-        QVERIFY2(r, formatString("%s not found in retained messages.", s.toStdString().c_str()).c_str());
+        QVERIFY2(r, formatString("%s not found in retained messages.", s.c_str()).c_str());
     }
 
 }
