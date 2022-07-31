@@ -95,15 +95,17 @@ bool PublishCopyFactory::getRetain() const
 
 Publish PublishCopyFactory::getNewPublish() const
 {
-    assert(packet->getQos() > 0);
-    assert(orgQos > 0); // We only need to construct new publishes for QoS. If you're doing it elsewhere, it's a bug.
-
     if (packet)
     {
+        assert(packet->getQos() > 0);
+        assert(orgQos > 0); // We only need to construct new publishes for QoS. If you're doing it elsewhere, it's a bug.
+
         Publish p(packet->getPublishData());
         p.qos = orgQos;
         return p;
     }
+
+    assert(publish->qos > 0); // Same check as above, but then for Publish objects.
 
     Publish p(*publish);
     p.qos = orgQos;

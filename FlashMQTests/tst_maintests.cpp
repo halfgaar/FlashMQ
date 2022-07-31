@@ -131,6 +131,8 @@ private slots:
     void testIncomingTopicAlias();
     void testOutgoingTopicAlias();
 
+    void testReceivingRetainedMessageWithQoS();
+
 };
 
 MainTests::MainTests()
@@ -1704,6 +1706,34 @@ void MainTests::testOutgoingTopicAlias()
         QCOMPARE(packet.getPayloadCopy(), "ABCDEF");
         MYCASTCOMPARE(packet.bites.size(), 28); // That's 3 less than the other one, because the alias id is not there.
     });
+}
+
+void MainTests::testReceivingRetainedMessageWithQoS()
+{
+    FlashMQTestClient sender;
+    sender.start();
+
+    const std::string payload = "We are testing";
+
+    sender.connectClient(ProtocolVersion::Mqtt311);
+
+    Publish p1("topic1/FOOBAR", payload, 1);
+    p1.retain = true;
+    sender.publish(p1);
+
+    FlashMQTestClient receiver;
+    receiver.start();
+    receiver.connectClient(ProtocolVersion::Mqtt5);
+
+    receiver.subscribe("+/+", 1);
+
+    receiver.waitForMessageCount(1);
+
+    MYCASTCOMPARE(receiver.receivedPublishes.size(), 1);
+    MYCASTCOMPARE(receiver.receivedPublishes.front().getQos(), 1);
+    MYCASTCOMPARE(receiver.receivedPublishes.front().getTopic(), "topic1/FOOBAR");
+    MYCASTCOMPARE(receiver.receivedPublishes.front().getPayloadCopy(), payload);
+    MYCASTCOMPARE(receiver.receivedPublishes.front().getRetain(), true);
 }
 
 
