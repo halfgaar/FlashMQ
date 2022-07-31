@@ -39,8 +39,6 @@ void Session::increaseFlowControlQuota()
 
 bool Session::requiresQoSQueueing() const
 {
-    return  true;
-
     const std::shared_ptr<Client> client = makeSharedClient();
 
     if (!client)
