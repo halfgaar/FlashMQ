@@ -11,7 +11,7 @@
  * @brief The PublishCopyFactory class is for managing copies of an incoming publish, including sometimes not making copies at all.
  *
  * The idea is that certain incoming packets can just be written to the receiving client as-is, without constructing a new one. We do have to change the bytes
- * where the QoS is stored, so we keep track of the original.
+ * where the QoS is stored, so we keep track of the original QoS.
  *
  * Ownership info: object of this type are never copied or transferred, so the internal pointers come from (near) the same scope these objects
  * are created from.

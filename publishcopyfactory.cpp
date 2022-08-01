@@ -19,31 +19,32 @@ PublishCopyFactory::PublishCopyFactory(Publish *publish) :
 
 MqttPacket *PublishCopyFactory::getOptimumPacket(const char max_qos, const ProtocolVersion protocolVersion, uint16_t topic_alias, bool skip_topic)
 {
+    const char actualQos = getEffectiveQos(max_qos);
+
     if (packet)
     {
         if (protocolVersion >= ProtocolVersion::Mqtt5 && (packet->containsClientSpecificProperties() || topic_alias > 0))
         {
             Publish newPublish(packet->getPublishData());
-            newPublish.qos = max_qos;
+            newPublish.qos = actualQos;
             newPublish.topicAlias = topic_alias;
             newPublish.skipTopic = skip_topic;
             this->oneShotPacket = std::make_unique<MqttPacket>(protocolVersion, newPublish);
             return this->oneShotPacket.get();
         }
 
-        if (packet->getProtocolVersion() == protocolVersion && orgQos == max_qos)
+        if (packet->getProtocolVersion() == protocolVersion && static_cast<bool>(orgQos) == static_cast<bool>(actualQos))
         {
-            assert(orgQos == packet->getQos());
             return packet;
         }
 
-        const int cache_key = (static_cast<uint8_t>(protocolVersion) * 10) + max_qos;
+        const int cache_key = (static_cast<uint8_t>(protocolVersion) * 10) + actualQos;
         std::unique_ptr<MqttPacket> &cachedPack = constructedPacketCache[cache_key];
 
         if (!cachedPack)
         {
             Publish newPublish(packet->getPublishData());
-            newPublish.qos = max_qos;
+            newPublish.qos = actualQos;
             cachedPack = std::make_unique<MqttPacket>(protocolVersion, newPublish);
         }
 
@@ -53,7 +54,7 @@ MqttPacket *PublishCopyFactory::getOptimumPacket(const char max_qos, const Proto
     // Getting an instance of a Publish object happens at least on retained messages, will messages and SYS topics. It's low traffic, anyway.
     assert(publish);
 
-    publish->qos = getEffectiveQos(max_qos);
+    publish->qos = actualQos;
 
     this->oneShotPacket = std::make_unique<MqttPacket>(protocolVersion, *publish);
     return this->oneShotPacket.get();
