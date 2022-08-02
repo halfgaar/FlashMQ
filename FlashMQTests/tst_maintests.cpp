@@ -135,6 +135,8 @@ private slots:
 
     void testQosDowngradeOnOfflineClients();
 
+    void testUserProperties();
+
 };
 
 MainTests::MainTests()
@@ -1810,6 +1812,52 @@ void MainTests::testQosDowngradeOnOfflineClients()
     }
 
     MYCASTCOMPARE(12, testCount);
+}
+
+void MainTests::testUserProperties()
+{
+    FlashMQTestClient sender;
+    sender.start();
+    sender.connectClient(ProtocolVersion::Mqtt5);
+
+    FlashMQTestClient receiver5;
+    receiver5.start();
+    receiver5.connectClient(ProtocolVersion::Mqtt5);
+    receiver5.subscribe("#", 1);
+
+    FlashMQTestClient receiver3;
+    receiver3.start();
+    receiver3.connectClient(ProtocolVersion::Mqtt311);
+    receiver3.subscribe("#", 1);
+
+    Publish pub("I'm/going/to/leave/a/message", "boo", 1);
+    pub.constructPropertyBuilder();
+    pub.propertyBuilder->writeUserProperty("mykey", "myval");
+    pub.propertyBuilder->writeUserProperty("mykeyhaha", "myvalhaha");
+    sender.publish(pub);
+
+    receiver5.waitForMessageCount(1);
+    receiver3.waitForMessageCount(1);
+
+    MqttPacket &pack5 = receiver5.receivedPublishes.front();
+
+    const std::vector<std::pair<std::string, std::string>> *properties5 = pack5.getUserProperties();
+
+    QVERIFY(properties5);
+    MYCASTCOMPARE(properties5->size(), 2);
+
+    const std::pair<std::string, std::string> &firstPair = properties5->operator[](0);
+    const std::pair<std::string, std::string> &secondPair = properties5->operator[](1);
+
+    QCOMPARE(firstPair.first, "mykey");
+    QCOMPARE(firstPair.second, "myval");
+
+    QCOMPARE(secondPair.first, "mykeyhaha");
+    QCOMPARE(secondPair.second, "myvalhaha");
+
+    MqttPacket &pack3 = receiver3.receivedPublishes.front();
+    const std::vector<std::pair<std::string, std::string>> *properties3 = pack3.getUserProperties();
+    QVERIFY(properties3 == nullptr);
 }
 
 int main(int argc, char *argv[])
