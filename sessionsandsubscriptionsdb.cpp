@@ -266,11 +266,8 @@ void SessionsAndSubscriptionsDB::saveData(const std::vector<std::unique_ptr<Sess
 
         writeCheck(reserved, 1, RESERVED_SPACE_SESSIONS_DB_V2, f);
 
-        writeUint32(ses->username.length());
-        writeCheck(ses->username.c_str(), 1, ses->username.length(), f);
-
-        writeUint32(ses->client_id.length());
-        writeCheck(ses->client_id.c_str(), 1, ses->client_id.length(), f);
+        writeString(ses->username);
+        writeString(ses->client_id);
 
         const size_t qosPacketsExpected = ses->qosPacketQueue.size();
         size_t qosPacketsCounted = 0;
@@ -362,8 +359,7 @@ void SessionsAndSubscriptionsDB::saveData(const std::vector<std::unique_ptr<Sess
 
         logger->logf(LOG_DEBUG, "Writing subscriptions to topic '%s'.", topic.c_str());
 
-        writeUint32(topic.size());
-        writeCheck(topic.c_str(), 1, topic.size(), f);
+        writeString(topic);
 
         writeUint32(subscriptions.size());
 
@@ -371,8 +367,7 @@ void SessionsAndSubscriptionsDB::saveData(const std::vector<std::unique_ptr<Sess
         {
             logger->logf(LOG_DEBUG, "Saving session '%s' subscription to '%s' QoS %d.", subscription.clientId.c_str(), topic.c_str(), subscription.qos);
 
-            writeUint32(subscription.clientId.size());
-            writeCheck(subscription.clientId.c_str(), 1, subscription.clientId.size(), f);
+            writeString(subscription.clientId);
             writeCheck(&subscription.qos, 1, 1, f);
         }
     }
