@@ -1257,6 +1257,7 @@ void MqttPacket::handlePublish()
 
     // Working with a local copy because the subscribing action will modify this->packet_id. See the PublishCopyFactory.
     const uint16_t _packet_id = this->packet_id;
+    const char _qos = this->publishData.qos;
 
     if (publishData.qos == 2 && sender->getSession()->incomingQoS2MessageIdInTransit(_packet_id))
     {
@@ -1291,13 +1292,14 @@ void MqttPacket::handlePublish()
     }
 
 #ifndef NDEBUG
-    // Protection against using the altered packet id.
+    // Protection against using the altered packet id (because we change the incoming byte array for each subscriber).
     this->packet_id = 0;
+    this->publishData.qos = 0;
 #endif
 
-    if (publishData.qos > 0)
+    if (_qos > 0)
     {
-        const PacketType responseType = publishData.qos == 1 ? PacketType::PUBACK : PacketType::PUBREC;
+        const PacketType responseType = _qos == 1 ? PacketType::PUBACK : PacketType::PUBREC;
         PubResponse pubAck(this->protocolVersion, responseType, ackCode, _packet_id);
         MqttPacket response(pubAck);
         sender->writeMqttPacket(response);
