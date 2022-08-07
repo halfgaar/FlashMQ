@@ -491,23 +491,31 @@ void MainTests::test_retained_changed()
 
 void MainTests::test_retained_removed()
 {
-    TwoClientTestContext testContext;
+    FlashMQTestClient sender;
+    FlashMQTestClient receiver;
 
-    QByteArray payload = "We are testing";
-    QString topic = "retaintopic";
+    sender.start();
+    receiver.start();
 
-    testContext.connectSender();
-    testContext.publish(topic, payload, true);
+    std::string payload = "We are testing";
+    std::string topic = "retaintopic";
 
-    payload = "";
+    sender.connectClient(ProtocolVersion::Mqtt311);
 
-    testContext.publish(topic, payload, true);
+    Publish pub1(topic, payload, 0);
+    pub1.retain = true;
+    sender.publish(pub1);
 
-    testContext.connectReceiver();
-    testContext.subscribeReceiver(topic);
-    testContext.waitReceiverReceived(0);
+    pub1.payload = "";
 
-    QVERIFY2(testContext.receivedMessages.empty(), "We erased the retained message. We shouldn't have received any.");
+    sender.publish(pub1);
+
+    receiver.connectClient(ProtocolVersion::Mqtt311);
+    receiver.subscribe(topic, 0);
+    usleep(100000);
+    receiver.waitForMessageCount(0);
+
+    QVERIFY2(receiver.receivedPublishes.empty(), "We erased the retained message. We shouldn't have received any.");
 }
 
 /**
