@@ -408,35 +408,48 @@ void MainTests::test_validSubscribePath()
 
 void MainTests::test_retained()
 {
-    TwoClientTestContext testContext;
+    FlashMQTestClient sender;
+    FlashMQTestClient receiver;
 
-    QByteArray payload = "We are testing";
-    QString topic = "retaintopic";
+    sender.start();
+    receiver.start();
 
-    testContext.connectSender();
-    testContext.publish(topic, payload, true);
-    testContext.publish("dummy2", "Nobody sees this", true);
+    const std::string payload = "We are testing";
+    const std::string topic = "retaintopic";
 
-    testContext.connectReceiver();
-    testContext.subscribeReceiver("dummy");
-    testContext.subscribeReceiver(topic);
-    testContext.waitReceiverReceived(1);
+    sender.connectClient(ProtocolVersion::Mqtt311);
 
-    QCOMPARE(testContext.receivedMessages.count(), 1);
+    Publish pub1(topic, payload, 0);
+    pub1.retain = true;
+    sender.publish(pub1);
 
-    QMQTT::Message msg = testContext.receivedMessages.first();
-    QCOMPARE(msg.payload(), payload);
-    QVERIFY(msg.retain());
+    Publish pub2("dummy2", "Nobody sees this", 0);
+    pub2.retain = true;
+    sender.publish(pub2);
 
-    testContext.receivedMessages.clear();
+    receiver.connectClient(ProtocolVersion::Mqtt311);
+    receiver.subscribe("dummy", 0);
+    receiver.subscribe(topic, 0);
 
-    testContext.publish(topic, payload, true);
-    testContext.waitReceiverReceived(1);
+    receiver.waitForMessageCount(1);
 
-    QVERIFY2(testContext.receivedMessages.count() == 1, "There must be one message in the received list");
-    QMQTT::Message msg2 = testContext.receivedMessages.first();
-    QCOMPARE(msg2.payload(), payload);
-    QVERIFY2(!msg2.retain(), "Getting a retained message while already being subscribed must be marked as normal, not retain.");
+    MYCASTCOMPARE(receiver.receivedPublishes.size(), 1);
+
+    MqttPacket &msg = receiver.receivedPublishes.front();
+    QCOMPARE(msg.getPayloadCopy(), payload);
+    QCOMPARE(msg.getTopic(), topic);
+    QVERIFY(msg.getRetain());
+
+    receiver.clearReceivedLists();
+
+    sender.publish(pub1);
+    receiver.waitForMessageCount(1);
+
+    QVERIFY2(receiver.receivedPublishes.size() == 1, "There must be one message in the received list");
+    MqttPacket &msg2 = receiver.receivedPublishes.front();
+    QCOMPARE(msg2.getPayloadCopy(), payload);
+    QCOMPARE(msg2.getTopic(), topic);
+    QVERIFY2(!msg2.getRetain(), "Getting a retained message while already being subscribed must be marked as normal, not retain.");
 }
 
 void MainTests::test_retained_changed()
