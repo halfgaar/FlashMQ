@@ -1420,53 +1420,57 @@ void MainTests::testNotMessingUpQosLevels()
 
 void MainTests::testUnSubscribe()
 {
-    TwoClientTestContext testContext;
+    FlashMQTestClient sender;
+    FlashMQTestClient receiver;
 
-    testContext.connectSender();
-    testContext.connectReceiver();
+    sender.start();
+    sender.connectClient(ProtocolVersion::Mqtt311);
 
-    testContext.subscribeReceiver("Rebecca/Bunch", 2);
-    testContext.subscribeReceiver("Josh/Chan", 1);
-    testContext.subscribeReceiver("White/Josh", 1);
+    receiver.start();
+    receiver.connectClient(ProtocolVersion::Mqtt311);
 
-    testContext.publish("Rebecca/Bunch", "Bunch here", 2);
-    testContext.publish("White/Josh", "Anteater", 2);
-    testContext.publish("Josh/Chan", "Human flip-flop", 2);
+    receiver.subscribe("Rebecca/Bunch", 2);
+    receiver.subscribe("Josh/Chan", 1);
+    receiver.subscribe("White/Josh", 1);
 
-    testContext.waitReceiverReceived(3);
+    sender.publish("Rebecca/Bunch", "Bunch here", 2);
+    sender.publish("White/Josh", "Anteater", 2);
+    sender.publish("Josh/Chan", "Human flip-flop", 2);
 
-    QVERIFY(std::any_of(testContext.receivedMessages.begin(), testContext.receivedMessages.end(), [](const QMQTT::Message &msg) {
-        return msg.payload() == "Bunch here" && msg.topic() == "Rebecca/Bunch";
+    receiver.waitForMessageCount(3);
+
+    QVERIFY(std::any_of(receiver.receivedPublishes.begin(), receiver.receivedPublishes.end(), [](const MqttPacket &pack) {
+        return pack.getPayloadCopy() == "Bunch here" && pack.getTopic() == "Rebecca/Bunch";
     }));
 
-    QVERIFY(std::any_of(testContext.receivedMessages.begin(), testContext.receivedMessages.end(), [](const QMQTT::Message &msg) {
-        return msg.payload() == "Anteater" && msg.topic() == "White/Josh";
+    QVERIFY(std::any_of(receiver.receivedPublishes.begin(), receiver.receivedPublishes.end(), [](const MqttPacket &pack) {
+        return pack.getPayloadCopy() == "Anteater" && pack.getTopic() == "White/Josh";
     }));
 
-    QVERIFY(std::any_of(testContext.receivedMessages.begin(), testContext.receivedMessages.end(), [](const QMQTT::Message &msg) {
-        return msg.payload() == "Human flip-flop" && msg.topic() == "Josh/Chan";
+    QVERIFY(std::any_of(receiver.receivedPublishes.begin(), receiver.receivedPublishes.end(), [](const MqttPacket &pack) {
+        return pack.getPayloadCopy() == "Human flip-flop" && pack.getTopic() == "Josh/Chan";
     }));
 
-    QCOMPARE(testContext.receivedMessages.count(), 3);
+    MYCASTCOMPARE(receiver.receivedPublishes.size(), 3);
 
-    testContext.receivedMessages.clear();
+    receiver.clearReceivedLists();
 
-    testContext.unsubscribeReceiver("Josh/Chan");
+    receiver.unsubscribe("Josh/Chan");
 
-    testContext.publish("Rebecca/Bunch", "Bunch here", 2);
-    testContext.publish("White/Josh", "Anteater", 2);
-    testContext.publish("Josh/Chan", "Human flip-flop", 2);
+    sender.publish("Rebecca/Bunch", "Bunch here", 2);
+    sender.publish("White/Josh", "Anteater", 2);
+    sender.publish("Josh/Chan", "Human flip-flop", 2);
 
-    testContext.waitReceiverReceived(2);
+    receiver.waitForMessageCount(2);
 
-    QCOMPARE(testContext.receivedMessages.count(), 2);
+    MYCASTCOMPARE(receiver.receivedPublishes.size(), 2);
 
-    QVERIFY(std::any_of(testContext.receivedMessages.begin(), testContext.receivedMessages.end(), [](const QMQTT::Message &msg) {
-        return msg.payload() == "Bunch here" && msg.topic() == "Rebecca/Bunch";
+    QVERIFY(std::any_of(receiver.receivedPublishes.begin(), receiver.receivedPublishes.end(), [](const MqttPacket &pack) {
+        return pack.getPayloadCopy() == "Bunch here" && pack.getTopic() == "Rebecca/Bunch";
     }));
 
-    QVERIFY(std::any_of(testContext.receivedMessages.begin(), testContext.receivedMessages.end(), [](const QMQTT::Message &msg) {
-        return msg.payload() == "Anteater" && msg.topic() == "White/Josh";
+    QVERIFY(std::any_of(receiver.receivedPublishes.begin(), receiver.receivedPublishes.end(), [](const MqttPacket &pack) {
+        return pack.getPayloadCopy() == "Anteater" && pack.getTopic() == "White/Josh";
     }));
 }
 

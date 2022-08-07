@@ -195,6 +195,23 @@ void FlashMQTestClient::subscribe(const std::string topic, char qos)
     }
 }
 
+void FlashMQTestClient::unsubscribe(const std::string &topic)
+{
+    clearReceivedLists();
+
+    const uint16_t packet_id = 66;
+
+    Unsubscribe unsub(client->getProtocolVersion(), packet_id, topic);
+    MqttPacket unsubPack(unsub);
+    client->writeMqttPacketAndBlameThisClient(unsubPack);
+
+    waitForCondition([&]() {
+        return  !this->receivedPackets.empty() && this->receivedPackets.front().packetType == PacketType::UNSUBACK;
+    });
+
+    // TODO: parse the UNSUBACK and check reason codes.
+}
+
 void FlashMQTestClient::publish(Publish &pub)
 {
     clearReceivedLists();

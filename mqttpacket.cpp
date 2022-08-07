@@ -93,7 +93,7 @@ MqttPacket::MqttPacket(const SubAck &subAck) :
 MqttPacket::MqttPacket(const UnsubAck &unsubAck) :
     bites(unsubAck.getLengthWithoutFixedHeader())
 {
-    packetType = PacketType::SUBACK;
+    packetType = PacketType::UNSUBACK;
     first_byte = static_cast<char>(packetType) << 4;
     writeUint16(unsubAck.packet_id);
 
@@ -307,6 +307,29 @@ MqttPacket::MqttPacket(const Subscribe &subscribe) :
 
     writeString(subscribe.topic);
     writeByte(subscribe.qos);
+
+    calculateRemainingLength();
+}
+
+MqttPacket::MqttPacket(const Unsubscribe &unsubscribe) :
+    bites(unsubscribe.getLengthWithoutFixedHeader()),
+    packetType(PacketType::UNSUBSCRIBE)
+{
+#ifndef TESTING
+    throw NotImplementedException("Code is only for testing.");
+#endif
+
+    first_byte = static_cast<char>(packetType) << 4;
+    first_byte |= 2; // required reserved bit
+
+    writeUint16(unsubscribe.packetId);
+
+    if (unsubscribe.protocolVersion >= ProtocolVersion::Mqtt5)
+    {
+        writeProperties(unsubscribe.propertyBuilder);
+    }
+
+    writeString(unsubscribe.topic);
 
     calculateRemainingLength();
 }

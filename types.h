@@ -315,4 +315,20 @@ struct Subscribe
     size_t getLengthWithoutFixedHeader() const;
 };
 
+/**
+ * @brief The Unsubscribe struct can be used to construct a mqtt packet of type 'unsubscribe'.
+ *
+ * It's rudimentary. Offically you can unsubscribe to multiple topics at once, but I have no need for that.
+ */
+struct Unsubscribe
+{
+    const ProtocolVersion protocolVersion;
+    uint16_t packetId;
+    std::string topic;
+    std::shared_ptr<Mqtt5PropertyBuilder> propertyBuilder;
+
+    Unsubscribe(const ProtocolVersion protocolVersion, uint16_t packetId, const std::string &topic);
+    size_t getLengthWithoutFixedHeader() const;
+};
+
 #endif // TYPES_H

@@ -116,6 +116,7 @@ public:
     MqttPacket(const Auth &auth);
     MqttPacket(const Connect &connect);
     MqttPacket(const Subscribe &subscribe);
+    MqttPacket(const Unsubscribe &unsubscribe);
 
     static void bufferToMqttPackets(CirBuf &buf, std::vector<MqttPacket> &packetQueueIn, std::shared_ptr<Client> &sender);
 
