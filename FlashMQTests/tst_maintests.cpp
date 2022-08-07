@@ -1299,64 +1299,90 @@ void MainTests::testNotMessingUpQosLevels()
     const std::string topic = "HK7c1MFu6kdT69fWY";
     const std::string payload = "M4XK2LZ2Smaazba8RobZOgoe6CENxCll";
 
-    FlashMQTestClient testContextSender;
-    FlashMQTestClient testContextReceiver1;
-    FlashMQTestClient testContextReceiver2;
-    FlashMQTestClient testContextReceiver3;
-    FlashMQTestClient testContextReceiver4;
-    FlashMQTestClient testContextReceiver5;
+    std::list<ProtocolVersion> senderVersions {ProtocolVersion::Mqtt31, ProtocolVersion::Mqtt311, ProtocolVersion::Mqtt5};
+    std::list<ProtocolVersion> receiverVersions {ProtocolVersion::Mqtt31, ProtocolVersion::Mqtt311, ProtocolVersion::Mqtt5};
 
-    testContextReceiver1.start();
-    testContextReceiver1.connectClient(ProtocolVersion::Mqtt311);
-    testContextReceiver1.subscribe(topic, 0);
+    for (ProtocolVersion senderVersion : senderVersions)
+    {
+        for (ProtocolVersion receiverVersion : receiverVersions)
+        {
 
-    testContextReceiver2.start();
-    testContextReceiver2.connectClient(ProtocolVersion::Mqtt311);
-    testContextReceiver2.subscribe(topic, 1);
+            FlashMQTestClient testContextSender;
+            FlashMQTestClient testContextReceiver1;
+            FlashMQTestClient testContextReceiver2;
+            FlashMQTestClient testContextReceiver3;
+            FlashMQTestClient testContextReceiver4;
+            FlashMQTestClient testContextReceiver5;
+            FlashMQTestClient testContextReceiverMqtt3;
+            FlashMQTestClient testContextReceiverMqtt5;
 
-    testContextReceiver3.start();
-    testContextReceiver3.connectClient(ProtocolVersion::Mqtt311);
-    testContextReceiver3.subscribe(topic, 2);
+            testContextReceiver1.start();
+            testContextReceiver1.connectClient(receiverVersion);
+            testContextReceiver1.subscribe(topic, 0);
 
-    testContextReceiver4.start();
-    testContextReceiver4.connectClient(ProtocolVersion::Mqtt311);
-    testContextReceiver4.subscribe(topic, 1);
+            testContextReceiver2.start();
+            testContextReceiver2.connectClient(receiverVersion);
+            testContextReceiver2.subscribe(topic, 1);
 
-    testContextReceiver5.start();
-    testContextReceiver5.connectClient(ProtocolVersion::Mqtt311);
-    testContextReceiver5.subscribe(topic, 0);
+            testContextReceiver3.start();
+            testContextReceiver3.connectClient(receiverVersion);
+            testContextReceiver3.subscribe(topic, 2);
 
-    testContextSender.start();
-    testContextSender.connectClient(ProtocolVersion::Mqtt311);
-    testContextSender.publish(topic, payload, 2);
+            testContextReceiver4.start();
+            testContextReceiver4.connectClient(receiverVersion);
+            testContextReceiver4.subscribe(topic, 1);
 
-    testContextReceiver1.waitForMessageCount(1);
-    testContextReceiver2.waitForMessageCount(1);
-    testContextReceiver3.waitForMessageCount(1);
-    testContextReceiver4.waitForMessageCount(1);
-    testContextReceiver5.waitForMessageCount(1);
+            testContextReceiver5.start();
+            testContextReceiver5.connectClient(receiverVersion);
+            testContextReceiver5.subscribe(topic, 0);
 
-    MYCASTCOMPARE(testContextReceiver1.receivedPublishes.size(), 1);
-    MYCASTCOMPARE(testContextReceiver2.receivedPublishes.size(), 1);
-    MYCASTCOMPARE(testContextReceiver3.receivedPublishes.size(), 1);
-    MYCASTCOMPARE(testContextReceiver4.receivedPublishes.size(), 1);
-    MYCASTCOMPARE(testContextReceiver5.receivedPublishes.size(), 1);
+            testContextReceiverMqtt3.start();
+            testContextReceiverMqtt3.connectClient(ProtocolVersion::Mqtt311);
+            testContextReceiverMqtt3.subscribe(topic, 0);
 
-    QCOMPARE(testContextReceiver1.receivedPublishes.front().getQos(), 0);
-    QCOMPARE(testContextReceiver2.receivedPublishes.front().getQos(), 1);
-    QCOMPARE(testContextReceiver3.receivedPublishes.front().getQos(), 2);
-    QCOMPARE(testContextReceiver4.receivedPublishes.front().getQos(), 1);
-    QCOMPARE(testContextReceiver5.receivedPublishes.front().getQos(), 0);
+            testContextReceiverMqtt5.start();
+            testContextReceiverMqtt5.connectClient(ProtocolVersion::Mqtt5);
+            testContextReceiverMqtt5.subscribe(topic, 0);
 
-    QCOMPARE(testContextReceiver1.receivedPublishes.front().getPayloadCopy(), payload);
-    QCOMPARE(testContextReceiver2.receivedPublishes.front().getPayloadCopy(), payload);
-    QCOMPARE(testContextReceiver3.receivedPublishes.front().getPayloadCopy(), payload);
-    QCOMPARE(testContextReceiver4.receivedPublishes.front().getPayloadCopy(), payload);
-    QCOMPARE(testContextReceiver5.receivedPublishes.front().getPayloadCopy(), payload);
+            testContextSender.start();
+            testContextSender.connectClient(senderVersion);
+            testContextSender.publish(topic, payload, 2);
 
-    QCOMPARE(testContextReceiver2.receivedPublishes.front().getPacketId(), 1);
-    QCOMPARE(testContextReceiver3.receivedPublishes.front().getPacketId(), 1);
-    QCOMPARE(testContextReceiver4.receivedPublishes.front().getPacketId(), 1);
+            testContextReceiver1.waitForMessageCount(1);
+            testContextReceiver2.waitForMessageCount(1);
+            testContextReceiver3.waitForMessageCount(1);
+            testContextReceiver4.waitForMessageCount(1);
+            testContextReceiver5.waitForMessageCount(1);
+
+            MYCASTCOMPARE(testContextReceiver1.receivedPublishes.size(), 1);
+            MYCASTCOMPARE(testContextReceiver2.receivedPublishes.size(), 1);
+            MYCASTCOMPARE(testContextReceiver3.receivedPublishes.size(), 1);
+            MYCASTCOMPARE(testContextReceiver4.receivedPublishes.size(), 1);
+            MYCASTCOMPARE(testContextReceiver5.receivedPublishes.size(), 1);
+            MYCASTCOMPARE(testContextReceiverMqtt3.receivedPublishes.size(), 1);
+            MYCASTCOMPARE(testContextReceiverMqtt5.receivedPublishes.size(), 1);
+
+            QCOMPARE(testContextReceiver1.receivedPublishes.front().getQos(), 0);
+            QCOMPARE(testContextReceiver2.receivedPublishes.front().getQos(), 1);
+            QCOMPARE(testContextReceiver3.receivedPublishes.front().getQos(), 2);
+            QCOMPARE(testContextReceiver4.receivedPublishes.front().getQos(), 1);
+            QCOMPARE(testContextReceiver5.receivedPublishes.front().getQos(), 0);
+            QCOMPARE(testContextReceiverMqtt3.receivedPublishes.front().getQos(), 0);
+            QCOMPARE(testContextReceiverMqtt5.receivedPublishes.front().getQos(), 0);
+
+            QCOMPARE(testContextReceiver1.receivedPublishes.front().getPayloadCopy(), payload);
+            QCOMPARE(testContextReceiver2.receivedPublishes.front().getPayloadCopy(), payload);
+            QCOMPARE(testContextReceiver3.receivedPublishes.front().getPayloadCopy(), payload);
+            QCOMPARE(testContextReceiver4.receivedPublishes.front().getPayloadCopy(), payload);
+            QCOMPARE(testContextReceiver5.receivedPublishes.front().getPayloadCopy(), payload);
+            QCOMPARE(testContextReceiverMqtt3.receivedPublishes.front().getPayloadCopy(), payload);
+            QCOMPARE(testContextReceiverMqtt5.receivedPublishes.front().getPayloadCopy(), payload);
+
+            QCOMPARE(testContextReceiver2.receivedPublishes.front().getPacketId(), 1);
+            QCOMPARE(testContextReceiver3.receivedPublishes.front().getPacketId(), 1);
+            QCOMPARE(testContextReceiver4.receivedPublishes.front().getPacketId(), 1);
+        }
+    }
 }
 
 void MainTests::testUnSubscribe()
