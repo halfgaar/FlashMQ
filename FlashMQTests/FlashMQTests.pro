@@ -1,7 +1,6 @@
 QT += testlib
 QT -= gui
 QT += network
-QT += qmqtt
 
 DEFINES += TESTING \
            "FLASHMQ_VERSION=\\\"0.0.0\\\""
@@ -56,8 +55,7 @@ SOURCES +=  tst_maintests.cpp \
     ../derivablecounter.cpp \
     ../packetdatatypes.cpp \
     ../flashmqtestclient.cpp \
-    mainappthread.cpp \
-    twoclienttestcontext.cpp
+    mainappthread.cpp
 
 
 HEADERS += \
@@ -104,8 +102,7 @@ HEADERS += \
     ../derivablecounter.h \
     ../packetdatatypes.h \
     ../flashmqtestclient.h \
-    mainappthread.h \
-    twoclienttestcontext.h
+    mainappthread.h
 
 LIBS += -ldl -lssl -lcrypto
 

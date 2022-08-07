@@ -18,7 +18,6 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include <QtTest>
 
 
-#include <QtQmqtt/qmqtt.h>
 #include <QScopedPointer>
 #include <QHostInfo>
 #include <list>
@@ -27,7 +26,6 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "cirbuf.h"
 #include "mainapp.h"
 #include "mainappthread.h"
-#include "twoclienttestcontext.h"
 #include "threadlocalutils.h"
 #include "retainedmessagesdb.h"
 #include "sessionsandsubscriptionsdb.h"
