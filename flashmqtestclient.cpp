@@ -166,6 +166,7 @@ void FlashMQTestClient::connectClient(ProtocolVersion protocolVersion, bool clea
     this->client->writeMqttPacketAndBlameThisClient(connectPack);
 
     waitForConnack();
+    this->client->setAuthenticated(true);
 }
 
 void FlashMQTestClient::subscribe(const std::string topic, char qos)

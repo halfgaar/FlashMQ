@@ -84,8 +84,7 @@ private slots:
     void test_retained_removed();
     void test_retained_tree();
 
-    void test_packet_bigger_than_one_doubling();
-    void test_very_big_packet();
+    void test_various_packet_sizes();
 
     void test_acl_tree();
     void test_acl_tree2();
@@ -540,59 +539,40 @@ void MainTests::test_retained_tree()
 
 }
 
-void MainTests::test_packet_bigger_than_one_doubling()
+void MainTests::test_various_packet_sizes()
 {
     std::vector<ProtocolVersion> protocols {ProtocolVersion::Mqtt311, ProtocolVersion::Mqtt5};
+    std::list<std::string> payloads {std::string(8000,3), std::string(10*1024*1024, 5)};
 
     for (const ProtocolVersion senderVersion : protocols)
     {
         for (const ProtocolVersion receiverVersion : protocols)
         {
-            FlashMQTestClient sender;
-            FlashMQTestClient receiver;
+            for (const std::string &payload : payloads)
+            {
+                FlashMQTestClient sender;
+                FlashMQTestClient receiver;
 
-            std::string payload(8000, 3);
-            std::string topic = "hugepacket";
+                std::string topic = "hugepacket";
 
-            sender.start();
-            sender.connectClient(senderVersion);
+                sender.start();
+                sender.connectClient(senderVersion);
 
-            receiver.start();
-            receiver.connectClient(receiverVersion);
-            receiver.subscribe(topic, 0);
+                receiver.start();
+                receiver.connectClient(receiverVersion);
+                receiver.subscribe(topic, 0);
 
-            sender.publish(topic, payload, 0);
-            receiver.waitForMessageCount(1);
+                sender.publish(topic, payload, 0);
+                receiver.waitForMessageCount(1, 2);
 
-            MYCASTCOMPARE(receiver.receivedPublishes.size(), 1);
+                MYCASTCOMPARE(receiver.receivedPublishes.size(), 1);
 
-            MqttPacket &msg = receiver.receivedPublishes.front();
-            QCOMPARE(msg.getPayloadCopy(), payload);
-            QVERIFY(!msg.getRetain());
+                MqttPacket &msg = receiver.receivedPublishes.front();
+                QCOMPARE(msg.getPayloadCopy(), payload);
+                QVERIFY(!msg.getRetain());
+            }
         }
     }
-}
-
-// This tests our write buffer, and that it's emptied during writing already.
-void MainTests::test_very_big_packet()
-{
-    TwoClientTestContext testContext;
-
-    QByteArray payload(10*1024*1024, 3);
-    QString topic = "hugepacket";
-
-    testContext.connectSender();
-    testContext.connectReceiver();
-    testContext.subscribeReceiver(topic);
-
-    testContext.publish(topic, payload);
-    testContext.waitReceiverReceived(1);
-
-    QCOMPARE(testContext.receivedMessages.count(), 1);
-
-    QMQTT::Message msg = testContext.receivedMessages.first();
-    QCOMPARE(msg.payload(), payload);
-    QVERIFY(!msg.retain());
 }
 
 void MainTests::test_acl_tree()
