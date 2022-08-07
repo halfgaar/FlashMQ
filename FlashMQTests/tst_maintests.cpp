@@ -542,23 +542,35 @@ void MainTests::test_retained_tree()
 
 void MainTests::test_packet_bigger_than_one_doubling()
 {
-    TwoClientTestContext testContext;
+    std::vector<ProtocolVersion> protocols {ProtocolVersion::Mqtt311, ProtocolVersion::Mqtt5};
 
-    QByteArray payload(8000, 3);
-    QString topic = "hugepacket";
+    for (const ProtocolVersion senderVersion : protocols)
+    {
+        for (const ProtocolVersion receiverVersion : protocols)
+        {
+            FlashMQTestClient sender;
+            FlashMQTestClient receiver;
 
-    testContext.connectSender();
-    testContext.connectReceiver();
-    testContext.subscribeReceiver(topic);
+            std::string payload(8000, 3);
+            std::string topic = "hugepacket";
 
-    testContext.publish(topic, payload);
-    testContext.waitReceiverReceived(1);
+            sender.start();
+            sender.connectClient(senderVersion);
 
-    QCOMPARE(testContext.receivedMessages.count(), 1);
+            receiver.start();
+            receiver.connectClient(receiverVersion);
+            receiver.subscribe(topic, 0);
 
-    QMQTT::Message msg = testContext.receivedMessages.first();
-    QCOMPARE(msg.payload(), payload);
-    QVERIFY(!msg.retain());
+            sender.publish(topic, payload, 0);
+            receiver.waitForMessageCount(1);
+
+            MYCASTCOMPARE(receiver.receivedPublishes.size(), 1);
+
+            MqttPacket &msg = receiver.receivedPublishes.front();
+            QCOMPARE(msg.getPayloadCopy(), payload);
+            QVERIFY(!msg.getRetain());
+        }
+    }
 }
 
 // This tests our write buffer, and that it's emptied during writing already.
