@@ -1229,27 +1229,39 @@ void MainTests::testParsePacket()
 
 void testDowngradeQoSOnSubscribeHelper(const char pub_qos, const char sub_qos)
 {
-    TwoClientTestContext testContext;
+    std::vector<ProtocolVersion> protocols {ProtocolVersion::Mqtt311, ProtocolVersion::Mqtt5};
 
-    const QString topic("Star/Trek");
-    const QByteArray payload("Captain Kirk");
+    for (const ProtocolVersion senderVersion : protocols)
+    {
+        for (const ProtocolVersion receiverVersion : protocols)
+        {
+            FlashMQTestClient sender;
+            FlashMQTestClient receiver;
 
-    testContext.connectSender();
-    testContext.connectReceiver();
+            sender.start();
+            receiver.start();
 
-    testContext.subscribeReceiver(topic, sub_qos);
-    testContext.publish(topic, payload, pub_qos, false);
+            const std::string topic("Star/Trek");
+            const std::string payload("Captain Kirk");
 
-    testContext.waitReceiverReceived(1);
+            sender.connectClient(senderVersion);
+            receiver.connectClient(receiverVersion);
 
-    QCOMPARE(testContext.receivedMessages.length(), 1);
-    QMQTT::Message &recv = testContext.receivedMessages.first();
+            receiver.subscribe(topic, sub_qos);
+            sender.publish(topic, payload, pub_qos);
 
-    const char expected_qos = std::min<const char>(pub_qos, sub_qos);
-    QVERIFY2(recv.qos() == expected_qos, formatString("Failure: received QoS is %d. Published is %d. Subscribed as %d. Expected QoS is %d",
-                                                      recv.qos(), pub_qos, sub_qos, expected_qos).c_str());
-    QVERIFY(recv.topic() == topic);
-    QVERIFY(recv.payload() == payload);
+            receiver.waitForMessageCount(1);
+
+            MYCASTCOMPARE(receiver.receivedPublishes.size(), 1);
+            MqttPacket &recv = receiver.receivedPublishes.front();
+
+            const char expected_qos = std::min<const char>(pub_qos, sub_qos);
+            QVERIFY2(recv.getQos() == expected_qos, formatString("Failure: received QoS is %d. Published is %d. Subscribed as %d. Expected QoS is %d",
+                                                                 recv.getQos(), pub_qos, sub_qos, expected_qos).c_str());
+            QVERIFY(recv.getTopic() == topic);
+            QVERIFY(recv.getPayloadCopy() == payload);
+        }
+    }
 }
 
 void MainTests::testDowngradeQoSOnSubscribeQos2to2()
