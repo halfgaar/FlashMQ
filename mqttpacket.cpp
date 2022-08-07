@@ -1281,6 +1281,7 @@ void MqttPacket::handlePublish()
             // Existing subscribers don't get retain=1. [MQTT-3.3.1-9]
             bites[0] &= 0b11110110;
             first_byte = bites[0];
+            publishData.retain = false;
 
             PublishCopyFactory factory(this);
             MainApp::getMainApp()->getSubscriptionStore()->queuePacketAtSubscribers(factory);
