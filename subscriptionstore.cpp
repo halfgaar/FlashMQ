@@ -134,7 +134,7 @@ SubscriptionNode *SubscriptionStore::getDeepestNode(const std::string &topic, co
 
 void SubscriptionStore::addSubscription(std::shared_ptr<Client> &client, const std::string &topic, const std::vector<std::string> &subtopics, char qos)
 {
-    RWLockGuard lock_guard(&subscriptionsRwlock);
+    RWLockGuard lock_guard(&sessionsAndSubscriptionsRwlock);
     lock_guard.wrlock();
 
     SubscriptionNode *deepestNode = getDeepestNode(topic, subtopics);
@@ -160,7 +160,7 @@ void SubscriptionStore::removeSubscription(std::shared_ptr<Client> &client, cons
     if (topic.length() > 0 && topic[0] == '$')
         deepestNode = &rootDollar;
 
-    RWLockGuard lock_guard(&subscriptionsRwlock);
+    RWLockGuard lock_guard(&sessionsAndSubscriptionsRwlock);
     lock_guard.wrlock();
 
     // This code looks like that for addSubscription(), but it's specifically different in that we don't want to default-create non-existing
@@ -227,7 +227,7 @@ void SubscriptionStore::registerClientAndKickExistingOne(std::shared_ptr<Client>
 {
     ThreadGlobals::getThreadData()->queueClientNextKeepAliveCheckLocked(client, true);
 
-    RWLockGuard lock_guard(&subscriptionsRwlock);
+    RWLockGuard lock_guard(&sessionsAndSubscriptionsRwlock);
     lock_guard.wrlock();
 
     if (client->getClientId().empty())
@@ -274,7 +274,7 @@ void SubscriptionStore::registerClientAndKickExistingOne(std::shared_ptr<Client>
  */
 std::shared_ptr<Session> SubscriptionStore::lockSession(const std::string &clientid)
 {
-    RWLockGuard lock_guard(&subscriptionsRwlock);
+    RWLockGuard lock_guard(&sessionsAndSubscriptionsRwlock);
     lock_guard.rdlock();
 
     auto it = sessionsByIdConst.find(clientid);
@@ -463,7 +463,7 @@ void SubscriptionStore::queuePacketAtSubscribers(PublishCopyFactory &copyFactory
 
     {
         const std::vector<std::string> &subtopics = copyFactory.getSubtopics();
-        RWLockGuard lock_guard(&subscriptionsRwlock);
+        RWLockGuard lock_guard(&sessionsAndSubscriptionsRwlock);
         lock_guard.rdlock();
         publishRecursively(subtopics.begin(), subtopics.end(), startNode, subscriberSessions);
     }
@@ -649,7 +649,7 @@ void SubscriptionStore::removeSession(const std::shared_ptr<Session> &session)
         queueWillMessage(will, session, true);
     }
 
-    RWLockGuard lock_guard(&subscriptionsRwlock);
+    RWLockGuard lock_guard(&sessionsAndSubscriptionsRwlock);
     lock_guard.wrlock();
 
     auto session_it = sessionsById.find(clientid);
@@ -724,7 +724,7 @@ void SubscriptionStore::removeExpiredSessionsClients()
 
     if (lastTreeCleanup + std::chrono::minutes(30) < now)
     {
-        RWLockGuard lock_guard(&subscriptionsRwlock);
+        RWLockGuard lock_guard(&sessionsAndSubscriptionsRwlock);
         lock_guard.wrlock();
 
         logger->logf(LOG_NOTICE, "Rebuilding subscription tree");
@@ -764,7 +764,7 @@ int64_t SubscriptionStore::getSubscriptionCount()
 {
     int64_t count = 0;
 
-    RWLockGuard lock_guard(&subscriptionsRwlock);
+    RWLockGuard lock_guard(&sessionsAndSubscriptionsRwlock);
     lock_guard.rdlock();
 
     countSubscriptions(&root, count);
@@ -902,38 +902,41 @@ void SubscriptionStore::loadRetainedMessages(const std::string &filePath)
 
 void SubscriptionStore::saveSessionsAndSubscriptions(const std::string &filePath)
 {
-    logger->logf(LOG_INFO, "Saving sessions and subscriptions to '%s'", filePath.c_str());
+    logger->logf(LOG_INFO, "Saving sessions and subscriptions to '%s' in thread.", filePath.c_str());
 
-    std::vector<std::unique_ptr<Session>> sessionCopies;
+    const std::chrono::time_point<std::chrono::steady_clock> start = std::chrono::steady_clock::now();
+
+    std::vector<std::shared_ptr<Session>> sessionPointers;
     std::unordered_map<std::string, std::list<SubscriptionForSerializing>> subscriptionCopies;
 
     {
-        RWLockGuard lock_guard(&subscriptionsRwlock);
+        RWLockGuard lock_guard(&sessionsAndSubscriptionsRwlock);
         lock_guard.rdlock();
 
-        sessionCopies.reserve(sessionsByIdConst.size());
+        sessionPointers.reserve(sessionsByIdConst.size());
 
         for (const auto &pair : sessionsByIdConst)
         {
-            const Session &org = *pair.second.get();
-
-            // Sessions created with clean session need to be destroyed when disconnecting, so no point in saving them.
-            if (org.getDestroyOnDisconnect())
-                continue;
-
-            sessionCopies.push_back(org.getCopy());
+            sessionPointers.push_back(pair.second);
         }
 
         getSubscriptions(&root, "", true, subscriptionCopies);
     }
 
-    // Then write the copies to disk, after having released the lock
+    const std::chrono::time_point<std::chrono::steady_clock> doneCopying = std::chrono::steady_clock::now();
 
-    logger->logf(LOG_DEBUG, "Collected %ld sessions and %ld subscriptions to save.", sessionCopies.size(), subscriptionCopies.size());
+    const std::chrono::milliseconds copyDuration = std::chrono::duration_cast<std::chrono::milliseconds>(doneCopying - start);
+    logger->logf(LOG_DEBUG, "Collected %ld sessions and %ld subscriptions to save in %ld ms.", sessionPointers.size(), subscriptionCopies.size(), copyDuration.count());
 
     SessionsAndSubscriptionsDB db(filePath);
     db.openWrite();
-    db.saveData(sessionCopies, subscriptionCopies);
+    db.saveData(sessionPointers, subscriptionCopies);
+
+    const std::chrono::time_point<std::chrono::steady_clock> doneSaving = std::chrono::steady_clock::now();
+
+    const std::chrono::milliseconds saveDuration = std::chrono::duration_cast<std::chrono::milliseconds>(doneSaving - doneCopying);
+    logger->logf(LOG_INFO, "Saved %ld sessions and %ld subscriptions to '%s' in %ld ms.",
+                 sessionPointers.size(), subscriptionCopies.size(), filePath.c_str(), saveDuration.count());
 }
 
 void SubscriptionStore::loadSessionsAndSubscriptions(const std::string &filePath)
@@ -946,7 +949,7 @@ void SubscriptionStore::loadSessionsAndSubscriptions(const std::string &filePath
         db.openRead();
         SessionsAndSubscriptionsResult loadedData = db.readData();
 
-        RWLockGuard locker(&subscriptionsRwlock);
+        RWLockGuard locker(&sessionsAndSubscriptionsRwlock);
         locker.wrlock();
 
         for (std::shared_ptr<Session> &session : loadedData.sessions)

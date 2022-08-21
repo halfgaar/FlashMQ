@@ -68,7 +68,7 @@ public:
     void openWrite();
     void openRead();
 
-    void saveData(const std::vector<std::unique_ptr<Session>> &sessions, const std::unordered_map<std::string, std::list<SubscriptionForSerializing>> &subscriptions);
+    void saveData(const std::vector<std::shared_ptr<Session>> &sessions, const std::unordered_map<std::string, std::list<SubscriptionForSerializing>> &subscriptions);
     SessionsAndSubscriptionsResult readData();
 };
 

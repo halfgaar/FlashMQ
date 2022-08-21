@@ -106,7 +106,7 @@ class SubscriptionStore
 
     SubscriptionNode root;
     SubscriptionNode rootDollar;
-    pthread_rwlock_t subscriptionsRwlock = PTHREAD_RWLOCK_INITIALIZER;
+    pthread_rwlock_t sessionsAndSubscriptionsRwlock = PTHREAD_RWLOCK_INITIALIZER;
     std::unordered_map<std::string, std::shared_ptr<Session>> sessionsById;
     const std::unordered_map<std::string, std::shared_ptr<Session>> &sessionsByIdConst;
 

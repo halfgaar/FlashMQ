@@ -242,7 +242,7 @@ void SessionsAndSubscriptionsDB::writeRowHeader()
 
 }
 
-void SessionsAndSubscriptionsDB::saveData(const std::vector<std::unique_ptr<Session>> &sessions, const std::unordered_map<std::string, std::list<SubscriptionForSerializing>> &subscriptions)
+void SessionsAndSubscriptionsDB::saveData(const std::vector<std::shared_ptr<Session>> &sessions, const std::unordered_map<std::string, std::list<SubscriptionForSerializing>> &subscriptions)
 {
     if (!f)
         return;
@@ -254,12 +254,21 @@ void SessionsAndSubscriptionsDB::saveData(const std::vector<std::unique_ptr<Sess
     logger->logf(LOG_DEBUG, "Saving current time stamp %ld", now_epoch);
     writeInt64(now_epoch);
 
-    writeUint32(sessions.size());
+    std::vector<std::shared_ptr<Session>> sessionsToSave;
+    // Sessions created with clean session need to be destroyed when disconnecting, so no point in saving them.
+    std::copy_if(sessions.begin(), sessions.end(), std::back_inserter(sessionsToSave), [](const std::shared_ptr<Session> &ses) {
+        return !ses->destroyOnDisconnect;
+    });
+
+    writeUint32(sessionsToSave.size());
 
     CirBuf cirbuf(1024);
 
-    for (const std::unique_ptr<Session> &ses : sessions)
+    for (const std::shared_ptr<Session> &_ses : sessionsToSave)
     {
+        // Takes care of locking, and working on the snapshot/copy prevents doing disk IO under lock.
+        std::unique_ptr<Session> ses = _ses->getCopy();
+
         logger->logf(LOG_DEBUG, "Saving session '%s'.", ses->getClientId().c_str());
 
         writeRowHeader();
