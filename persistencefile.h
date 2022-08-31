@@ -46,6 +46,7 @@ class PersistenceFile
     std::string filePath;
     std::string filePathTemp;
     std::string filePathCorrupt;
+    std::string dirPath;
 
     EVP_MD_CTX *digestContext = nullptr;
     const EVP_MD *sha512 = EVP_sha512();

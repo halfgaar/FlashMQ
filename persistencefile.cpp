@@ -25,6 +25,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include <stdexcept>
 #include <stdio.h>
 #include <cstring>
+#include <libgen.h>
 
 #include "utils.h"
 #include "logger.h"
@@ -39,11 +40,28 @@ PersistenceFile::PersistenceFile(const std::string &filePath) :
     this->filePath = filePath;
     this->filePathTemp = formatString("%s.newfile.%s", filePath.c_str(), getSecureRandomString(8).c_str());
     this->filePathCorrupt = formatString("%s.corrupt.%s", filePath.c_str(), getSecureRandomString(8).c_str());
+
+    std::vector<char> d1(filePath.length() + 1, 0);
+    std::copy(filePath.begin(), filePath.end(), d1.begin());
+    this->dirPath = std::string(dirname(d1.data()));
 }
 
 PersistenceFile::~PersistenceFile()
 {
-    closeFile();
+    try
+    {
+        closeFile();
+    }
+    catch(std::exception &ex)
+    {
+        Logger::getInstance()->logf(LOG_WARNING, ex.what());
+    }
+
+    if (f != nullptr)
+    {
+        fclose(f); // fclose was already attempted and error handled if it was possible. In case an early fault happend, we need to still make sure.
+        f = nullptr;
+    }
 
     if (digestContext)
     {
@@ -105,7 +123,6 @@ void PersistenceFile::hashFile()
     fseek(f, MAGIC_STRING_LENGH, SEEK_SET);
 
     writeCheck(md_value, output_len, 1, f);
-    fflush(f);
 }
 
 void PersistenceFile::verifyHash()
@@ -325,18 +342,38 @@ void PersistenceFile::closeFile()
         return;
 
     if (openMode == FileMode::write)
+    {
         hashFile();
+
+        if (fflush(f) != 0)
+        {
+            std::string msg(strerror(errno));
+            throw std::runtime_error(formatString("Flush of '%s' failed: %s.", this->filePathTemp.c_str(), msg.c_str()));
+        }
+
+        fsync(f->_fileno);
+    }
 
     if (f != nullptr)
     {
-        fclose(f);
+        FILE *f2 = f;
         f = nullptr;
+
+        if (fclose(f2) < 0)
+        {
+            std::string msg(strerror(errno));
+            throw std::runtime_error(formatString("Close of '%s' failed: %s.", this->filePathTemp.c_str(), msg.c_str()));
+        }
     }
 
     if (openMode == FileMode::write && !filePathTemp.empty() && ! filePath.empty())
     {
         if (rename(filePathTemp.c_str(), filePath.c_str()) < 0)
             throw std::runtime_error(formatString("Saving '%s' failed: rename of temp file to target failed with: %s", filePath.c_str(), strerror(errno)));
+
+        int dir_fd = open(this->dirPath.c_str(), O_RDONLY);
+        fsync(dir_fd);
+        close(dir_fd);
     }
 }
 
