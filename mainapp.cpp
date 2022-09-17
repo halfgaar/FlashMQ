@@ -362,6 +362,7 @@ void MainApp::initMainApp(int argc, char *argv[])
     int option_index = 0;
     int opt;
     bool testConfig = false;
+    optind = 1; // allow repeated calls to getopt_long.
     while((opt = getopt_long(argc, argv, "hc:Vltz:", long_options, &option_index)) != -1)
     {
         switch(opt)
