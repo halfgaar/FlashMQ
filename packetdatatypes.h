@@ -38,6 +38,23 @@ struct ConnectData
     ConnectData();
 };
 
+struct ConnAckData
+{
+    // Flags
+    bool sessionPresent = false;
+
+    ReasonCodes reasonCode = ReasonCodes::ImplementationSpecificError; // default something that is never a parse result;
+
+    std::string authData;
+};
+
+struct AuthPacketData
+{
+    std::string method;
+    std::string data;
+    ReasonCodes reasonCode = ReasonCodes::ImplementationSpecificError; // default something that is never a parse result;
+};
+
 struct DisconnectData
 {
     ReasonCodes reasonCode = ReasonCodes::Success;

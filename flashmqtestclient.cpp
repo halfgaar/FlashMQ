@@ -260,6 +260,12 @@ void FlashMQTestClient::publish(Publish &pub)
     }
 }
 
+void FlashMQTestClient::writeAuth(const Auth &auth)
+{
+    MqttPacket pack(auth);
+    client->writeMqttPacketAndBlameThisClient(pack);
+}
+
 void FlashMQTestClient::publish(const std::string &topic, const std::string &payload, char qos)
 {
     Publish pub(topic, payload, qos);
@@ -276,7 +282,7 @@ void FlashMQTestClient::waitForConnack()
 {
     waitForCondition([&]() {
         return std::any_of(this->receivedPackets.begin(), this->receivedPackets.end(), [](const MqttPacket &p) {
-            return p.packetType == PacketType::CONNACK;
+            return p.packetType == PacketType::CONNACK || p.packetType == PacketType::AUTH;
         });
     });
 }
@@ -285,5 +291,12 @@ void FlashMQTestClient::waitForMessageCount(const size_t count, int timeout)
 {
     waitForCondition([&]() {
         return this->receivedPublishes.size() >= count;
+    }, timeout);
+}
+
+void FlashMQTestClient::waitForPacketCount(const size_t count, int timeout)
+{
+    waitForCondition([&]() {
+        return this->receivedPackets.size() >= count;
     }, timeout);
 }

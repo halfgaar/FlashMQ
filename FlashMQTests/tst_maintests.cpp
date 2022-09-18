@@ -32,6 +32,8 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "session.h"
 #include "threaddata.h"
 #include "threadglobals.h"
+#include "conffiletemp.h"
+#include "packetdatatypes.h"
 
 #include "flashmqtestclient.h"
 
@@ -65,6 +67,7 @@ public:
     ~MainTests();
 
 private slots:
+    void init(const std::vector<std::string> &args);
     void init(); // will be called before each test function is executed
     void cleanup(); // will be called after every test function.
 
@@ -134,6 +137,18 @@ private slots:
 
     void testUserProperties();
 
+    void testAuthFail();
+    void testAuthSucceed();
+
+    void testExtendedAuthOneStepSucceed();
+    void testExtendedAuthOneStepDeny();
+    void testExtendedAuthOneStepBadAuthMethod();
+    void testExtendedAuthTwoStep();
+    void testExtendedAuthTwoStepSecondStepFail();
+    void testExtendedReAuth();
+    void testExtendedReAuthTwoStep();
+    void testExtendedReAuthFail();
+
 };
 
 MainTests::MainTests()
@@ -146,10 +161,10 @@ MainTests::~MainTests()
 
 }
 
-void MainTests::init()
+void MainTests::init(const std::vector<std::string> &args)
 {
     mainApp.reset();
-    mainApp.reset(new MainAppThread());
+    mainApp.reset(new MainAppThread(args));
     mainApp->start();
     mainApp->waitForStarted();
 
@@ -158,6 +173,12 @@ void MainTests::init()
     std::shared_ptr<Settings> settings = std::make_shared<Settings>();
     this->dummyThreadData = std::make_shared<ThreadData>(666, settings);
     ThreadGlobals::assignThreadData(dummyThreadData.get());
+}
+
+void MainTests::init()
+{
+    std::vector<std::string> args;
+    init(args);
 }
 
 void MainTests::cleanup()
@@ -1923,6 +1944,414 @@ void MainTests::testUserProperties()
     MqttPacket &pack3 = receiver3.receivedPublishes.front();
     const std::vector<std::pair<std::string, std::string>> *properties3 = pack3.getUserProperties();
     QVERIFY(properties3 == nullptr);
+}
+
+void MainTests::testAuthFail()
+{
+    std::vector<ProtocolVersion> versions { ProtocolVersion::Mqtt311, ProtocolVersion::Mqtt5 };
+
+    ConfFileTemp confFile;
+    confFile.writeLine("auth_plugin plugins/libtest_plugin.so.0.0.1");
+    confFile.closeFile();
+
+    std::vector<std::string> args {"--config-file", confFile.getFilePath()};
+
+    cleanup();
+    init(args);
+
+    for (ProtocolVersion &version : versions)
+    {
+
+        FlashMQTestClient client;
+        client.start();
+        client.connectClient(version, false, 120, [](Connect &connect) {
+            connect.username = "failme";
+            connect.password = "boo";
+        });
+
+        QVERIFY(client.receivedPackets.size() == 1);
+
+        ConnAckData connAckData = client.receivedPackets.front().parseConnAckData();
+
+        if (version >= ProtocolVersion::Mqtt5)
+            QVERIFY(connAckData.reasonCode == ReasonCodes::NotAuthorized);
+        else
+            QVERIFY(static_cast<uint8_t>(connAckData.reasonCode) == 5);
+    }
+}
+
+void MainTests::testAuthSucceed()
+{
+    std::vector<ProtocolVersion> versions { ProtocolVersion::Mqtt311, ProtocolVersion::Mqtt5 };
+
+    ConfFileTemp confFile;
+    confFile.writeLine("auth_plugin plugins/libtest_plugin.so.0.0.1");
+    confFile.closeFile();
+
+    std::vector<std::string> args {"--config-file", confFile.getFilePath()};
+
+    cleanup();
+    init(args);
+
+    for (ProtocolVersion &version : versions)
+    {
+
+        FlashMQTestClient client;
+        client.start();
+        client.connectClient(version, false, 120, [](Connect &connect) {
+            connect.username = "passme";
+            connect.password = "boo";
+        });
+
+        QVERIFY(client.receivedPackets.size() == 1);
+
+        ConnAckData connAckData = client.receivedPackets.front().parseConnAckData();
+
+        QVERIFY(connAckData.reasonCode == ReasonCodes::Success);
+    }
+}
+
+void MainTests::testExtendedAuthOneStepSucceed()
+{
+    ConfFileTemp confFile;
+    confFile.writeLine("auth_plugin plugins/libtest_plugin.so.0.0.1");
+    confFile.closeFile();
+
+    std::vector<std::string> args {"--config-file", confFile.getFilePath()};
+
+    cleanup();
+    init(args);
+
+    FlashMQTestClient client;
+    client.start();
+    client.connectClient(ProtocolVersion::Mqtt5, false, 120, [](Connect &connect) {
+        connect.username = "me";
+        connect.password = "me me";
+
+        connect.constructPropertyBuilder();
+
+        connect.propertyBuilder->writeAuthenticationMethod("always_good_passing_back_the_auth_data");
+        connect.propertyBuilder->writeAuthenticationData("I have a proposal to put to ye.");
+    });
+
+    QVERIFY(client.receivedPackets.size() == 1);
+
+    ConnAckData connAckData = client.receivedPackets.front().parseConnAckData();
+
+    QVERIFY(connAckData.reasonCode == ReasonCodes::Success);
+    QVERIFY(connAckData.authData == "I have a proposal to put to ye.");
+}
+
+void MainTests::testExtendedAuthOneStepDeny()
+{
+    ConfFileTemp confFile;
+    confFile.writeLine("auth_plugin plugins/libtest_plugin.so.0.0.1");
+    confFile.closeFile();
+
+    std::vector<std::string> args {"--config-file", confFile.getFilePath()};
+
+    cleanup();
+    init(args);
+
+    FlashMQTestClient client;
+    client.start();
+    client.connectClient(ProtocolVersion::Mqtt5, false, 120, [](Connect &connect) {
+        connect.username = "me";
+        connect.password = "me me";
+
+        connect.constructPropertyBuilder();
+
+        connect.propertyBuilder->writeAuthenticationMethod("always_fail");
+    });
+
+    QVERIFY(client.receivedPackets.size() == 1);
+
+    ConnAckData connAckData = client.receivedPackets.front().parseConnAckData();
+
+    QVERIFY(connAckData.reasonCode == ReasonCodes::NotAuthorized);
+}
+
+void MainTests::testExtendedAuthOneStepBadAuthMethod()
+{
+    ConfFileTemp confFile;
+    confFile.writeLine("auth_plugin plugins/libtest_plugin.so.0.0.1");
+    confFile.closeFile();
+
+    std::vector<std::string> args {"--config-file", confFile.getFilePath()};
+
+    cleanup();
+    init(args);
+
+    FlashMQTestClient client;
+    client.start();
+    client.connectClient(ProtocolVersion::Mqtt5, false, 120, [](Connect &connect) {
+        connect.username = "me";
+        connect.password = "me me";
+
+        connect.constructPropertyBuilder();
+
+        connect.propertyBuilder->writeAuthenticationMethod("doesnt_exist");
+    });
+
+    QVERIFY(client.receivedPackets.size() == 1);
+
+    ConnAckData connAckData = client.receivedPackets.front().parseConnAckData();
+
+    QVERIFY(connAckData.reasonCode == ReasonCodes::BadAuthenticationMethod);
+}
+
+void MainTests::testExtendedAuthTwoStep()
+{
+    ConfFileTemp confFile;
+    confFile.writeLine("auth_plugin plugins/libtest_plugin.so.0.0.1");
+    confFile.closeFile();
+
+    std::vector<std::string> args {"--config-file", confFile.getFilePath()};
+
+    cleanup();
+    init(args);
+
+    FlashMQTestClient client;
+    client.start();
+    client.connectClient(ProtocolVersion::Mqtt5, false, 120, [](Connect &connect) {
+        connect.username = "me";
+        connect.password = "me me";
+
+        connect.constructPropertyBuilder();
+
+        connect.propertyBuilder->writeAuthenticationMethod("two_step");
+        connect.propertyBuilder->writeAuthenticationData("Hello");
+    });
+
+    QVERIFY(client.receivedPackets.size() == 1);
+
+    AuthPacketData authData = client.receivedPackets.front().parseAuthData();
+
+    QVERIFY(authData.reasonCode == ReasonCodes::ContinueAuthentication);
+    QVERIFY(authData.data == "Hello back");
+
+    client.clearReceivedLists();
+
+    const Auth auth(ReasonCodes::ContinueAuthentication, "two_step", "grant me already!");
+    client.writeAuth(auth);
+
+    client.waitForConnack();
+
+    QVERIFY(client.receivedPackets.size() == 1);
+
+    ConnAckData connAckData = client.receivedPackets.front().parseConnAckData();
+
+    QVERIFY(connAckData.reasonCode == ReasonCodes::Success);
+    QVERIFY(connAckData.authData == "OK, if you insist.");
+}
+
+void MainTests::testExtendedAuthTwoStepSecondStepFail()
+{
+    ConfFileTemp confFile;
+    confFile.writeLine("auth_plugin plugins/libtest_plugin.so.0.0.1");
+    confFile.closeFile();
+
+    std::vector<std::string> args {"--config-file", confFile.getFilePath()};
+
+    cleanup();
+    init(args);
+
+    FlashMQTestClient client;
+    client.start();
+    client.connectClient(ProtocolVersion::Mqtt5, false, 120, [](Connect &connect) {
+        connect.username = "me";
+        connect.password = "me me";
+
+        connect.constructPropertyBuilder();
+
+        connect.propertyBuilder->writeAuthenticationMethod("two_step");
+        connect.propertyBuilder->writeAuthenticationData("Hello");
+    });
+
+    QVERIFY(client.receivedPackets.size() == 1);
+
+    AuthPacketData authData = client.receivedPackets.front().parseAuthData();
+
+    QVERIFY(authData.reasonCode == ReasonCodes::ContinueAuthentication);
+    QVERIFY(authData.data == "Hello back");
+
+    client.clearReceivedLists();
+
+    const Auth auth(ReasonCodes::ContinueAuthentication, "two_step", "whoops, wrong data.");
+    client.writeAuth(auth);
+
+    client.waitForConnack();
+
+    QVERIFY(client.receivedPackets.size() == 1);
+
+    ConnAckData connAckData = client.receivedPackets.front().parseConnAckData();
+
+    QVERIFY(connAckData.reasonCode == ReasonCodes::NotAuthorized);
+}
+
+void MainTests::testExtendedReAuth()
+{
+    ConfFileTemp confFile;
+    confFile.writeLine("auth_plugin plugins/libtest_plugin.so.0.0.1");
+    confFile.closeFile();
+
+    std::vector<std::string> args {"--config-file", confFile.getFilePath()};
+
+    cleanup();
+    init(args);
+
+    FlashMQTestClient client;
+    client.start();
+    client.connectClient(ProtocolVersion::Mqtt5, false, 120, [](Connect &connect) {
+        connect.username = "me";
+        connect.password = "me me";
+
+        connect.constructPropertyBuilder();
+        connect.propertyBuilder->writeAuthenticationMethod("always_good_passing_back_the_auth_data");
+        connect.propertyBuilder->writeAuthenticationData("Santa Claus");
+    });
+
+    QVERIFY(client.receivedPackets.size() == 1);
+
+    ConnAckData connAckData = client.receivedPackets.front().parseConnAckData();
+
+    QVERIFY(connAckData.reasonCode == ReasonCodes::Success);
+
+    client.clearReceivedLists();
+
+    // Then reauth.
+
+    Auth auth(ReasonCodes::ContinueAuthentication, "always_good_passing_back_the_auth_data", "Again Santa Claus");
+    client.writeAuth(auth);
+
+    client.waitForConnack();
+
+    QVERIFY(client.receivedPackets.size() == 1);
+
+    AuthPacketData authData = client.receivedPackets.front().parseAuthData();
+
+    QVERIFY(authData.reasonCode == ReasonCodes::Success);
+    QVERIFY(authData.data == "Again Santa Claus");
+}
+
+void MainTests::testExtendedReAuthTwoStep()
+{
+    ConfFileTemp confFile;
+    confFile.writeLine("auth_plugin plugins/libtest_plugin.so.0.0.1");
+    confFile.closeFile();
+
+    std::vector<std::string> args {"--config-file", confFile.getFilePath()};
+
+    cleanup();
+    init(args);
+
+    FlashMQTestClient client;
+    client.start();
+    client.connectClient(ProtocolVersion::Mqtt5, false, 120, [](Connect &connect) {
+        connect.username = "me";
+        connect.password = "me me";
+
+        connect.constructPropertyBuilder();
+
+        connect.propertyBuilder->writeAuthenticationMethod("two_step");
+        connect.propertyBuilder->writeAuthenticationData("Hello");
+    });
+
+    QVERIFY(client.receivedPackets.size() == 1);
+
+    AuthPacketData authData = client.receivedPackets.front().parseAuthData();
+
+    QVERIFY(authData.reasonCode == ReasonCodes::ContinueAuthentication);
+    QVERIFY(authData.data == "Hello back");
+
+    client.clearReceivedLists();
+
+    const Auth auth(ReasonCodes::ContinueAuthentication, "two_step", "grant me already!");
+    client.writeAuth(auth);
+
+    client.waitForConnack();
+
+    QVERIFY(client.receivedPackets.size() == 1);
+
+    ConnAckData connAckData = client.receivedPackets.front().parseConnAckData();
+
+    QVERIFY(connAckData.reasonCode == ReasonCodes::Success);
+    QVERIFY(connAckData.authData == "OK, if you insist.");
+
+    client.clearReceivedLists();
+
+    // Then reauth.
+
+    const Auth reauth(ReasonCodes::ReAuthenticate, "two_step", "Hello");
+    client.writeAuth(reauth);
+    client.waitForConnack();
+
+    QVERIFY(client.receivedPackets.size() == 1);
+
+    AuthPacketData reauthData = client.receivedPackets.front().parseAuthData();
+
+    QVERIFY(reauthData.reasonCode == ReasonCodes::ContinueAuthentication);
+    QVERIFY(reauthData.data == "Hello back");
+
+    client.clearReceivedLists();
+
+    const Auth reauthFinish(ReasonCodes::ContinueAuthentication, "two_step", "grant me already!");
+    client.writeAuth(reauthFinish);
+
+    client.waitForConnack();
+
+    QVERIFY(client.receivedPackets.size() == 1);
+
+    AuthPacketData reauthFinishData = client.receivedPackets.front().parseAuthData();
+
+    QVERIFY(connAckData.reasonCode == ReasonCodes::Success);
+    QVERIFY(connAckData.authData == "OK, if you insist.");
+}
+
+void MainTests::testExtendedReAuthFail()
+{
+    ConfFileTemp confFile;
+    confFile.writeLine("auth_plugin plugins/libtest_plugin.so.0.0.1");
+    confFile.closeFile();
+
+    std::vector<std::string> args {"--config-file", confFile.getFilePath()};
+
+    cleanup();
+    init(args);
+
+    FlashMQTestClient client;
+    client.start();
+    client.connectClient(ProtocolVersion::Mqtt5, false, 120, [](Connect &connect) {
+        connect.username = "me";
+        connect.password = "me me";
+
+        connect.constructPropertyBuilder();
+
+        connect.propertyBuilder->writeAuthenticationMethod("always_good_passing_back_the_auth_data");
+        connect.propertyBuilder->writeAuthenticationData("I have a proposal to put to ye.");
+    });
+
+    QVERIFY(client.receivedPackets.size() == 1);
+
+    ConnAckData connAckData = client.receivedPackets.front().parseConnAckData();
+
+    QVERIFY(connAckData.reasonCode == ReasonCodes::Success);
+    QVERIFY(connAckData.authData == "I have a proposal to put to ye.");
+
+    client.clearReceivedLists();
+
+    // Then reauth.
+
+    const Auth reauth(ReasonCodes::ReAuthenticate, "always_good_passing_back_the_auth_data", "actually not good.");
+    client.writeAuth(reauth);
+    client.waitForPacketCount(1);
+
+    QVERIFY(client.receivedPackets.size() == 1);
+    QVERIFY(client.receivedPackets.front().packetType == PacketType::DISCONNECT);
+
+    DisconnectData data = client.receivedPackets.front().parseDisconnectData();
+
+    QVERIFY(data.reasonCode == ReasonCodes::NotAuthorized);
 }
 
 int main(int argc, char *argv[])

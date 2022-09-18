@@ -73,6 +73,7 @@ class MqttPacket
 
     char *readBytes(size_t length);
     char readByte();
+    uint8_t readUint8();
     void writeByte(char b);
     void writeUint16(uint16_t x);
     void writeBytes(const char *b, size_t len);
@@ -121,7 +122,9 @@ public:
     static void bufferToMqttPackets(CirBuf &buf, std::vector<MqttPacket> &packetQueueIn, std::shared_ptr<Client> &sender);
 
     void handle();
+    AuthPacketData parseAuthData();
     ConnectData parseConnectData();
+    ConnAckData parseConnAckData();
     void handleConnect();
     void handleExtendedAuth();
     DisconnectData parseDisconnectData();

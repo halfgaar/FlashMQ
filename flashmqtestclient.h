@@ -40,6 +40,7 @@ public:
     void unsubscribe(const std::string &topic);
     void publish(const std::string &topic, const std::string &payload, char qos);
     void publish(Publish &pub);
+    void writeAuth(const Auth &auth);
     void clearReceivedLists();
     void setWill(std::shared_ptr<WillPublish> &will);
     void disconnect(ReasonCodes reason);
@@ -47,6 +48,7 @@ public:
     void waitForQuit();
     void waitForConnack();
     void waitForMessageCount(const size_t count, int timeout = 1);
+    void waitForPacketCount(const size_t count, int timeout = 1);
 };
 
 #endif // FLASHMQTESTCLIENT_H

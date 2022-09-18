@@ -55,6 +55,7 @@ SOURCES +=  tst_maintests.cpp \
     ../derivablecounter.cpp \
     ../packetdatatypes.cpp \
     ../flashmqtestclient.cpp \
+    conffiletemp.cpp \
     mainappthread.cpp
 
 
@@ -102,6 +103,7 @@ HEADERS += \
     ../derivablecounter.h \
     ../packetdatatypes.h \
     ../flashmqtestclient.h \
+    conffiletemp.h \
     mainappthread.h
 
 LIBS += -ldl -lssl -lcrypto

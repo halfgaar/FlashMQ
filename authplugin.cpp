@@ -356,7 +356,7 @@ AuthResult Authentication::unPwdCheck(const std::string &username, const std::st
 {
     AuthResult firstResult = unPwdCheckFromMosquittoPasswordFile(username, password);
 
-    if (firstResult != AuthResult::success)
+    if (firstResult == AuthResult::success)
         return firstResult;
 
     if (pluginVersion == PluginVersion::None)

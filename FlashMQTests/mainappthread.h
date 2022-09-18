@@ -28,6 +28,7 @@ class MainAppThread : public QThread
     MainApp *appInstance = nullptr;
 public:
     explicit MainAppThread(QObject *parent = nullptr);
+    MainAppThread(const std::vector<std::string> &args, QObject *parent = nullptr);
     ~MainAppThread();
 
 public slots:

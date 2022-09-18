@@ -45,6 +45,9 @@ AuthResult flashmq_auth_plugin_login_check(void *thread_data, const std::string 
     (void)password;
     (void)userProperties;
 
+    if (username == "failme")
+        return AuthResult::login_denied;
+
     return AuthResult::success;
 }
 
@@ -72,6 +75,34 @@ AuthResult flashmq_extended_auth(void *thread_data, const std::string &clientid,
     (void)userProperties;
     (void)returnData;
 
-    return AuthResult::success;
+    if (authMethod == "always_good_passing_back_the_auth_data")
+    {
+        if (authData == "actually not good.")
+            return AuthResult::login_denied;
+
+        returnData = authData;
+        return AuthResult::success;
+    }
+    if (authMethod == "always_fail")
+    {
+        return AuthResult::login_denied;
+    }
+    if (authMethod == "two_step")
+    {
+        if (authData == "Hello")
+            returnData = "Hello back";
+
+        if (authData == "grant me already!")
+        {
+            returnData = "OK, if you insist.";
+            return AuthResult::success;
+        }
+        else if (authData == "whoops, wrong data.")
+            return AuthResult::login_denied;
+        else
+            return AuthResult::auth_continue;
+    }
+
+    return AuthResult::auth_method_not_supported;
 }
 
