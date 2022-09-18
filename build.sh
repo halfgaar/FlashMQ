@@ -27,7 +27,7 @@ cpack
 
 FLASHMQ_VERSION=$(./FlashMQ --version | grep -Ei 'Flashmq.*version.*' | grep -oE '[^ ]+$')
 
-if which linuxdeploy-x86_64.AppImage &> /dev/null; then
+if command -v linuxdeploy-x86_64.AppImage &> /dev/null; then
   linuxdeploy-x86_64.AppImage --create-desktop-file --icon-file "../FlashMQ.png" --appdir "AppImageDir" --executable "FlashMQ" --output appimage
   mv FlashMQ-*.AppImage "FlashMQ-${FLASHMQ_VERSION}-linux-amd64.AppImage"
 fi
