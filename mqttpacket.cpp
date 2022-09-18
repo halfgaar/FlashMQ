@@ -495,7 +495,7 @@ ConnectData MqttPacket::parseConnectData()
 
         while (pos < prop_end_at)
         {
-            const Mqtt5Properties prop = static_cast<Mqtt5Properties>(readByte());
+            const Mqtt5Properties prop = static_cast<Mqtt5Properties>(readUint8());
 
             switch (prop)
             {
@@ -557,7 +557,7 @@ ConnectData MqttPacket::parseConnectData()
 
             while (pos < prop_end_at)
             {
-                const Mqtt5Properties prop = static_cast<Mqtt5Properties>(readByte());
+                const Mqtt5Properties prop = static_cast<Mqtt5Properties>(readUint8());
 
                 switch (prop)
                 {
@@ -662,7 +662,7 @@ ConnAckData MqttPacket::parseConnAckData()
 
         while (pos < prop_end_at)
         {
-            const Mqtt5Properties prop = static_cast<Mqtt5Properties>(readByte());
+            const Mqtt5Properties prop = static_cast<Mqtt5Properties>(readUint8());
 
             switch (prop)
             {
@@ -866,7 +866,7 @@ AuthPacketData MqttPacket::parseAuthData()
 
         while (pos < prop_end_at)
         {
-            const Mqtt5Properties prop = static_cast<Mqtt5Properties>(readByte());
+            const Mqtt5Properties prop = static_cast<Mqtt5Properties>(readUint8());
 
             switch (prop)
             {
@@ -991,7 +991,7 @@ DisconnectData MqttPacket::parseDisconnectData()
 
             while (pos < prop_end_at)
             {
-                const Mqtt5Properties prop = static_cast<Mqtt5Properties>(readByte());
+                const Mqtt5Properties prop = static_cast<Mqtt5Properties>(readUint8());
 
                 switch (prop)
                 {
@@ -1067,7 +1067,7 @@ void MqttPacket::handleSubscribe()
 
         while (pos < prop_end_at)
         {
-            const Mqtt5Properties prop = static_cast<Mqtt5Properties>(readByte());
+            const Mqtt5Properties prop = static_cast<Mqtt5Properties>(readUint8());
 
             switch (prop)
             {
@@ -1158,7 +1158,7 @@ void MqttPacket::handleUnsubscribe()
 
         while (pos < prop_end_at)
         {
-            const Mqtt5Properties prop = static_cast<Mqtt5Properties>(readByte());
+            const Mqtt5Properties prop = static_cast<Mqtt5Properties>(readUint8());
 
             switch (prop)
             {
@@ -1236,7 +1236,7 @@ void MqttPacket::parsePublishData()
 
         while (pos < prop_end_at)
         {
-            const Mqtt5Properties prop = static_cast<Mqtt5Properties>(readByte());
+            const Mqtt5Properties prop = static_cast<Mqtt5Properties>(readUint8());
 
             switch (prop)
             {
@@ -1403,7 +1403,7 @@ PubRecData MqttPacket::parsePubRecData()
 
     if (!atEnd())
     {
-        result.reasonCode = static_cast<ReasonCodes>(readByte());
+        result.reasonCode = static_cast<ReasonCodes>(readUint8());
     }
 
     return result;
@@ -1494,7 +1494,7 @@ SubAckData MqttPacket::parseSubAckData()
 
         while (pos < prop_end_at)
         {
-            const Mqtt5Properties prop = static_cast<Mqtt5Properties>(readByte());
+            const Mqtt5Properties prop = static_cast<Mqtt5Properties>(readUint8());
 
             switch (prop)
             {
