@@ -983,9 +983,10 @@ DisconnectData MqttPacket::parseDisconnectData()
     if (this->protocolVersion >= ProtocolVersion::Mqtt5)
     {
         if (!atEnd())
-        {
             result.reasonCode = static_cast<ReasonCodes>(readUint8());
 
+        if (!atEnd())
+        {
             const size_t proplen = decodeVariableByteIntAtPos();
             const size_t prop_end_at = pos + proplen;
 
