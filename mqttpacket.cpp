@@ -724,9 +724,9 @@ void MqttPacket::handleConnect()
         logger->logf(LOG_ERR, "ClientID '%s' has + or # in the id and 'allow_unsafe_clientid_chars' is false.", connectData.client_id.c_str());
         validClientId = false;
     }
-    else if (!connectData.clean_start && connectData.client_id.empty())
+    else if (protocolVersion < ProtocolVersion::Mqtt5 && !connectData.clean_start && connectData.client_id.empty())
     {
-        logger->logf(LOG_ERR, "ClientID empty and clean start 0, which is incompatible");
+        logger->logf(LOG_ERR, "ClientID empty and clean start 0, which is incompatible below MQTTv5.");
         validClientId = false;
     }
     else if (protocolVersion < ProtocolVersion::Mqtt311 && connectData.client_id.empty())
