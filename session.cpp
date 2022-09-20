@@ -89,7 +89,7 @@ Session::Session(const Session &other)
 
 Session::~Session()
 {
-    logger->logf(LOG_DEBUG, "Session %s is being destroyed.", getClientId().c_str());
+
 }
 
 std::unique_ptr<Session> Session::getCopy() const
