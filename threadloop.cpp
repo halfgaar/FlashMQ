@@ -31,15 +31,17 @@ void do_thread_work(ThreadData *threadData)
 
     Logger *logger = Logger::getInstance();
 
+    threadData->running = false;
+
     try
     {
         logger->logf(LOG_NOTICE, "Thread %d doing auth init.", threadData->threadnr);
         threadData->initAuthPlugin();
+        threadData->running = true;
     }
     catch(std::exception &ex)
     {
         logger->logf(LOG_ERR, "Error initializing auth back-end: %s", ex.what());
-        threadData->running = false;
         MainApp *instance = MainApp::getMainApp();
         instance->quit();
     }

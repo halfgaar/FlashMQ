@@ -292,7 +292,9 @@ void MainApp::queueRemoveExpiredSessions()
 
 void MainApp::waitForWillsQueued()
 {
-    while(std::any_of(threads.begin(), threads.end(), [](std::shared_ptr<ThreadData> t){ return !t->allWillsQueued; }))
+    int i = 0;
+
+    while(std::any_of(threads.begin(), threads.end(), [](std::shared_ptr<ThreadData> t){ return !t->allWillsQueued && t->running; }) && i++ < 5000)
     {
         usleep(1000);
     }
@@ -300,7 +302,9 @@ void MainApp::waitForWillsQueued()
 
 void MainApp::waitForDisconnectsInitiated()
 {
-    while(std::any_of(threads.begin(), threads.end(), [](std::shared_ptr<ThreadData> t){ return !t->allDisconnectsSent; }))
+    int i = 0;
+
+    while(std::any_of(threads.begin(), threads.end(), [](std::shared_ptr<ThreadData> t){ return !t->allDisconnectsSent && t->running; }) && i++ < 5000)
     {
         usleep(1000);
     }
