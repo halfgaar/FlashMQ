@@ -457,6 +457,21 @@ void SubscriptionStore::publishRecursively(std::vector<std::string>::const_itera
 
 void SubscriptionStore::queuePacketAtSubscribers(PublishCopyFactory &copyFactory, bool dollar)
 {
+    /*
+     * Sometimes people publish or set as will topics with dollar. Node-to-Node communication for bridges for instance.
+     * We still accept them, but just decide to do nothing with them. Only the FlashMQ internals are allowed to publish
+     * on dollar topics.
+     */
+    if (!dollar)
+    {
+        const std::string &topic = copyFactory.getTopic();
+
+        if (!topic.empty() && topic[0] == '$')
+        {
+            return;
+        }
+    }
+
     SubscriptionNode *startNode = dollar ? &rootDollar : &root;
 
     std::forward_list<ReceivingSubscriber> subscriberSessions;
