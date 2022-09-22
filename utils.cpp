@@ -399,8 +399,19 @@ bool parseHttpHeader(CirBuf &buf, std::string &websocket_key, int &websocket_ver
             websocket_version = stoi(value);
         else if (name == "sec-websocket-protocol" && strContains(value_lower, "mqtt"))
         {
-            subprotocol = value;
-            subprotocol_seen = true;
+            std::vector<std::string> protocols = splitToVector(value, ',');
+
+            for(std::string &prot : protocols)
+            {
+                trim(prot);
+
+                // Return what is requested, which can be 'mqttv3.1' or 'mqtt', or whatever variant.
+                if (strContains(str_tolower(prot), "mqtt"))
+                {
+                    subprotocol = prot;
+                    subprotocol_seen = true;
+                }
+            }
         }
     }
 
