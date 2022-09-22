@@ -5,7 +5,8 @@
 
 struct ConnectData
 {
-    char protocol_level_byte = 0;
+    uint8_t protocol_level_byte = 0;
+    bool bridge = false;
 
     // Flags
     bool user_name_flag = false;

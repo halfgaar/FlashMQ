@@ -454,7 +454,9 @@ ConnectData MqttPacket::parseConnectData()
     char *c = readBytes(variable_header_length);
     std::string magic_marker(c, variable_header_length);
 
-    result.protocol_level_byte = readByte();
+    const uint8_t protocolVersionByte = readUint8();
+    result.protocol_level_byte = protocolVersionByte & 0x7F;
+    result.bridge = protocolVersionByte & 0x80; // Unofficial, defacto, way of specifying that.
 
     if (magic_marker == "MQTT")
     {
@@ -689,16 +691,22 @@ void MqttPacket::handleConnect()
 
     ConnectData connectData = parseConnectData();
 
-    if (this->protocolVersion == ProtocolVersion::None)
+    if (this->protocolVersion == ProtocolVersion::None || connectData.bridge)
     {
-        // The specs are unclear when to use the version 3 codes or version 5 codes.
+        if (connectData.bridge)
+            logger->logf(LOG_ERR, "Bridge protocol not supported: %s", sender->repr().c_str());
+        if (this->protocolVersion == ProtocolVersion::None)
+            logger->logf(LOG_ERR, "Rejecting because of invalid protocol version: %s", sender->repr().c_str());
+
+        // The specs are unclear when to use the version 3 codes or version 5 codes when you don't know which protocol version to speak.
         ProtocolVersion fuzzyProtocolVersion = connectData.protocol_level_byte < 0x05 ? ProtocolVersion::Mqtt31 : ProtocolVersion::Mqtt5;
 
         ConnAck connAck(fuzzyProtocolVersion, ReasonCodes::UnsupportedProtocolVersion);
         MqttPacket response(connAck);
         sender->setReadyForDisconnect();
         sender->writeMqttPacket(response);
-        logger->logf(LOG_ERR, "Rejecting because of invalid protocol version: %s", sender->repr().c_str());
+        sender->setDisconnectReason("Unsupported protocol version");
+
         return;
     }
 
