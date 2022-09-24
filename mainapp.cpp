@@ -128,7 +128,12 @@ void MainApp::doHelp(const char *arg)
 
 void MainApp::showLicense()
 {
-    printf("FlashMQ Version %s\n", FLASHMQ_VERSION);
+    std::string sse = "without SSE support";
+#ifdef __SSE4_2__
+    sse = "with SSE4.2 support";
+#endif
+
+    printf("FlashMQ Version %s %s\n", FLASHMQ_VERSION, sse.c_str());
     puts("Copyright (C) 2021,2022 Wiebe Cazemier.");
     puts("License AGPLv3: GNU AGPL version 3. <https://www.gnu.org/licenses/agpl-3.0.html>.");
     puts("");
