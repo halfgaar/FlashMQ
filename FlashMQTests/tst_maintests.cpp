@@ -127,6 +127,8 @@ private slots:
     void testMqtt5NoWillOnDisconnect();
     void testMqtt5DelayedWill();
     void testMqtt5DelayedWillAlwaysOnSessionEnd();
+    void testWillOnSessionTakeOvers();
+    void testOverrideWillDelayOnSessionDestructionByTakeOver();
 
     void testIncomingTopicAlias();
     void testOutgoingTopicAlias();
@@ -1704,6 +1706,102 @@ void MainTests::testMqtt5DelayedWillAlwaysOnSessionEnd()
     pubPack.parsePublishData();
 
     QCOMPARE(pubPack.getPublishData().topic, "my/will/testMqtt5DelayedWillAlwaysOnSessionEnd");
+    QCOMPARE(pubPack.getPublishData().payload, "mypayload");
+    QCOMPARE(pubPack.getPublishData().qos, 0);
+}
+
+/**
+ * @brief MainTests::testWillOnSessionTakeOvers tests sending wills for both persistent and non-persistent sessions.
+ *
+ * Mosquitto is more liberal with not sending wills and will also not send one when you're taking over a persistent session. But, to me it seems
+ * that the specs say you always send wills on client disconnects.
+ *
+ * See https://docs.oasis-open.org/mqtt/mqtt/v5.0/mqtt-v5.0.html "3.1.4 CONNECT Actions"
+ *
+ * See testOverrideWillDelayOnSessionDestructionByTakeOver() for more details.
+ */
+void MainTests::testWillOnSessionTakeOvers()
+{
+    std::list<bool> cleanStarts { false, true};
+
+    for (bool cleanStart : cleanStarts)
+    {
+        FlashMQTestClient receiver;
+        receiver.start();
+        receiver.connectClient(ProtocolVersion::Mqtt311);
+        receiver.subscribe("my/will", 0);
+
+        FlashMQTestClient sender;
+        sender.start();
+        std::shared_ptr<WillPublish> will = std::make_shared<WillPublish>();
+        will->topic = "my/will";
+        will->payload = "mypayload";
+        sender.setWill(will);
+        sender.connectClient(ProtocolVersion::Mqtt311, cleanStart, 0, [](Connect &connect){
+            connect.clientid = "OneOfOne";
+        });
+
+        FlashMQTestClient sender2;
+        sender2.start();
+        std::shared_ptr<WillPublish> will2 = std::make_shared<WillPublish>();
+        will2->topic = "my/will";
+        will2->payload = "mypayload";
+        sender2.setWill(will2);
+        sender2.connectClient(ProtocolVersion::Mqtt311, cleanStart, 0, [](Connect &connect){
+            connect.clientid = "OneOfOne";
+        });
+
+        receiver.waitForMessageCount(1);
+
+        MqttPacket pubPack = receiver.receivedPublishes.front();
+        pubPack.parsePublishData();
+
+        QCOMPARE(pubPack.getPublishData().topic, "my/will");
+        QCOMPARE(pubPack.getPublishData().payload, "mypayload");
+        QCOMPARE(pubPack.getPublishData().qos, 0);
+    }
+}
+
+/**
+ * @brief MainTests::testOverrideWillDelayOnSessionDestructionByTakeOver tests that when you connect with a second 'clean start' client, the delayed
+ * will of the session you're destroying is sent.
+ *
+ * Mosquitto is more liberal with not sending wills and will also not send one when you're taking over a persistent session. But, to me it seems
+ * that the specs say you always send wills on client disconnects and actually hasten delayed wills when you kill the session containing the delayed will
+ * by connecting a new session with the same ID using 'clean start'.
+ *
+ * See https://docs.oasis-open.org/mqtt/mqtt/v5.0/mqtt-v5.0.html "3.1.4 CONNECT Actions"
+ */
+void MainTests::testOverrideWillDelayOnSessionDestructionByTakeOver()
+{
+    FlashMQTestClient receiver;
+    receiver.start();
+    receiver.connectClient(ProtocolVersion::Mqtt311);
+    receiver.subscribe("my/will", 0);
+
+    FlashMQTestClient sender;
+    sender.start();
+    std::shared_ptr<WillPublish> will = std::make_shared<WillPublish>();
+    will->topic = "my/will";
+    will->payload = "mypayload";
+    will->will_delay = 120;
+    sender.setWill(will);
+    sender.connectClient(ProtocolVersion::Mqtt311, false, 300, [](Connect &connect){
+        connect.clientid = "OneOfOne";
+    });
+
+    FlashMQTestClient sender2;
+    sender2.start();
+    sender2.connectClient(ProtocolVersion::Mqtt311, true, 300, [](Connect &connect){
+        connect.clientid = "OneOfOne";
+    });
+
+    receiver.waitForMessageCount(1);
+
+    MqttPacket pubPack = receiver.receivedPublishes.front();
+    pubPack.parsePublishData();
+
+    QCOMPARE(pubPack.getPublishData().topic, "my/will");
     QCOMPARE(pubPack.getPublishData().payload, "mypayload");
     QCOMPARE(pubPack.getPublishData().qos, 0);
 }
