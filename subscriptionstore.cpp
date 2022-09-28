@@ -227,37 +227,42 @@ void SubscriptionStore::registerClientAndKickExistingOne(std::shared_ptr<Client>
 {
     ThreadGlobals::getThreadData()->queueClientNextKeepAliveCheckLocked(client, true);
 
-    RWLockGuard lock_guard(&sessionsAndSubscriptionsRwlock);
-    lock_guard.wrlock();
+    // These destructors need to be called outside the sessions lock, so placing here.
+    std::shared_ptr<Session> session;
+    std::shared_ptr<Client> clientOfOtherSession;
 
     if (client->getClientId().empty())
         throw ProtocolError("Trying to store client without an ID.", ReasonCodes::ProtocolError);
 
-    std::shared_ptr<Session> session;
-    auto session_it = sessionsById.find(client->getClientId());
-    if (session_it != sessionsById.end())
     {
-        session = session_it->second;
+        RWLockGuard lock_guard(&sessionsAndSubscriptionsRwlock);
+        lock_guard.wrlock();
 
-        if (session)
+        auto session_it = sessionsById.find(client->getClientId());
+        if (session_it != sessionsById.end())
         {
-            std::shared_ptr<Client> cl = session->makeSharedClient();
+            session = session_it->second;
 
-            if (cl)
+            if (session)
             {
-                logger->logf(LOG_NOTICE, "Disconnecting existing client with id '%s'", cl->getClientId().c_str());
-                cl->setDisconnectReason("Another client with this ID connected");
-                cl->serverInitiatedDisconnect(ReasonCodes::SessionTakenOver);
+                clientOfOtherSession = session->makeSharedClient();
+
+                if (clientOfOtherSession)
+                {
+                    logger->logf(LOG_NOTICE, "Disconnecting existing client with id '%s'", clientOfOtherSession->getClientId().c_str());
+                    clientOfOtherSession->setDisconnectReason("Another client with this ID connected");
+                    clientOfOtherSession->serverInitiatedDisconnect(ReasonCodes::SessionTakenOver);
+                }
+
             }
-
         }
-    }
 
-    if (!session || session->getDestroyOnDisconnect() || clean_start)
-    {
-        session = std::make_shared<Session>();
+        if (!session || session->getDestroyOnDisconnect() || clean_start)
+        {
+            session = std::make_shared<Session>();
 
-        sessionsById[client->getClientId()] = session;
+            sessionsById[client->getClientId()] = session;
+        }
     }
 
     session->assignActiveConnection(client);
@@ -664,13 +669,23 @@ void SubscriptionStore::removeSession(const std::shared_ptr<Session> &session)
         queueWillMessage(will, session, true);
     }
 
-    RWLockGuard lock_guard(&sessionsAndSubscriptionsRwlock);
-    lock_guard.wrlock();
+    std::list<std::shared_ptr<Session>> sessionsToRemove;
 
-    auto session_it = sessionsById.find(clientid);
-    if (session_it != sessionsById.end())
     {
-        sessionsById.erase(session_it);
+        RWLockGuard lock_guard(&sessionsAndSubscriptionsRwlock);
+        lock_guard.wrlock();
+
+        auto session_it = sessionsById.find(clientid);
+        if (session_it != sessionsById.end())
+        {
+            sessionsToRemove.push_back(session_it->second);
+            sessionsById.erase(session_it);
+        }
+    }
+
+    for(std::shared_ptr<Session> &s : sessionsToRemove)
+    {
+        s.reset();
     }
 }
 
