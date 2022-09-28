@@ -774,7 +774,7 @@ void MqttPacket::handleConnect()
         if (protocolVersion >= ProtocolVersion::Mqtt311 && !connectData.clean_start)
         {
             existingSession = subscriptionStore->lockSession(connectData.client_id);
-            if (existingSession)
+            if (existingSession && !existingSession->getDestroyOnDisconnect())
                 sessionPresent = true;
         }
 
