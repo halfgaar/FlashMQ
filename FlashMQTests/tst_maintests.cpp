@@ -151,6 +151,8 @@ private slots:
     void testExtendedReAuthTwoStep();
     void testExtendedReAuthFail();
 
+    void testMessageExpiry();
+
 };
 
 MainTests::MainTests()
@@ -2449,6 +2451,62 @@ void MainTests::testExtendedReAuthFail()
     DisconnectData data = client.receivedPackets.front().parseDisconnectData();
 
     QVERIFY(data.reasonCode == ReasonCodes::NotAuthorized);
+}
+
+void MainTests::testMessageExpiry()
+{
+    std::unique_ptr<FlashMQTestClient> receiver;
+
+    auto makeReceiver = [&](){
+        receiver = std::make_unique<FlashMQTestClient>();
+        receiver->start();
+        receiver->connectClient(ProtocolVersion::Mqtt5, false, 120, [](Connect &c) {
+            c.clientid = "pietje";
+        });
+    };
+
+    makeReceiver();
+    receiver->subscribe("#", 2);
+
+    FlashMQTestClient sender;
+    sender.start();
+    sender.connectClient(ProtocolVersion::Mqtt5, true, 120);
+
+    Publish publishMe("a/b/c/d/e", "smoke", 1);
+    publishMe.constructPropertyBuilder();
+    publishMe.setExpireAfter(1);
+    sender.publish(publishMe);
+
+    // First we test that a message with an expiry set is still immediately delivered to active clients.
+
+    receiver->waitForMessageCount(1);
+
+    QVERIFY(receiver->receivedPublishes.size() == 1);
+    QCOMPARE(receiver->receivedPublishes.front().getTopic(), "a/b/c/d/e");
+    QCOMPARE(receiver->receivedPublishes.front().getPayloadCopy(), "smoke");
+
+    // Then we test delivering it to an offline client and see if we get it if we are fast enough.
+
+    receiver.reset();
+    sender.publish(publishMe);
+    usleep(300000);
+    makeReceiver();
+    receiver->waitForMessageCount(1);
+
+    QVERIFY(receiver->receivedPublishes.size() == 1);
+    QCOMPARE(receiver->receivedPublishes.front().getTopic(), "a/b/c/d/e");
+    QCOMPARE(receiver->receivedPublishes.front().getPayloadCopy(), "smoke");
+
+    // Then we test delivering it to an offline client that comes back too late.
+
+    receiver.reset();
+    sender.publish(publishMe);
+    usleep(2100000);
+    makeReceiver();
+    usleep(100000);
+    receiver->waitForMessageCount(0);
+    QVERIFY(receiver->receivedPublishes.empty());
+
 }
 
 int main(int argc, char *argv[])
