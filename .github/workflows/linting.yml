@@ -15,6 +15,5 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
       - run: sudo snap install mdl
-      - run: echo "exclude_rule 'MD030'" | tee .mdl.config
         # Exclude MD013: line-length. If it looks good to the dev editing the Markdown file it's good enough for us
       - run: find . -type f -iname '*.md' -exec mdl --rules "~MD013" '{}' '+'
