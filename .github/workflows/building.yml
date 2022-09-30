@@ -38,7 +38,7 @@ jobs:
       # Build prerequisites
       - run: sudo apt install -y cmake libssl-dev ${{ matrix.aptpkg }}
       # Building
-      - run: CXX="${{ matrix.CXX }}" ./build.sh
+      - run: CXX="${{ matrix.CXX }}" ./build.sh "Release"
       # Testing build results
       - run: ./FlashMQBuildRelease/FlashMQ --version
       - run: sudo dpkg -i ./FlashMQBuildRelease/*.deb
