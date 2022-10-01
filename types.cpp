@@ -234,6 +234,12 @@ Publish::Publish(const std::string &topic, const std::string &payload, char qos)
 
 }
 
+Publish &Publish::operator=(const Publish &other)
+{
+    PublishBase::operator=(other);
+    return *this;
+}
+
 const std::vector<std::string> &Publish::getSubtopics()
 {
     if (subtopics.empty())

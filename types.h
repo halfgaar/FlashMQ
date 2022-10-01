@@ -224,6 +224,12 @@ public:
     const std::chrono::time_point<std::chrono::steady_clock> getCreatedAt() const;
 };
 
+/**
+ * @brief The Publish class derives from PublishBase to be able to have a partial copy constructor.
+ *
+ * Mostly when publishes are copied, you don't need the subtopics, so it'd be a waste of time to copy those too. So, the copy constructor uses
+ * the copy constructor and assignment of PublishBase.
+ */
 class Publish : public PublishBase
 {
     std::vector<std::string> subtopics;
@@ -232,6 +238,8 @@ public:
     Publish() = default;
     Publish(const Publish &other);
     Publish(const std::string &topic, const std::string &payload, char qos);
+
+    Publish& operator=(const Publish &other);
 
     const std::vector<std::string> &getSubtopics();
 };
