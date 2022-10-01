@@ -28,4 +28,4 @@ jobs:
       - run: qmake -spec "${{ matrix.SPEC }}" FlashMQTestsMeta.pro
       - run: make
       # Let's-a-go
-      - run: ./FlashMQTests
+      - run: STDERR_LOG=$(mktemp) && if ! ./FlashMQTests -v1 2> "$STDERR_LOG" ; then echo -e "\n\nTail of stderr:" && tail -n 200 "$STDERR_LOG"; fi
