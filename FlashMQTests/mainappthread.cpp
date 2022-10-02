@@ -89,3 +89,8 @@ void MainAppThread::waitForStarted()
             throw std::runtime_error("Waiting for app to start failed.");
     }
 }
+
+std::shared_ptr<SubscriptionStore> MainAppThread::getStore()
+{
+    return appInstance->getSubscriptionStore();
+}

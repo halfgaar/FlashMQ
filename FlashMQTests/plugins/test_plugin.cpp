@@ -60,6 +60,12 @@ AuthResult flashmq_auth_plugin_acl_check(void *thread_data, AclAccess access, co
     (void)username;
     (void)msg;
 
+    if (msg.topic == "removeclient" || msg.topic == "removeclientandsession")
+        flashmq_remove_client(clientid, msg.topic == "removeclientandsession", ServerDisconnectReasons::NormalDisconnect);
+
+    if (clientid == "unsubscribe" && access == AclAccess::write)
+        flashmq_remove_subscription(clientid, msg.topic);
+
     return AuthResult::success;
 }
 

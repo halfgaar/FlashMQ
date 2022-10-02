@@ -286,6 +286,15 @@ void FlashMQTestClient::waitForConnack()
     });
 }
 
+void FlashMQTestClient::waitForDisconnectPacket()
+{
+    waitForCondition([&]() {
+        return std::any_of(this->receivedPackets.begin(), this->receivedPackets.end(), [](const MqttPacket &p) {
+            return p.packetType == PacketType::DISCONNECT;
+        });
+    });
+}
+
 void FlashMQTestClient::waitForMessageCount(const size_t count, int timeout)
 {
     waitForCondition([&]() {
@@ -298,4 +307,9 @@ void FlashMQTestClient::waitForPacketCount(const size_t count, int timeout)
     waitForCondition([&]() {
         return this->receivedPackets.size() >= count;
     }, timeout);
+}
+
+std::shared_ptr<Client> &FlashMQTestClient::getClient()
+{
+    return this->client;
 }

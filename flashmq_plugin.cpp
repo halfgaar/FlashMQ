@@ -1,6 +1,9 @@
 #include "flashmq_plugin.h"
 
 #include "logger.h"
+#include "threaddata.h"
+#include "threadglobals.h"
+#include "subscriptionstore.h"
 
 void flashmq_logf(int level, const char *str, ...)
 {
@@ -21,4 +24,40 @@ FlashMQMessage::FlashMQMessage(const std::string &topic, const std::vector<std::
     retain(retain)
 {
 
+}
+
+void flashmq_remove_client(const std::string &clientid, bool alsoSession, ServerDisconnectReasons reasonCode)
+{
+    std::shared_ptr<SubscriptionStore> store = MainApp::getMainApp()->getSubscriptionStore();
+    std::shared_ptr<Session> session = store->lockSession(clientid);
+
+    if (session)
+    {
+        std::shared_ptr<Client> client = session->makeSharedClient();
+
+        if (client)
+        {
+            ReasonCodes _code = static_cast<ReasonCodes>(reasonCode);
+            client->serverInitiatedDisconnect(_code);
+        }
+
+        if (alsoSession)
+            store->removeSession(session);
+    }
+}
+
+void flashmq_remove_subscription(const std::string &clientid, const std::string &topicFilter)
+{
+    std::shared_ptr<SubscriptionStore> store = MainApp::getMainApp()->getSubscriptionStore();
+    std::shared_ptr<Session> session = store->lockSession(clientid);
+
+    if (session)
+    {
+        std::shared_ptr<Client> client = session->makeSharedClient();
+
+        if (client)
+        {
+            store->removeSubscription(client, topicFilter);
+        }
+    }
 }

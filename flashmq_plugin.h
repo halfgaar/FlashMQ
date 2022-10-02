@@ -102,6 +102,49 @@ enum class ExtendedAuthStage
 void flashmq_logf(int level, const char *str, ...);
 
 /**
+ * @brief The ServerDisconnectReasons enum lists the possible values to initiate client disconnect with.
+ *
+ * This is a subset of all MQTT5 reason codes that are allowed in a disconnect packet, and that make sense for plugin use.
+ */
+enum class ServerDisconnectReasons
+{
+    NormalDisconnect = 0,
+    UnspecifiedError = 128,
+    ProtocolError = 130,
+    ImplementationSpecificError = 131,
+    NotAuthorized = 135,
+    ServerBusy = 137,
+    MessageRateTooHigh = 150
+};
+
+/**
+ * @brief flashmq_remove_client queues a removal of a client in the proper thread, including session if required. It can be called by
+ *        plugin code (meaning this function does not need to be implemented).
+ * @param clientid
+ * @param alsoSession also remove the session if it would otherwise remain.
+ * @param reasonCode is only for MQTT5, because MQTT3 doesn't have server-initiated disconnect packets.
+ *
+ * Many clients will automatically reconnect, so you'll have to also remove permissions of the client in question, probably.
+ *
+ * Can be called from any thread: the action will be queued properly.
+ */
+void flashmq_remove_client(const std::string &clientid, bool alsoSession, ServerDisconnectReasons reasonCode);
+
+/**
+ * @brief flashmq_remove_subscription removes a client's subscription from the central store. It can be called by plugin code (meaning
+ *        this function does not need to be implemented).
+ * @param clientid
+ * @param topicFilter
+ *
+ * It matches only literal filters. So removing '#' would only remove an active subscription on '#', not 'everything'.
+ *
+ * You need to keep track of subscriptions in 'flashmq_auth_plugin_acl_check()' to be able to know what to remove.
+ *
+ * Can be called from any thread, because the global subscription store is mutexed.
+ */
+void flashmq_remove_subscription(const std::string &clientid, const std::string &topicFilter);
+
+/**
  * @brief flashmq_plugin_version must return FLASHMQ_PLUGIN_VERSION.
  * @return FLASHMQ_PLUGIN_VERSION.
  */

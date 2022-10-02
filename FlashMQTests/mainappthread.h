@@ -35,6 +35,7 @@ public slots:
     void run() override;
     void stopApp();
     void waitForStarted();
+    std::shared_ptr<SubscriptionStore> getStore();
 
 signals:
 

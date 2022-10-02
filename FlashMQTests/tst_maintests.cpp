@@ -22,6 +22,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include <QHostInfo>
 #include <list>
 #include <unordered_map>
+#include <sys/sysinfo.h>
 
 #include "cirbuf.h"
 #include "mainapp.h"
@@ -159,9 +160,10 @@ private slots:
     void testMessageExpiry();
 
     void testExpiredQueuedMessages();
-
     void testQoSPublishQueue();
 
+    void testClientRemovalByPlugin();
+    void testSubscriptionRemovalByPlugin();
 };
 
 MainTests::MainTests()
@@ -2973,6 +2975,105 @@ void MainTests::testQoSPublishQueue()
         qp = q.next();
         QVERIFY(!qp);
     }
+}
+
+void MainTests::testClientRemovalByPlugin()
+{
+    std::list<std::string> methods { "removeclient", "removeclientandsession"};
+
+    ConfFileTemp confFile;
+    confFile.writeLine("auth_plugin plugins/libtest_plugin.so.0.0.1");
+    confFile.closeFile();
+
+    std::vector<std::string> args {"--config-file", confFile.getFilePath()};
+
+    for (std::string &method : methods)
+    {
+        cleanup();
+        init(args);
+
+        FlashMQTestClient sender;
+        sender.start();
+        sender.connectClient(ProtocolVersion::Mqtt5, false, 120);
+
+        FlashMQTestClient receiver;
+        receiver.start();
+        receiver.connectClient(ProtocolVersion::Mqtt5);
+        receiver.subscribe("#", 2);
+
+        sender.publish(method, "asdf", 0);
+
+        sender.waitForDisconnectPacket();
+
+        QVERIFY(sender.receivedPackets.size() == 1);
+        QVERIFY(sender.receivedPackets.front().packetType == PacketType::DISCONNECT);
+
+        std::shared_ptr<SubscriptionStore> store = mainApp->getStore();
+        std::shared_ptr<Session> session = store->lockSession(sender.getClient()->getClientId());
+
+        if (method == "removeclient")
+        {
+            QVERIFY(session);
+        }
+        else
+        {
+            QVERIFY(!session);
+        }
+
+    }
+}
+
+void MainTests::testSubscriptionRemovalByPlugin()
+{
+    ConfFileTemp confFile;
+    confFile.writeLine("auth_plugin plugins/libtest_plugin.so.0.0.1");
+    confFile.closeFile();
+
+    std::vector<std::string> args {"--config-file", confFile.getFilePath()};
+
+    cleanup();
+    init(args);
+
+    FlashMQTestClient sender;
+    sender.start();
+    sender.connectClient(ProtocolVersion::Mqtt5);
+
+    FlashMQTestClient receiver;
+    receiver.start();
+    receiver.connectClient(ProtocolVersion::Mqtt5, false, 120, [](Connect &connect) {
+        connect.clientid = "unsubscribe";
+    });
+    receiver.subscribe("a/b/c", 2);
+
+    FlashMQTestClient dummyreceiver;
+    dummyreceiver.start();
+    dummyreceiver.connectClient(ProtocolVersion::Mqtt5);
+    dummyreceiver.subscribe("#", 2);
+
+    sender.publish("a/b/c", "asdf", 0);
+
+    receiver.waitForMessageCount(1);
+    QVERIFY(receiver.receivedPublishes.size() == 1);
+
+    receiver.clearReceivedLists();
+    sender.clearReceivedLists();
+
+    receiver.publish("a/b/c", "sdf", 0); // Because the clientid of this client, this will unsubscribe.
+    dummyreceiver.clearReceivedLists();
+
+    // A hack way to make sure the relevant thread has done the unsubscribe (by doing work we can detect).
+    const int nprocs = get_nprocs();
+    for (int i = 0; i < nprocs; i++)
+        receiver.publish("waitforthis", "sdf", 0);
+    dummyreceiver.waitForPacketCount(nprocs);
+    receiver.clearReceivedLists();
+    dummyreceiver.clearReceivedLists();
+
+    sender.publish("a/b/c", "asdf", 0);
+    usleep(200000);
+    receiver.waitForMessageCount(0);
+
+    QVERIFY(receiver.receivedPublishes.empty());
 }
 
 int main(int argc, char *argv[])

@@ -47,8 +47,11 @@ public:
 
     void waitForQuit();
     void waitForConnack();
+    void waitForDisconnectPacket();
     void waitForMessageCount(const size_t count, int timeout = 1);
     void waitForPacketCount(const size_t count, int timeout = 1);
+
+    std::shared_ptr<Client> &getClient();
 };
 
 #endif // FLASHMQTESTCLIENT_H
