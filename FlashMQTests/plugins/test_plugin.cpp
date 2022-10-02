@@ -37,10 +37,11 @@ void flashmq_auth_plugin_periodic_event(void *thread_data)
     (void)thread_data;
 }
 
-AuthResult flashmq_auth_plugin_login_check(void *thread_data, const std::string &username, const std::string &password,
+AuthResult flashmq_auth_plugin_login_check(void *thread_data, const std::string &clientid, const std::string &username, const std::string &password,
                                            const std::vector<std::pair<std::string, std::string>> *userProperties)
 {
     (void)thread_data;
+    (void)clientid;
     (void)username;
     (void)password;
     (void)userProperties;
