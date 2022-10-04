@@ -187,6 +187,8 @@ public:
     void setExtendedAuthenticationMethod(const std::string &authMethod);
     const std::string &getExtendedAuthenticationMethod() const;
 
+    std::shared_ptr<ThreadData> lockThreadData();
+
 #ifdef TESTING
     std::function<void(MqttPacket &packet)> onPacketReceived;
 #endif

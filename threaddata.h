@@ -49,6 +49,17 @@ struct KeepAliveCheck
     KeepAliveCheck(const std::shared_ptr<Client> client);
 };
 
+struct AsyncAuth
+{
+    std::weak_ptr<Client> client;
+    AuthResult result;
+    std::string authMethod;
+    std::string authData;
+
+public:
+    AsyncAuth(std::weak_ptr<Client> client, AuthResult result, const std::string authMethod, const std::string &authData);
+};
+
 class ThreadData
 {
     std::unordered_map<int, std::shared_ptr<Client>> clients_by_fd;
@@ -57,6 +68,9 @@ class ThreadData
 
     std::mutex clientsToRemoveMutex;
     std::forward_list<std::weak_ptr<Client>> clientsQueuedForRemoving;
+
+    std::mutex asyncClientsReadyMutex;
+    std::forward_list<AsyncAuth> asyncClientsReady;
 
     std::mutex queuedKeepAliveMutex;
     std::map<std::chrono::seconds, std::vector<KeepAliveCheck>> queuedKeepAliveChecks;
@@ -72,6 +86,7 @@ class ThreadData
     void sendAllWills();
     void sendAllDisconnects();
     void queueClientNextKeepAliveCheck(std::shared_ptr<Client> &client, bool keepRechecking);
+    void continueAsyncAuths();
 
     void removeQueuedClients();
 
@@ -116,6 +131,8 @@ public:
     void queueSendingQueuedWills();
     void queueRemoveExpiredSessions();
     void queueClientNextKeepAliveCheckLocked(std::shared_ptr<Client> &client, bool keepRechecking);
+    void continuationOfAuthentication(std::shared_ptr<Client> &client, AuthResult authResult, const std::string &authMethod, const std::string &returnData);
+    void queueContinuationOfAuthentication(const std::shared_ptr<Client> &client, AuthResult authResult, const std::string &authMethod, const std::string &returnData);
 
     int getNrOfClients() const;
 

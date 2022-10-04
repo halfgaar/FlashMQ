@@ -33,6 +33,8 @@
 extern "C"
 {
 
+class Client;
+
 /**
  * @brief The AclAccess enum's numbers are compatible with Mosquitto's 'int access'.
  *
@@ -50,6 +52,10 @@ enum class AclAccess
 
 /**
  * @brief The AuthResult enum's numbers are compatible with Mosquitto's auth result.
+ *
+ * async = defer the decision until you have the result from an async call, which can be submitted with flashmq_continue_async_authentication().
+ *
+ * auth_continue = part of MQTT5 extended authentication, which can be a back-and-forth between server and client.
  */
 enum class AuthResult
 {
@@ -58,6 +64,7 @@ enum class AuthResult
     acl_denied = 12,
     login_denied = 11,
     error = 13,
+    async = 50,
     auth_continue = -4
 };
 
@@ -145,6 +152,20 @@ void flashmq_remove_client(const std::string &clientid, bool alsoSession, Server
 void flashmq_remove_subscription(const std::string &clientid, const std::string &topicFilter);
 
 /**
+ * @brief flashmq_continue_async_authentication is to continue/finish async authentication.
+ * @param client
+ * @param result
+ *
+ * When you've previously returned AuthResult::async in the authentication check, because you need to perform a network call for instance,
+ * you can submit the final result back to FlashMQ with this function. The action will be queued in the proper thread.
+ *
+ * It uses a weak pointer to Client instead of client id, because clients are in limbo at this point, and a client id isn't necessarily
+ * correct (anymore). The login functions also give this weak pointer so you can store it with the async operation, to be used again later for
+ * a call to this function.
+ */
+void flashmq_continue_async_authentication(const std::weak_ptr<Client> &client, AuthResult result, const std::string &authMethod, const std::string &returnData);
+
+/**
  * @brief flashmq_plugin_version must return FLASHMQ_PLUGIN_VERSION.
  * @return FLASHMQ_PLUGIN_VERSION.
  */
@@ -225,6 +246,7 @@ void flashmq_auth_plugin_periodic_event(void *thread_data);
  * @param thread_data is memory allocated in flashmq_auth_plugin_allocate_thread_memory().
  * @param username
  * @param password
+ * @param client cannot be used for anything except async auth, to pass to the callback flashmq_continue_async_authentication.
  * @return
  *
  * You could throw exceptions here, but that will be slow and pointless. It will just get converted into AuthResult::error,
@@ -232,9 +254,13 @@ void flashmq_auth_plugin_periodic_event(void *thread_data);
  *
  * Note that there is a setting 'auth_plugin_serialize_auth_checks'. Use only as a last resort if your plugin is not
  * thread-safe. It will negate much of FlashMQ's multi-core model.
+ *
+ * The AuthResult::async can be used if your auth check causes blocking IO (like network). You can save the weak pointer to the client
+ * and do the auth in a thread or any kind of async way. FlashMQ's event loop will then continue. You can call flashmq_continue_async_authentication
+ * later with the result.
  */
 AuthResult flashmq_auth_plugin_login_check(void *thread_data, const std::string &clientid, const std::string &username, const std::string &password,
-                                           const std::vector<std::pair<std::string, std::string>> *userProperties);
+                                           const std::vector<std::pair<std::string, std::string>> *userProperties, const std::weak_ptr<Client> &client);
 
 /**
  * @brief flashmq_auth_plugin_acl_check is called on publish, deliver and subscribe.
@@ -271,11 +297,12 @@ AuthResult flashmq_auth_plugin_acl_check(void *thread_data, AclAccess access, co
  * @param userProperties are optional (and are nullptr in that case)
  * @param returnData is a non-const string, that you can set to include data back to the client in an AUTH packet.
  * @param username is a non-const string. You can set it, which will then apply to ACL checking and show in the logs.
+ * @param client Use this for AuthResult::async. See flashmq_auth_plugin_login_check().
  * @return an AuthResult enum class value
  */
 AuthResult flashmq_extended_auth(void *thread_data, const std::string &clientid, ExtendedAuthStage stage, const std::string &authMethod,
                                  const std::string &authData, const std::vector<std::pair<std::string, std::string>> *userProperties, std::string &returnData,
-                                 std::string &username);
+                                 std::string &username, const std::weak_ptr<Client> &client);
 
 }
 

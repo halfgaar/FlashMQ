@@ -540,6 +540,11 @@ const std::string &Client::getExtendedAuthenticationMethod() const
     return this->extendedAuthenticationMethod;
 }
 
+std::shared_ptr<ThreadData> Client::lockThreadData()
+{
+    return this->threadData.lock();
+}
+
 #ifndef NDEBUG
 /**
  * @brief IoWrapper::setFakeUpgraded().

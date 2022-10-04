@@ -156,6 +156,7 @@ private slots:
     void testExtendedReAuth();
     void testExtendedReAuthTwoStep();
     void testExtendedReAuthFail();
+    void testSimpleAuthAsync();
 
     void testMessageExpiry();
 
@@ -2666,6 +2667,39 @@ void MainTests::testExtendedReAuthFail()
     DisconnectData data = client.receivedPackets.front().parseDisconnectData();
 
     QVERIFY(data.reasonCode == ReasonCodes::NotAuthorized);
+}
+
+void MainTests::testSimpleAuthAsync()
+{
+    ConfFileTemp confFile;
+    confFile.writeLine("auth_plugin plugins/libtest_plugin.so.0.0.1");
+    confFile.closeFile();
+
+    std::vector<std::string> args {"--config-file", confFile.getFilePath()};
+
+    cleanup();
+    init(args);
+
+    std::list<std::string> results { "success", "fail" };
+
+    for (std::string &result : results)
+    {
+        FlashMQTestClient client;
+        client.start();
+        client.connectClient(ProtocolVersion::Mqtt5, false, 120, [&](Connect &connect) {
+            connect.username = "async";
+            connect.password = result;
+        });
+
+        QVERIFY(client.receivedPackets.size() == 1);
+
+        ConnAckData connAckData = client.receivedPackets.front().parseConnAckData();
+
+        if (result == "success")
+            QVERIFY(connAckData.reasonCode == ReasonCodes::Success);
+        else
+            QVERIFY(connAckData.reasonCode == ReasonCodes::NotAuthorized);
+    }
 }
 
 void MainTests::testMessageExpiry()

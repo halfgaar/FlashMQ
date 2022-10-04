@@ -687,7 +687,8 @@ void MqttPacket::handleConnect()
 
     std::shared_ptr<SubscriptionStore> subscriptionStore = MainApp::getMainApp()->getSubscriptionStore();
 
-    ThreadGlobals::getThreadData()->mqttConnectCounter.inc();
+    ThreadData *threadData = ThreadGlobals::getThreadData();
+    threadData->mqttConnectCounter.inc();
 
     ConnectData connectData = parseConnectData();
 
@@ -808,45 +809,27 @@ void MqttPacket::handleConnect()
 
     Authentication &authentication = *ThreadGlobals::getAuth();
     AuthResult authResult = AuthResult::login_denied;
+    std::string authReturnData;
 
     if (!connectData.user_name_flag && connectData.authenticationMethod.empty() && settings.allowAnonymous)
     {
         authResult = AuthResult::success;
     }
-    else if (!connectData.authenticationMethod.empty())
+    else if (connectData.authenticationMethod.empty())
+    {
+        authResult = authentication.unPwdCheck(connectData.client_id, connectData.username, connectData.password, getUserProperties(), sender);
+    }
+    else
     {
         sender->setExtendedAuthenticationMethod(connectData.authenticationMethod);
 
-        std::string returnData;
         authResult = authentication.extendedAuth(connectData.client_id, ExtendedAuthStage::Auth, connectData.authenticationMethod, connectData.authenticationData,
-                                                 getUserProperties(), returnData, sender->getMutableUsername());
-
-        if (authResult == AuthResult::auth_continue)
-        {
-            Auth auth(ReasonCodes::ContinueAuthentication, connectData.authenticationMethod, returnData);
-            MqttPacket pack(auth);
-            sender->writeMqttPacket(pack);
-            return;
-        }
-        if (authResult == AuthResult::success)
-        {
-            sender->addAuthReturnDataToStagedConnAck(returnData);
-        }
-    }
-    else
-    {
-        authResult = authentication.unPwdCheck(connectData.client_id, connectData.username, connectData.password, getUserProperties());
+                                                 getUserProperties(), authReturnData, sender->getMutableUsername(), sender);
     }
 
-    if (authResult == AuthResult::success)
+    if (authResult != AuthResult::async)
     {
-        sender->sendConnackSuccess();
-        subscriptionStore->registerClientAndKickExistingOne(sender);
-    }
-    else
-    {
-        const ReasonCodes reason = authResultToReasonCode(authResult);
-        sender->sendConnackDeny(reason);
+        threadData->continuationOfAuthentication(sender, authResult, connectData.authenticationMethod, authReturnData);
     }
 }
 
@@ -926,53 +909,15 @@ void MqttPacket::handleExtendedAuth()
     }
 
     Authentication &authentication = *ThreadGlobals::getAuth();
+    ThreadData *threadData = ThreadGlobals::getThreadData();
 
     std::string returnData;
     const AuthResult authResult = authentication.extendedAuth(sender->getClientId(), authStage, data.method, data.data,
-                                                              getUserProperties(), returnData, sender->getMutableUsername());
+                                                              getUserProperties(), returnData, sender->getMutableUsername(), sender);
 
-    if (authResult == AuthResult::auth_continue)
+    if (authResult != AuthResult::async)
     {
-        Auth auth(ReasonCodes::ContinueAuthentication, data.method, returnData);
-        MqttPacket pack(auth);
-        sender->writeMqttPacket(pack);
-        return;
-    }
-
-    const ReasonCodes finalResult = authResultToReasonCode(authResult);
-
-    if (!sender->getAuthenticated()) // First auth sends connack packets.
-    {
-        if (finalResult == ReasonCodes::Success)
-        {
-            sender->addAuthReturnDataToStagedConnAck(returnData);
-            sender->sendConnackSuccess();
-            std::shared_ptr<SubscriptionStore> subscriptionStore = MainApp::getMainApp()->getSubscriptionStore();
-            subscriptionStore->registerClientAndKickExistingOne(sender);
-        }
-        else
-        {
-            sender->sendConnackDeny(finalResult);
-        }
-    }
-    else // Reauth sends either AUTH or DISCONNECT
-    {
-        if (finalResult == ReasonCodes::Success)
-        {
-            Auth auth(ReasonCodes::Success, data.method, returnData);
-            MqttPacket authPack(auth);
-            sender->writeMqttPacket(authPack);
-            logger->logf(LOG_NOTICE, "Client '%s', user '%s' reauthentication successful.", sender->getClientId().c_str(), sender->getUsername().c_str());
-        }
-        else
-        {
-            Disconnect disconnect(protocolVersion, finalResult);
-            MqttPacket disconnectPack(disconnect);
-            sender->setDisconnectReason("Reauth denied");
-            sender->setReadyForDisconnect();
-            sender->writeMqttPacket(disconnectPack);
-            logger->logf(LOG_NOTICE, "Client '%s', user '%s' reauthentication denied.", sender->getClientId().c_str(), sender->getUsername().c_str());
-        }
+        threadData->continuationOfAuthentication(sender, authResult, data.method, returnData);
     }
 }
 

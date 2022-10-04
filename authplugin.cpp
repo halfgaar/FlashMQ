@@ -352,7 +352,7 @@ AuthResult Authentication::aclCheck(const std::string &clientid, const std::stri
 }
 
 AuthResult Authentication::unPwdCheck(const std::string &clientid, const std::string &username, const std::string &password,
-                                      const std::vector<std::pair<std::string, std::string>> *userProperties)
+                                      const std::vector<std::pair<std::string, std::string>> *userProperties, const std::weak_ptr<Client> &client)
 {
     AuthResult firstResult = unPwdCheckFromMosquittoPasswordFile(username, password);
 
@@ -390,7 +390,7 @@ AuthResult Authentication::unPwdCheck(const std::string &clientid, const std::st
         // gets disconnected.
         try
         {
-            return flashmq_auth_plugin_login_check_v1(pluginData, clientid, username, password, userProperties);
+            return flashmq_auth_plugin_login_check_v1(pluginData, clientid, username, password, userProperties, client);
         }
         catch (std::exception &ex)
         {
@@ -404,7 +404,7 @@ AuthResult Authentication::unPwdCheck(const std::string &clientid, const std::st
 
 AuthResult Authentication::extendedAuth(const std::string &clientid, ExtendedAuthStage stage, const std::string &authMethod,
                                         const std::string &authData, const std::vector<std::pair<std::string, std::string>> *userProperties,
-                                        std::string &returnData, std::string &username)
+                                        std::string &returnData, std::string &username, const std::weak_ptr<Client> &client)
 {
     if (pluginVersion == PluginVersion::None)
         return AuthResult::auth_method_not_supported;
@@ -428,7 +428,7 @@ AuthResult Authentication::extendedAuth(const std::string &clientid, ExtendedAut
         // gets disconnected.
         try
         {
-            return flashmq_auth_plugin_extended_auth_v1(pluginData, clientid, stage, authMethod, authData, userProperties, returnData, username);
+            return flashmq_auth_plugin_extended_auth_v1(pluginData, clientid, stage, authMethod, authData, userProperties, returnData, username, client);
         }
         catch (std::exception &ex)
         {

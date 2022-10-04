@@ -1,4 +1,23 @@
+#include "functional"
+#include <unistd.h>
+
 #include "../../flashmq_plugin.h"
+#include "test_plugin.h"
+
+
+TestPluginData::~TestPluginData()
+{
+    if (this->t.joinable())
+        t.join();
+}
+
+void get_auth_result_delayed(std::weak_ptr<Client> client, AuthResult result)
+{
+    usleep(500000);
+
+    flashmq_continue_async_authentication(client, result, "", "");
+}
+
 
 int flashmq_auth_plugin_version()
 {
@@ -7,13 +26,14 @@ int flashmq_auth_plugin_version()
 
 void flashmq_auth_plugin_allocate_thread_memory(void **thread_data, std::unordered_map<std::string, std::string> &auth_opts)
 {
-    *thread_data = malloc(1024);
+    *thread_data = new TestPluginData();
     (void)auth_opts;
 }
 
 void flashmq_auth_plugin_deallocate_thread_memory(void *thread_data, std::unordered_map<std::string, std::string> &auth_opts)
 {
-    free(thread_data);
+    TestPluginData *p = static_cast<TestPluginData*>(thread_data);
+    delete p;
     (void)auth_opts;
 }
 
@@ -38,13 +58,27 @@ void flashmq_auth_plugin_periodic_event(void *thread_data)
 }
 
 AuthResult flashmq_auth_plugin_login_check(void *thread_data, const std::string &clientid, const std::string &username, const std::string &password,
-                                           const std::vector<std::pair<std::string, std::string>> *userProperties)
+                                           const std::vector<std::pair<std::string, std::string>> *userProperties, const std::weak_ptr<Client> &client)
 {
     (void)thread_data;
     (void)clientid;
     (void)username;
     (void)password;
     (void)userProperties;
+    (void)client;
+
+    if (username == "async")
+    {
+        TestPluginData *p = static_cast<TestPluginData*>(thread_data);
+        p->c = client;
+
+        AuthResult result = password == "success" ? AuthResult::success : AuthResult::login_denied;
+
+        auto delayedResult = std::bind(&get_auth_result_delayed, p->c, result);
+        p->t = std::thread(delayedResult);
+
+        return AuthResult::async;
+    }
 
     if (username == "failme")
         return AuthResult::login_denied;
@@ -71,7 +105,7 @@ AuthResult flashmq_auth_plugin_acl_check(void *thread_data, AclAccess access, co
 
 AuthResult flashmq_extended_auth(void *thread_data, const std::string &clientid, ExtendedAuthStage stage, const std::string &authMethod,
                                  const std::string &authData, const std::vector<std::pair<std::string, std::string>> *userProperties, std::string &returnData,
-                                 std::string &username)
+                                 std::string &username, const std::weak_ptr<Client> &client)
 {
     (void)thread_data;
     (void)stage;
@@ -81,6 +115,7 @@ AuthResult flashmq_extended_auth(void *thread_data, const std::string &clientid,
     (void)clientid;
     (void)userProperties;
     (void)returnData;
+    (void)client;
 
     if (authMethod == "always_good_passing_back_the_auth_data")
     {
