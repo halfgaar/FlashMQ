@@ -100,6 +100,16 @@ AuthResult flashmq_auth_plugin_acl_check(void *thread_data, AclAccess access, co
     if (clientid == "unsubscribe" && access == AclAccess::write)
         flashmq_remove_subscription(clientid, msg.topic);
 
+    if (clientid == "generate_publish")
+    {
+        flashmq_logf(LOG_INFO, "Publishing from plugin.");
+
+        const std::string topic = "generated/topic";
+        const std::string payload = "money";
+        FlashMQMessage msg(topic, 0, false, &payload);
+        flashmq_publish_message(msg);
+    }
+
     return AuthResult::success;
 }
 

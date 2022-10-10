@@ -69,24 +69,43 @@ enum class AuthResult
 };
 
 /**
- * @brief The FlashMQMessage struct contains the meta data of a publish.
+ * @brief The FlashMQMessage struct refers to the (meta) data of a publish. It's both used for incoming as outgoing messages, but
+ * not all fields are used for both.
  *
- * The subtopics is the topic split, so you don't have to do that anymore.
+ * @param subtopics The subtopics is the topic split, so you don't have to do that anymore. It's only used for incoming messages.
+ * @param retain Keep in mind that for existing subscribers, this will always be false [MQTT-3.3.1-9]. Only publishes or
+ * retain messages as a result of a subscribe can have that set to true. For 'subscribe' ACL checks, it's always false.
+ * @param userProperties Contains the user properties for received publishes and sets those for outbound publishes.
+ * @param payload The payload to publish. Is null for incoming packets.
  *
- * As for 'retain', keep in mind that for existing subscribers, this will always be false [MQTT-3.3.1-9]. Only publishes or
- * retain messages as a result of a subscribe can have that set to true.
- *
- * For subscribtions, 'retain' is always false.
+ * This class borrows (not owns) resources. When using it to send messages, create the objects in local scope and construct this
+ * struct with their addresses.
  */
 struct FlashMQMessage
 {
     const std::string &topic;
-    const std::vector<std::string> &subtopics;
-    const std::vector<std::pair<std::string, std::string>> *userProperties;
     const char qos;
     const bool retain;
+    const std::vector<std::string> *subtopics = nullptr;
+    const std::string *payload = nullptr;
+    const std::vector<std::pair<std::string, std::string>> *userProperties = nullptr;
 
-    FlashMQMessage(const std::string &topic, const std::vector<std::string> &subtopics, const char qos, const bool retain,
+    uint32_t expiryInterval = 0;
+    const std::string *responseTopic = nullptr;
+    const std::string *correlationData  = nullptr;
+    const std::string *contentType = nullptr;
+
+    /**
+     * @brief FlashMQMessage Constructor for sending messages.
+     */
+    FlashMQMessage(const std::string &topic, const char qos, const bool retain, const std::string *payload,
+                   const std::vector<std::pair<std::string, std::string>> *userProperties=nullptr,
+                   const std::string *responseTopic=nullptr, const std::string *correlationData=nullptr, const std::string *contentType=nullptr);
+
+    /**
+     * @brief FlashMQMessage Constructor for FlashMQ's internal use.
+     */
+    FlashMQMessage(const std::string &topic, const std::vector<std::string> *subtopics, const char qos, const bool retain,
                    const std::vector<std::pair<std::string, std::string>> *userProperties);
 };
 
@@ -164,6 +183,13 @@ void flashmq_remove_subscription(const std::string &clientid, const std::string 
  * a call to this function.
  */
 void flashmq_continue_async_authentication(const std::weak_ptr<Client> &client, AuthResult result, const std::string &authMethod, const std::string &returnData);
+
+/**
+ * @brief flashmq_publish_message Publish a message from the plugin.
+ *
+ * Can be called from any thread.
+ */
+void flashmq_publish_message(const FlashMQMessage &message);
 
 /**
  * @brief flashmq_plugin_version must return FLASHMQ_PLUGIN_VERSION.

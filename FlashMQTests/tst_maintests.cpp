@@ -165,6 +165,7 @@ private slots:
 
     void testClientRemovalByPlugin();
     void testSubscriptionRemovalByPlugin();
+    void testPublishByPlugin();
 };
 
 MainTests::MainTests()
@@ -3108,6 +3109,43 @@ void MainTests::testSubscriptionRemovalByPlugin()
     receiver.waitForMessageCount(0);
 
     QVERIFY(receiver.receivedPublishes.empty());
+}
+
+void MainTests::testPublishByPlugin()
+{
+    ConfFileTemp confFile;
+    confFile.writeLine("auth_plugin plugins/libtest_plugin.so.0.0.1");
+    confFile.closeFile();
+
+    std::vector<std::string> args {"--config-file", confFile.getFilePath()};
+
+    cleanup();
+    init(args);
+
+    FlashMQTestClient sender;
+    sender.start();
+    sender.connectClient(ProtocolVersion::Mqtt5, false, 120, [](Connect &connect) {
+        connect.clientid = "generate_publish";
+    });
+
+    FlashMQTestClient receiver;
+    receiver.start();
+    receiver.connectClient(ProtocolVersion::Mqtt5, false, 120);
+    receiver.subscribe("#", 2);
+
+    sender.publish("boo", "booboo", 0);
+
+    receiver.waitForMessageCount(2);
+
+    MYCASTCOMPARE(receiver.receivedPublishes.size(), 2);
+
+    QVERIFY(std::any_of(receiver.receivedPublishes.begin(), receiver.receivedPublishes.end(), [](MqttPacket &p) {
+        return p.getTopic() == "boo";
+    }));
+
+    QVERIFY(std::any_of(receiver.receivedPublishes.begin(), receiver.receivedPublishes.end(), [](MqttPacket &p) {
+        return p.getTopic() == "generated/topic";
+    }));
 }
 
 int main(int argc, char *argv[])
