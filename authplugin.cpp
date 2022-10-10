@@ -145,6 +145,7 @@ void Authentication::loadPlugin(const std::string &pathToSoFile)
         flashmq_auth_plugin_login_check_v1 = (F_flashmq_auth_plugin_login_check_v1)loadSymbol(r, "flashmq_auth_plugin_login_check");
         flashmq_auth_plugin_periodic_event_v1 = (F_flashmq_auth_plugin_periodic_event_v1)loadSymbol(r, "flashmq_auth_plugin_periodic_event", false);
         flashmq_auth_plugin_extended_auth_v1 = (F_flashmq_auth_plugin_extended_auth_v1)loadSymbol(r, "flashmq_extended_auth", false);
+        flashmq_auth_plugin_alter_subscription_v1 = (F_flashmq_auth_plugin_alter_subscription_v1)loadSymbol(r, "flashmq_auth_plugin_alter_subscription", false);
     }
 
     initialized = true;
@@ -442,6 +443,26 @@ AuthResult Authentication::extendedAuth(const std::string &clientid, ExtendedAut
     }
 
     return AuthResult::error;
+}
+
+void Authentication::alterSubscribe(const std::string &clientid, std::string &topic, const std::vector<std::string> &subtopics, uint8_t &qos,
+                                    const std::vector<std::pair<std::string, std::string>> *userProperties)
+{
+    if (pluginVersion == PluginVersion::None)
+    {
+        return;
+    }
+
+    if (!initialized)
+    {
+        logger->logf(LOG_ERR, "Plugin alterSubscribe called, but initialization failed or not performed.");
+        return;
+    }
+
+    if (pluginVersion == PluginVersion::FlashMQv1 && flashmq_auth_plugin_alter_subscription_v1)
+    {
+        flashmq_auth_plugin_alter_subscription_v1(pluginData, clientid, topic, subtopics, qos, userProperties);
+    }
 }
 
 void Authentication::setQuitting()

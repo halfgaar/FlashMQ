@@ -242,6 +242,18 @@ void flashmq_auth_plugin_deinit(void *thread_data, std::unordered_map<std::strin
 void flashmq_auth_plugin_periodic_event(void *thread_data);
 
 /**
+ * @brief flashmq_auth_plugin_alter_subscription can optionally be implemented if you want to be able to change incoming subscriptions.
+ * @param thread_data
+ * @param clientid
+ * @param topic non-const reference which can be changed.
+ * @param subtopics
+ * @param qos non-const reference which can be changed.
+ * @param userProperties
+ */
+void flashmq_auth_plugin_alter_subscription(void *thread_data, const std::string &clientid, std::string &topic, const std::vector<std::string> &subtopics,
+                                            uint8_t &qos, const std::vector<std::pair<std::string, std::string>> *userProperties);
+
+/**
  * @brief flashmq_auth_plugin_login_check is called on login of a client.
  * @param thread_data is memory allocated in flashmq_auth_plugin_allocate_thread_memory().
  * @param username

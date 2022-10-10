@@ -71,6 +71,8 @@ typedef void (*F_flashmq_auth_plugin_periodic_event_v1)(void *thread_data);
 typedef AuthResult(*F_flashmq_auth_plugin_extended_auth_v1)(void *thread_data, const std::string &clientid, ExtendedAuthStage stage, const std::string &authMethod,
                                                             const std::string &authData, const std::vector<std::pair<std::string, std::string>> *userProperties,
                                                             std::string &returnData, std::string &username, const std::weak_ptr<Client> &client);
+typedef void (*F_flashmq_auth_plugin_alter_subscription_v1)(void *thread_data, const std::string &clientid, std::string &topic, const std::vector<std::string> &subtopics,
+                                                            uint8_t &qos, const std::vector<std::pair<std::string, std::string>> *userProperties);
 
 extern "C"
 {
@@ -113,6 +115,7 @@ class Authentication
     F_flashmq_auth_plugin_login_check_v1 flashmq_auth_plugin_login_check_v1 = nullptr;
     F_flashmq_auth_plugin_periodic_event_v1 flashmq_auth_plugin_periodic_event_v1 = nullptr;
     F_flashmq_auth_plugin_extended_auth_v1 flashmq_auth_plugin_extended_auth_v1 = nullptr;
+    F_flashmq_auth_plugin_alter_subscription_v1 flashmq_auth_plugin_alter_subscription_v1 = nullptr;
 
     static std::mutex initMutex;
     static std::mutex authChecksMutex;
@@ -164,6 +167,8 @@ public:
     AuthResult extendedAuth(const std::string &clientid, ExtendedAuthStage stage, const std::string &authMethod,
                             const std::string &authData, const std::vector<std::pair<std::string, std::string>> *userProperties, std::string &returnData,
                             std::string &username, const std::weak_ptr<Client> &client);
+    void alterSubscribe(const std::string &clientid, std::string &topic, const std::vector<std::string> &subtopics, uint8_t &qos,
+                        const std::vector<std::pair<std::string, std::string>> *userProperties);
 
     void setQuitting();
     void loadMosquittoPasswordFile();

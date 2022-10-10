@@ -1044,6 +1044,15 @@ void MqttPacket::handleSubscribe()
     while (remainingAfterPos() > 0)
     {
         std::string topic = readBytesToString(true);
+        const std::string orgTopic = topic;
+        uint8_t qos = readUint8();
+
+        std::vector<std::string> subtopics;
+        splitTopic(topic, subtopics);
+
+        authentication.alterSubscribe(sender->getClientId(), topic, subtopics, qos, getUserProperties());
+        if (topic != orgTopic)
+            splitTopic(topic, subtopics);
 
         if (topic.empty())
             throw ProtocolError("Subscribe topic is empty.", ReasonCodes::MalformedPacket);
@@ -1051,13 +1060,9 @@ void MqttPacket::handleSubscribe()
         if (!isValidSubscribePath(topic))
             throw ProtocolError(formatString("Invalid subscribe path: %s", topic.c_str()), ReasonCodes::MalformedPacket);
 
-        uint8_t qos = readByte();
-
         if (qos > 2)
             throw ProtocolError("QoS is greater than 2, and/or reserved bytes in QoS field are not 0.", ReasonCodes::MalformedPacket);
 
-        std::vector<std::string> subtopics;
-        splitTopic(topic, subtopics);
         if (authentication.aclCheck(sender->getClientId(), sender->getUsername(), topic, subtopics, AclAccess::subscribe, qos, false, getUserProperties()) == AuthResult::success)
         {
             deferredSubscribes.emplace_front(topic, subtopics, qos);
