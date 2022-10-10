@@ -2488,6 +2488,7 @@ void MainTests::testMessageExpiry()
     // Then we test delivering it to an offline client and see if we get it if we are fast enough.
 
     receiver.reset();
+    publishMe.setExpireAfter(1);
     sender.publish(publishMe);
     usleep(300000);
     makeReceiver();
@@ -2499,6 +2500,7 @@ void MainTests::testMessageExpiry()
 
     // Then we test delivering it to an offline client that comes back too late.
 
+    publishMe.setExpireAfter(1);
     receiver.reset();
     sender.publish(publishMe);
     usleep(2100000);
