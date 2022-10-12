@@ -25,7 +25,7 @@ SOURCES +=  tst_maintests.cpp \
     ../types.cpp \
     ../utils.cpp \
     ../logger.cpp \
-    ../authplugin.cpp \
+    ../plugin.cpp \
     ../session.cpp \
     ../configfileparser.cpp \
     ../sslctxmanager.cpp \
@@ -73,7 +73,7 @@ HEADERS += \
     ../types.h \
     ../utils.h \
     ../logger.h \
-    ../authplugin.h \
+    ../plugin.h \
     ../session.h \
     ../configfileparser.h \
     ../sslctxmanager.h \

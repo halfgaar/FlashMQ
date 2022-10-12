@@ -91,10 +91,10 @@ void ConfigFileParser::checkFileOrItsDirWritable(const std::string &filepath) co
 ConfigFileParser::ConfigFileParser(const std::string &path) :
     path(path)
 {
-    validKeys.insert("auth_plugin");
-    validKeys.insert("auth_plugin_serialize_init");
-    validKeys.insert("auth_plugin_serialize_auth_checks");
-    validKeys.insert("auth_plugin_timer_period");
+    validKeys.insert("plugin");
+    validKeys.insert("plugin_serialize_init");
+    validKeys.insert("plugin_serialize_auth_checks");
+    validKeys.insert("plugin_timer_period");
     validKeys.insert("log_file");
     validKeys.insert("quiet");
     validKeys.insert("allow_unsafe_clientid_chars");
@@ -198,7 +198,7 @@ void ConfigFileParser::loadFile(bool test)
         throw ConfigFileException("Unclosed config block. Expecting }");
     }
 
-    std::unordered_map<std::string, std::string> authOpts;
+    std::unordered_map<std::string, std::string> pluginOpts;
 
     ConfigParseLevel curParseLevel = ConfigParseLevel::Root;
     std::shared_ptr<Listener> curListener;
@@ -292,20 +292,20 @@ void ConfigFileParser::loadFile(bool test)
             }
 
 
-            const std::string auth_opt_ = "auth_opt_";
-            if (startsWith(key, auth_opt_))
+            const std::string plugin_opt_ = "plugin_opt_";
+            if (startsWith(key, plugin_opt_))
             {
-                key.replace(0, auth_opt_.length(), "");
-                authOpts[key] = value;
+                key.replace(0, plugin_opt_.length(), "");
+                pluginOpts[key] = value;
             }
             else
             {
                 testKeyValidity(key, validKeys);
 
-                if (key == "auth_plugin")
+                if (key == "plugin")
                 {
                     checkFileExistsAndReadable(key, value, 1024*1024*100);
-                    tmpSettings.authPluginPath = value;
+                    tmpSettings.pluginPath = value;
                 }
 
                 if (key == "log_file")
@@ -332,16 +332,16 @@ void ConfigFileParser::loadFile(bool test)
                     tmpSettings.allowUnsafeUsernameChars = tmp;
                 }
 
-                if (key == "auth_plugin_serialize_init")
+                if (key == "plugin_serialize_init")
                 {
                     bool tmp = stringTruthiness(value);
-                    tmpSettings.authPluginSerializeInit = tmp;
+                    tmpSettings.pluginSerializeInit = tmp;
                 }
 
-                if (key == "auth_plugin_serialize_auth_checks")
+                if (key == "plugin_serialize_auth_checks")
                 {
                     bool tmp = stringTruthiness(value);
-                    tmpSettings.authPluginSerializeAuthChecks = tmp;
+                    tmpSettings.pluginSerializeAuthChecks = tmp;
                 }
 
                 if (key == "client_initial_buffer_size")
@@ -414,14 +414,14 @@ void ConfigFileParser::loadFile(bool test)
                     tmpSettings.expireSessionsAfterSeconds = newVal;
                 }
 
-                if (key == "auth_plugin_timer_period")
+                if (key == "plugin_timer_period")
                 {
                     int newVal = std::stoi(value);
                     if (newVal < 0)
                     {
-                        throw ConfigFileException(formatString("auth_plugin_timer_period value '%d' is invalid. Valid values are 0 or higher. 0 means disabled.", newVal));
+                        throw ConfigFileException(formatString("plugin_timer_period value '%d' is invalid. Valid values are 0 or higher. 0 means disabled.", newVal));
                     }
-                    tmpSettings.authPluginTimerPeriod = newVal;
+                    tmpSettings.pluginTimerPeriod = newVal;
                 }
 
                 if (key == "storage_dir")
@@ -511,8 +511,8 @@ void ConfigFileParser::loadFile(bool test)
         }
     }
 
-    tmpSettings.authOptCompatWrap = AuthOptCompatWrap(authOpts);
-    tmpSettings.flashmqAuthPluginOpts = std::move(authOpts);
+    tmpSettings.authOptCompatWrap = AuthOptCompatWrap(pluginOpts);
+    tmpSettings.flashmqpluginOpts = std::move(pluginOpts);
 
     if (!test)
     {

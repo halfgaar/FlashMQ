@@ -35,7 +35,7 @@ add_executable(FlashMQ
     retainedmessage.h
     cirbuf.h
     logger.h
-    authplugin.h
+    plugin.h
     configfileparser.h
     sslctxmanager.h
     timer.h
@@ -79,7 +79,7 @@ add_executable(FlashMQ
     retainedmessage.cpp
     cirbuf.cpp
     logger.cpp
-    authplugin.cpp
+    plugin.cpp
     configfileparser.cpp
     sslctxmanager.cpp
     timer.cpp

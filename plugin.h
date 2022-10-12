@@ -15,8 +15,8 @@ You should have received a copy of the GNU Affero General Public
 License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef AUTHPLUGIN_H
-#define AUTHPLUGIN_H
+#ifndef PLUGIN_H
+#define PLUGIN_H
 
 #include <string>
 #include <cstring>
@@ -48,30 +48,30 @@ struct MosquittoPasswordFileEntry
     //MosquittoPasswordFileEntry(const MosquittoPasswordFileEntry &other) = delete;
 };
 
-typedef int (*F_auth_plugin_version)(void);
+typedef int (*F_plugin_version)(void);
 
 // Mosquitto functions
-typedef int (*F_auth_plugin_init_v2)(void **, struct mosquitto_auth_opt *, int);
-typedef int (*F_auth_plugin_cleanup_v2)(void *, struct mosquitto_auth_opt *, int);
-typedef int (*F_auth_plugin_security_init_v2)(void *, struct mosquitto_auth_opt *, int, bool);
-typedef int (*F_auth_plugin_security_cleanup_v2)(void *, struct mosquitto_auth_opt *, int, bool);
-typedef int (*F_auth_plugin_acl_check_v2)(void *, const char *, const char *, const char *, int);
-typedef int (*F_auth_plugin_unpwd_check_v2)(void *, const char *, const char *);
-typedef int (*F_auth_plugin_psk_key_get_v2)(void *, const char *, const char *, char *, int);
+typedef int (*F_plugin_init_v2)(void **, struct mosquitto_auth_opt *, int);
+typedef int (*F_plugin_cleanup_v2)(void *, struct mosquitto_auth_opt *, int);
+typedef int (*F_plugin_security_init_v2)(void *, struct mosquitto_auth_opt *, int, bool);
+typedef int (*F_plugin_security_cleanup_v2)(void *, struct mosquitto_auth_opt *, int, bool);
+typedef int (*F_plugin_acl_check_v2)(void *, const char *, const char *, const char *, int);
+typedef int (*F_plugin_unpwd_check_v2)(void *, const char *, const char *);
+typedef int (*F_plugin_psk_key_get_v2)(void *, const char *, const char *, char *, int);
 
 
-typedef void(*F_flashmq_auth_plugin_allocate_thread_memory_v1)(void **thread_data, std::unordered_map<std::string, std::string> &auth_opts);
-typedef void(*F_flashmq_auth_plugin_deallocate_thread_memory_v1)(void *thread_data, std::unordered_map<std::string, std::string> &auth_opts);
-typedef void(*F_flashmq_auth_plugin_init_v1)(void *thread_data, std::unordered_map<std::string, std::string> &auth_opts, bool reloading);
-typedef void(*F_flashmq_auth_plugin_deinit_v1)(void *thread_data, std::unordered_map<std::string, std::string> &auth_opts, bool reloading);
-typedef AuthResult(*F_flashmq_auth_plugin_acl_check_v1)(void *thread_data, AclAccess access, const std::string &clientid, const std::string &username, const FlashMQMessage &msg);
-typedef AuthResult(*F_flashmq_auth_plugin_login_check_v1)(void *thread_data, const std::string &clientid, const std::string &username, const std::string &password,
+typedef void(*F_flashmq_plugin_allocate_thread_memory_v1)(void **thread_data, std::unordered_map<std::string, std::string> &auth_opts);
+typedef void(*F_flashmq_plugin_deallocate_thread_memory_v1)(void *thread_data, std::unordered_map<std::string, std::string> &auth_opts);
+typedef void(*F_flashmq_plugin_init_v1)(void *thread_data, std::unordered_map<std::string, std::string> &auth_opts, bool reloading);
+typedef void(*F_flashmq_plugin_deinit_v1)(void *thread_data, std::unordered_map<std::string, std::string> &auth_opts, bool reloading);
+typedef AuthResult(*F_flashmq_plugin_acl_check_v1)(void *thread_data, AclAccess access, const std::string &clientid, const std::string &username, const FlashMQMessage &msg);
+typedef AuthResult(*F_flashmq_plugin_login_check_v1)(void *thread_data, const std::string &clientid, const std::string &username, const std::string &password,
                                                           const std::vector<std::pair<std::string, std::string>> *userProperties, const std::weak_ptr<Client> &client);
-typedef void (*F_flashmq_auth_plugin_periodic_event_v1)(void *thread_data);
-typedef AuthResult(*F_flashmq_auth_plugin_extended_auth_v1)(void *thread_data, const std::string &clientid, ExtendedAuthStage stage, const std::string &authMethod,
+typedef void (*F_flashmq_plugin_periodic_event_v1)(void *thread_data);
+typedef AuthResult(*F_flashmq_plugin_extended_auth_v1)(void *thread_data, const std::string &clientid, ExtendedAuthStage stage, const std::string &authMethod,
                                                             const std::string &authData, const std::vector<std::pair<std::string, std::string>> *userProperties,
                                                             std::string &returnData, std::string &username, const std::weak_ptr<Client> &client);
-typedef void (*F_flashmq_auth_plugin_alter_subscription_v1)(void *thread_data, const std::string &clientid, std::string &topic, const std::vector<std::string> &subtopics,
+typedef void (*F_flashmq_plugin_alter_subscription_v1)(void *thread_data, const std::string &clientid, std::string &topic, const std::vector<std::string> &subtopics,
                                                             uint8_t &qos, const std::vector<std::pair<std::string, std::string>> *userProperties);
 
 extern "C"
@@ -91,31 +91,32 @@ enum class PluginVersion
 std::string AuthResultToString(AuthResult r);
 
 /**
- * @brief The Authentication class handles our integrated authentication, but also supports loading Mosquitto auth
- * plugin compatible .so files.
+ * @brief The Authentication class handles our integrated authentication, but also the FlashMQ and Mosquitto plugin interfaces.
+ *
+ * It's a bit of a legacy that both plugin handling and auth are in a class called 'Authentication', but oh well...
  */
 class Authentication
 {
-    F_auth_plugin_version version = nullptr;
+    F_plugin_version version = nullptr;
 
     // Mosquitto functions
-    F_auth_plugin_init_v2 init_v2 = nullptr;
-    F_auth_plugin_cleanup_v2 cleanup_v2 = nullptr;
-    F_auth_plugin_security_init_v2 security_init_v2 = nullptr;
-    F_auth_plugin_security_cleanup_v2 security_cleanup_v2 = nullptr;
-    F_auth_plugin_acl_check_v2 acl_check_v2 = nullptr;
-    F_auth_plugin_unpwd_check_v2 unpwd_check_v2 = nullptr;
-    F_auth_plugin_psk_key_get_v2 psk_key_get_v2 = nullptr;
+    F_plugin_init_v2 init_v2 = nullptr;
+    F_plugin_cleanup_v2 cleanup_v2 = nullptr;
+    F_plugin_security_init_v2 security_init_v2 = nullptr;
+    F_plugin_security_cleanup_v2 security_cleanup_v2 = nullptr;
+    F_plugin_acl_check_v2 acl_check_v2 = nullptr;
+    F_plugin_unpwd_check_v2 unpwd_check_v2 = nullptr;
+    F_plugin_psk_key_get_v2 psk_key_get_v2 = nullptr;
 
-    F_flashmq_auth_plugin_allocate_thread_memory_v1 flashmq_auth_plugin_allocate_thread_memory_v1 = nullptr;
-    F_flashmq_auth_plugin_deallocate_thread_memory_v1 flashmq_auth_plugin_deallocate_thread_memory_v1 = nullptr;
-    F_flashmq_auth_plugin_init_v1 flashmq_auth_plugin_init_v1 = nullptr;
-    F_flashmq_auth_plugin_deinit_v1 flashmq_auth_plugin_deinit_v1 = nullptr;
-    F_flashmq_auth_plugin_acl_check_v1 flashmq_auth_plugin_acl_check_v1 = nullptr;
-    F_flashmq_auth_plugin_login_check_v1 flashmq_auth_plugin_login_check_v1 = nullptr;
-    F_flashmq_auth_plugin_periodic_event_v1 flashmq_auth_plugin_periodic_event_v1 = nullptr;
-    F_flashmq_auth_plugin_extended_auth_v1 flashmq_auth_plugin_extended_auth_v1 = nullptr;
-    F_flashmq_auth_plugin_alter_subscription_v1 flashmq_auth_plugin_alter_subscription_v1 = nullptr;
+    F_flashmq_plugin_allocate_thread_memory_v1 flashmq_plugin_allocate_thread_memory_v1 = nullptr;
+    F_flashmq_plugin_deallocate_thread_memory_v1 flashmq_plugin_deallocate_thread_memory_v1 = nullptr;
+    F_flashmq_plugin_init_v1 flashmq_plugin_init_v1 = nullptr;
+    F_flashmq_plugin_deinit_v1 flashmq_plugin_deinit_v1 = nullptr;
+    F_flashmq_plugin_acl_check_v1 flashmq_plugin_acl_check_v1 = nullptr;
+    F_flashmq_plugin_login_check_v1 flashmq_plugin_login_check_v1 = nullptr;
+    F_flashmq_plugin_periodic_event_v1 flashmq_plugin_periodic_event_v1 = nullptr;
+    F_flashmq_plugin_extended_auth_v1 flashmq_plugin_extended_auth_v1 = nullptr;
+    F_flashmq_plugin_alter_subscription_v1 flashmq_plugin_alter_subscription_v1 = nullptr;
 
     static std::mutex initMutex;
     static std::mutex authChecksMutex;
@@ -180,4 +181,4 @@ public:
 
 };
 
-#endif // AUTHPLUGIN_H
+#endif // PLUGIN_H

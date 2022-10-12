@@ -55,10 +55,10 @@ public:
     ConfigFileException(std::ostringstream oss) : std::runtime_error(oss.str()) {}
 };
 
-class AuthPluginException : public std::runtime_error
+class pluginException : public std::runtime_error
 {
 public:
-    AuthPluginException(const std::string &msg) : std::runtime_error(msg) {}
+    pluginException(const std::string &msg) : std::runtime_error(msg) {}
 };
 
 class BadWebsocketVersionException : public std::runtime_error

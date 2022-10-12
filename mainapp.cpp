@@ -31,7 +31,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "logger.h"
 #include "threadglobals.h"
 #include "threadloop.h"
-#include "authplugin.h"
+#include "plugin.h"
 #include "threadglobals.h"
 #include "globalstats.h"
 
@@ -81,10 +81,10 @@ MainApp::MainApp(const std::string &configFilePath) :
     auto fPublishStats = std::bind(&MainApp::queuePublishStatsOnDollarTopic, this);
     timer.addCallback(fPublishStats, 10000, "Publish stats on $SYS");
 
-    if (settings.authPluginTimerPeriod > 0)
+    if (settings.pluginTimerPeriod > 0)
     {
-        auto fAuthPluginPeriodicEvent = std::bind(&MainApp::queueAuthPluginPeriodicEventAllThreads, this);
-        timer.addCallback(fAuthPluginPeriodicEvent, settings.authPluginTimerPeriod*1000, "Auth plugin periodic event.");
+        auto fpluginPeriodicEvent = std::bind(&MainApp::queuepluginPeriodicEventAllThreads, this);
+        timer.addCallback(fpluginPeriodicEvent, settings.pluginTimerPeriod*1000, "Auth plugin periodic event.");
     }
 
     if (!settings.storageDir.empty())
@@ -224,11 +224,11 @@ void MainApp::queuePasswordFileReloadAllThreads()
     }
 }
 
-void MainApp::queueAuthPluginPeriodicEventAllThreads()
+void MainApp::queuepluginPeriodicEventAllThreads()
 {
     for (std::shared_ptr<ThreadData> &thread : threads)
     {
-        thread->queueAuthPluginPeriodicEvent();
+        thread->queuepluginPeriodicEvent();
     }
 }
 

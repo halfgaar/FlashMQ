@@ -38,7 +38,7 @@ void do_thread_work(ThreadData *threadData)
     try
     {
         logger->logf(LOG_NOTICE, "Thread %d doing auth init.", threadData->threadnr);
-        threadData->initAuthPlugin();
+        threadData->initplugin();
         threadData->running = true;
     }
     catch(std::exception &ex)
@@ -178,7 +178,7 @@ void do_thread_work(ThreadData *threadData)
     try
     {
         logger->logf(LOG_NOTICE, "Thread %d doing auth cleanup.", threadData->threadnr);
-        threadData->cleanupAuthPlugin();
+        threadData->cleanupplugin();
     }
     catch(std::exception &ex)
     {

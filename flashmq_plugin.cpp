@@ -41,7 +41,7 @@ FlashMQMessage::FlashMQMessage(const std::string &topic, const std::vector<std::
 
 }
 
-void flashmq_remove_client(const std::string &clientid, bool alsoSession, ServerDisconnectReasons reasonCode)
+void flashmq_plugin_remove_client(const std::string &clientid, bool alsoSession, ServerDisconnectReasons reasonCode)
 {
     std::shared_ptr<SubscriptionStore> store = MainApp::getMainApp()->getSubscriptionStore();
     std::shared_ptr<Session> session = store->lockSession(clientid);
@@ -61,7 +61,7 @@ void flashmq_remove_client(const std::string &clientid, bool alsoSession, Server
     }
 }
 
-void flashmq_remove_subscription(const std::string &clientid, const std::string &topicFilter)
+void flashmq_plugin_remove_subscription(const std::string &clientid, const std::string &topicFilter)
 {
     std::shared_ptr<SubscriptionStore> store = MainApp::getMainApp()->getSubscriptionStore();
     std::shared_ptr<Session> session = store->lockSession(clientid);

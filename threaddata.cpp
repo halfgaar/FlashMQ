@@ -525,17 +525,17 @@ int ThreadData::getNrOfClients() const
     return clients_by_fd.size();
 }
 
-void ThreadData::queueAuthPluginPeriodicEvent()
+void ThreadData::queuepluginPeriodicEvent()
 {
     std::lock_guard<std::mutex> locker(taskQueueMutex);
 
-    auto f = std::bind(&ThreadData::authPluginPeriodicEvent, this);
+    auto f = std::bind(&ThreadData::pluginPeriodicEvent, this);
     taskQueue.push_front(f);
 
     wakeUpThread();
 }
 
-void ThreadData::authPluginPeriodicEvent()
+void ThreadData::pluginPeriodicEvent()
 {
     authentication.periodicEvent();
 }
@@ -640,16 +640,16 @@ void ThreadData::doKeepAliveCheck()
     }
 }
 
-void ThreadData::initAuthPlugin()
+void ThreadData::initplugin()
 {
     authentication.loadMosquittoPasswordFile();
     authentication.loadMosquittoAclFile();
-    authentication.loadPlugin(settingsLocalCopy.authPluginPath);
+    authentication.loadPlugin(settingsLocalCopy.pluginPath);
     authentication.init();
     authentication.securityInit(false);
 }
 
-void ThreadData::cleanupAuthPlugin()
+void ThreadData::cleanupplugin()
 {
     authentication.cleanup();
 }

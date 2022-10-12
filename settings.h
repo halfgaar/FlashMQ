@@ -39,17 +39,17 @@ class Settings
     friend class ConfigFileParser;
 
     AuthOptCompatWrap authOptCompatWrap;
-    std::unordered_map<std::string, std::string> flashmqAuthPluginOpts;
+    std::unordered_map<std::string, std::string> flashmqpluginOpts;
 
 public:
     // Actual config options with their defaults.
-    std::string authPluginPath;
+    std::string pluginPath;
     std::string logPath;
     bool quiet = false;
     bool allowUnsafeClientidChars = false;
     bool allowUnsafeUsernameChars = false;
-    bool authPluginSerializeInit = false;
-    bool authPluginSerializeAuthChecks = false;
+    bool pluginSerializeInit = false;
+    bool pluginSerializeAuthChecks = false;
     int clientInitialBufferSize = 1024; // Must be power of 2
     int maxPacketSize = ABSOLUTE_MAX_PACKET_SIZE;
     uint16_t maxIncomingTopicAliasValue = 65535;
@@ -65,7 +65,7 @@ public:
     bool allowAnonymous = false;
     int rlimitNoFile = 1000000;
     uint32_t expireSessionsAfterSeconds = 1209600;
-    int authPluginTimerPeriod = 60;
+    int pluginTimerPeriod = 60;
     std::string storageDir;
     int threadCount = 0;
     uint16_t maxQosMsgPendingPerClient = 512;
@@ -75,7 +75,7 @@ public:
     std::list<std::shared_ptr<Listener>> listeners; // Default one is created later, when none are defined.
 
     AuthOptCompatWrap &getAuthOptsCompat();
-    std::unordered_map<std::string, std::string> &getFlashmqAuthPluginOpts();
+    std::unordered_map<std::string, std::string> &getFlashmqpluginOpts();
 
     std::string getRetainedMessagesDBFile() const;
     std::string getSessionsDBFile() const;

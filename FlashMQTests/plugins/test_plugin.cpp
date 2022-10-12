@@ -19,46 +19,46 @@ void get_auth_result_delayed(std::weak_ptr<Client> client, AuthResult result)
 }
 
 
-int flashmq_auth_plugin_version()
+int flashmq_plugin_version()
 {
     return FLASHMQ_PLUGIN_VERSION;
 }
 
-void flashmq_auth_plugin_allocate_thread_memory(void **thread_data, std::unordered_map<std::string, std::string> &auth_opts)
+void flashmq_plugin_allocate_thread_memory(void **thread_data, std::unordered_map<std::string, std::string> &plugin_opts)
 {
     *thread_data = new TestPluginData();
-    (void)auth_opts;
+    (void)plugin_opts;
 }
 
-void flashmq_auth_plugin_deallocate_thread_memory(void *thread_data, std::unordered_map<std::string, std::string> &auth_opts)
+void flashmq_plugin_deallocate_thread_memory(void *thread_data, std::unordered_map<std::string, std::string> &plugin_opts)
 {
     TestPluginData *p = static_cast<TestPluginData*>(thread_data);
     delete p;
-    (void)auth_opts;
+    (void)plugin_opts;
 }
 
-void flashmq_auth_plugin_init(void *thread_data, std::unordered_map<std::string, std::string> &auth_opts, bool reloading)
+void flashmq_plugin_init(void *thread_data, std::unordered_map<std::string, std::string> &plugin_opts, bool reloading)
 {
     (void)thread_data;
-    (void)auth_opts;
+    (void)plugin_opts;
     (void)reloading;
 }
 
-void flashmq_auth_plugin_deinit(void *thread_data, std::unordered_map<std::string, std::string> &auth_opts, bool reloading)
+void flashmq_plugin_deinit(void *thread_data, std::unordered_map<std::string, std::string> &plugin_opts, bool reloading)
 {
     (void)thread_data;
-    (void)auth_opts;
+    (void)plugin_opts;
     (void)reloading;
 
 }
 
-void flashmq_auth_plugin_periodic_event(void *thread_data)
+void flashmq_plugin_periodic_event(void *thread_data)
 {
     (void)thread_data;
 }
 
-AuthResult flashmq_auth_plugin_login_check(void *thread_data, const std::string &clientid, const std::string &username, const std::string &password,
-                                           const std::vector<std::pair<std::string, std::string>> *userProperties, const std::weak_ptr<Client> &client)
+AuthResult flashmq_plugin_login_check(void *thread_data, const std::string &clientid, const std::string &username, const std::string &password,
+                                      const std::vector<std::pair<std::string, std::string>> *userProperties, const std::weak_ptr<Client> &client)
 {
     (void)thread_data;
     (void)clientid;
@@ -86,7 +86,7 @@ AuthResult flashmq_auth_plugin_login_check(void *thread_data, const std::string 
     return AuthResult::success;
 }
 
-AuthResult flashmq_auth_plugin_acl_check(void *thread_data, AclAccess access, const std::string &clientid, const std::string &username, const FlashMQMessage &msg)
+AuthResult flashmq_plugin_acl_check(void *thread_data, AclAccess access, const std::string &clientid, const std::string &username, const FlashMQMessage &msg)
 {
     (void)thread_data;
     (void)access;
@@ -95,10 +95,10 @@ AuthResult flashmq_auth_plugin_acl_check(void *thread_data, AclAccess access, co
     (void)msg;
 
     if (msg.topic == "removeclient" || msg.topic == "removeclientandsession")
-        flashmq_remove_client(clientid, msg.topic == "removeclientandsession", ServerDisconnectReasons::NormalDisconnect);
+        flashmq_plugin_remove_client(clientid, msg.topic == "removeclientandsession", ServerDisconnectReasons::NormalDisconnect);
 
     if (clientid == "unsubscribe" && access == AclAccess::write)
-        flashmq_remove_subscription(clientid, msg.topic);
+        flashmq_plugin_remove_subscription(clientid, msg.topic);
 
     if (clientid == "generate_publish")
     {
@@ -113,9 +113,9 @@ AuthResult flashmq_auth_plugin_acl_check(void *thread_data, AclAccess access, co
     return AuthResult::success;
 }
 
-AuthResult flashmq_extended_auth(void *thread_data, const std::string &clientid, ExtendedAuthStage stage, const std::string &authMethod,
-                                 const std::string &authData, const std::vector<std::pair<std::string, std::string>> *userProperties, std::string &returnData,
-                                 std::string &username, const std::weak_ptr<Client> &client)
+AuthResult flashmq_plugin_extended_auth(void *thread_data, const std::string &clientid, ExtendedAuthStage stage, const std::string &authMethod,
+                                        const std::string &authData, const std::vector<std::pair<std::string, std::string>> *userProperties, std::string &returnData,
+                                        std::string &username, const std::weak_ptr<Client> &client)
 {
     (void)thread_data;
     (void)stage;

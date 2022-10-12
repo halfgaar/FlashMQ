@@ -23,9 +23,9 @@ AuthOptCompatWrap &Settings::getAuthOptsCompat()
     return authOptCompatWrap;
 }
 
-std::unordered_map<std::string, std::string> &Settings::getFlashmqAuthPluginOpts()
+std::unordered_map<std::string, std::string> &Settings::getFlashmqpluginOpts()
 {
-    return this->flashmqAuthPluginOpts;
+    return this->flashmqpluginOpts;
 }
 
 std::string Settings::getRetainedMessagesDBFile() const

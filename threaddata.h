@@ -35,7 +35,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "client.h"
 #include "utils.h"
 #include "configfileparser.h"
-#include "authplugin.h"
+#include "plugin.h"
 #include "logger.h"
 #include "derivablecounter.h"
 
@@ -120,8 +120,8 @@ public:
     void removeClientQueued(int fd);
     void removeClient(std::shared_ptr<Client> client);
 
-    void initAuthPlugin();
-    void cleanupAuthPlugin();
+    void initplugin();
+    void cleanupplugin();
     void queueReload(const Settings &settings);
     void queueDoKeepAliveCheck();
     void queueQuit();
@@ -136,8 +136,8 @@ public:
 
     int getNrOfClients() const;
 
-    void queueAuthPluginPeriodicEvent();
-    void authPluginPeriodicEvent();
+    void queuepluginPeriodicEvent();
+    void pluginPeriodicEvent();
 
     void queueSendWills();
     void queueSendDisconnects();

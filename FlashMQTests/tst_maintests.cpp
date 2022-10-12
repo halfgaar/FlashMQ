@@ -2267,7 +2267,7 @@ void MainTests::testAuthFail()
     std::vector<ProtocolVersion> versions { ProtocolVersion::Mqtt311, ProtocolVersion::Mqtt5 };
 
     ConfFileTemp confFile;
-    confFile.writeLine("auth_plugin plugins/libtest_plugin.so.0.0.1");
+    confFile.writeLine("plugin plugins/libtest_plugin.so.0.0.1");
     confFile.closeFile();
 
     std::vector<std::string> args {"--config-file", confFile.getFilePath()};
@@ -2301,7 +2301,7 @@ void MainTests::testAuthSucceed()
     std::vector<ProtocolVersion> versions { ProtocolVersion::Mqtt311, ProtocolVersion::Mqtt5 };
 
     ConfFileTemp confFile;
-    confFile.writeLine("auth_plugin plugins/libtest_plugin.so.0.0.1");
+    confFile.writeLine("plugin plugins/libtest_plugin.so.0.0.1");
     confFile.closeFile();
 
     std::vector<std::string> args {"--config-file", confFile.getFilePath()};
@@ -2330,7 +2330,7 @@ void MainTests::testAuthSucceed()
 void MainTests::testExtendedAuthOneStepSucceed()
 {
     ConfFileTemp confFile;
-    confFile.writeLine("auth_plugin plugins/libtest_plugin.so.0.0.1");
+    confFile.writeLine("plugin plugins/libtest_plugin.so.0.0.1");
     confFile.closeFile();
 
     std::vector<std::string> args {"--config-file", confFile.getFilePath()};
@@ -2361,7 +2361,7 @@ void MainTests::testExtendedAuthOneStepSucceed()
 void MainTests::testExtendedAuthOneStepDeny()
 {
     ConfFileTemp confFile;
-    confFile.writeLine("auth_plugin plugins/libtest_plugin.so.0.0.1");
+    confFile.writeLine("plugin plugins/libtest_plugin.so.0.0.1");
     confFile.closeFile();
 
     std::vector<std::string> args {"--config-file", confFile.getFilePath()};
@@ -2390,7 +2390,7 @@ void MainTests::testExtendedAuthOneStepDeny()
 void MainTests::testExtendedAuthOneStepBadAuthMethod()
 {
     ConfFileTemp confFile;
-    confFile.writeLine("auth_plugin plugins/libtest_plugin.so.0.0.1");
+    confFile.writeLine("plugin plugins/libtest_plugin.so.0.0.1");
     confFile.closeFile();
 
     std::vector<std::string> args {"--config-file", confFile.getFilePath()};
@@ -2419,7 +2419,7 @@ void MainTests::testExtendedAuthOneStepBadAuthMethod()
 void MainTests::testExtendedAuthTwoStep()
 {
     ConfFileTemp confFile;
-    confFile.writeLine("auth_plugin plugins/libtest_plugin.so.0.0.1");
+    confFile.writeLine("plugin plugins/libtest_plugin.so.0.0.1");
     confFile.closeFile();
 
     std::vector<std::string> args {"--config-file", confFile.getFilePath()};
@@ -2464,7 +2464,7 @@ void MainTests::testExtendedAuthTwoStep()
 void MainTests::testExtendedAuthTwoStepSecondStepFail()
 {
     ConfFileTemp confFile;
-    confFile.writeLine("auth_plugin plugins/libtest_plugin.so.0.0.1");
+    confFile.writeLine("plugin plugins/libtest_plugin.so.0.0.1");
     confFile.closeFile();
 
     std::vector<std::string> args {"--config-file", confFile.getFilePath()};
@@ -2508,7 +2508,7 @@ void MainTests::testExtendedAuthTwoStepSecondStepFail()
 void MainTests::testExtendedReAuth()
 {
     ConfFileTemp confFile;
-    confFile.writeLine("auth_plugin plugins/libtest_plugin.so.0.0.1");
+    confFile.writeLine("plugin plugins/libtest_plugin.so.0.0.1");
     confFile.closeFile();
 
     std::vector<std::string> args {"--config-file", confFile.getFilePath()};
@@ -2553,7 +2553,7 @@ void MainTests::testExtendedReAuth()
 void MainTests::testExtendedReAuthTwoStep()
 {
     ConfFileTemp confFile;
-    confFile.writeLine("auth_plugin plugins/libtest_plugin.so.0.0.1");
+    confFile.writeLine("plugin plugins/libtest_plugin.so.0.0.1");
     confFile.closeFile();
 
     std::vector<std::string> args {"--config-file", confFile.getFilePath()};
@@ -2627,7 +2627,7 @@ void MainTests::testExtendedReAuthTwoStep()
 void MainTests::testExtendedReAuthFail()
 {
     ConfFileTemp confFile;
-    confFile.writeLine("auth_plugin plugins/libtest_plugin.so.0.0.1");
+    confFile.writeLine("plugin plugins/libtest_plugin.so.0.0.1");
     confFile.closeFile();
 
     std::vector<std::string> args {"--config-file", confFile.getFilePath()};
@@ -2673,7 +2673,7 @@ void MainTests::testExtendedReAuthFail()
 void MainTests::testSimpleAuthAsync()
 {
     ConfFileTemp confFile;
-    confFile.writeLine("auth_plugin plugins/libtest_plugin.so.0.0.1");
+    confFile.writeLine("plugin plugins/libtest_plugin.so.0.0.1");
     confFile.closeFile();
 
     std::vector<std::string> args {"--config-file", confFile.getFilePath()};
@@ -3017,7 +3017,7 @@ void MainTests::testClientRemovalByPlugin()
     std::list<std::string> methods { "removeclient", "removeclientandsession"};
 
     ConfFileTemp confFile;
-    confFile.writeLine("auth_plugin plugins/libtest_plugin.so.0.0.1");
+    confFile.writeLine("plugin plugins/libtest_plugin.so.0.0.1");
     confFile.closeFile();
 
     std::vector<std::string> args {"--config-file", confFile.getFilePath()};
@@ -3061,7 +3061,7 @@ void MainTests::testClientRemovalByPlugin()
 void MainTests::testSubscriptionRemovalByPlugin()
 {
     ConfFileTemp confFile;
-    confFile.writeLine("auth_plugin plugins/libtest_plugin.so.0.0.1");
+    confFile.writeLine("plugin plugins/libtest_plugin.so.0.0.1");
     confFile.closeFile();
 
     std::vector<std::string> args {"--config-file", confFile.getFilePath()};
@@ -3114,7 +3114,7 @@ void MainTests::testSubscriptionRemovalByPlugin()
 void MainTests::testPublishByPlugin()
 {
     ConfFileTemp confFile;
-    confFile.writeLine("auth_plugin plugins/libtest_plugin.so.0.0.1");
+    confFile.writeLine("plugin plugins/libtest_plugin.so.0.0.1");
     confFile.closeFile();
 
     std::vector<std::string> args {"--config-file", confFile.getFilePath()};
