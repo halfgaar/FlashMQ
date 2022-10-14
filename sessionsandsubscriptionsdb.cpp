@@ -282,8 +282,11 @@ void SessionsAndSubscriptionsDB::saveData(const std::vector<std::shared_ptr<Sess
         size_t qosPacketsCounted = 0;
         writeUint32(qosPacketsExpected);
 
-        for (QueuedPublish &p: ses->qosPacketQueue)
+        std::shared_ptr<QueuedPublish> qp;
+        while ((qp = ses->qosPacketQueue.next()))
         {
+            QueuedPublish &p = *qp;
+
             qosPacketsCounted++;
 
             Publish &pub = p.getPublish();

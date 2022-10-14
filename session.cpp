@@ -37,6 +37,21 @@ void Session::increaseFlowControlQuota()
     this->flowControlQuota = std::min<int>(flowControlQuota, flowControlCealing);
 }
 
+void Session::increaseFlowControlQuota(int n)
+{
+    flowControlQuota += n;
+    this->flowControlQuota = std::min<int>(flowControlQuota, flowControlCealing);
+}
+
+void Session::clearExpiredMessagesFromQueue()
+{
+    if (this->lastExpiredMessagesAt + std::chrono::seconds(1) > std::chrono::steady_clock::now())
+        return;
+
+    const int n = this->qosPacketQueue.clearExpiredMessages();
+    increaseFlowControlQuota(n);
+}
+
 bool Session::requiresQoSQueueing() const
 {
     const std::shared_ptr<Client> client = makeSharedClient();
@@ -153,6 +168,13 @@ void Session::writePacket(PublishCopyFactory &copyFactory, const char max_qos)
         {
             std::unique_lock<std::mutex> locker(qosQueueMutex);
 
+            // We don't clear expired messages for online clients. It would slow down the 'happy flow' and those packets are already in the output
+            // buffer, so we can't clear them anyway.
+            if (!c)
+            {
+                clearExpiredMessagesFromQueue();
+            }
+
             if (this->flowControlQuota <= 0 || (qosPacketQueue.getByteSize() >= settings->maxQosBytesPendingPerClient && qosPacketQueue.size() > 0))
             {
                 if (QoSLogPrintedAtId != nextPacketId)
@@ -231,22 +253,22 @@ void Session::sendAllPendingQosData()
     {
         std::lock_guard<std::mutex> locker(qosQueueMutex);
 
-        auto pos = qosPacketQueue.begin();
-        while (pos != qosPacketQueue.end())
+        std::shared_ptr<QueuedPublish> qp;
+        while ((qp = qosPacketQueue.next()))
         {
-            QueuedPublish &queuedPublish = *pos;
+            QueuedPublish &queuedPublish = *qp;
             Publish &pub = queuedPublish.getPublish();
 
             if (pub.hasExpired() || (authentication.aclCheck(pub) != AuthResult::success))
             {
-                pos = qosPacketQueue.erase(pos);
+                qosPacketQueue.erase(qp->getPacketId());
                 continue;
             }
 
             if (flowControlQuota <= 0)
             {
                 logger->logf(LOG_WARNING, "Dropping QoS message(s) for client '%s', because it exceeds its receive maximum.", client_id.c_str());
-                pos = qosPacketQueue.erase(pos);
+                qosPacketQueue.erase(qp->getPacketId());
                 continue;
             }
 
@@ -257,8 +279,6 @@ void Session::sendAllPendingQosData()
             //p.setDuplicate(); // TODO: this is wrong. Until we have a retransmission system, no packets can have the DUP bit set.
 
             c->writeMqttPacketAndBlameThisClient(p);
-
-            pos++;
         }
 
         for (const uint16_t packet_id : outgoingQoS2MessageIds)

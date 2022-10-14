@@ -2,6 +2,7 @@
 #define QOSPACKETQUEUE_H
 
 #include "list"
+#include "map"
 
 #include "forward_declarations.h"
 #include "types.h"
@@ -18,6 +19,10 @@ class QueuedPublish
     uint16_t packet_id = 0;
 public:
     QueuedPublish(Publish &&publish, uint16_t packet_id);
+    QueuedPublish(const QueuedPublish &other) = delete;
+
+    std::shared_ptr<QueuedPublish> prev;
+    std::shared_ptr<QueuedPublish> next;
 
     size_t getApproximateMemoryFootprint() const;
     uint16_t getPacketId() const;
@@ -26,19 +31,28 @@ public:
 
 class QoSPublishQueue
 {
-    std::list<QueuedPublish> queue; // Using list because it's easiest to maintain order [MQTT-4.6.0-6]
+    std::shared_ptr<QueuedPublish> head;
+    std::shared_ptr<QueuedPublish> tail;
+
+    std::unordered_map<uint16_t, std::shared_ptr<QueuedPublish>> queue;
+    std::map<std::chrono::time_point<std::chrono::steady_clock>, uint16_t> queueExpirations;
+    std::chrono::time_point<std::chrono::steady_clock> nextExpireAt = std::chrono::time_point<std::chrono::steady_clock>::max();
+
     ssize_t qosQueueBytes = 0;
+
+    void addToExpirationQueue(std::shared_ptr<QueuedPublish> &qp);
+    void eraseFromMapAndRelinkList(std::unordered_map<uint16_t, std::shared_ptr<QueuedPublish>>::iterator pos);
+    void addToHeadOfLinkedList(std::shared_ptr<QueuedPublish> &qp);
 
 public:
     bool erase(const uint16_t packet_id);
-    std::list<QueuedPublish>::iterator erase(std::list<QueuedPublish>::iterator pos);
     size_t size() const;
     size_t getByteSize() const;
     void queuePublish(PublishCopyFactory &copyFactory, uint16_t id, char new_max_qos);
     void queuePublish(Publish &&pub, uint16_t id);
+    int clearExpiredMessages();
+    std::shared_ptr<QueuedPublish> next();
 
-    std::list<QueuedPublish>::iterator begin();
-    std::list<QueuedPublish>::iterator end();
 };
 
 #endif // QOSPACKETQUEUE_H

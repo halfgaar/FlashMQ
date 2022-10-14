@@ -197,6 +197,12 @@ bool PublishBase::hasExpired() const
     return (age > expiresAfter);
 }
 
+std::chrono::time_point<std::chrono::steady_clock> PublishBase::expiresAt() const
+{
+    auto result = this->createdAt + this->expiresAfter;
+    return result;
+}
+
 const std::vector<std::pair<std::string, std::string>> *PublishBase::getUserProperties() const
 {
     if (this->propertyBuilder)

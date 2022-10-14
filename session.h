@@ -45,6 +45,7 @@ class Session
     std::set<uint16_t> outgoingQoS2MessageIds;
     std::mutex qosQueueMutex;
     uint16_t nextPacketId = 0;
+    std::chrono::time_point<std::chrono::steady_clock> lastExpiredMessagesAt = std::chrono::steady_clock::now();
 
     /**
      * Even though flow control data is not part of the session state, I'm keeping it here because there are already
@@ -62,6 +63,8 @@ class Session
     Logger *logger = Logger::getInstance();
 
     void increaseFlowControlQuota();
+    void increaseFlowControlQuota(int n);
+    void clearExpiredMessagesFromQueue();
 
     bool requiresQoSQueueing() const;
     void increasePacketId();

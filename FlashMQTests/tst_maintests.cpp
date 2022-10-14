@@ -34,6 +34,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "threadglobals.h"
 #include "conffiletemp.h"
 #include "packetdatatypes.h"
+#include "qospacketqueue.h"
 
 #include "flashmqtestclient.h"
 
@@ -152,6 +153,10 @@ private slots:
     void testExtendedReAuthFail();
 
     void testMessageExpiry();
+
+    void testExpiredQueuedMessages();
+
+    void testQoSPublishQueue();
 
 };
 
@@ -1199,7 +1204,7 @@ void MainTests::testSavingSessions()
         }
 
         std::shared_ptr<Session> loadedSes = store2->sessionsById["c1"];
-        QueuedPublish queuedPublishLoaded = *loadedSes->qosPacketQueue.begin();
+        QueuedPublish &queuedPublishLoaded = *loadedSes->qosPacketQueue.next();
 
         QCOMPARE(queuedPublishLoaded.getPublish().topic, "a/b/c");
         QCOMPARE(queuedPublishLoaded.getPublish().payload, "Hello Barry");
@@ -2494,7 +2499,7 @@ void MainTests::testMessageExpiry()
     makeReceiver();
     receiver->waitForMessageCount(1);
 
-    QVERIFY(receiver->receivedPublishes.size() == 1);
+    MYCASTCOMPARE(receiver->receivedPublishes.size(), 1);
     QCOMPARE(receiver->receivedPublishes.front().getTopic(), "a/b/c/d/e");
     QCOMPARE(receiver->receivedPublishes.front().getPayloadCopy(), "smoke");
 
@@ -2509,6 +2514,257 @@ void MainTests::testMessageExpiry()
     receiver->waitForMessageCount(0);
     QVERIFY(receiver->receivedPublishes.empty());
 
+}
+
+/**
+ * @brief MainTests::testExpiredQueuedMessages Tests whether expiring messages clear out and make room in the send quota / receive maximum.
+ */
+void MainTests::testExpiredQueuedMessages()
+{
+    ConfFileTemp confFile;
+    confFile.writeLine("allow_anonymous yes");
+    confFile.writeLine("max_qos_msg_pending_per_client 32");
+    confFile.closeFile();
+
+    std::vector<std::string> args {"--config-file", confFile.getFilePath()};
+
+    cleanup();
+    init(args);
+
+    std::vector<ProtocolVersion> versions { ProtocolVersion::Mqtt311, ProtocolVersion::Mqtt5 };
+
+    for (ProtocolVersion version : versions)
+    {
+        FlashMQTestClient sender;
+        sender.start();
+        sender.connectClient(ProtocolVersion::Mqtt5, true, 120);
+
+        std::unique_ptr<FlashMQTestClient> receiver;
+
+        auto makeReceiver = [&]() {
+            receiver = std::make_unique<FlashMQTestClient>();
+            receiver->start();
+            receiver->connectClient(version, false, 120, [](Connect &c) {
+                c.clientid = "ReceiverDude01";
+            });
+        };
+
+        makeReceiver();
+        receiver->subscribe("#", 2);
+        receiver.reset();
+
+        Publish expiringPub("this/one/expires", "Calimex", 1);
+        expiringPub.setExpireAfter(1);
+
+        sender.publish(expiringPub);
+
+        for (int i = 0; i < 35; i++)
+        {
+            Publish normalPub(formatString("topic/%d", i), "adsf", 1);
+            sender.publish(normalPub);
+        }
+
+        makeReceiver();
+
+        try
+        {
+            receiver->waitForMessageCount(32);
+        }
+        catch (std::exception &ex)
+        {
+            MYCASTCOMPARE(receiver->receivedPublishes.size(), 32);
+        }
+
+        MYCASTCOMPARE(receiver->receivedPublishes.size(), 32);
+        QVERIFY(std::any_of(receiver->receivedPublishes.begin(), receiver->receivedPublishes.end(), [](MqttPacket &p) {
+            return p.getTopic() == "this/one/expires";
+        }));
+
+        receiver.reset();
+
+        for (int i = 0; i < 20; i++)
+        {
+            Publish normalPub(formatString("late/topic/%d", i), "adsf", 1);
+            sender.publish(normalPub);
+        }
+
+        sender.publish(expiringPub);
+        usleep(2000000);
+
+        // Now that we've waited, there should be an extra spot.
+
+        for (int i = 0; i < 15; i++)
+        {
+            Publish normalPub(formatString("topic/%d", i), "adsf", 1);
+            sender.publish(normalPub);
+        }
+
+        makeReceiver();
+
+        try
+        {
+            receiver->waitForMessageCount(32);
+        }
+        catch (std::exception &ex)
+        {
+            MYCASTCOMPARE(receiver->receivedPublishes.size(), 32);
+        }
+
+        MYCASTCOMPARE(receiver->receivedPublishes.size(), 32);
+        QVERIFY(std::none_of(receiver->receivedPublishes.begin(), receiver->receivedPublishes.end(), [](MqttPacket &p) {
+            return p.getTopic() == "this/one/expires";
+        }));
+
+        int pi = 0;
+
+        for (int i = 0; i < 20; i++)
+        {
+            QCOMPARE(receiver->receivedPublishes[pi++].getTopic(), formatString("late/topic/%d", i));
+        }
+
+        for (int i = 0; i < 12; i++)
+        {
+            QCOMPARE(receiver->receivedPublishes[pi++].getTopic(), formatString("topic/%d", i));
+        }
+
+        MYCASTCOMPARE(pi, 32);
+    }
+}
+
+/**
+ * @brief MainTests::testQoSPublishQueue tests the queue and it's insertion order linked list.
+ */
+void MainTests::testQoSPublishQueue()
+{
+    QoSPublishQueue q;
+    uint16_t id = 1;
+
+    std::shared_ptr<QueuedPublish> qp;
+
+    {
+        Publish p1("one", "onepayload", 1);
+        q.queuePublish(std::move(p1), id++);
+
+        qp = q.next();
+        QVERIFY(qp);
+        QCOMPARE(qp->getPublish().topic, "one");
+        QCOMPARE(qp->getPublish().payload, "onepayload");
+        qp = q.next();
+        QVERIFY(!qp);
+    }
+
+    {
+        Publish p1("two", "asdf", 1);
+        Publish p2("three", "wer", 1);
+        q.queuePublish(std::move(p1), id++);
+        q.queuePublish(std::move(p2), id++);
+
+        qp = q.next();
+        QCOMPARE(qp->getPublish().topic, "two");
+        qp = q.next();
+        QCOMPARE(qp->getPublish().topic, "three");
+        qp = q.next();
+        QVERIFY(!qp);
+    }
+
+    {
+        Publish p1("four", "asdf", 1);
+        Publish p2("five", "wer", 1);
+        Publish p3("six", "wer", 1);
+        q.queuePublish(std::move(p1), id++);
+        q.queuePublish(std::move(p2), id++);
+        q.queuePublish(std::move(p3), id++);
+
+        qp = q.next();
+        QCOMPARE(qp->getPublish().topic, "four");
+        qp = q.next();
+        QCOMPARE(qp->getPublish().topic, "five");
+        qp = q.next();
+        QCOMPARE(qp->getPublish().topic, "six");
+        qp = q.next();
+        QVERIFY(!qp);
+    }
+
+    // Remove middle
+    {
+        uint16_t idToRemove = 0;
+
+        Publish p1("seven", "asdf", 1);
+        Publish p2("eight", "wer", 1);
+        Publish p3("nine", "wer", 1);
+        q.queuePublish(std::move(p1), id++);
+        idToRemove = id;
+        q.queuePublish(std::move(p2), id++);
+        q.queuePublish(std::move(p3), id++);
+
+        q.erase(idToRemove);
+
+        Publish p4("tool2eW7", "wer", 1);
+        q.queuePublish(std::move(p4), id++);
+
+        qp = q.next();
+        QCOMPARE(qp->getPublish().topic, "seven");
+        qp = q.next();
+        QCOMPARE(qp->getPublish().topic, "nine");
+        qp = q.next();
+        QCOMPARE(qp->getPublish().topic, "tool2eW7");
+        qp = q.next();
+        QVERIFY(!qp);
+    }
+
+    // Remove first
+    {
+        uint16_t idToRemove = 0;
+
+        Publish p1("ten", "asdf", 1);
+        Publish p2("eleven", "wer", 1);
+        Publish p3("twelve", "wer", 1);
+        idToRemove = id;
+        q.queuePublish(std::move(p1), id++);
+        q.queuePublish(std::move(p2), id++);
+        q.queuePublish(std::move(p3), id++);
+
+        q.erase(idToRemove);
+
+        Publish p4("iew2Bie1", "wer", 1);
+        q.queuePublish(std::move(p4), id++);
+
+        qp = q.next();
+        QCOMPARE(qp->getPublish().topic, "eleven");
+        qp = q.next();
+        QCOMPARE(qp->getPublish().topic, "twelve");
+        qp = q.next();
+        QCOMPARE(qp->getPublish().topic, "iew2Bie1");
+        qp = q.next();
+        QVERIFY(!qp);
+    }
+
+    // Remove last
+    {
+        uint16_t idToRemove = 0;
+
+        Publish p1("13", "asdf", 1);
+        Publish p2("14", "wer", 1);
+        Publish p3("15", "wer", 1);
+        q.queuePublish(std::move(p1), id++);
+        q.queuePublish(std::move(p2), id++);
+        idToRemove = id;
+        q.queuePublish(std::move(p3), id++);
+
+        q.erase(idToRemove);
+
+        Publish p4("16", "wer", 1);
+        q.queuePublish(std::move(p4), id++);
+
+        qp = q.next();
+        QCOMPARE(qp->getPublish().topic, "13");
+        qp = q.next();
+        QCOMPARE(qp->getPublish().topic, "14");
+        qp = q.next();
+        QCOMPARE(qp->getPublish().topic, "16");
+        qp = q.next();
+        QVERIFY(!qp);
+    }
 }
 
 int main(int argc, char *argv[])
