@@ -201,7 +201,8 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV3()
                 willPublish.client_id = sender_clientid;
                 willPublish.username = sender_username;
 
-                ses->setWill(std::move(willPublish));
+                if (settings.willsEnabled)
+                    ses->setWill(std::move(willPublish));
             }
         }
 

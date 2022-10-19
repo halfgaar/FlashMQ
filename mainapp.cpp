@@ -652,12 +652,15 @@ void MainApp::start()
         }
     }
 
-    logger->logf(LOG_DEBUG, "Having all client in all threads send or queue their will.");
-    for(std::shared_ptr<ThreadData> &thread : threads)
+    if (settings->willsEnabled)
     {
-        thread->queueSendWills();
+        logger->logf(LOG_DEBUG, "Having all client in all threads send or queue their will.");
+        for(std::shared_ptr<ThreadData> &thread : threads)
+        {
+            thread->queueSendWills();
+        }
+        waitForWillsQueued();
     }
-    waitForWillsQueued();
 
     logger->logf(LOG_DEBUG, "Having all client in all threads send a disconnect packet.");
     for(std::shared_ptr<ThreadData> &thread : threads)

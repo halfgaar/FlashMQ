@@ -130,6 +130,8 @@ private slots:
     void testMqtt5DelayedWillAlwaysOnSessionEnd();
     void testWillOnSessionTakeOvers();
     void testOverrideWillDelayOnSessionDestructionByTakeOver();
+    void testDisabledWills();
+    void testMqtt5DelayedWillsDisabled();
 
     void testIncomingTopicAlias();
     void testOutgoingTopicAlias();
@@ -1811,6 +1813,86 @@ void MainTests::testOverrideWillDelayOnSessionDestructionByTakeOver()
     QCOMPARE(pubPack.getPublishData().topic, "my/will");
     QCOMPARE(pubPack.getPublishData().payload, "mypayload");
     QCOMPARE(pubPack.getPublishData().qos, 0);
+}
+
+/**
+ * @brief MainTests::testDisabledWills copied from testMqtt3will, but then wills disabled.
+ */
+void MainTests::testDisabledWills()
+{
+    ConfFileTemp confFile;
+    confFile.writeLine("allow_anonymous yes");
+    confFile.writeLine("wills_enabled no");
+    confFile.closeFile();
+
+    std::vector<std::string> args {"--config-file", confFile.getFilePath()};
+
+    cleanup();
+    init(args);
+
+    std::unique_ptr<FlashMQTestClient> sender = std::make_unique<FlashMQTestClient>();
+    sender->start();
+    std::shared_ptr<WillPublish> will = std::make_shared<WillPublish>();
+    will->topic = "my/will";
+    will->payload = "mypayload";
+    sender->setWill(will);
+    sender->connectClient(ProtocolVersion::Mqtt311);
+
+    FlashMQTestClient receiver;
+    receiver.start();
+    receiver.connectClient(ProtocolVersion::Mqtt311);
+    receiver.subscribe("my/will", 0);
+
+    sender.reset();
+
+    usleep(500000);
+
+    receiver.waitForMessageCount(0);
+
+    QVERIFY(receiver.receivedPublishes.empty());
+}
+
+/**
+ * @brief MainTests::testMqtt5DelayedWillsDisabled same as testMqtt5DelayedWill, but then with wills disabled.
+ */
+void MainTests::testMqtt5DelayedWillsDisabled()
+{
+    ConfFileTemp confFile;
+    confFile.writeLine("allow_anonymous yes");
+    confFile.writeLine("wills_enabled no");
+    confFile.closeFile();
+
+    std::vector<std::string> args {"--config-file", confFile.getFilePath()};
+
+    cleanup();
+    init(args);
+
+    std::unique_ptr<FlashMQTestClient> sender = std::make_unique<FlashMQTestClient>();
+    sender->start();
+    std::shared_ptr<WillPublish> will = std::make_shared<WillPublish>();
+    will->topic = "my/will/testMqtt5DelayedWill";
+    will->payload = "mypayload";
+    will->constructPropertyBuilder();
+    will->propertyBuilder->writeWillDelay(1);
+    sender->setWill(will);
+    sender->connectClient(ProtocolVersion::Mqtt5, true, 60);
+
+    FlashMQTestClient receiver;
+    receiver.start();
+    receiver.connectClient(ProtocolVersion::Mqtt5, true, 60);
+    receiver.subscribe("my/will/testMqtt5DelayedWill", 0);
+
+    receiver.clearReceivedLists();
+
+    sender.reset();
+
+    usleep(4000000);
+    QVERIFY(receiver.receivedPackets.empty());
+
+    receiver.waitForMessageCount(0);
+
+    usleep(250000);
+    QVERIFY(receiver.receivedPackets.empty());
 }
 
 void MainTests::testIncomingTopicAlias()

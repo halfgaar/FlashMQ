@@ -112,6 +112,7 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validKeys.insert("storage_dir");
     validKeys.insert("max_qos_msg_pending_per_client");
     validKeys.insert("max_qos_bytes_pending_per_client");
+    validKeys.insert("wills_enabled");
 
     validListenKeys.insert("port");
     validListenKeys.insert("protocol");
@@ -478,6 +479,12 @@ void ConfigFileParser::loadFile(bool test)
                         throw ConfigFileException(formatString("max_outgoing_topic_alias_value value '%d' is invalid. Valid values are between 0 and 65535.", newVal));
                     }
                     tmpSettings.maxOutgoingTopicAliasValue = newVal;
+                }
+
+                if (key == "wills_enabled")
+                {
+                    bool tmp = stringTruthiness(value);
+                    tmpSettings.willsEnabled = tmp;
                 }
             }
         }

@@ -363,13 +363,14 @@ void SubscriptionStore::queueWillMessage(const std::shared_ptr<WillPublish> &wil
         return;
 
     Authentication &auth = *ThreadGlobals::getAuth();
+    Settings *settings = ThreadGlobals::getSettings();
 
     const int delay = forceNow ? 0 : willMessage->will_delay;
     logger->logf(LOG_DEBUG, "Queueing will on topic '%s', with delay %d seconds.", willMessage->topic.c_str(), delay );
 
     if (delay == 0)
     {
-        if (auth.aclCheck(*willMessage) == AuthResult::success)
+        if (settings->willsEnabled && auth.aclCheck(*willMessage) == AuthResult::success)
         {
             PublishCopyFactory factory(willMessage.get());
             queuePacketAtSubscribers(factory);

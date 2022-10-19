@@ -763,7 +763,7 @@ void MqttPacket::handleConnect()
     sender->setClientProperties(protocolVersion, connectData.client_id, connectData.username, true, connectData.keep_alive,
                                 connectData.max_outgoing_packet_size, connectData.max_outgoing_topic_aliases);
 
-    if (connectData.will_flag)
+    if (settings.willsEnabled && connectData.will_flag)
         sender->setWill(std::move(connectData.willpublish));
 
     // Stage connack, for immediate or delayed use when auth succeeds.
