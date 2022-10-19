@@ -82,6 +82,8 @@ private slots:
     void test_validSubscribePath();
 
     void test_retained();
+    void test_retained_mode_drop();
+    void test_retained_mode_downgrade();
     void test_retained_changed();
     void test_retained_removed();
     void test_retained_tree();
@@ -482,6 +484,130 @@ void MainTests::test_retained()
             receiver.waitForMessageCount(1);
 
             QVERIFY2(receiver.receivedPublishes.size() == 1, "There must be one message in the received list");
+            MqttPacket &msg2 = receiver.receivedPublishes.front();
+            QCOMPARE(msg2.getPayloadCopy(), payload);
+            QCOMPARE(msg2.getTopic(), topic);
+            QVERIFY2(!msg2.getRetain(), "Getting a retained message while already being subscribed must be marked as normal, not retain.");
+        }
+    }
+}
+
+/**
+ * @brief MainTests::test_retained_disabled Copied from test_retained and adjusted
+ */
+void MainTests::test_retained_mode_drop()
+{
+    ConfFileTemp confFile;
+    confFile.writeLine("allow_anonymous yes");
+    confFile.writeLine("retained_messages_mode drop");
+    confFile.closeFile();
+
+    std::vector<std::string> args {"--config-file", confFile.getFilePath()};
+
+    cleanup();
+    init(args);
+
+    std::vector<ProtocolVersion> protocols {ProtocolVersion::Mqtt311, ProtocolVersion::Mqtt5};
+
+    for (const ProtocolVersion senderVersion : protocols)
+    {
+        for (const ProtocolVersion receiverVersion : protocols)
+        {
+            FlashMQTestClient sender;
+            FlashMQTestClient receiver;
+
+            sender.start();
+            receiver.start();
+
+            const std::string payload = "We are testing";
+            const std::string topic = "retaintopic";
+
+            sender.connectClient(senderVersion);
+
+            Publish pub1(topic, payload, 0);
+            pub1.retain = true;
+            sender.publish(pub1);
+
+            Publish pub2("dummy2", "Nobody sees this", 0);
+            pub2.retain = true;
+            sender.publish(pub2);
+
+            receiver.connectClient(receiverVersion);
+            receiver.subscribe("dummy", 0);
+            receiver.subscribe(topic, 0);
+
+            usleep(250000);
+
+            receiver.waitForMessageCount(0);
+            QVERIFY2(receiver.receivedPublishes.empty(), "In drop mode, retained publishes should be stored as retained messages.");
+
+            receiver.clearReceivedLists();
+
+            sender.publish(pub1);
+
+            usleep(250000);
+            receiver.waitForMessageCount(0);
+
+            QVERIFY(receiver.receivedPublishes.empty());
+        }
+    }
+}
+
+/**
+ * @brief MainTests::test_retained_mode_downgrade copied from test_retained and adjusted
+ */
+void MainTests::test_retained_mode_downgrade()
+{
+    ConfFileTemp confFile;
+    confFile.writeLine("allow_anonymous yes");
+    confFile.writeLine("retained_messages_mode downgrade");
+    confFile.closeFile();
+
+    std::vector<std::string> args {"--config-file", confFile.getFilePath()};
+
+    cleanup();
+    init(args);
+
+    std::vector<ProtocolVersion> protocols {ProtocolVersion::Mqtt311, ProtocolVersion::Mqtt5};
+
+    for (const ProtocolVersion senderVersion : protocols)
+    {
+        for (const ProtocolVersion receiverVersion : protocols)
+        {
+            FlashMQTestClient sender;
+            FlashMQTestClient receiver;
+
+            sender.start();
+            receiver.start();
+
+            const std::string payload = "We are testing";
+            const std::string topic = "retaintopic";
+
+            sender.connectClient(senderVersion);
+
+            Publish pub1(topic, payload, 0);
+            pub1.retain = true;
+            sender.publish(pub1);
+
+            Publish pub2("dummy2", "Nobody sees this", 0);
+            pub2.retain = true;
+            sender.publish(pub2);
+
+            receiver.connectClient(receiverVersion);
+            receiver.subscribe("dummy", 0);
+            receiver.subscribe(topic, 0);
+
+            usleep(250000);
+
+            receiver.waitForMessageCount(0);
+            QVERIFY2(receiver.receivedPublishes.empty(), "In downgrade mode, retained publishes should be stored as retained messages.");
+
+            receiver.clearReceivedLists();
+
+            sender.publish(pub1);
+            receiver.waitForMessageCount(1);
+
+            MYCASTCOMPARE(receiver.receivedPublishes.size(), 1);
             MqttPacket &msg2 = receiver.receivedPublishes.front();
             QCOMPARE(msg2.getPayloadCopy(), payload);
             QCOMPARE(msg2.getTopic(), topic);

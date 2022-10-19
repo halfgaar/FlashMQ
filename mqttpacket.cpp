@@ -785,7 +785,7 @@ void MqttPacket::handleConnect()
             connAck->propertyBuilder = std::make_shared<Mqtt5PropertyBuilder>();
             connAck->propertyBuilder->writeSessionExpiry(connectData.session_expire);
             connAck->propertyBuilder->writeReceiveMax(settings.maxQosMsgPendingPerClient);
-            connAck->propertyBuilder->writeRetainAvailable(1);
+            connAck->propertyBuilder->writeRetainAvailable(settings.retainedMessagesMode == RetainedMessagesMode::Enabled);
             connAck->propertyBuilder->writeMaxPacketSize(sender->getMaxIncomingPacketSize());
             if (clientIdGenerated)
                 connAck->propertyBuilder->writeAssignedClientId(connectData.client_id);
@@ -1337,10 +1337,16 @@ void MqttPacket::handlePublish()
     ThreadGlobals::getThreadData()->receivedMessageCounter.inc();
 
     Authentication &authentication = *ThreadGlobals::getAuth();
+    const Settings *settings = ThreadGlobals::getSettings();
 
     // Working with a local copy because the subscribing action will modify this->packet_id. See the PublishCopyFactory.
     const uint16_t _packet_id = this->packet_id;
     const char _qos = this->publishData.qos;
+
+    if (publishData.retain && settings->retainedMessagesMode == RetainedMessagesMode::DisconnectWithError)
+    {
+        throw ProtocolError("Retained messages not supported and 'retained_messages_mode' set to 'disconnect_with_error'.", ReasonCodes::RetainNotSupported);
+    }
 
     if (publishData.qos == 2 && sender->getSession()->incomingQoS2MessageIdInTransit(_packet_id))
     {
@@ -1354,20 +1360,23 @@ void MqttPacket::handlePublish()
 
         if (authentication.aclCheck(this->publishData) == AuthResult::success)
         {
-            if (publishData.retain)
+            if (publishData.retain && settings->retainedMessagesMode == RetainedMessagesMode::Enabled)
             {
                 publishData.payload = getPayloadCopy();
                 MainApp::getMainApp()->getSubscriptionStore()->setRetainedMessage(publishData, publishData.getSubtopics());
             }
 
-            // Set dup flag to 0, because that must not be propagated [MQTT-3.3.1-3].
-            // Existing subscribers don't get retain=1. [MQTT-3.3.1-9]
-            bites[0] &= 0b11110110;
-            first_byte = bites[0];
-            publishData.retain = false;
+            if (!publishData.retain || settings->retainedMessagesMode <= RetainedMessagesMode::Downgrade)
+            {
+                // Set dup flag to 0, because that must not be propagated [MQTT-3.3.1-3].
+                // Existing subscribers don't get retain=1. [MQTT-3.3.1-9]
+                bites[0] &= 0b11110110;
+                first_byte = bites[0];
+                publishData.retain = false;
 
-            PublishCopyFactory factory(this);
-            MainApp::getMainApp()->getSubscriptionStore()->queuePacketAtSubscribers(factory);
+                PublishCopyFactory factory(this);
+                MainApp::getMainApp()->getSubscriptionStore()->queuePacketAtSubscribers(factory);
+            }
         }
         else
         {

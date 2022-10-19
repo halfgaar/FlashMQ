@@ -89,7 +89,14 @@ MainApp::MainApp(const std::string &configFilePath) :
 
     if (!settings.storageDir.empty())
     {
-        subscriptionStore->loadRetainedMessages(settings.getRetainedMessagesDBFile());
+        subscriptionStore->loadSessionsAndSubscriptions(settings.getSessionsDBFile());
+
+        const std::string retainedDbPath = settings.getRetainedMessagesDBFile();
+        if (settings.retainedMessagesMode == RetainedMessagesMode::Enabled)
+            subscriptionStore->loadRetainedMessages(settings.getRetainedMessagesDBFile());
+        else
+            logger->logf(LOG_INFO, "Not loading '%s', because 'retained_messages_mode' is not 'enabled'.", retainedDbPath.c_str());
+
         subscriptionStore->loadSessionsAndSubscriptions(settings.getSessionsDBFile());
     }
 
@@ -328,7 +335,10 @@ void MainApp::saveState(const Settings &settings)
         if (!settings.storageDir.empty())
         {
             const std::string retainedDBPath = settings.getRetainedMessagesDBFile();
-            subscriptionStore->saveRetainedMessages(retainedDBPath);
+            if (settings.retainedMessagesMode == RetainedMessagesMode::Enabled)
+                subscriptionStore->saveRetainedMessages(retainedDBPath);
+            else
+                logger->logf(LOG_INFO, "Not saving '%s', because 'retained_messages_mode' is not 'enabled'.", retainedDBPath.c_str());
 
             const std::string sessionsDBPath = settings.getSessionsDBFile();
             subscriptionStore->saveSessionsAndSubscriptions(sessionsDBPath);
@@ -652,7 +662,7 @@ void MainApp::start()
         }
     }
 
-    if (settings->willsEnabled)
+    if (settings.willsEnabled)
     {
         logger->logf(LOG_DEBUG, "Having all client in all threads send or queue their will.");
         for(std::shared_ptr<ThreadData> &thread : threads)

@@ -554,6 +554,11 @@ void SubscriptionStore::giveClientRetainedMessagesRecursively(std::vector<std::s
 void SubscriptionStore::giveClientRetainedMessages(const std::shared_ptr<Session> &ses,
                                                    const std::vector<std::string> &subscribeSubtopics, char max_qos)
 {
+    const Settings *settings = ThreadGlobals::getSettings();
+
+    if (settings->retainedMessagesMode != RetainedMessagesMode::Enabled)
+        return;
+
     RetainedMessageNode *startNode = &retainedMessagesRoot;
     if (!subscribeSubtopics.empty() && !subscribeSubtopics[0].empty() > 0 && subscribeSubtopics[0][0] == '$')
         startNode = &retainedMessagesRootDollar;
@@ -919,7 +924,6 @@ void SubscriptionStore::loadRetainedMessages(const std::string &filePath)
         db.openRead();
         std::list<RetainedMessage> messages = db.readData();
 
-        std::vector<std::string> subtopics;
         for (RetainedMessage &rm : messages)
         {
             setRetainedMessage(rm.publish, rm.publish.getSubtopics());

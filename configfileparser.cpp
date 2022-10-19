@@ -113,6 +113,7 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validKeys.insert("max_qos_msg_pending_per_client");
     validKeys.insert("max_qos_bytes_pending_per_client");
     validKeys.insert("wills_enabled");
+    validKeys.insert("retained_messages_mode");
 
     validListenKeys.insert("port");
     validListenKeys.insert("protocol");
@@ -485,6 +486,22 @@ void ConfigFileParser::loadFile(bool test)
                 {
                     bool tmp = stringTruthiness(value);
                     tmpSettings.willsEnabled = tmp;
+                }
+
+                if (key == "retained_messages_mode")
+                {
+                    const std::string _val = str_tolower(value);
+
+                    if (_val == "enabled")
+                        tmpSettings.retainedMessagesMode = RetainedMessagesMode::Enabled;
+                    else if (_val == "downgrade")
+                        tmpSettings.retainedMessagesMode = RetainedMessagesMode::Downgrade;
+                    else if (_val == "drop")
+                        tmpSettings.retainedMessagesMode = RetainedMessagesMode::Drop;
+                    else if (_val == "disconnect_with_error")
+                        tmpSettings.retainedMessagesMode = RetainedMessagesMode::DisconnectWithError;
+                    else
+                        throw ConfigFileException(formatString("Value '%s' for '%s' is invalid.", value.c_str(), key.c_str()));
                 }
             }
         }

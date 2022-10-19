@@ -26,6 +26,14 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 
 #define ABSOLUTE_MAX_PACKET_SIZE 268435461 // 256 MB + 5
 
+enum class RetainedMessagesMode
+{
+    Enabled,
+    Downgrade,
+    Drop,
+    DisconnectWithError
+};
+
 class Settings
 {
     friend class ConfigFileParser;
@@ -63,6 +71,7 @@ public:
     uint16_t maxQosMsgPendingPerClient = 512;
     uint maxQosBytesPendingPerClient = 65536;
     bool willsEnabled = true;
+    RetainedMessagesMode retainedMessagesMode = RetainedMessagesMode::Enabled;
     std::list<std::shared_ptr<Listener>> listeners; // Default one is created later, when none are defined.
 
     AuthOptCompatWrap &getAuthOptsCompat();
