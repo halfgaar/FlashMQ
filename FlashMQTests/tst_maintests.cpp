@@ -135,6 +135,7 @@ private slots:
     void testOverrideWillDelayOnSessionDestructionByTakeOver();
     void testDisabledWills();
     void testMqtt5DelayedWillsDisabled();
+    void testWillDenialByPlugin();
 
     void testIncomingTopicAlias();
     void testOutgoingTopicAlias();
@@ -2023,6 +2024,64 @@ void MainTests::testMqtt5DelayedWillsDisabled()
 
     usleep(250000);
     QVERIFY(receiver.receivedPackets.empty());
+}
+
+void MainTests::testWillDenialByPlugin()
+{
+    std::vector<ProtocolVersion> versions { ProtocolVersion::Mqtt311, ProtocolVersion::Mqtt5 };
+
+    ConfFileTemp confFile;
+    confFile.writeLine("plugin plugins/libtest_plugin.so.0.0.1");
+    confFile.closeFile();
+
+    std::vector<std::string> args {"--config-file", confFile.getFilePath()};
+
+    cleanup();
+    init(args);
+
+    std::unique_ptr<FlashMQTestClient> sender = std::make_unique<FlashMQTestClient>();
+    sender->start();
+    std::shared_ptr<WillPublish> will = std::make_shared<WillPublish>();
+    will->topic = "will/allowed";
+    will->payload = "mypayload";
+    sender->setWill(will);
+    sender->connectClient(ProtocolVersion::Mqtt311);
+
+    FlashMQTestClient receiver;
+    receiver.start();
+    receiver.connectClient(ProtocolVersion::Mqtt311);
+    receiver.subscribe("will/+", 0);
+
+    sender.reset();
+
+    receiver.waitForMessageCount(1);
+
+    MqttPacket pubPack = receiver.receivedPublishes.front();
+    pubPack.parsePublishData();
+
+    QCOMPARE(pubPack.getPublishData().topic, "will/allowed");
+    QCOMPARE(pubPack.getPublishData().payload, "mypayload");
+    QCOMPARE(pubPack.getPublishData().qos, 0);
+
+    receiver.clearReceivedLists();
+
+    // Now set a will that we will deny.
+
+    {
+        sender = std::make_unique<FlashMQTestClient>();
+        sender->start();
+        std::shared_ptr<WillPublish> will2 = std::make_shared<WillPublish>();
+        will2->topic = "will/disallowed";
+        will2->payload = "mypayload";
+        sender->setWill(will2);
+        sender->connectClient(ProtocolVersion::Mqtt311);
+
+        sender.reset();
+        usleep(500000);
+        receiver.waitForMessageCount(0);
+
+        QVERIFY(receiver.receivedPublishes.empty());
+    }
 }
 
 void MainTests::testIncomingTopicAlias()

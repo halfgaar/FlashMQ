@@ -47,7 +47,8 @@ enum class AclAccess
     none = 0,
     read = 1,
     write = 2,
-    subscribe = 4
+    subscribe = 4,
+    register_will = 100
 };
 
 /**

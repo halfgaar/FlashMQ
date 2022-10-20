@@ -94,6 +94,9 @@ AuthResult flashmq_plugin_acl_check(void *thread_data, AclAccess access, const s
     (void)username;
     (void)msg;
 
+    if (access == AclAccess::register_will && msg.topic == "will/disallowed")
+        return AuthResult::acl_denied;
+
     if (msg.topic == "removeclient" || msg.topic == "removeclientandsession")
         flashmq_plugin_remove_client(clientid, msg.topic == "removeclientandsession", ServerDisconnectReasons::NormalDisconnect);
 

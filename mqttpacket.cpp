@@ -550,6 +550,8 @@ ConnectData MqttPacket::parseConnectData()
 
     if (result.will_flag)
     {
+        result.willpublish.client_id = result.client_id;
+
         if (protocolVersion == ProtocolVersion::Mqtt5)
         {
             result.willpublish.constructPropertyBuilder();
@@ -618,6 +620,7 @@ ConnectData MqttPacket::parseConnectData()
     if (result.user_name_flag)
     {
         result.username = readBytesToString(false);
+        result.willpublish.username = result.username;
 
         if (result.username.empty())
             throw ProtocolError("Username flagged as present, but it's 0 bytes.", ReasonCodes::MalformedPacket);
@@ -686,6 +689,8 @@ void MqttPacket::handleConnect()
         throw ProtocolError("Client already sent a CONNECT.", ReasonCodes::ProtocolError);
 
     std::shared_ptr<SubscriptionStore> subscriptionStore = MainApp::getMainApp()->getSubscriptionStore();
+
+    Authentication &authentication = *ThreadGlobals::getAuth();
 
     ThreadData *threadData = ThreadGlobals::getThreadData();
     threadData->mqttConnectCounter.inc();
@@ -765,7 +770,12 @@ void MqttPacket::handleConnect()
                                 connectData.max_outgoing_packet_size, connectData.max_outgoing_topic_aliases);
 
     if (settings.willsEnabled && connectData.will_flag)
-        sender->setWill(std::move(connectData.willpublish));
+    {
+        if (authentication.aclCheck(connectData.willpublish, AclAccess::register_will) == AuthResult::success)
+        {
+            sender->setWill(std::move(connectData.willpublish));
+        }
+    }
 
     // Stage connack, for immediate or delayed use when auth succeeds.
     {
@@ -807,7 +817,6 @@ void MqttPacket::handleConnect()
 
     sender->setRegistrationData(connectData.clean_start, connectData.client_receive_max, connectData.session_expire);
 
-    Authentication &authentication = *ThreadGlobals::getAuth();
     AuthResult authResult = AuthResult::login_denied;
     std::string authReturnData;
 

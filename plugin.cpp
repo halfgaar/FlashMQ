@@ -284,13 +284,13 @@ void Authentication::securityCleanup(bool reloading)
  * @param publishData
  * @return
  */
-AuthResult Authentication::aclCheck(Publish &publishData)
+AuthResult Authentication::aclCheck(Publish &publishData, AclAccess access)
 {
     // Anonymous publishes come from FlashMQ internally, like SYS topics. We need to allow them.
     if (publishData.client_id.empty())
         return AuthResult::success;
 
-    return aclCheck(publishData.client_id, publishData.username, publishData.topic, publishData.getSubtopics(), AclAccess::write, publishData.qos,
+    return aclCheck(publishData.client_id, publishData.username, publishData.topic, publishData.getSubtopics(), access, publishData.qos,
                     publishData.retain, publishData.getUserProperties());
 }
 
