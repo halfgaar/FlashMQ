@@ -8,6 +8,16 @@
  * your code to have a compatibile license nor requires you to open source it.
  *
  * Compile like: gcc -fPIC -shared plugin.cpp -o plugin.so
+ *
+ * It's best practice to build your plugin with the same library versions of the
+ * build of FlashMQ you're using. In practice, this means building on the OS
+ * version you're running on. This also means using the AppImage build of FlashMQ
+ * is not really compabible with plugins, because that includes older, and fixed,
+ * versions of various libraries.
+ *
+ * For instance, if you use OpenSSL, by the time your plugin is loaded, FlashMQ will
+ * have already dynamically linked OpenSSL. If you then try to call OpenSSL
+ * functions, you'll run into ABI incompatibilities.
  */
 
 #ifndef FLASHMQ_PLUGIN_H
