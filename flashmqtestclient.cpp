@@ -15,7 +15,6 @@
 int FlashMQTestClient::clientCount = 0;
 
 FlashMQTestClient::FlashMQTestClient() :
-    settings(std::make_shared<Settings>()),
     testServerWorkerThreadData(std::make_shared<ThreadData>(0, settings)),
     dummyThreadData(std::make_shared<ThreadData>(666, settings))
 {
@@ -114,7 +113,7 @@ void FlashMQTestClient::connectClient(ProtocolVersion protocolVersion, bool clea
 
     const std::string clientid = formatString("testclient_%d", clientCount++);
 
-    this->client = std::make_shared<Client>(sockfd, testServerWorkerThreadData, nullptr, false, reinterpret_cast<struct sockaddr*>(&servaddr), settings.get());
+    this->client = std::make_shared<Client>(sockfd, testServerWorkerThreadData, nullptr, false, reinterpret_cast<struct sockaddr*>(&servaddr), settings);
     this->client->setClientProperties(protocolVersion, clientid, "user", false, 60);
 
     testServerWorkerThreadData->giveClient(this->client);

@@ -47,9 +47,9 @@ MainApp::MainApp(const std::string &configFilePath) :
     loadConfig();
 
     this->num_threads = get_nprocs();
-    if (settings->threadCount > 0)
+    if (settings.threadCount > 0)
     {
-        this->num_threads = settings->threadCount;
+        this->num_threads = settings.threadCount;
         logger->logf(LOG_NOTICE, "%d threads specified by 'thread_count'.", num_threads);
     }
     else
@@ -60,10 +60,10 @@ MainApp::MainApp(const std::string &configFilePath) :
     if (num_threads <= 0)
         throw std::runtime_error("Invalid number of CPUs: " + std::to_string(num_threads));
 
-    if (settings->expireSessionsAfterSeconds > 0)
+    if (settings.expireSessionsAfterSeconds > 0)
     {
         auto f = std::bind(&MainApp::queueCleanup, this);
-        //const uint64_t derrivedSessionCheckInterval = std::max<uint64_t>((settings->expireSessionsAfterSeconds)*1000*2, 600000);
+        //const uint64_t derrivedSessionCheckInterval = std::max<uint64_t>((settings.expireSessionsAfterSeconds)*1000*2, 600000);
         //const uint64_t sessionCheckInterval = std::min<uint64_t>(derrivedSessionCheckInterval, 86400000);
         uint64_t interval = 10000;
 #ifdef TESTING
@@ -81,16 +81,16 @@ MainApp::MainApp(const std::string &configFilePath) :
     auto fPublishStats = std::bind(&MainApp::queuePublishStatsOnDollarTopic, this);
     timer.addCallback(fPublishStats, 10000, "Publish stats on $SYS");
 
-    if (settings->authPluginTimerPeriod > 0)
+    if (settings.authPluginTimerPeriod > 0)
     {
         auto fAuthPluginPeriodicEvent = std::bind(&MainApp::queueAuthPluginPeriodicEventAllThreads, this);
-        timer.addCallback(fAuthPluginPeriodicEvent, settings->authPluginTimerPeriod*1000, "Auth plugin periodic event.");
+        timer.addCallback(fAuthPluginPeriodicEvent, settings.authPluginTimerPeriod*1000, "Auth plugin periodic event.");
     }
 
-    if (!settings->storageDir.empty())
+    if (!settings.storageDir.empty())
     {
-        subscriptionStore->loadRetainedMessages(settings->getRetainedMessagesDBFile());
-        subscriptionStore->loadSessionsAndSubscriptions(settings->getSessionsDBFile());
+        subscriptionStore->loadRetainedMessages(settings.getRetainedMessagesDBFile());
+        subscriptionStore->loadSessionsAndSubscriptions(settings.getSessionsDBFile());
     }
 
     auto fSaveState = std::bind(&MainApp::saveStateInThread, this);
@@ -260,7 +260,7 @@ void MainApp::saveStateInThread()
     if (saveStateThread.joinable())
         saveStateThread.join();
 
-    auto f = std::bind(&MainApp::saveState, this);
+    auto f = std::bind(&MainApp::saveState, this, this->settings);
     saveStateThread = std::thread(f);
 
     pthread_t native = saveStateThread.native_handle();
@@ -315,18 +315,22 @@ void MainApp::waitForDisconnectsInitiated()
     }
 }
 
-void MainApp::saveState()
+/**
+ * @brief MainApp::saveState
+ * @param settings A local settings, copied from a std::bind copy, because of read safety.
+ */
+void MainApp::saveState(const Settings &settings)
 {
     std::lock_guard<std::mutex> lg(saveStateMutex);
 
     try
     {
-        if (!settings->storageDir.empty())
+        if (!settings.storageDir.empty())
         {
-            const std::string retainedDBPath = settings->getRetainedMessagesDBFile();
+            const std::string retainedDBPath = settings.getRetainedMessagesDBFile();
             subscriptionStore->saveRetainedMessages(retainedDBPath);
 
-            const std::string sessionsDBPath = settings->getSessionsDBFile();
+            const std::string sessionsDBPath = settings.getSessionsDBFile();
             subscriptionStore->saveSessionsAndSubscriptions(sessionsDBPath);
 
             logger->logf(LOG_INFO, "Saving states done");
@@ -478,7 +482,7 @@ void MainApp::start()
         // No threads for execution stability/determinism.
         num_threads = 0;
 
-        settings->allowAnonymous = true;
+        settings.allowAnonymous = true;
 
         int fd = open(fuzzFilePath.c_str(), O_RDONLY);
         assert(fd > 0);
@@ -497,18 +501,18 @@ void MainApp::start()
             std::vector<MqttPacket> packetQueueIn;
             std::vector<std::string> subtopics;
 
-            Authentication auth(settingsLocalCopy);
+            Authentication auth(settings);
             ThreadGlobals::assign(&auth);
 
             std::shared_ptr<ThreadData> threaddata = std::make_shared<ThreadData>(0, settings);
             ThreadGlobals::assignThreadData(threaddata.get());
 
-            std::shared_ptr<Client> client = std::make_shared<Client>(fd, threaddata, nullptr, fuzzWebsockets, nullptr, settings.get(), true);
-            std::shared_ptr<Client> subscriber = std::make_shared<Client>(fdnull, threaddata, nullptr, fuzzWebsockets, nullptr, settings.get(), true);
+            std::shared_ptr<Client> client = std::make_shared<Client>(fd, threaddata, nullptr, fuzzWebsockets, nullptr, settings, true);
+            std::shared_ptr<Client> subscriber = std::make_shared<Client>(fdnull, threaddata, nullptr, fuzzWebsockets, nullptr, settings, true);
             subscriber->setClientProperties(ProtocolVersion::Mqtt311, "subscriber", "subuser", true, 60);
             subscriber->setAuthenticated(true);
 
-            std::shared_ptr<Client> websocketsubscriber = std::make_shared<Client>(fdnull2, threaddata, nullptr, true, nullptr, settings.get(), true);
+            std::shared_ptr<Client> websocketsubscriber = std::make_shared<Client>(fdnull2, threaddata, nullptr, true, nullptr, settings, true);
             websocketsubscriber->setClientProperties(ProtocolVersion::Mqtt311, "websocketsubscriber", "websocksubuser", true, 60);
             websocketsubscriber->setAuthenticated(true);
             websocketsubscriber->setFakeUpgraded();
@@ -608,7 +612,7 @@ void MainApp::start()
                         SSL_set_fd(clientSSL, fd);
                     }
 
-                    std::shared_ptr<Client> client = std::make_shared<Client>(fd, thread_data, clientSSL, listener->websocket, addr, settings.get());
+                    std::shared_ptr<Client> client = std::make_shared<Client>(fd, thread_data, clientSSL, listener->websocket, addr, settings);
                     thread_data->giveClient(client);
 
                     globalStats->socketConnects.inc();
@@ -691,7 +695,7 @@ void MainApp::start()
         }
     }
 
-    saveState();
+    saveState(this->settings);
 
     if (saveStateThread.joinable())
         saveStateThread.join();
@@ -712,7 +716,7 @@ void MainApp::quit()
 
 void MainApp::setlimits()
 {
-    rlim_t nofile = settings->rlimitNoFile;
+    rlim_t nofile = settings.rlimitNoFile;
     logger->logf(LOG_INFO, "Setting rlimit nofile to %ld.", nofile);
     struct rlimit v = { nofile, nofile };
     if (setrlimit(RLIMIT_NOFILE, &v) < 0)
@@ -732,11 +736,10 @@ void MainApp::loadConfig()
     // Atomic loading, first test.
     confFileParser->loadFile(true);
     confFileParser->loadFile(false);
-    settings = confFileParser->moveSettings();
-    settingsLocalCopy = *settings.get();
-    ThreadGlobals::assignSettings(&settingsLocalCopy);
+    settings = confFileParser->getSettings();
+    ThreadGlobals::assignSettings(&settings);
 
-    if (settings->listeners.empty())
+    if (settings.listeners.empty())
     {
         std::shared_ptr<Listener> defaultListener = std::make_shared<Listener>();
 
@@ -746,17 +749,17 @@ void MainApp::loadConfig()
 #endif
 
         defaultListener->isValid();
-        settings->listeners.push_back(defaultListener);
+        settings.listeners.push_back(defaultListener);
     }
 
     // For now, it's too much work to be able to reload new listeners, with all the shared resource stuff going on. So, I'm
     // loading them to a local var which is never updated.
     if (listeners.empty())
-        listeners = settings->listeners;
+        listeners = settings.listeners;
 
-    logger->setLogPath(settings->logPath);
+    logger->setLogPath(settings.logPath);
     logger->queueReOpen();
-    logger->setFlags(settings->logDebug, settings->logSubscriptions, settings->quiet);
+    logger->setFlags(settings.logDebug, settings.logSubscriptions, settings.quiet);
 
     setlimits();
 

@@ -11,7 +11,7 @@
  */
 class FlashMQTestClient
 {
-    std::shared_ptr<Settings> settings;
+    Settings settings;
     std::shared_ptr<ThreadData> testServerWorkerThreadData;
     std::shared_ptr<Client> client;
     std::shared_ptr<WillPublish> will;

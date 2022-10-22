@@ -121,7 +121,7 @@ std::list<RetainedMessage> RetainedMessagesDB::readDataV3()
 
     CirBuf cirbuf(1024);
 
-    const Settings *settings = ThreadGlobals::getSettings();
+    const Settings &settings = *ThreadGlobals::getSettings();
     std::shared_ptr<ThreadData> dummyThreadData;
     std::shared_ptr<Client> dummyClient(new Client(0, dummyThreadData, nullptr, false, nullptr, settings, false));
     dummyClient->setClientProperties(ProtocolVersion::Mqtt5, "Dummyforloadingretained", "nobody", true, 60);

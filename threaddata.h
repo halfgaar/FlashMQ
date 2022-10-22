@@ -61,7 +61,7 @@ class ThreadData
     std::mutex queuedKeepAliveMutex;
     std::map<std::chrono::seconds, std::vector<KeepAliveCheck>> queuedKeepAliveChecks;
 
-    void reload(std::shared_ptr<Settings> settings);
+    void reload(const Settings &settings);
     void wakeUpThread();
     void doKeepAliveCheck();
     void quit();
@@ -93,7 +93,7 @@ public:
     DerivableCounter sentMessageCounter;
     DerivableCounter mqttConnectCounter;
 
-    ThreadData(int threadnr, std::shared_ptr<Settings> settings);
+    ThreadData(int threadnr, const Settings &settings);
     ThreadData(const ThreadData &other) = delete;
     ThreadData(ThreadData &&other) = delete;
 
@@ -107,7 +107,7 @@ public:
 
     void initAuthPlugin();
     void cleanupAuthPlugin();
-    void queueReload(std::shared_ptr<Settings> settings);
+    void queueReload(const Settings &settings);
     void queueDoKeepAliveCheck();
     void queueQuit();
     void waitForQuit();

@@ -21,7 +21,7 @@ MainAppThread::MainAppThread(QObject *parent) : QThread(parent)
 {
     MainApp::initMainApp(1, nullptr);
     appInstance = MainApp::getMainApp();
-    appInstance->settings->allowAnonymous = true;
+    appInstance->settings.allowAnonymous = true;
 }
 
 MainAppThread::MainAppThread(const std::vector<std::string> &args, QObject *parent) : QThread(parent)
@@ -54,7 +54,7 @@ MainAppThread::MainAppThread(const std::vector<std::string> &args, QObject *pare
 
     // A hack: when I supply args I probably define a config for auth stuff.
     if (args.empty())
-        appInstance->settings->allowAnonymous = true;
+        appInstance->settings.allowAnonymous = true;
 }
 
 MainAppThread::~MainAppThread()

@@ -28,8 +28,8 @@ KeepAliveCheck::KeepAliveCheck(const std::shared_ptr<Client> client) :
 
 }
 
-ThreadData::ThreadData(int threadnr, std::shared_ptr<Settings> settings) :
-    settingsLocalCopy(*settings.get()),
+ThreadData::ThreadData(int threadnr, const Settings &settings) :
+    settingsLocalCopy(settings),
     authentication(settingsLocalCopy),
     threadnr(threadnr)
 {
@@ -543,14 +543,14 @@ void ThreadData::cleanupAuthPlugin()
     authentication.cleanup();
 }
 
-void ThreadData::reload(std::shared_ptr<Settings> settings)
+void ThreadData::reload(const Settings &settings)
 {
     logger->logf(LOG_DEBUG, "Doing reload in thread %d", threadnr);
 
     try
     {
         // Because the auth plugin has a reference to it, it will also be updated.
-        settingsLocalCopy = *settings.get();
+        settingsLocalCopy = settings;
 
         authentication.securityCleanup(true);
         authentication.securityInit(true);
@@ -561,7 +561,7 @@ void ThreadData::reload(std::shared_ptr<Settings> settings)
     }
 }
 
-void ThreadData::queueReload(std::shared_ptr<Settings> settings)
+void ThreadData::queueReload(const Settings &settings)
 {
     std::lock_guard<std::mutex> locker(taskQueueMutex);
 

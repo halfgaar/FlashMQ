@@ -62,7 +62,7 @@ void SessionsAndSubscriptionsDB::openRead()
 
 SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV3()
 {
-    const Settings *settings = ThreadGlobals::getSettings();
+    const Settings &settings = *ThreadGlobals::getSettings();
 
     SessionsAndSubscriptionsResult result;
 
@@ -166,7 +166,7 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV3()
 
             const uint32_t originalSessionExpiryInterval = readUint32(eofFound);
             const uint32_t compensatedSessionExpiry = persistence_state_age > originalSessionExpiryInterval ? 0 : originalSessionExpiryInterval - persistence_state_age;
-            const uint32_t sessionExpiryInterval = std::min<uint32_t>(compensatedSessionExpiry, settings->getExpireSessionAfterSeconds());
+            const uint32_t sessionExpiryInterval = std::min<uint32_t>(compensatedSessionExpiry, settings.getExpireSessionAfterSeconds());
 
             // We will set the session expiry interval as it would have had time continued. If a connection picks up session, it will update
             // it with a more relevant value.

@@ -35,13 +35,13 @@ StowedClientRegistrationData::StowedClientRegistrationData(bool clean_start, uin
 
 }
 
-Client::Client(int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, bool websocket, struct sockaddr *addr, const Settings *settings, bool fuzzMode) :
+Client::Client(int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, bool websocket, struct sockaddr *addr, const Settings &settings, bool fuzzMode) :
     fd(fd),
     fuzzMode(fuzzMode),
-    initialBufferSize(settings->clientInitialBufferSize), // The client is constructed in the main thread, so we need to use its settings copy
-    maxOutgoingPacketSize(settings->maxPacketSize), // Same as initialBufferSize comment.
-    maxIncomingPacketSize(settings->maxPacketSize),
-    maxIncomingTopicAliasValue(settings->maxIncomingTopicAliasValue), // Retaining snapshot of current setting, to not confuse clients when the setting changes.
+    initialBufferSize(settings.clientInitialBufferSize), // The client is constructed in the main thread, so we need to use its settings copy
+    maxOutgoingPacketSize(settings.maxPacketSize), // Same as initialBufferSize comment.
+    maxIncomingPacketSize(settings.maxPacketSize),
+    maxIncomingTopicAliasValue(settings.maxIncomingTopicAliasValue), // Retaining snapshot of current setting, to not confuse clients when the setting changes.
     ioWrapper(ssl, websocket, initialBufferSize, this),
     readbuf(initialBufferSize),
     writebuf(initialBufferSize),

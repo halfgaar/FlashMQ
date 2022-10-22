@@ -120,8 +120,6 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validListenKeys.insert("inet_protocol");
     validListenKeys.insert("inet4_bind_address");
     validListenKeys.insert("inet6_bind_address");
-
-    settings = std::make_unique<Settings>();
 }
 
 void ConfigFileParser::loadFile(bool test)
@@ -202,7 +200,7 @@ void ConfigFileParser::loadFile(bool test)
 
     ConfigParseLevel curParseLevel = ConfigParseLevel::Root;
     std::shared_ptr<Listener> curListener;
-    std::unique_ptr<Settings> tmpSettings = std::make_unique<Settings>();
+    Settings tmpSettings;
 
     // Then once we know the config file is valid, process it.
     for (std::string &line : lines)
@@ -229,7 +227,7 @@ void ConfigFileParser::loadFile(bool test)
             if (curParseLevel == ConfigParseLevel::Listen)
             {
                 curListener->isValid();
-                tmpSettings->listeners.push_back(curListener);
+                tmpSettings.listeners.push_back(curListener);
                 curListener.reset();
             }
 
@@ -305,43 +303,43 @@ void ConfigFileParser::loadFile(bool test)
                 if (key == "auth_plugin")
                 {
                     checkFileExistsAndReadable(key, value, 1024*1024*100);
-                    tmpSettings->authPluginPath = value;
+                    tmpSettings.authPluginPath = value;
                 }
 
                 if (key == "log_file")
                 {
                     checkFileOrItsDirWritable(value);
-                    tmpSettings->logPath = value;
+                    tmpSettings.logPath = value;
                 }
 
                 if (key == "quiet")
                 {
                     bool tmp = stringTruthiness(value);
-                    tmpSettings->quiet = tmp;
+                    tmpSettings.quiet = tmp;
                 }
 
                 if (key == "allow_unsafe_clientid_chars")
                 {
                     bool tmp = stringTruthiness(value);
-                    tmpSettings->allowUnsafeClientidChars = tmp;
+                    tmpSettings.allowUnsafeClientidChars = tmp;
                 }
 
                 if (key == "allow_unsafe_username_chars")
                 {
                     bool tmp = stringTruthiness(value);
-                    tmpSettings->allowUnsafeUsernameChars = tmp;
+                    tmpSettings.allowUnsafeUsernameChars = tmp;
                 }
 
                 if (key == "auth_plugin_serialize_init")
                 {
                     bool tmp = stringTruthiness(value);
-                    tmpSettings->authPluginSerializeInit = tmp;
+                    tmpSettings.authPluginSerializeInit = tmp;
                 }
 
                 if (key == "auth_plugin_serialize_auth_checks")
                 {
                     bool tmp = stringTruthiness(value);
-                    tmpSettings->authPluginSerializeAuthChecks = tmp;
+                    tmpSettings.authPluginSerializeAuthChecks = tmp;
                 }
 
                 if (key == "client_initial_buffer_size")
@@ -349,7 +347,7 @@ void ConfigFileParser::loadFile(bool test)
                     int newVal = std::stoi(value);
                     if (!isPowerOfTwo(newVal))
                         throw ConfigFileException("client_initial_buffer_size value " + value + " is not a power of two.");
-                    tmpSettings->clientInitialBufferSize = newVal;
+                    tmpSettings.clientInitialBufferSize = newVal;
                 }
 
                 if (key == "max_packet_size")
@@ -361,37 +359,37 @@ void ConfigFileParser::loadFile(bool test)
                         oss << "Value for max_packet_size " << newVal << "is higher than absolute maximum " << ABSOLUTE_MAX_PACKET_SIZE;
                         throw ConfigFileException(oss.str());
                     }
-                    tmpSettings->maxPacketSize = newVal;
+                    tmpSettings.maxPacketSize = newVal;
                 }
 
                 if (key == "log_debug")
                 {
                     bool tmp = stringTruthiness(value);
-                    tmpSettings->logDebug = tmp;
+                    tmpSettings.logDebug = tmp;
                 }
 
                 if (key == "log_subscriptions")
                 {
                     bool tmp = stringTruthiness(value);
-                    tmpSettings->logSubscriptions = tmp;
+                    tmpSettings.logSubscriptions = tmp;
                 }
 
                 if (key == "mosquitto_password_file")
                 {
                     checkFileExistsAndReadable("mosquitto_password_file", value, 1024*1024*1024);
-                    tmpSettings->mosquittoPasswordFile = value;
+                    tmpSettings.mosquittoPasswordFile = value;
                 }
 
                 if (key == "mosquitto_acl_file")
                 {
                     checkFileExistsAndReadable("mosquitto_acl_file", value, 1024*1024*1024);
-                    tmpSettings->mosquittoAclFile = value;
+                    tmpSettings.mosquittoAclFile = value;
                 }
 
                 if (key == "allow_anonymous")
                 {
                     bool tmp = stringTruthiness(value);
-                    tmpSettings->allowAnonymous = tmp;
+                    tmpSettings.allowAnonymous = tmp;
                 }
 
                 if (key == "rlimit_nofile")
@@ -401,7 +399,7 @@ void ConfigFileParser::loadFile(bool test)
                     {
                         throw ConfigFileException(formatString("Value '%d' is negative.", newVal));
                     }
-                    tmpSettings->rlimitNoFile = newVal;
+                    tmpSettings.rlimitNoFile = newVal;
                 }
 
                 if (key == "expire_sessions_after_seconds")
@@ -411,7 +409,7 @@ void ConfigFileParser::loadFile(bool test)
                     {
                         throw ConfigFileException(formatString("expire_sessions_after_seconds value '%d' is invalid. Valid values are 0, or 60 or higher.", newVal));
                     }
-                    tmpSettings->expireSessionsAfterSeconds = newVal;
+                    tmpSettings.expireSessionsAfterSeconds = newVal;
                 }
 
                 if (key == "auth_plugin_timer_period")
@@ -421,7 +419,7 @@ void ConfigFileParser::loadFile(bool test)
                     {
                         throw ConfigFileException(formatString("auth_plugin_timer_period value '%d' is invalid. Valid values are 0 or higher. 0 means disabled.", newVal));
                     }
-                    tmpSettings->authPluginTimerPeriod = newVal;
+                    tmpSettings.authPluginTimerPeriod = newVal;
                 }
 
                 if (key == "storage_dir")
@@ -429,7 +427,7 @@ void ConfigFileParser::loadFile(bool test)
                     std::string newPath = value;
                     rtrim(newPath, '/');
                     checkWritableDir<ConfigFileException>(newPath);
-                    tmpSettings->storageDir = newPath;
+                    tmpSettings.storageDir = newPath;
                 }
 
                 if (key == "thread_count")
@@ -439,7 +437,7 @@ void ConfigFileParser::loadFile(bool test)
                     {
                         throw ConfigFileException(formatString("thread_count value '%d' is invalid. Valid values are 0 or higher. 0 means auto.", newVal));
                     }
-                    tmpSettings->threadCount = newVal;
+                    tmpSettings.threadCount = newVal;
                 }
 
                 if (key == "max_qos_msg_pending_per_client")
@@ -449,7 +447,7 @@ void ConfigFileParser::loadFile(bool test)
                     {
                         throw ConfigFileException(formatString("max_qos_msg_pending_per_client value '%d' is invalid. Valid values between 32 and 65535.", newVal));
                     }
-                    tmpSettings->maxQosMsgPendingPerClient = newVal;
+                    tmpSettings.maxQosMsgPendingPerClient = newVal;
                 }
 
                 if (key == "max_qos_bytes_pending_per_client")
@@ -459,7 +457,7 @@ void ConfigFileParser::loadFile(bool test)
                     {
                         throw ConfigFileException(formatString("max_qos_bytes_pending_per_client value '%d' is invalid. Valid values are 4096 or higher.", newVal));
                     }
-                    tmpSettings->maxQosBytesPendingPerClient = newVal;
+                    tmpSettings.maxQosBytesPendingPerClient = newVal;
                 }
 
                 if (key == "max_incoming_topic_alias_value")
@@ -469,7 +467,7 @@ void ConfigFileParser::loadFile(bool test)
                     {
                         throw ConfigFileException(formatString("max_incoming_topic_alias_value value '%d' is invalid. Valid values are between 0 and 65535.", newVal));
                     }
-                    tmpSettings->maxIncomingTopicAliasValue = newVal;
+                    tmpSettings.maxIncomingTopicAliasValue = newVal;
                 }
 
                 if (key == "max_outgoing_topic_alias_value")
@@ -479,7 +477,7 @@ void ConfigFileParser::loadFile(bool test)
                     {
                         throw ConfigFileException(formatString("max_outgoing_topic_alias_value value '%d' is invalid. Valid values are between 0 and 65535.", newVal));
                     }
-                    tmpSettings->maxOutgoingTopicAliasValue = newVal;
+                    tmpSettings.maxOutgoingTopicAliasValue = newVal;
                 }
             }
         }
@@ -489,20 +487,18 @@ void ConfigFileParser::loadFile(bool test)
         }
     }
 
-    tmpSettings->authOptCompatWrap = AuthOptCompatWrap(authOpts);
-    tmpSettings->flashmqAuthPluginOpts = std::move(authOpts);
+    tmpSettings.authOptCompatWrap = AuthOptCompatWrap(authOpts);
+    tmpSettings.flashmqAuthPluginOpts = std::move(authOpts);
 
     if (!test)
     {
-        this->settings = std::move(tmpSettings);
+        this->settings = tmpSettings;
     }
 }
 
-std::unique_ptr<Settings> ConfigFileParser::moveSettings()
+const Settings &ConfigFileParser::getSettings()
 {
-    std::unique_ptr<Settings> tmp = std::move(settings);
-    settings = std::make_unique<Settings>();
-    return tmp;
+    return settings;
 }
 
 

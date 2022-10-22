@@ -63,9 +63,7 @@ class MainApp
     Timer timer;
     uint16_t nextThreadForTasks = 0;
 
-    // We need to keep a settings copy as well as a shared pointer, depending on threads, queueing of config reloads, etc.
-    std::shared_ptr<Settings> settings;
-    Settings settingsLocalCopy;
+    Settings settings;
 
     std::list<std::shared_ptr<Listener>> listeners;
     std::mutex quitMutex;
@@ -89,7 +87,7 @@ class MainApp
     void queueAuthPluginPeriodicEventAllThreads();
     void setFuzzFile(const std::string &fuzzFilePath);
     void queuePublishStatsOnDollarTopic();
-    void saveState();
+    void saveState(const Settings &settings);
     void saveStateInThread();
     void queueSendQueuedWills();
     void queueRemoveExpiredSessions();

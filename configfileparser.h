@@ -42,7 +42,7 @@ class ConfigFileParser
     std::set<std::string> validKeys;
     std::set<std::string> validListenKeys;
 
-    std::unique_ptr<Settings> settings;
+    Settings settings;
 
     void testKeyValidity(const std::string &key, const std::set<std::string> &validKeys) const;
     void checkFileExistsAndReadable(const std::string &key, const std::string &pathToCheck, ssize_t max_size = std::numeric_limits<ssize_t>::max()) const;
@@ -51,7 +51,7 @@ public:
     ConfigFileParser(const std::string &path);
     void loadFile(bool test);
 
-    std::unique_ptr<Settings> moveSettings();
+    const Settings &getSettings();
 };
 
 #endif // CONFIGFILEPARSER_H
