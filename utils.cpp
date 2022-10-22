@@ -24,6 +24,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
+#include "signal.h"
 
 #include "openssl/ssl.h"
 #include "openssl/err.h"
@@ -715,4 +716,13 @@ ReasonCodes authResultToReasonCode(AuthResult authResult)
     default:
         return ReasonCodes::UnspecifiedError;
     }
+}
+
+int maskAllSignalsCurrentThread()
+{
+    sigset_t set;
+    sigfillset(&set);
+
+    int r = pthread_sigmask(SIG_SETMASK, &set, NULL);
+    return r;
 }

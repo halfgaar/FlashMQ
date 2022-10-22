@@ -19,6 +19,8 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 
 void do_thread_work(ThreadData *threadData)
 {
+    maskAllSignalsCurrentThread();
+
     int epoll_fd = threadData->epollfd;
     ThreadGlobals::assign(&threadData->authentication);
     ThreadGlobals::assignThreadData(threadData);

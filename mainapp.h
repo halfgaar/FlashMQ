@@ -59,6 +59,7 @@ class MainApp
     std::forward_list<std::function<void()>> taskQueue;
     int epollFdAccept = -1;
     int taskEventFd = -1;
+    bool doConfigReload = false;
     std::mutex eventMutex;
     Timer timer;
     uint16_t nextThreadForTasks = 0;

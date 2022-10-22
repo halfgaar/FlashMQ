@@ -186,6 +186,8 @@ void Logger::quit()
 
 void Logger::writeLog()
 {
+    maskAllSignalsCurrentThread();
+
     LogLine line;
     while(running)
     {

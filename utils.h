@@ -135,5 +135,7 @@ std::chrono::time_point<std::chrono::steady_clock> timepointFromAge(const uint32
 
 ReasonCodes authResultToReasonCode(AuthResult authResult);
 
+int maskAllSignalsCurrentThread();
+
 
 #endif // UTILS_H

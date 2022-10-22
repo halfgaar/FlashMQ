@@ -106,6 +106,8 @@ void Timer::sortAndSetSleeptimeTillNext()
 
 void Timer::process()
 {
+    maskAllSignalsCurrentThread();
+
     struct epoll_event events[MAX_TIMER_EVENTS];
     memset(&events, 0, sizeof (struct epoll_event)*MAX_TIMER_EVENTS);
 

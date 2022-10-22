@@ -622,6 +622,11 @@ void MainApp::start()
                     uint64_t eventfd_value = 0;
                     check<std::runtime_error>(read(cur_fd, &eventfd_value, sizeof(uint64_t)));
 
+                    if (doConfigReload)
+                    {
+                        reloadConfig();
+                    }
+
                     std::forward_list<std::function<void()>> tasks;
 
                     {
@@ -776,6 +781,7 @@ void MainApp::loadConfig()
 
 void MainApp::reloadConfig()
 {
+    doConfigReload = false;
     Logger *logger = Logger::getInstance();
     logger->logf(LOG_NOTICE, "Reloading config");
 
@@ -790,13 +796,13 @@ void MainApp::reloadConfig()
 
 }
 
+/**
+ * @brief MainApp::queueConfigReload is called by a signal handler, and it was observed that it should not do anything that allocates memory,
+ * to avoid locking itself when another signal is received.
+ */
 void MainApp::queueConfigReload()
 {
-    std::lock_guard<std::mutex> locker(eventMutex);
-
-    auto f = std::bind(&MainApp::reloadConfig, this);
-    taskQueue.push_front(f);
-
+    doConfigReload = true;
     wakeUpThread();
 }
 
