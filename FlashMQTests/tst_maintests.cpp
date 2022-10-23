@@ -167,6 +167,8 @@ private slots:
     void testClientRemovalByPlugin();
     void testSubscriptionRemovalByPlugin();
     void testPublishByPlugin();
+
+    void testChangePublish();
 };
 
 MainTests::MainTests()
@@ -3204,7 +3206,42 @@ void MainTests::testPublishByPlugin()
 
     QVERIFY(std::any_of(receiver.receivedPublishes.begin(), receiver.receivedPublishes.end(), [](MqttPacket &p) {
         return p.getTopic() == "generated/topic";
-    }));
+            }));
+}
+
+void MainTests::testChangePublish()
+{
+    std::vector<ProtocolVersion> versions { ProtocolVersion::Mqtt311, ProtocolVersion::Mqtt5 };
+
+    ConfFileTemp confFile;
+    confFile.writeLine("plugin plugins/libtest_plugin.so.0.0.1");
+    confFile.closeFile();
+
+    std::vector<std::string> args {"--config-file", confFile.getFilePath()};
+
+    cleanup();
+    init(args);
+
+    for (ProtocolVersion &version : versions)
+    {
+        FlashMQTestClient sender;
+        sender.start();
+        sender.connectClient(version, false, 120);
+
+        FlashMQTestClient receiver;
+        receiver.start();
+        receiver.connectClient(version, false, 100);
+        receiver.subscribe("#", 2);
+
+        sender.publish("changeme", "hello", 1);
+
+        receiver.waitForPacketCount(1);
+
+        MYCASTCOMPARE(receiver.receivedPublishes.size(), 1);
+        MYCASTCOMPARE(receiver.receivedPublishes.front().getTopic(), "changed");
+        MYCASTCOMPARE(receiver.receivedPublishes.front().getPayloadCopy(), "hello");
+        MYCASTCOMPARE(receiver.receivedPublishes.front().getQos(), 2);
+    }
 }
 
 int main(int argc, char *argv[])

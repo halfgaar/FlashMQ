@@ -252,6 +252,17 @@ void flashmq_plugin_alter_subscription(void *thread_data, const std::string &cli
                                        uint8_t &qos, const std::vector<std::pair<std::string, std::string>> *userProperties);
 
 /**
+ * @brief flashmq_plugin_alter_publish allows changing of the non-const arguments.
+ * @param thread_data is memory allocated in flashmq_plugin_allocate_thread_memory().
+ * @return boolean indicating whether the packet was changed. It saves FlashMQ from having to do a full compare. Not returning the truth here
+ * results in unpredictable behavior.
+ *
+ * Be aware that changing publishes may incur a (slight) reduction in performance.
+ */
+bool flashmq_plugin_alter_publish(void *thread_data, const std::string &clientid, std::string &topic, const std::vector<std::string> &subtopics,
+                                  uint8_t &qos, bool &retain, std::vector<std::pair<std::string, std::string>> *userProperties);
+
+/**
  * @brief flashmq_plugin_login_check is called on login of a client.
  * @param thread_data is memory allocated in flashmq_plugin_allocate_thread_memory().
  * @param username

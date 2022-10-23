@@ -165,3 +165,23 @@ AuthResult flashmq_plugin_extended_auth(void *thread_data, const std::string &cl
     return AuthResult::auth_method_not_supported;
 }
 
+bool flashmq_plugin_alter_publish(void *thread_data, const std::string &clientid, std::string &topic, const std::vector<std::string> &subtopics,
+                                  uint8_t &qos, bool &retain, std::vector<std::pair<std::string, std::string>> *userProperties)
+{
+    (void)thread_data;
+    (void)clientid;
+    (void)subtopics;
+    (void)qos;
+    (void)retain;
+    (void)userProperties;
+
+    if (topic == "changeme")
+    {
+        topic = "changed";
+        qos = 2;
+        return true;
+    }
+
+    return false;
+}
+

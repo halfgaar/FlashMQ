@@ -203,7 +203,7 @@ std::chrono::time_point<std::chrono::steady_clock> PublishBase::expiresAt() cons
     return result;
 }
 
-const std::vector<std::pair<std::string, std::string>> *PublishBase::getUserProperties() const
+std::vector<std::pair<std::string, std::string>> *PublishBase::getUserProperties()
 {
     if (this->propertyBuilder)
         return this->propertyBuilder->getUserProperties().get();

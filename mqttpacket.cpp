@@ -1317,6 +1317,9 @@ void MqttPacket::handlePublish()
         if (publishData.qos == 2)
             sender->getSession()->addIncomingQoS2MessageId(_packet_id);
 
+        this->alteredByPlugin = authentication.alterPublish(this->publishData.client_id, this->publishData.topic, this->publishData.getSubtopics(), this->publishData.qos,
+            this->publishData.retain, this->publishData.getUserProperties());
+
         if (authentication.aclCheck(this->publishData) == AuthResult::success)
         {
             if (publishData.retain && settings->retainedMessagesMode == RetainedMessagesMode::Enabled)
@@ -1787,7 +1790,7 @@ std::string MqttPacket::readBytesToString(bool validateUtf8, bool alsoCheckInval
     return result;
 }
 
-const std::vector<std::pair<std::string, std::string>> *MqttPacket::getUserProperties() const
+std::vector<std::pair<std::string, std::string>> *MqttPacket::getUserProperties()
 {
     return this->publishData.getUserProperties();
 }
@@ -1841,6 +1844,15 @@ bool MqttPacket::containsClientSpecificProperties() const
     }
 
     return false;
+}
+
+/**
+ * @brief MqttPacket::isAlteredByPlugin indicates the parsed data in PublishData no longer matches the byte array of the original incoming packet.
+ * @return
+ */
+bool MqttPacket::isAlteredByPlugin() const
+{
+    return this->alteredByPlugin;
 }
 
 void MqttPacket::readIntoBuf(CirBuf &buf) const

@@ -75,6 +75,8 @@ typedef AuthResult(*F_flashmq_plugin_extended_auth_v1)(void *thread_data, const 
                                                             std::string &returnData, std::string &username, const std::weak_ptr<Client> &client);
 typedef void (*F_flashmq_plugin_alter_subscription_v1)(void *thread_data, const std::string &clientid, std::string &topic, const std::vector<std::string> &subtopics,
                                                             uint8_t &qos, const std::vector<std::pair<std::string, std::string>> *userProperties);
+typedef bool (*F_flashmq_plugin_alter_publish_v1)(void *thread_data, const std::string &clientid, std::string &topic, const std::vector<std::string> &subtopics,
+                                                  char &qos, bool &retain, std::vector<std::pair<std::string, std::string>> *userProperties);
 
 extern "C"
 {
@@ -119,6 +121,7 @@ class Authentication
     F_flashmq_plugin_periodic_event_v1 flashmq_plugin_periodic_event_v1 = nullptr;
     F_flashmq_plugin_extended_auth_v1 flashmq_plugin_extended_auth_v1 = nullptr;
     F_flashmq_plugin_alter_subscription_v1 flashmq_plugin_alter_subscription_v1 = nullptr;
+    F_flashmq_plugin_alter_publish_v1 flashmq_plugin_alter_publish_v1 = nullptr;
 
     static std::mutex initMutex;
     static std::mutex authChecksMutex;
@@ -172,6 +175,8 @@ public:
                             std::string &username, const std::weak_ptr<Client> &client);
     void alterSubscribe(const std::string &clientid, std::string &topic, const std::vector<std::string> &subtopics, uint8_t &qos,
                         const std::vector<std::pair<std::string, std::string>> *userProperties);
+    bool alterPublish(const std::string &clientid, std::string &topic, const std::vector<std::string> &subtopics,
+                      char &qos, bool &retain, std::vector<std::pair<std::string, std::string>> *userProperties);
 
     void setQuitting();
     void loadMosquittoPasswordFile();

@@ -33,7 +33,7 @@ MqttPacket *PublishCopyFactory::getOptimumPacket(const char max_qos, const Proto
             return this->oneShotPacket.get();
         }
 
-        if (packet->getProtocolVersion() == protocolVersion && static_cast<bool>(orgQos) == static_cast<bool>(actualQos))
+        if (packet->getProtocolVersion() == protocolVersion && static_cast<bool>(orgQos) == static_cast<bool>(actualQos) && !packet->isAlteredByPlugin())
         {
             return packet;
         }

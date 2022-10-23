@@ -218,7 +218,7 @@ public:
     bool hasUserProperties() const;
     bool hasExpired() const;
     std::chrono::time_point<std::chrono::steady_clock> expiresAt() const;
-    const std::vector<std::pair<std::string, std::string>> *getUserProperties() const;
+    std::vector<std::pair<std::string, std::string>> *getUserProperties();
 
     void setExpireAfter(uint32_t s);
     bool getHasExpireInfo() const;
