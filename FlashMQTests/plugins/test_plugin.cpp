@@ -86,22 +86,27 @@ AuthResult flashmq_plugin_login_check(void *thread_data, const std::string &clie
     return AuthResult::success;
 }
 
-AuthResult flashmq_plugin_acl_check(void *thread_data, AclAccess access, const std::string &clientid, const std::string &username, const FlashMQMessage &msg)
+AuthResult flashmq_plugin_acl_check(void *thread_data, const AclAccess access, const std::string &clientid, const std::string &username,
+                                    const std::string &topic, const std::vector<std::string> &subtopics, const char qos, const bool retain,
+                                    const std::vector<std::pair<std::string, std::string>> *userProperties)
 {
     (void)thread_data;
     (void)access;
     (void)clientid;
     (void)username;
-    (void)msg;
+    (void)subtopics;
+    (void)qos;
+    (void)retain;
+    (void)userProperties;
 
-    if (access == AclAccess::register_will && msg.topic == "will/disallowed")
+    if (access == AclAccess::register_will && topic == "will/disallowed")
         return AuthResult::acl_denied;
 
-    if (msg.topic == "removeclient" || msg.topic == "removeclientandsession")
-        flashmq_plugin_remove_client(clientid, msg.topic == "removeclientandsession", ServerDisconnectReasons::NormalDisconnect);
+    if (topic == "removeclient" || topic == "removeclientandsession")
+        flashmq_plugin_remove_client(clientid, topic == "removeclientandsession", ServerDisconnectReasons::NormalDisconnect);
 
     if (clientid == "unsubscribe" && access == AclAccess::write)
-        flashmq_plugin_remove_subscription(clientid, msg.topic);
+        flashmq_plugin_remove_subscription(clientid, topic);
 
     if (clientid == "generate_publish")
     {
@@ -109,8 +114,7 @@ AuthResult flashmq_plugin_acl_check(void *thread_data, AclAccess access, const s
 
         const std::string topic = "generated/topic";
         const std::string payload = "money";
-        FlashMQMessage msg(topic, 0, false, &payload);
-        flashmq_publish_message(msg);
+        flashmq_publish_message(topic, 0, false, payload);
     }
 
     return AuthResult::success;

@@ -79,47 +79,6 @@ enum class AuthResult
     auth_continue = -4
 };
 
-/**
- * @brief The FlashMQMessage struct refers to the (meta) data of a publish. It's both used for incoming as outgoing messages, but
- * not all fields are used for both.
- *
- * @param subtopics The subtopics is the topic split, so you don't have to do that anymore. It's only used for incoming messages.
- * @param retain Keep in mind that for existing subscribers, this will always be false [MQTT-3.3.1-9]. Only publishes or
- * retain messages as a result of a subscribe can have that set to true. For 'subscribe' ACL checks, it's always false.
- * @param userProperties Contains the user properties for received publishes and sets those for outbound publishes.
- * @param payload The payload to publish. Is null for incoming packets.
- *
- * This class borrows (not owns) resources. When using it to send messages, create the objects in local scope and construct this
- * struct with their addresses.
- */
-struct FlashMQMessage
-{
-    const std::string &topic;
-    const char qos;
-    const bool retain;
-    const std::vector<std::string> *subtopics = nullptr;
-    const std::string *payload = nullptr;
-    const std::vector<std::pair<std::string, std::string>> *userProperties = nullptr;
-
-    uint32_t expiryInterval = 0;
-    const std::string *responseTopic = nullptr;
-    const std::string *correlationData  = nullptr;
-    const std::string *contentType = nullptr;
-
-    /**
-     * @brief FlashMQMessage Constructor for sending messages.
-     */
-    FlashMQMessage(const std::string &topic, const char qos, const bool retain, const std::string *payload,
-                   const std::vector<std::pair<std::string, std::string>> *userProperties=nullptr,
-                   const std::string *responseTopic=nullptr, const std::string *correlationData=nullptr, const std::string *contentType=nullptr);
-
-    /**
-     * @brief FlashMQMessage Constructor for FlashMQ's internal use.
-     */
-    FlashMQMessage(const std::string &topic, const std::vector<std::string> *subtopics, const char qos, const bool retain,
-                   const std::vector<std::pair<std::string, std::string>> *userProperties);
-};
-
 enum class ExtendedAuthStage
 {
     None = 0,
@@ -200,7 +159,9 @@ void flashmq_continue_async_authentication(const std::weak_ptr<Client> &client, 
  *
  * Can be called from any thread.
  */
-void flashmq_publish_message(const FlashMQMessage &message);
+void flashmq_publish_message(const std::string &topic, const char qos, const bool retain, const std::string &payload, uint32_t expiryInterval=0,
+                             const std::vector<std::pair<std::string, std::string>> *userProperties = nullptr,
+                             const std::string *responseTopic=nullptr, const std::string *correlationData=nullptr, const std::string *contentType=nullptr);
 
 /**
  * @brief flashmq_plugin_version must return FLASHMQ_PLUGIN_VERSION.
@@ -314,10 +275,6 @@ AuthResult flashmq_plugin_login_check(void *thread_data, const std::string &clie
 /**
  * @brief flashmq_plugin_acl_check is called on publish, deliver and subscribe.
  * @param thread_data is memory allocated in flashmq_plugin_allocate_thread_memory().
- * @param access
- * @param clientid
- * @param username
- * @param msg. See FlashMQMessage.
  * @return
  *
  * You could throw exceptions here, but that will be slow and pointless. It will just get converted into AuthResult::error,
@@ -334,7 +291,9 @@ AuthResult flashmq_plugin_login_check(void *thread_data, const std::string &clie
  * Note that there is a setting 'plugin_serialize_auth_checks'. Use only as a last resort if your plugin is not
  * thread-safe. It will negate much of FlashMQ's multi-core model.
  */
-AuthResult flashmq_plugin_acl_check(void *thread_data, AclAccess access, const std::string &clientid, const std::string &username, const FlashMQMessage &msg);
+AuthResult flashmq_plugin_acl_check(void *thread_data, const AclAccess access, const std::string &clientid, const std::string &username,
+                                    const std::string &topic, const std::vector<std::string> &subtopics, const char qos, const bool retain,
+                                    const std::vector<std::pair<std::string, std::string>> *userProperties);
 
 /**
  * @brief flashmq_plugin_extended_auth can be used to implement MQTT 5 extended auth. This is optional.

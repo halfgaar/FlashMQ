@@ -339,8 +339,7 @@ AuthResult Authentication::aclCheck(const std::string &clientid, const std::stri
         // gets disconnected.
         try
         {
-            FlashMQMessage msg(topic, &subtopics, qos, retain, userProperties);
-            return flashmq_plugin_acl_check_v1(pluginData, access, clientid, username, msg);
+            return flashmq_plugin_acl_check_v1(pluginData, access, clientid, username, topic, subtopics, qos, retain, userProperties);
         }
         catch (std::exception &ex)
         {

@@ -15,32 +15,6 @@ void flashmq_logf(int level, const char *str, ...)
     va_end(valist);
 }
 
-FlashMQMessage::FlashMQMessage(const std::string &topic, const char qos, const bool retain, const std::string *payload,
-                               const std::vector<std::pair<std::string, std::string> > *userProperties,
-                               const std::string *responseTopic, const std::string *correlationData, const std::string *contentType) :
-    topic(topic),
-    qos(qos),
-    retain(retain),
-    payload(payload),
-    userProperties(userProperties),
-    responseTopic(responseTopic),
-    correlationData(correlationData),
-    contentType(contentType)
-{
-
-}
-
-FlashMQMessage::FlashMQMessage(const std::string &topic, const std::vector<std::string> *subtopics, const char qos, const bool retain,
-                               const std::vector<std::pair<std::string, std::string>> *userProperties) :
-    topic(topic),
-    qos(qos),
-    retain(retain),
-    subtopics(subtopics),
-    userProperties(userProperties)
-{
-
-}
-
 void flashmq_plugin_remove_client(const std::string &clientid, bool alsoSession, ServerDisconnectReasons reasonCode)
 {
     std::shared_ptr<SubscriptionStore> store = MainApp::getMainApp()->getSubscriptionStore();
@@ -92,16 +66,18 @@ void flashmq_continue_async_authentication(const std::weak_ptr<Client> &client, 
     td->queueContinuationOfAuthentication(c, result, authMethod, returnData);
 }
 
-void flashmq_publish_message(const FlashMQMessage &message)
+void flashmq_publish_message(const std::string &topic, const char qos, const bool retain, const std::string &payload, uint32_t expiryInterval,
+                             const std::vector<std::pair<std::string, std::string>> *userProperties,
+                             const std::string *responseTopic, const std::string *correlationData, const std::string *contentType)
 {
-    Publish pub(message.topic, *message.payload, message.qos);
-    pub.retain = message.retain;
+    Publish pub(topic, payload, qos);
+    pub.retain = retain;
 
-    if (message.userProperties)
+    if (userProperties)
     {
         pub.constructPropertyBuilder();
 
-        for (const std::pair<std::string, std::string> &pair : *message.userProperties)
+        for (const std::pair<std::string, std::string> &pair : *userProperties)
         {
             std::string key = pair.first;
             std::string value = pair.second;
@@ -109,28 +85,28 @@ void flashmq_publish_message(const FlashMQMessage &message)
         }
     }
 
-    if (message.expiryInterval)
+    if (expiryInterval)
     {
         pub.constructPropertyBuilder();
-        pub.propertyBuilder->writeMessageExpiryInterval(message.expiryInterval);
+        pub.propertyBuilder->writeMessageExpiryInterval(expiryInterval);
     }
 
-    if (message.responseTopic)
+    if (responseTopic)
     {
         pub.constructPropertyBuilder();
-        pub.propertyBuilder->writeResponseTopic(*message.responseTopic);
+        pub.propertyBuilder->writeResponseTopic(*responseTopic);
     }
 
-    if (message.correlationData)
+    if (correlationData)
     {
         pub.constructPropertyBuilder();
-        pub.propertyBuilder->writeCorrelationData(*message.correlationData);
+        pub.propertyBuilder->writeCorrelationData(*correlationData);
     }
 
-    if (message.contentType)
+    if (contentType)
     {
         pub.constructPropertyBuilder();
-        pub.propertyBuilder->writeContentType(*message.contentType);
+        pub.propertyBuilder->writeContentType(*contentType);
     }
 
     std::shared_ptr<SubscriptionStore> store = MainApp::getMainApp()->getSubscriptionStore();

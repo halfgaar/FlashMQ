@@ -64,7 +64,9 @@ typedef void(*F_flashmq_plugin_allocate_thread_memory_v1)(void **thread_data, st
 typedef void(*F_flashmq_plugin_deallocate_thread_memory_v1)(void *thread_data, std::unordered_map<std::string, std::string> &auth_opts);
 typedef void(*F_flashmq_plugin_init_v1)(void *thread_data, std::unordered_map<std::string, std::string> &auth_opts, bool reloading);
 typedef void(*F_flashmq_plugin_deinit_v1)(void *thread_data, std::unordered_map<std::string, std::string> &auth_opts, bool reloading);
-typedef AuthResult(*F_flashmq_plugin_acl_check_v1)(void *thread_data, AclAccess access, const std::string &clientid, const std::string &username, const FlashMQMessage &msg);
+typedef AuthResult(*F_flashmq_plugin_acl_check_v1)(void *thread_data, const AclAccess access, const std::string &clientid, const std::string &username,
+                                                   const std::string &topic, const std::vector<std::string> &subtopics, const char qos, const bool retain,
+                                                   const std::vector<std::pair<std::string, std::string>> *userProperties);
 typedef AuthResult(*F_flashmq_plugin_login_check_v1)(void *thread_data, const std::string &clientid, const std::string &username, const std::string &password,
                                                           const std::vector<std::pair<std::string, std::string>> *userProperties, const std::weak_ptr<Client> &client);
 typedef void (*F_flashmq_plugin_periodic_event_v1)(void *thread_data);
