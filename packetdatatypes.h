@@ -12,7 +12,7 @@ struct ConnectData
     bool user_name_flag = false;
     bool password_flag = false;
     bool will_retain = false;
-    char will_qos = false;
+    uint8_t will_qos = false;
     bool will_flag = false;
     bool clean_start = false;
 

@@ -38,7 +38,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 struct Subscription
 {
     std::weak_ptr<Session> session; // Weak pointer expires when session has been cleaned by 'clean session' connect or when it was remove because it expired
-    char qos;
+    uint8_t qos;
     bool operator==(const Subscription &rhs) const;
     void reset();
 };
@@ -46,10 +46,10 @@ struct Subscription
 struct ReceivingSubscriber
 {
     const std::shared_ptr<Session> session;
-    const char qos;
+    const uint8_t qos;
 
 public:
-    ReceivingSubscriber(const std::shared_ptr<Session> &ses, char qos);
+    ReceivingSubscriber(const std::shared_ptr<Session> &ses, uint8_t qos);
 };
 
 class SubscriptionNode
@@ -64,7 +64,7 @@ public:
 
     std::unordered_map<std::string, Subscription> &getSubscribers();
     const std::string &getSubtopic() const;
-    void addSubscriber(const std::shared_ptr<Session> &subscriber, char qos);
+    void addSubscriber(const std::shared_ptr<Session> &subscriber, uint8_t qos);
     void removeSubscriber(const std::shared_ptr<Session> &subscriber);
     std::unordered_map<std::string, std::unique_ptr<SubscriptionNode>> children;
     std::unique_ptr<SubscriptionNode> childrenPlus;
@@ -141,7 +141,7 @@ class SubscriptionStore
 public:
     SubscriptionStore();
 
-    void addSubscription(std::shared_ptr<Client> &client, const std::string &topic, const std::vector<std::string> &subtopics, char qos);
+    void addSubscription(std::shared_ptr<Client> &client, const std::string &topic, const std::vector<std::string> &subtopics, uint8_t qos);
     void removeSubscription(std::shared_ptr<Client> &client, const std::string &topic);
     void registerClientAndKickExistingOne(std::shared_ptr<Client> &client);
     void registerClientAndKickExistingOne(std::shared_ptr<Client> &client, bool clean_start, uint16_t clientReceiveMax, uint32_t sessionExpiryInterval);
@@ -151,7 +151,7 @@ public:
     void queueWillMessage(const std::shared_ptr<WillPublish> &willMessage, const std::shared_ptr<Session> &session, bool forceNow = false);
     void queuePacketAtSubscribers(PublishCopyFactory &copyFactory, bool dollar = false);
     void giveClientRetainedMessages(const std::shared_ptr<Session> &ses,
-                                    const std::vector<std::string> &subscribeSubtopics, char max_qos);
+                                    const std::vector<std::string> &subscribeSubtopics, uint8_t max_qos);
 
     void setRetainedMessage(const Publish &publish, const std::vector<std::string> &subtopics);
 

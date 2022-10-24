@@ -62,7 +62,7 @@ class MainTests : public QObject
     QScopedPointer<MainAppThread> mainApp;
     std::shared_ptr<ThreadData> dummyThreadData;
 
-    void testParsePacketHelper(const std::string &topic, char from_qos, bool retain);
+    void testParsePacketHelper(const std::string &topic, uint8_t from_qos, bool retain);
 
 public:
     MainTests();
@@ -1353,7 +1353,7 @@ void MainTests::testSavingSessions()
     }
 }
 
-void MainTests::testParsePacketHelper(const std::string &topic, char from_qos, bool retain)
+void MainTests::testParsePacketHelper(const std::string &topic, uint8_t from_qos, bool retain)
 {
     Logger::getInstance()->setFlags(false, false, true);
 
@@ -1418,7 +1418,7 @@ void MainTests::testParsePacket()
     }
 }
 
-void testDowngradeQoSOnSubscribeHelper(const char pub_qos, const char sub_qos)
+void testDowngradeQoSOnSubscribeHelper(const uint8_t pub_qos, const uint8_t sub_qos)
 {
     std::vector<ProtocolVersion> protocols {ProtocolVersion::Mqtt311, ProtocolVersion::Mqtt5};
 
@@ -1446,7 +1446,7 @@ void testDowngradeQoSOnSubscribeHelper(const char pub_qos, const char sub_qos)
             MYCASTCOMPARE(receiver.receivedPublishes.size(), 1);
             MqttPacket &recv = receiver.receivedPublishes.front();
 
-            const char expected_qos = std::min<const char>(pub_qos, sub_qos);
+            const uint8_t expected_qos = std::min<const uint8_t>(pub_qos, sub_qos);
             QVERIFY2(recv.getQos() == expected_qos, formatString("Failure: received QoS is %d. Published is %d. Subscribed as %d. Expected QoS is %d",
                                                                  recv.getQos(), pub_qos, sub_qos, expected_qos).c_str());
             QVERIFY(recv.getTopic() == topic);
@@ -2179,9 +2179,9 @@ void MainTests::testReceivingRetainedMessageWithQoS()
 {
     int testCount = 0;
 
-    for (char sendQos = 0; sendQos < 3; sendQos++)
+    for (uint8_t sendQos = 0; sendQos < 3; sendQos++)
     {
-        for (char subscribeQos = 0; subscribeQos < 3; subscribeQos++)
+        for (uint8_t subscribeQos = 0; subscribeQos < 3; subscribeQos++)
         {
             testCount++;
 
@@ -2204,7 +2204,7 @@ void MainTests::testReceivingRetainedMessageWithQoS()
 
             receiver.waitForMessageCount(1);
 
-            const char expQos = std::min<char>(sendQos, subscribeQos);
+            const uint8_t expQos = std::min<uint8_t>(sendQos, subscribeQos);
 
             MYCASTCOMPARE(receiver.receivedPublishes.size(), 1);
             MYCASTCOMPARE(receiver.receivedPublishes.front().getQos(), expQos);
@@ -2223,9 +2223,9 @@ void MainTests::testQosDowngradeOnOfflineClients()
 
     std::vector<std::string> subscribePaths {"topic1/FOOBAR", "+/+", "#"};
 
-    for (char sendQos = 1; sendQos < 3; sendQos++)
+    for (uint8_t sendQos = 1; sendQos < 3; sendQos++)
     {
-        for (char subscribeQos = 1; subscribeQos < 3; subscribeQos++)
+        for (uint8_t subscribeQos = 1; subscribeQos < 3; subscribeQos++)
         {
             for (const std::string &subscribePath : subscribePaths)
             {
@@ -2263,7 +2263,7 @@ void MainTests::testQosDowngradeOnOfflineClients()
 
                 receiver->waitForMessageCount(10);
 
-                const char expQos = std::min<char>(sendQos, subscribeQos);
+                const uint8_t expQos = std::min<uint8_t>(sendQos, subscribeQos);
 
                 MYCASTCOMPARE(receiver->receivedPublishes.size(), 10);
 

@@ -22,14 +22,14 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 
 #include "cassert"
 
-SubscriptionForSerializing::SubscriptionForSerializing(const std::string &clientId, char qos) :
+SubscriptionForSerializing::SubscriptionForSerializing(const std::string &clientId, uint8_t qos) :
     clientId(clientId),
     qos(qos)
 {
 
 }
 
-SubscriptionForSerializing::SubscriptionForSerializing(const std::string &&clientId, char qos) :
+SubscriptionForSerializing::SubscriptionForSerializing(const std::string &&clientId, uint8_t qos) :
     clientId(clientId),
     qos(qos)
 {
@@ -223,7 +223,7 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV3()
                 readCheck(buf.data(), 1, clientIdLength, f);
                 const std::string clientId(buf.data(), clientIdLength);
 
-                char qos;
+                uint8_t qos;
                 readCheck(&qos, 1, 1, f);
 
                 logger->logf(LOG_DEBUG, "Saving session '%s' subscription to '%s' QoS %d.", clientId.c_str(), topic.c_str(), qos);

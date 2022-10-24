@@ -203,14 +203,14 @@ public:
     std::string username;
     std::string topic;
     std::string payload;
-    char qos = 0;
+    uint8_t qos = 0;
     bool retain = false; // Note: existing subscribers don't get publishes of retained messages with retain=1. [MQTT-3.3.1-9]
     uint16_t topicAlias = 0;
     bool skipTopic = false;
     std::shared_ptr<Mqtt5PropertyBuilder> propertyBuilder; // Only contains data for sending, not receiving
 
     PublishBase() = default;
-    PublishBase(const std::string &topic, const std::string &payload, char qos);
+    PublishBase(const std::string &topic, const std::string &payload, uint8_t qos);
     size_t getLengthWithoutFixedHeader() const;
     void setClientSpecificProperties();
     void clearClientSpecificProperties();
@@ -238,7 +238,7 @@ class Publish : public PublishBase
 public:
     Publish() = default;
     Publish(const Publish &other);
-    Publish(const std::string &topic, const std::string &payload, char qos);
+    Publish(const std::string &topic, const std::string &payload, uint8_t qos);
 
     Publish& operator=(const Publish &other);
 
@@ -317,10 +317,10 @@ struct Subscribe
     const ProtocolVersion protocolVersion;
     uint16_t packetId;
     std::string topic;
-    char qos;
+    uint8_t qos;
     std::shared_ptr<Mqtt5PropertyBuilder> propertyBuilder;
 
-    Subscribe(const ProtocolVersion protocolVersion, uint16_t packetId, const std::string &topic, char qos);
+    Subscribe(const ProtocolVersion protocolVersion, uint16_t packetId, const std::string &topic, uint8_t qos);
     size_t getLengthWithoutFixedHeader() const;
 };
 

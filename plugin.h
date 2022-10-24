@@ -65,7 +65,7 @@ typedef void(*F_flashmq_plugin_deallocate_thread_memory_v1)(void *thread_data, s
 typedef void(*F_flashmq_plugin_init_v1)(void *thread_data, std::unordered_map<std::string, std::string> &auth_opts, bool reloading);
 typedef void(*F_flashmq_plugin_deinit_v1)(void *thread_data, std::unordered_map<std::string, std::string> &auth_opts, bool reloading);
 typedef AuthResult(*F_flashmq_plugin_acl_check_v1)(void *thread_data, const AclAccess access, const std::string &clientid, const std::string &username,
-                                                   const std::string &topic, const std::vector<std::string> &subtopics, const char qos, const bool retain,
+                                                   const std::string &topic, const std::vector<std::string> &subtopics, const uint8_t qos, const bool retain,
                                                    const std::vector<std::pair<std::string, std::string>> *userProperties);
 typedef AuthResult(*F_flashmq_plugin_login_check_v1)(void *thread_data, const std::string &clientid, const std::string &username, const std::string &password,
                                                           const std::vector<std::pair<std::string, std::string>> *userProperties, const std::weak_ptr<Client> &client);
@@ -76,7 +76,7 @@ typedef AuthResult(*F_flashmq_plugin_extended_auth_v1)(void *thread_data, const 
 typedef bool (*F_flashmq_plugin_alter_subscription_v1)(void *thread_data, const std::string &clientid, std::string &topic, const std::vector<std::string> &subtopics,
                                                             uint8_t &qos, const std::vector<std::pair<std::string, std::string>> *userProperties);
 typedef bool (*F_flashmq_plugin_alter_publish_v1)(void *thread_data, const std::string &clientid, std::string &topic, const std::vector<std::string> &subtopics,
-                                                  char &qos, bool &retain, std::vector<std::pair<std::string, std::string>> *userProperties);
+                                                  uint8_t &qos, bool &retain, std::vector<std::pair<std::string, std::string>> *userProperties);
 
 extern "C"
 {
@@ -167,7 +167,7 @@ public:
     void securityCleanup(bool reloading);
     AuthResult aclCheck(Publish &publishData, AclAccess access = AclAccess::write);
     AuthResult aclCheck(const std::string &clientid, const std::string &username, const std::string &topic, const std::vector<std::string> &subtopics,
-                        AclAccess access, char qos, bool retain, const std::vector<std::pair<std::string, std::string>> *userProperties);
+                        AclAccess access, uint8_t qos, bool retain, const std::vector<std::pair<std::string, std::string>> *userProperties);
     AuthResult unPwdCheck(const std::string &clientid, const std::string &username, const std::string &password,
                           const std::vector<std::pair<std::string, std::string>> *userProperties, const std::weak_ptr<Client> &client);
     AuthResult extendedAuth(const std::string &clientid, ExtendedAuthStage stage, const std::string &authMethod,
@@ -176,7 +176,7 @@ public:
     bool alterSubscribe(const std::string &clientid, std::string &topic, const std::vector<std::string> &subtopics, uint8_t &qos,
                         const std::vector<std::pair<std::string, std::string>> *userProperties);
     bool alterPublish(const std::string &clientid, std::string &topic, const std::vector<std::string> &subtopics,
-                      char &qos, bool &retain, std::vector<std::pair<std::string, std::string>> *userProperties);
+                      uint8_t &qos, bool &retain, std::vector<std::pair<std::string, std::string>> *userProperties);
 
     void setQuitting();
     void loadMosquittoPasswordFile();

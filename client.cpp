@@ -232,7 +232,7 @@ void Client::writeMqttPacket(const MqttPacket &packet)
     setReadyForWriting(true);
 }
 
-void Client::writeMqttPacketAndBlameThisClient(PublishCopyFactory &copyFactory, char max_qos, uint16_t packet_id)
+void Client::writeMqttPacketAndBlameThisClient(PublishCopyFactory &copyFactory, uint8_t max_qos, uint16_t packet_id)
 {
     uint16_t topic_alias = 0;
     bool skip_topic = false;

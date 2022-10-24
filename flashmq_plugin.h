@@ -159,7 +159,7 @@ void flashmq_continue_async_authentication(const std::weak_ptr<Client> &client, 
  *
  * Can be called from any thread.
  */
-void flashmq_publish_message(const std::string &topic, const char qos, const bool retain, const std::string &payload, uint32_t expiryInterval=0,
+void flashmq_publish_message(const std::string &topic, const uint8_t qos, const bool retain, const std::string &payload, uint32_t expiryInterval=0,
                              const std::vector<std::pair<std::string, std::string>> *userProperties = nullptr,
                              const std::string *responseTopic=nullptr, const std::string *correlationData=nullptr, const std::string *contentType=nullptr);
 
@@ -304,7 +304,7 @@ AuthResult flashmq_plugin_login_check(void *thread_data, const std::string &clie
  * thread-safe. It will negate much of FlashMQ's multi-core model.
  */
 AuthResult flashmq_plugin_acl_check(void *thread_data, const AclAccess access, const std::string &clientid, const std::string &username,
-                                    const std::string &topic, const std::vector<std::string> &subtopics, const char qos, const bool retain,
+                                    const std::string &topic, const std::vector<std::string> &subtopics, const uint8_t qos, const bool retain,
                                     const std::vector<std::pair<std::string, std::string>> *userProperties);
 
 /**

@@ -115,7 +115,7 @@ size_t SubAck::getLengthWithoutFixedHeader() const
     return result;
 }
 
-PublishBase::PublishBase(const std::string &topic, const std::string &payload, char qos) :
+PublishBase::PublishBase(const std::string &topic, const std::string &payload, uint8_t qos) :
     topic(topic),
     payload(payload),
     qos(qos)
@@ -234,7 +234,7 @@ Publish::Publish(const Publish &other) :
 
 }
 
-Publish::Publish(const std::string &topic, const std::string &payload, char qos) :
+Publish::Publish(const std::string &topic, const std::string &payload, uint8_t qos) :
     PublishBase(topic, payload, qos)
 {
 
@@ -434,7 +434,7 @@ void Connect::constructPropertyBuilder()
     this->propertyBuilder = std::make_shared<Mqtt5PropertyBuilder>();
 }
 
-Subscribe::Subscribe(const ProtocolVersion protocolVersion, uint16_t packetId, const std::string &topic, char qos) :
+Subscribe::Subscribe(const ProtocolVersion protocolVersion, uint16_t packetId, const std::string &topic, uint8_t qos) :
     protocolVersion(protocolVersion),
     packetId(packetId),
     topic(topic),

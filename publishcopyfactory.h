@@ -21,7 +21,7 @@ class PublishCopyFactory
     MqttPacket *packet = nullptr;
     Publish *publish = nullptr;
     std::unique_ptr<MqttPacket> oneShotPacket;
-    const char orgQos;
+    const uint8_t orgQos;
     std::unordered_map<uint8_t, std::unique_ptr<MqttPacket>> constructedPacketCache;
 public:
     PublishCopyFactory(MqttPacket *packet);
@@ -29,12 +29,12 @@ public:
     PublishCopyFactory(const PublishCopyFactory &other) = delete;
     PublishCopyFactory(PublishCopyFactory &&other) = delete;
 
-    MqttPacket *getOptimumPacket(const char max_qos, const ProtocolVersion protocolVersion, uint16_t topic_alias, bool skip_topic);
-    char getEffectiveQos(char max_qos) const;
+    MqttPacket *getOptimumPacket(const uint8_t max_qos, const ProtocolVersion protocolVersion, uint16_t topic_alias, bool skip_topic);
+    uint8_t getEffectiveQos(uint8_t max_qos) const;
     const std::string &getTopic() const;
     const std::vector<std::string> &getSubtopics();
     bool getRetain() const;
-    Publish getNewPublish(char new_max_qos) const;
+    Publish getNewPublish(uint8_t new_max_qos) const;
     std::shared_ptr<Client> getSender();
     const std::vector<std::pair<std::string, std::string>> *getUserProperties() const;
 

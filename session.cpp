@@ -143,11 +143,11 @@ void Session::assignActiveConnection(std::shared_ptr<Client> &client)
  * @param retain. Keep MQTT-3.3.1-9 in mind: existing subscribers don't get retain=1 on packets.
  * @param count. Reference value is updated. It's for statistics.
  */
-void Session::writePacket(PublishCopyFactory &copyFactory, const char max_qos)
+void Session::writePacket(PublishCopyFactory &copyFactory, const uint8_t max_qos)
 {
     assert(max_qos <= 2);
 
-    const char effectiveQos = copyFactory.getEffectiveQos(max_qos);
+    const uint8_t effectiveQos = copyFactory.getEffectiveQos(max_qos);
 
     const Settings *settings = ThreadGlobals::getSettings();
 

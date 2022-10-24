@@ -296,7 +296,7 @@ AuthResult Authentication::aclCheck(Publish &publishData, AclAccess access)
 }
 
 AuthResult Authentication::aclCheck(const std::string &clientid, const std::string &username, const std::string &topic, const std::vector<std::string> &subtopics,
-                                    AclAccess access, char qos, bool retain, const std::vector<std::pair<std::string, std::string>> *userProperties)
+                                    AclAccess access, uint8_t qos, bool retain, const std::vector<std::pair<std::string, std::string>> *userProperties)
 {
     assert(subtopics.size() > 0);
 
@@ -468,7 +468,7 @@ bool Authentication::alterSubscribe(const std::string &clientid, std::string &to
 }
 
 bool Authentication::alterPublish(const std::string &clientid, std::string &topic, const std::vector<std::string> &subtopics,
-                                  char &qos, bool &retain, std::vector<std::pair<std::string, std::string>> *userProperties)
+                                  uint8_t &qos, bool &retain, std::vector<std::pair<std::string, std::string>> *userProperties)
 {
     if (pluginVersion == PluginVersion::None)
     {

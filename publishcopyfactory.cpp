@@ -17,9 +17,9 @@ PublishCopyFactory::PublishCopyFactory(Publish *publish) :
 
 }
 
-MqttPacket *PublishCopyFactory::getOptimumPacket(const char max_qos, const ProtocolVersion protocolVersion, uint16_t topic_alias, bool skip_topic)
+MqttPacket *PublishCopyFactory::getOptimumPacket(const uint8_t max_qos, const ProtocolVersion protocolVersion, uint16_t topic_alias, bool skip_topic)
 {
-    const char actualQos = getEffectiveQos(max_qos);
+    const uint8_t actualQos = getEffectiveQos(max_qos);
 
     if (packet)
     {
@@ -60,9 +60,9 @@ MqttPacket *PublishCopyFactory::getOptimumPacket(const char max_qos, const Proto
     return this->oneShotPacket.get();
 }
 
-char PublishCopyFactory::getEffectiveQos(char max_qos) const
+uint8_t PublishCopyFactory::getEffectiveQos(uint8_t max_qos) const
 {
-    const char effectiveQos = std::min<char>(orgQos, max_qos);
+    const uint8_t effectiveQos = std::min<uint8_t>(orgQos, max_qos);
     return effectiveQos;
 }
 
@@ -104,14 +104,14 @@ bool PublishCopyFactory::getRetain() const
  * It being a public function, the idea is that it's only needed for creating publish objects for storing QoS messages for off-line
  * clients. For on-line clients, you're always making a packet (with getOptimumPacket()).
  */
-Publish PublishCopyFactory::getNewPublish(char new_max_qos) const
+Publish PublishCopyFactory::getNewPublish(uint8_t new_max_qos) const
 {
     // (At time of writing) we only need to construct new publishes for QoS (because we're storing QoS publishes for offline clients). If
     // you're doing it elsewhere, it's a bug.
     assert(orgQos > 0);
     assert(new_max_qos > 0);
 
-    const char actualQos = getEffectiveQos(new_max_qos);
+    const uint8_t actualQos = getEffectiveQos(new_max_qos);
 
     if (packet)
     {

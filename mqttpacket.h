@@ -148,8 +148,8 @@ public:
     uint8_t getFixedHeaderLength() const;
     size_t getSizeIncludingNonPresentHeader() const;
     const std::vector<char> &getBites() const { return bites; }
-    char getQos() const { return publishData.qos; }
-    void setQos(const char new_qos);
+    uint8_t getQos() const { return publishData.qos; }
+    void setQos(const uint8_t new_qos);
     ProtocolVersion getProtocolVersion() const { return protocolVersion;}
     const std::string &getTopic() const;
     const std::vector<std::string> &getSubtopics();
@@ -173,9 +173,9 @@ struct SubscriptionTuple
 {
     const std::string topic;
     const std::vector<std::string> subtopics;
-    const char qos;
+    const uint8_t qos;
 
-    SubscriptionTuple(const std::string &topic, const std::vector<std::string> &subtopics, char qos);
+    SubscriptionTuple(const std::string &topic, const std::vector<std::string> &subtopics, uint8_t qos);
 };
 
 #endif // MQTTPACKET_H

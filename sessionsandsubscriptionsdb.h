@@ -35,10 +35,10 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 struct SubscriptionForSerializing
 {
     const std::string clientId;
-    const char qos = 0;
+    const uint8_t qos = 0;
 
-    SubscriptionForSerializing(const std::string &clientId, char qos);
-    SubscriptionForSerializing(const std::string &&clientId, char qos);
+    SubscriptionForSerializing(const std::string &clientId, uint8_t qos);
+    SubscriptionForSerializing(const std::string &&clientId, uint8_t qos);
 };
 
 struct SessionsAndSubscriptionsResult

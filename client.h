@@ -134,7 +134,7 @@ public:
     void setClientProperties(ProtocolVersion protocolVersion, const std::string &clientId, const std::string username, bool connectPacketSeen, uint16_t keepalive);
     void setClientProperties(ProtocolVersion protocolVersion, const std::string &clientId, const std::string username, bool connectPacketSeen, uint16_t keepalive,
                              uint32_t maxOutgoingPacketSize, uint16_t maxOutgoingTopicAliasValue);
-    void setWill(const std::string &topic, const std::string &payload, bool retain, char qos);
+    void setWill(const std::string &topic, const std::string &payload, bool retain, uint8_t qos);
     void setWill(WillPublish &&willPublish);
     void clearWill();
     void setAuthenticated(bool value) { authenticated = value;}
@@ -152,7 +152,7 @@ public:
     void writeText(const std::string &text);
     void writePingResp();
     void writeMqttPacket(const MqttPacket &packet);
-    void writeMqttPacketAndBlameThisClient(PublishCopyFactory &copyFactory, char max_qos, uint16_t packet_id);
+    void writeMqttPacketAndBlameThisClient(PublishCopyFactory &copyFactory, uint8_t max_qos, uint16_t packet_id);
     void writeMqttPacketAndBlameThisClient(const MqttPacket &packet);
     bool writeBufIntoFd();
     bool isBeingDisconnected() const { return disconnectWhenBytesWritten; }

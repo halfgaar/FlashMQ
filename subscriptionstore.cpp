@@ -24,7 +24,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "publishcopyfactory.h"
 #include "threadglobals.h"
 
-ReceivingSubscriber::ReceivingSubscriber(const std::shared_ptr<Session> &ses, char qos) :
+ReceivingSubscriber::ReceivingSubscriber(const std::shared_ptr<Session> &ses, uint8_t qos) :
     session(ses),
     qos(qos)
 {
@@ -47,7 +47,7 @@ const std::string &SubscriptionNode::getSubtopic() const
     return subtopic;
 }
 
-void SubscriptionNode::addSubscriber(const std::shared_ptr<Session> &subscriber, char qos)
+void SubscriptionNode::addSubscriber(const std::shared_ptr<Session> &subscriber, uint8_t qos)
 {
     Subscription sub;
     sub.session = subscriber;
@@ -132,7 +132,7 @@ SubscriptionNode *SubscriptionStore::getDeepestNode(const std::string &topic, co
     return deepestNode;
 }
 
-void SubscriptionStore::addSubscription(std::shared_ptr<Client> &client, const std::string &topic, const std::vector<std::string> &subtopics, char qos)
+void SubscriptionStore::addSubscription(std::shared_ptr<Client> &client, const std::string &topic, const std::vector<std::string> &subtopics, uint8_t qos)
 {
     RWLockGuard lock_guard(&sessionsAndSubscriptionsRwlock);
     lock_guard.wrlock();
@@ -552,7 +552,7 @@ void SubscriptionStore::giveClientRetainedMessagesRecursively(std::vector<std::s
 }
 
 void SubscriptionStore::giveClientRetainedMessages(const std::shared_ptr<Session> &ses,
-                                                   const std::vector<std::string> &subscribeSubtopics, char max_qos)
+                                                   const std::vector<std::string> &subscribeSubtopics, uint8_t max_qos)
 {
     const Settings *settings = ThreadGlobals::getSettings();
 

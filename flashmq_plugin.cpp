@@ -66,7 +66,7 @@ void flashmq_continue_async_authentication(const std::weak_ptr<Client> &client, 
     td->queueContinuationOfAuthentication(c, result, authMethod, returnData);
 }
 
-void flashmq_publish_message(const std::string &topic, const char qos, const bool retain, const std::string &payload, uint32_t expiryInterval,
+void flashmq_publish_message(const std::string &topic, const uint8_t qos, const bool retain, const std::string &payload, uint32_t expiryInterval,
                              const std::vector<std::pair<std::string, std::string>> *userProperties,
                              const std::string *responseTopic, const std::string *correlationData, const std::string *contentType)
 {

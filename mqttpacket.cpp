@@ -1298,7 +1298,7 @@ void MqttPacket::handlePublish()
 
     // Working with a local copy because the subscribing action will modify this->packet_id. See the PublishCopyFactory.
     const uint16_t _packet_id = this->packet_id;
-    const char _qos = this->publishData.qos;
+    const uint8_t _qos = this->publishData.qos;
 
     if (publishData.retain && settings->retainedMessagesMode == RetainedMessagesMode::DisconnectWithError)
     {
@@ -1589,7 +1589,7 @@ size_t MqttPacket::getSizeIncludingNonPresentHeader() const
     return total;
 }
 
-void MqttPacket::setQos(const char new_qos)
+void MqttPacket::setQos(const uint8_t new_qos)
 {
     // You can't change to a QoS level that would remove the packet identifier.
     assert((publishData.qos == 0 && new_qos == 0) || (publishData.qos > 0 && new_qos > 0));
@@ -1874,7 +1874,7 @@ void MqttPacket::readIntoBuf(CirBuf &buf) const
     buf.write(bites.data(), bites.size());
 }
 
-SubscriptionTuple::SubscriptionTuple(const std::string &topic, const std::vector<std::string> &subtopics, char qos) :
+SubscriptionTuple::SubscriptionTuple(const std::string &topic, const std::vector<std::string> &subtopics, uint8_t qos) :
     topic(topic),
     subtopics(subtopics),
     qos(qos)

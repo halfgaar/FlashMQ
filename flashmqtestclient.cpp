@@ -168,7 +168,7 @@ void FlashMQTestClient::connectClient(ProtocolVersion protocolVersion, bool clea
     this->client->setAuthenticated(true);
 }
 
-void FlashMQTestClient::subscribe(const std::string topic, char qos)
+void FlashMQTestClient::subscribe(const std::string topic, uint8_t qos)
 {
     clearReceivedLists();
 
@@ -265,7 +265,7 @@ void FlashMQTestClient::writeAuth(const Auth &auth)
     client->writeMqttPacketAndBlameThisClient(pack);
 }
 
-void FlashMQTestClient::publish(const std::string &topic, const std::string &payload, char qos)
+void FlashMQTestClient::publish(const std::string &topic, const std::string &payload, uint8_t qos)
 {
     Publish pub(topic, payload, qos);
     publish(pub);
