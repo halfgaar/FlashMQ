@@ -1364,6 +1364,9 @@ void MqttPacket::parsePubAckData()
     setPosToDataStart();
     this->publishData.qos = 1;
     this->packet_id = readTwoBytesToUInt16();
+
+    if (this->packet_id == 0)
+        throw ProtocolError("QoS packets must have packet ID > 0.", ReasonCodes::ProtocolError);
 }
 
 void MqttPacket::handlePubAck()
@@ -1377,6 +1380,10 @@ PubRecData MqttPacket::parsePubRecData()
     setPosToDataStart();
     this->publishData.qos = 2;
     this->packet_id = readTwoBytesToUInt16();
+
+    if (this->packet_id == 0)
+        throw ProtocolError("QoS packets must have packet ID > 0.", ReasonCodes::ProtocolError);
+
     PubRecData result;
 
     if (!atEnd())
@@ -1429,6 +1436,9 @@ void MqttPacket::handlePubRel()
 {
     parsePubRelData();
 
+    if (this->packet_id == 0)
+        throw ProtocolError("QoS packets must have packet ID > 0.", ReasonCodes::ProtocolError);
+
     const bool foundAndRemoved = sender->getSession()->removeIncomingQoS2MessageId(packet_id);
     const ReasonCodes reason = foundAndRemoved ? ReasonCodes::Success : ReasonCodes::PacketIdentifierNotFound;
 
@@ -1442,6 +1452,9 @@ void MqttPacket::parsePubComp()
     setPosToDataStart();
     this->publishData.qos = 2;
     this->packet_id = readTwoBytesToUInt16();
+
+    if (this->packet_id == 0)
+        throw ProtocolError("QoS packets must have packet ID > 0.", ReasonCodes::ProtocolError);
 }
 
 /**
