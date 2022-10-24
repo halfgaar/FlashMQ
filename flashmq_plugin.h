@@ -247,8 +247,9 @@ void flashmq_plugin_periodic_event(void *thread_data);
  * @param subtopics
  * @param qos non-const reference which can be changed.
  * @param userProperties
+ * @return boolean indicating whether the subscription was changed. Not returning the truth here results in unpredictable behavior.
  */
-void flashmq_plugin_alter_subscription(void *thread_data, const std::string &clientid, std::string &topic, const std::vector<std::string> &subtopics,
+bool flashmq_plugin_alter_subscription(void *thread_data, const std::string &clientid, std::string &topic, const std::vector<std::string> &subtopics,
                                        uint8_t &qos, const std::vector<std::pair<std::string, std::string>> *userProperties);
 
 /**

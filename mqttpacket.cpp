@@ -1053,14 +1053,12 @@ void MqttPacket::handleSubscribe()
     while (remainingAfterPos() > 0)
     {
         std::string topic = readBytesToString(true);
-        const std::string orgTopic = topic;
         uint8_t qos = readUint8();
 
         std::vector<std::string> subtopics;
         splitTopic(topic, subtopics);
 
-        authentication.alterSubscribe(sender->getClientId(), topic, subtopics, qos, getUserProperties());
-        if (topic != orgTopic)
+        if (authentication.alterSubscribe(sender->getClientId(), topic, subtopics, qos, getUserProperties()))
             splitTopic(topic, subtopics);
 
         if (topic.empty())

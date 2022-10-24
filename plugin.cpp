@@ -445,24 +445,26 @@ AuthResult Authentication::extendedAuth(const std::string &clientid, ExtendedAut
     return AuthResult::error;
 }
 
-void Authentication::alterSubscribe(const std::string &clientid, std::string &topic, const std::vector<std::string> &subtopics, uint8_t &qos,
+bool Authentication::alterSubscribe(const std::string &clientid, std::string &topic, const std::vector<std::string> &subtopics, uint8_t &qos,
                                     const std::vector<std::pair<std::string, std::string>> *userProperties)
 {
     if (pluginVersion == PluginVersion::None)
     {
-        return;
+        return false;
     }
 
     if (!initialized)
     {
         logger->logf(LOG_ERR, "Plugin alterSubscribe called, but initialization failed or not performed.");
-        return;
+        return false;
     }
 
     if (pluginVersion == PluginVersion::FlashMQv1 && flashmq_plugin_alter_subscription_v1)
     {
-        flashmq_plugin_alter_subscription_v1(pluginData, clientid, topic, subtopics, qos, userProperties);
+        return flashmq_plugin_alter_subscription_v1(pluginData, clientid, topic, subtopics, qos, userProperties);
     }
+
+    return false;
 }
 
 bool Authentication::alterPublish(const std::string &clientid, std::string &topic, const std::vector<std::string> &subtopics,
