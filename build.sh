@@ -3,6 +3,11 @@
 thisfile=$(readlink --canonicalize "$0")
 thisdir=$(dirname "$thisfile")
 
+# TODO: option to skip building docs
+cd "$thisdir/man"
+make
+cd "$thisdir"
+
 BUILD_TYPE="Release"
 if [[ "$1" == "Debug" ]]; then
   BUILD_TYPE="Debug"

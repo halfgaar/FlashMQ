@@ -2,7 +2,7 @@
 FROM debian:bullseye-slim as build
 
 # install build dependencies
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get -y install g++ make cmake libssl-dev file
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get -y install g++ make cmake libssl-dev file docbook2x
 
 # create flashmq user and group for runtime image below
 RUN useradd --system --shell /bin/false --user-group --no-log-init flashmq

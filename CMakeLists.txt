@@ -121,6 +121,8 @@ install(DIRECTORY DESTINATION "/var/lib/flashmq")
 install(DIRECTORY DESTINATION "/var/log/flashmq")
 install(FILES flashmq.conf DESTINATION "/etc/flashmq")
 install(FILES debian/flashmq.service DESTINATION "/lib/systemd/system")
+install(FILES man/flashmq.conf.5 DESTINATION "/usr/share/man/man5")
+install(FILES man/flashmq.1 DESTINATION "/usr/share/man/man1")
 
 SET(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA "${CMAKE_CURRENT_SOURCE_DIR}/debian/conffiles;${CMAKE_CURRENT_SOURCE_DIR}/debian/preinst;${CMAKE_CURRENT_SOURCE_DIR}/debian/postinst;${CMAKE_CURRENT_SOURCE_DIR}/debian/postrm;${CMAKE_CURRENT_SOURCE_DIR}/debian/prerm")
 
