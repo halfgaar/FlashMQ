@@ -324,6 +324,10 @@ AuthResult Authentication::aclCheck(const std::string &clientid, const std::stri
         if (access == AclAccess::subscribe)
             return AuthResult::success;
 
+        // We have to do this, because Mosquitto plugins has no notion of will registration ACL.
+        if (access == AclAccess::register_will)
+            return AuthResult::success;
+
         int result = acl_check_v2(pluginData, clientid.c_str(), username.c_str(), topic.c_str(), static_cast<int>(access));
         AuthResult result_ = static_cast<AuthResult>(result);
 
