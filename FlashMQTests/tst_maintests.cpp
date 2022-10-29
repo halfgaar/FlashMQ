@@ -88,6 +88,9 @@ private slots:
     void test_retained_changed();
     void test_retained_removed();
     void test_retained_tree();
+    void test_retained_global_expire();
+    void test_retained_per_message_expire();
+    void test_retained_tree_purging();
 
     void test_various_packet_sizes();
 
@@ -169,6 +172,8 @@ private slots:
     void testPublishByPlugin();
 
     void testChangePublish();
+
+    void testTimePointToAge();
 };
 
 MainTests::MainTests()
@@ -729,6 +734,156 @@ void MainTests::test_retained_tree()
         QVERIFY2(r, formatString("%s not found in retained messages.", s.c_str()).c_str());
     }
 
+}
+
+void MainTests::test_retained_global_expire()
+{
+    std::vector<ProtocolVersion> versions { ProtocolVersion::Mqtt311, ProtocolVersion::Mqtt5 };
+
+    ConfFileTemp confFile;
+    confFile.writeLine("allow_anonymous yes");
+    confFile.writeLine("expire_retained_messages_after_seconds 1");
+    confFile.closeFile();
+
+    std::vector<std::string> args {"--config-file", confFile.getFilePath()};
+
+    cleanup();
+    init(args);
+
+    std::vector<ProtocolVersion> protocols {ProtocolVersion::Mqtt311, ProtocolVersion::Mqtt5};
+
+    for (const ProtocolVersion senderVersion : protocols)
+    {
+        for (const ProtocolVersion receiverVersion : protocols)
+        {
+            FlashMQTestClient sender;
+            FlashMQTestClient receiver;
+
+            sender.start();
+            receiver.start();
+
+            sender.connectClient(senderVersion);
+
+            Publish pub1("retaintopic/1", "We are testing", 0);
+            pub1.retain = true;
+            sender.publish(pub1);
+
+            Publish pub2("retaintopic/2", "asdf", 0);
+            pub2.retain = true;
+            sender.publish(pub2);
+
+            usleep(2000000);
+
+            receiver.connectClient(receiverVersion);
+            receiver.subscribe("#", 0);
+
+            usleep(500000);
+            receiver.waitForMessageCount(0);
+
+            MYCASTCOMPARE(receiver.receivedPublishes.size(), 0);
+        }
+    }
+}
+
+void MainTests::test_retained_per_message_expire()
+{
+    std::vector<ProtocolVersion> versions { ProtocolVersion::Mqtt311, ProtocolVersion::Mqtt5 };
+
+    ConfFileTemp confFile;
+    confFile.writeLine("allow_anonymous yes");
+    confFile.writeLine("expire_retained_messages_after_seconds 10");
+    confFile.closeFile();
+
+    std::vector<std::string> args {"--config-file", confFile.getFilePath()};
+
+    cleanup();
+    init(args);
+
+    FlashMQTestClient sender;
+    FlashMQTestClient receiver;
+
+    sender.start();
+    receiver.start();
+
+    sender.connectClient(ProtocolVersion::Mqtt5);
+
+    Publish pub1("retaintopic/1", "We are testing", 0);
+    pub1.retain = true;
+    sender.publish(pub1);
+
+    Publish pub2("retaintopic/2", "asdf", 0);
+    pub2.retain = true;
+    pub2.setExpireAfter(1);
+    sender.publish(pub2);
+
+    usleep(2000000);
+
+    receiver.connectClient(ProtocolVersion::Mqtt5);
+    receiver.subscribe("#", 0);
+
+    usleep(500000);
+    receiver.waitForMessageCount(1);
+
+    MYCASTCOMPARE(receiver.receivedPublishes.size(), 1);
+
+    MqttPacket &msg = receiver.receivedPublishes.front();
+    QCOMPARE(msg.getPayloadCopy(), "We are testing");
+    QCOMPARE(msg.getTopic(), "retaintopic/1");
+    QVERIFY(msg.getRetain());
+}
+
+void MainTests::test_retained_tree_purging()
+{
+    std::shared_ptr<SubscriptionStore> store = mainApp->getStore();
+
+    int toDeleteCount = 0;
+
+    for (int i = 0; i < 10; i++)
+    {
+        for (int j = 0; j < 10; j++)
+        {
+            std::string topic = formatString("retain%d/bla%d/asdf", i, j);
+            Publish pub(topic, "willnotexpire", 0);
+
+            if (i % 2 == 0)
+            {
+                pub.setExpireAfter(1);
+                pub.payload = "willexpire";
+
+                toDeleteCount++;
+            }
+
+            std::vector<std::string> subtopics;
+            splitTopic(topic, subtopics);
+            store->setRetainedMessage(pub, subtopics);
+        }
+    }
+
+    {
+        Publish pubStray("retain0/bla5", "willnotexpire", 0);
+        std::vector<std::string> subtopics;
+        splitTopic(pubStray.topic, subtopics);
+        store->setRetainedMessage(pubStray, subtopics);
+    }
+
+    usleep(2000000);
+
+    const int beforeCount = store->getRetainedMessageCount();
+
+    store->expireRetainedMessages();
+
+    std::vector<RetainedMessage> list;
+    store->getRetainedMessages(&store->retainedMessagesRoot, list);
+
+    QVERIFY(std::none_of(list.begin(), list.end(), [](RetainedMessage &rm) {
+        return rm.publish.payload == "willexpire";
+    }));
+
+    QVERIFY(std::all_of(list.begin(), list.end(), [](RetainedMessage &rm) {
+        return rm.publish.payload == "willnotexpire";
+    }));
+
+    MYCASTCOMPARE(store->getRetainedMessageCount(), beforeCount - toDeleteCount);
 }
 
 void MainTests::test_various_packet_sizes()
@@ -3242,6 +3397,18 @@ void MainTests::testChangePublish()
         MYCASTCOMPARE(receiver.receivedPublishes.front().getPayloadCopy(), "hello");
         MYCASTCOMPARE(receiver.receivedPublishes.front().getQos(), 2);
     }
+}
+
+void MainTests::testTimePointToAge()
+{
+    std::chrono::time_point<std::chrono::steady_clock> now = std::chrono::steady_clock::now();
+    auto past = now - std::chrono::seconds(11);
+
+    auto p = ageFromTimePoint(past);
+    auto pastCalculated = timepointFromAge(p);
+
+    std::chrono::seconds diff = std::chrono::duration_cast<std::chrono::seconds>(pastCalculated - past);
+    MYCASTCOMPARE(diff.count(), 0);
 }
 
 int main(int argc, char *argv[])

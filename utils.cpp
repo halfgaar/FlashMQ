@@ -694,7 +694,7 @@ uint32_t ageFromTimePoint(const std::chrono::time_point<std::chrono::steady_cloc
 std::chrono::time_point<std::chrono::steady_clock> timepointFromAge(const uint32_t age)
 {
     std::chrono::seconds seconds(age);
-    std::chrono::time_point<std::chrono::steady_clock> newPoint = std::chrono::steady_clock::now() + seconds;
+    std::chrono::time_point<std::chrono::steady_clock> newPoint = std::chrono::steady_clock::now() - seconds;
     return newPoint;
 }
 

@@ -16,11 +16,15 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 */
 
 #include "retainedmessage.h"
+#include "threadglobals.h"
+#include "settings.h"
 
 RetainedMessage::RetainedMessage(const Publish &publish) :
     publish(publish)
 {
     this->publish.retain = true;
+    const Settings *settings = ThreadGlobals::getSettings();
+    this->publish.setExpireAfterToCeiling(settings->expireRetainedMessagesAfterSeconds);
 }
 
 bool RetainedMessage::operator==(const RetainedMessage &rhs) const
@@ -36,4 +40,23 @@ bool RetainedMessage::empty() const
 uint32_t RetainedMessage::getSize() const
 {
     return publish.topic.length() + publish.payload.length() + 1;
+}
+
+/**
+ * @brief RetainedMessage::hasExpired is more dynamic than a publish's expire info, because the settings may have changed in the mean time.
+ * @return
+ */
+bool RetainedMessage::hasExpired() const
+{
+    if (this->publish.hasExpired())
+        return true;
+
+    const Settings *settings = ThreadGlobals::getSettings();
+    std::chrono::seconds expireAge(settings->expireRetainedMessagesAfterSeconds);
+
+    if (this->publish.getAge() > expireAge)
+        return true;
+
+    return false;
+
 }

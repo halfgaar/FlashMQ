@@ -193,8 +193,16 @@ bool PublishBase::hasExpired() const
     if (!hasExpireInfo)
         return false;
 
+    return (getAge() > expiresAfter);
+}
+
+const std::chrono::seconds PublishBase::getAge() const
+{
+    if (!hasExpireInfo)
+        return std::chrono::seconds(0);
+
     const std::chrono::seconds age = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - this->createdAt);
-    return (age > expiresAfter);
+    return age;
 }
 
 std::chrono::time_point<std::chrono::steady_clock> PublishBase::expiresAt() const
@@ -215,6 +223,21 @@ void PublishBase::setExpireAfter(uint32_t s)
 {
     this->createdAt = std::chrono::steady_clock::now();
     this->expiresAfter = std::chrono::seconds(s);
+    this->hasExpireInfo = true;
+}
+
+void PublishBase::setExpireAfterToCeiling(uint32_t ceiling)
+{
+    std::chrono::seconds ceiling_s(ceiling);
+
+    if (hasExpireInfo)
+    {
+        this->expiresAfter = std::min(this->expiresAfter, ceiling_s);
+        return;
+    }
+
+    this->createdAt = std::chrono::steady_clock::now();
+    this->expiresAfter = ceiling_s;
     this->hasExpireInfo = true;
 }
 

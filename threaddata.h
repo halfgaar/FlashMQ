@@ -83,6 +83,7 @@ class ThreadData
     void publishStat(const std::string &topic, uint64_t n);
     void sendQueuedWills();
     void removeExpiredSessions();
+    void removeExpiredRetainedMessages();
     void sendAllWills();
     void sendAllDisconnects();
     void queueClientNextKeepAliveCheck(std::shared_ptr<Client> &client, bool keepRechecking);
@@ -130,6 +131,7 @@ public:
     void queuePublishStatsOnDollarTopic(std::vector<std::shared_ptr<ThreadData>> &threads);
     void queueSendingQueuedWills();
     void queueRemoveExpiredSessions();
+    void queueRemoveExpiredRetainedMessages();
     void queueClientNextKeepAliveCheckLocked(std::shared_ptr<Client> &client, bool keepRechecking);
     void continuationOfAuthentication(std::shared_ptr<Client> &client, AuthResult authResult, const std::string &authMethod, const std::string &returnData);
     void queueContinuationOfAuthentication(const std::shared_ptr<Client> &client, AuthResult authResult, const std::string &authMethod, const std::string &returnData);

@@ -84,6 +84,7 @@ class RetainedMessageNode
 
     void addPayload(const Publish &publish, int64_t &totalCount);
     RetainedMessageNode *getChildren(const std::string &subtopic) const;
+    bool isOrphaned() const;
 };
 
 class QueuedWill
@@ -136,6 +137,7 @@ class SubscriptionStore
     void getSubscriptions(SubscriptionNode *this_node, const std::string &composedTopic, bool root,
                           std::unordered_map<std::string, std::list<SubscriptionForSerializing>> &outputList) const;
     void countSubscriptions(SubscriptionNode *this_node, int64_t &count) const;
+    void expireRetainedMessages(RetainedMessageNode *this_node, const std::chrono::time_point<std::chrono::steady_clock> &limit);
 
     SubscriptionNode *getDeepestNode(const std::string &topic, const std::vector<std::string> &subtopics);
 public:
@@ -157,6 +159,7 @@ public:
 
     void removeSession(const std::shared_ptr<Session> &session);
     void removeExpiredSessionsClients();
+    void expireRetainedMessages();
 
     int64_t getRetainedMessageCount() const;
     uint64_t getSessionCount() const;

@@ -127,6 +127,16 @@ void ThreadData::queueRemoveExpiredSessions()
     wakeUpThread();
 }
 
+void ThreadData::queueRemoveExpiredRetainedMessages()
+{
+    std::lock_guard<std::mutex> locker(taskQueueMutex);
+
+    auto f = std::bind(&ThreadData::removeExpiredRetainedMessages, this);
+    taskQueue.push_front(f);
+
+    wakeUpThread();
+}
+
 void ThreadData::queueClientNextKeepAliveCheck(std::shared_ptr<Client> &client, bool keepRechecking)
 {
     const std::chrono::seconds k = client->getSecondsTillKillTime();
@@ -309,16 +319,34 @@ void ThreadData::publishStat(const std::string &topic, uint64_t n)
     subscriptionStore->setRetainedMessage(p, factory.getSubtopics());
 }
 
+/**
+ * @brief ThreadData::sendQueuedWills is not an operation per thread, but it's good practice to perform certain tasks in the worker threads, where
+ * the thread-local globals work.
+ */
 void ThreadData::sendQueuedWills()
 {
     std::shared_ptr<SubscriptionStore> subscriptionStore = MainApp::getMainApp()->getSubscriptionStore();
     subscriptionStore->sendQueuedWillMessages();
 }
 
+/**
+ * @brief ThreadData::removeExpiredSessions is not an operation per thread, but it's good practice to perform certain tasks in the worker threads, where
+ * the thread-local globals work.
+ */
 void ThreadData::removeExpiredSessions()
 {
     std::shared_ptr<SubscriptionStore> subscriptionStore = MainApp::getMainApp()->getSubscriptionStore();
     subscriptionStore->removeExpiredSessionsClients();
+}
+
+/**
+ * @brief ThreadData::removeExpiredRetainedMessages is not an operation per thread, but it's good practice to perform certain tasks in the worker threads, where
+ * the thread-local globals work.
+ */
+void ThreadData::removeExpiredRetainedMessages()
+{
+    std::shared_ptr<SubscriptionStore> subscriptionStore = MainApp::getMainApp()->getSubscriptionStore();
+    subscriptionStore->expireRetainedMessages();
 }
 
 void ThreadData::sendAllWills()

@@ -508,12 +508,14 @@ void SubscriptionStore::giveClientRetainedMessagesRecursively(std::vector<std::s
         {
             auto cur = pos++;
 
-            Publish publish = cur->publish;
+            const RetainedMessage &rm = *cur;
 
-            if (publish.hasExpired())
-                this_node->retainedMessages.erase(cur);
-            else if (auth.aclCheck(publish) == AuthResult::success)
-                packetList.push_front(std::move(publish));
+            if (!rm.hasExpired()) // We can't also erase here, because we're operating under a read lock.
+            {
+                Publish publish = rm.publish;
+                if (auth.aclCheck(publish) == AuthResult::success)
+                   packetList.push_front(std::move(publish));
+            }
         }
         if (poundMode)
         {
@@ -769,6 +771,15 @@ void SubscriptionStore::removeExpiredSessionsClients()
     }
 }
 
+void SubscriptionStore::expireRetainedMessages()
+{
+    const Settings *settings = ThreadGlobals::getSettings();
+    std::chrono::time_point<std::chrono::steady_clock> limit = std::chrono::steady_clock::now() + std::chrono::milliseconds(settings->expireRetainedMessagesTimeBudgetMs);
+    RWLockGuard lock_guard(&retainedMessagesRwlock);
+    lock_guard.wrlock();
+    this->expireRetainedMessages(&retainedMessagesRoot, limit);
+}
+
 /**
  * @brief SubscriptionStore::queueSessionRemoval places session efficiently in a sorted map that is periodically dequeued.
  * @param session
@@ -890,6 +901,50 @@ void SubscriptionStore::countSubscriptions(SubscriptionNode *this_node, int64_t 
     if (this_node->childrenPound)
     {
         countSubscriptions(this_node->childrenPound.get(), count);
+    }
+}
+
+void SubscriptionStore::expireRetainedMessages(RetainedMessageNode *this_node, const std::chrono::time_point<std::chrono::steady_clock> &limit)
+{
+    if (std::chrono::steady_clock::now() > limit)
+    {
+        const Settings *settings = ThreadGlobals::getSettings();
+        Logger *logger = Logger::getInstance();
+        logger->logf(LOG_WARNING, "Aborting expiration of retained messages because it exceeded time budget of %d ms. If you see this warning "
+                                  "regarly, consider your retained message load or increase 'expire_retained_messages_time_budget_ms'.",
+                     settings->expireRetainedMessagesTimeBudgetMs);
+        return;
+    }
+
+    auto pos = this_node->retainedMessages.begin();
+    while (pos != this_node->retainedMessages.end())
+    {
+        auto cur = pos++;
+        const RetainedMessage &rm = *cur;
+
+        if (rm.hasExpired())
+        {
+            Logger *logger = Logger::getInstance();
+            logger->logf(LOG_DEBUG, "Removing retained message '%s'.", rm.publish.topic.c_str());
+            this_node->retainedMessages.erase(cur);
+            this->retainedMessageCount--;
+        }
+    }
+
+    auto cpos = this_node->children.begin();
+    while (cpos != this_node->children.end())
+    {
+        auto cur = cpos;
+        cpos++;
+        auto &pair = *cur;
+
+        const std::unique_ptr<RetainedMessageNode> &child = pair.second;
+        expireRetainedMessages(child.get(), limit);
+
+        if (child->isOrphaned())
+        {
+            this_node->children.erase(cur);
+        }
     }
 }
 
@@ -1081,6 +1136,11 @@ RetainedMessageNode *RetainedMessageNode::getChildren(const std::string &subtopi
     if (it != children.end())
         return it->second.get();
     return nullptr;
+}
+
+bool RetainedMessageNode::isOrphaned() const
+{
+    return children.empty() && retainedMessages.empty();
 }
 
 QueuedWill::QueuedWill(const std::shared_ptr<WillPublish> &will, const std::shared_ptr<Session> &session) :

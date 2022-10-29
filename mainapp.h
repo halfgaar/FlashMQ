@@ -94,6 +94,7 @@ class MainApp
     void queueRemoveExpiredSessions();
     void waitForWillsQueued();
     void waitForDisconnectsInitiated();
+    void queueRetainedMessageExpiration();
 
     MainApp(const std::string &configFilePath);
 public:

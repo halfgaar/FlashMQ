@@ -72,6 +72,15 @@ MainApp::MainApp(const std::string &configFilePath) :
         timer.addCallback(f, interval, "session expiration");
     }
 
+    {
+        uint64_t interval = 3949193; // prime
+#ifdef TESTING
+        interval = 500;
+#endif
+        auto f = std::bind(&MainApp::queueRetainedMessageExpiration, this);
+        timer.addCallback(f, interval, "Purge expired retained messages.");
+    }
+
     auto fKeepAlive = std::bind(&MainApp::queueKeepAliveCheckAtAllThreads, this);
     timer.addCallback(fKeepAlive, 5000, "keep-alive check");
 
@@ -319,6 +328,16 @@ void MainApp::waitForDisconnectsInitiated()
     while(std::any_of(threads.begin(), threads.end(), [](std::shared_ptr<ThreadData> t){ return !t->allDisconnectsSent && t->running; }) && i++ < 5000)
     {
         usleep(1000);
+    }
+}
+
+void MainApp::queueRetainedMessageExpiration()
+{
+    if (!threads.empty())
+    {
+        int threadnr = rand() % threads.size();
+        std::shared_ptr<ThreadData> t = threads[threadnr];
+        t->queueRemoveExpiredRetainedMessages();
     }
 }
 

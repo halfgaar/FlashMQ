@@ -30,6 +30,7 @@ struct RetainedMessage
     bool operator==(const RetainedMessage &rhs) const;
     bool empty() const;
     uint32_t getSize() const;
+    bool hasExpired() const;
 };
 
 namespace std {

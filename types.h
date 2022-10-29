@@ -193,6 +193,7 @@ public:
 class PublishBase
 {
     friend class SessionsAndSubscriptionsDB;
+    friend class RetainedMessagesDB;
 
     bool hasExpireInfo = false;
     std::chrono::time_point<std::chrono::steady_clock> createdAt;
@@ -217,10 +218,12 @@ public:
     void constructPropertyBuilder();
     bool hasUserProperties() const;
     bool hasExpired() const;
+    const std::chrono::seconds getAge() const;
     std::chrono::time_point<std::chrono::steady_clock> expiresAt() const;
     std::vector<std::pair<std::string, std::string>> *getUserProperties();
 
     void setExpireAfter(uint32_t s);
+    void setExpireAfterToCeiling(uint32_t s);
     bool getHasExpireInfo() const;
     const std::chrono::time_point<std::chrono::steady_clock> getCreatedAt() const;
 };

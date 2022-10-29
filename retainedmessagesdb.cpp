@@ -37,7 +37,7 @@ RetainedMessagesDB::RetainedMessagesDB(const std::string &filePath) : Persistenc
 
 void RetainedMessagesDB::openWrite()
 {
-    PersistenceFile::openWrite(MAGIC_STRING_V3);
+    PersistenceFile::openWrite(MAGIC_STRING_V4);
 }
 
 void RetainedMessagesDB::openRead()
@@ -50,6 +50,8 @@ void RetainedMessagesDB::openRead()
         readVersion = ReadVersion::v2;
     else if (detectedVersionString == MAGIC_STRING_V3)
         readVersion = ReadVersion::v3;
+    else if (detectedVersionString == MAGIC_STRING_V4)
+        readVersion = ReadVersion::v4;
     else
         throw std::runtime_error("Unknown file version.");
 }
@@ -65,6 +67,10 @@ void RetainedMessagesDB::saveData(const std::vector<RetainedMessage> &messages)
 
     CirBuf cirbuf(1024);
 
+    const int64_t now_epoch = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    logger->logf(LOG_DEBUG, "Saving current time stamp %ld in retained messages DB.", now_epoch);
+    writeInt64(now_epoch);
+
     writeUint32(messages.size());
 
     char reserved[RESERVED_SPACE_RETAINED_DB_V2];
@@ -73,7 +79,7 @@ void RetainedMessagesDB::saveData(const std::vector<RetainedMessage> &messages)
 
     for (const RetainedMessage &rm : messages)
     {
-        logger->logf(LOG_DEBUG, "Saving retained message for topic '%s' QoS %d.", rm.publish.topic.c_str(), rm.publish.qos);
+        logger->logf(LOG_DEBUG, "Saving retained message for topic '%s' QoS %d, age %d seconds.", rm.publish.topic.c_str(), rm.publish.qos, rm.publish.getAge());
 
         Publish pcopy(rm.publish);
         MqttPacket pack(ProtocolVersion::Mqtt5, pcopy);
@@ -83,12 +89,14 @@ void RetainedMessagesDB::saveData(const std::vector<RetainedMessage> &messages)
             pack.setPacketId(666);
 
         const uint32_t packSize = pack.getSizeIncludingNonPresentHeader();
+        const uint32_t pubAge = ageFromTimePoint(pcopy.getCreatedAt());
 
         cirbuf.reset();
         cirbuf.ensureFreeSpace(packSize + 32);
         pack.readIntoBuf(cirbuf);
 
         writeUint16(pack.getFixedHeaderLength());
+        writeUint32(pubAge);
         writeUint32(packSize);
         writeString(pcopy.client_id);
         writeString(pcopy.username);
@@ -109,13 +117,13 @@ std::list<RetainedMessage> RetainedMessagesDB::readData()
         logger->logf(LOG_WARNING, "File '%s' is version 1, an internal development version that was never finalized. Not reading.", getFilePath().c_str());
     if (readVersion == ReadVersion::v2)
         logger->logf(LOG_WARNING, "File '%s' is version 2, an internal development version that was never finalized. Not reading.", getFilePath().c_str());
-    if (readVersion == ReadVersion::v3)
-        return readDataV3();
+    if (readVersion == ReadVersion::v3 || readVersion == ReadVersion::v4)
+        return readDataV3V4();
 
     return defaultResult;
 }
 
-std::list<RetainedMessage> RetainedMessagesDB::readDataV3()
+std::list<RetainedMessage> RetainedMessagesDB::readDataV3V4()
 {
     std::list<RetainedMessage> messages;
 
@@ -130,6 +138,18 @@ std::list<RetainedMessage> RetainedMessagesDB::readDataV3()
     {
         bool eofFound = false;
 
+        int64_t persistence_state_age = 0;
+
+        if (readVersion >= ReadVersion::v4)
+        {
+            const int64_t fileSavedAt = readInt64(eofFound);
+            if (eofFound)
+                continue;
+
+            const int64_t now_epoch = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+            persistence_state_age = fileSavedAt > now_epoch ? 0 : now_epoch - fileSavedAt;
+        }
+
         const uint32_t numberOfMessages = readUint32(eofFound);
 
         if (eofFound)
@@ -140,6 +160,12 @@ std::list<RetainedMessage> RetainedMessagesDB::readDataV3()
         for(uint32_t i = 0; i < numberOfMessages; i++)
         {
             const uint16_t fixed_header_length = readUint16(eofFound);
+            uint32_t originalPubAge = 0;
+            if (readVersion >= ReadVersion::v4)
+            {
+                originalPubAge = readUint32(eofFound);
+            }
+            const uint32_t newPubAge = persistence_state_age + originalPubAge;
             const uint32_t packlen = readUint32(eofFound);
 
             const std::string client_id = readString(eofFound);
@@ -161,8 +187,12 @@ std::list<RetainedMessage> RetainedMessagesDB::readDataV3()
             pub.client_id = client_id;
             pub.username = username;
 
+            // A createdAt only means something when there is expire info (internal boolean is true), so we fake it first.
+            pub.setExpireAfter(std::numeric_limits<uint32_t>::max());
+            pub.createdAt = timepointFromAge(newPubAge);
+
             RetainedMessage msg(pub);
-            logger->logf(LOG_DEBUG, "Loading retained message for topic '%s' QoS %d.", msg.publish.topic.c_str(), msg.publish.qos);
+            logger->logf(LOG_DEBUG, "Loading retained message for topic '%s' QoS %d, age %d seconds.", msg.publish.topic.c_str(), msg.publish.qos, msg.publish.getAge());
             messages.push_back(std::move(msg));
         }
     }

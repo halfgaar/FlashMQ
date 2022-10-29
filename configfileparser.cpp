@@ -114,6 +114,8 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validKeys.insert("max_qos_bytes_pending_per_client");
     validKeys.insert("wills_enabled");
     validKeys.insert("retained_messages_mode");
+    validKeys.insert("expire_retained_messages_after_seconds");
+    validKeys.insert("expire_retained_messages_time_budget_ms");
 
     validListenKeys.insert("port");
     validListenKeys.insert("protocol");
@@ -502,6 +504,22 @@ void ConfigFileParser::loadFile(bool test)
                         tmpSettings.retainedMessagesMode = RetainedMessagesMode::DisconnectWithError;
                     else
                         throw ConfigFileException(formatString("Value '%s' for '%s' is invalid.", value.c_str(), key.c_str()));
+                }
+
+                if (key == "expire_retained_messages_after_seconds")
+                {
+                    uint32_t newVal = std::stoi(value);
+                    if (newVal < 1)
+                    {
+                        throw ConfigFileException(formatString("expire_retained_messages_after_seconds value '%d' is invalid. Valid values are between 1 and 4294967296.", newVal));
+                    }
+                    tmpSettings.expireRetainedMessagesAfterSeconds = newVal;
+                }
+
+                if (key == "expire_retained_messages_time_budget_ms")
+                {
+                    uint32_t newVal = std::stoi(value);
+                    tmpSettings.expireRetainedMessagesTimeBudgetMs = newVal;
                 }
             }
         }
