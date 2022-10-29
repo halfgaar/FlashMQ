@@ -110,7 +110,7 @@ void Authentication::loadPlugin(const std::string &pathToSoFile)
         throw FatalError(errmsg);
     }
 
-    version = (F_plugin_version)loadSymbol(r, "mosquitto_plugin_version", false);
+    version = (F_plugin_version)loadSymbol(r, "mosquitto_auth_plugin_version", false);
     if (version != nullptr)
     {
         if (version() != 2)
@@ -120,8 +120,8 @@ void Authentication::loadPlugin(const std::string &pathToSoFile)
 
         pluginVersion = PluginVersion::MosquittoV2;
 
-        init_v2 = (F_plugin_init_v2)loadSymbol(r, "mosquitto_plugin_init");
-        cleanup_v2 = (F_plugin_cleanup_v2)loadSymbol(r, "mosquitto_plugin_cleanup");
+        init_v2 = (F_plugin_init_v2)loadSymbol(r, "mosquitto_auth_plugin_init");
+        cleanup_v2 = (F_plugin_cleanup_v2)loadSymbol(r, "mosquitto_auth_plugin_cleanup");
         security_init_v2 = (F_plugin_security_init_v2)loadSymbol(r, "mosquitto_auth_security_init");
         security_cleanup_v2 = (F_plugin_security_cleanup_v2)loadSymbol(r, "mosquitto_auth_security_cleanup");
         acl_check_v2 = (F_plugin_acl_check_v2)loadSymbol(r, "mosquitto_auth_acl_check");
