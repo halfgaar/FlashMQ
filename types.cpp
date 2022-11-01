@@ -160,9 +160,10 @@ void PublishBase::setClientSpecificProperties()
     {
         auto now = std::chrono::steady_clock::now();
         std::chrono::seconds delay = std::chrono::duration_cast<std::chrono::seconds>(now - createdAt);
-        int32_t newExpire = (this->expiresAfter - delay).count();
-        if (newExpire > 0)
-            propertyBuilder->writeMessageExpiryInterval(newExpire);
+        std::chrono::seconds newExpireAfter = std::max(this->expiresAfter - delay, std::chrono::seconds(0));
+
+        this->expiresAfter = newExpireAfter;
+        propertyBuilder->writeMessageExpiryInterval(newExpireAfter.count());
     }
 
     if (topicAlias > 0)
@@ -244,6 +245,12 @@ void PublishBase::setExpireAfterToCeiling(uint32_t ceiling)
 bool PublishBase::getHasExpireInfo() const
 {
     return this->hasExpireInfo;
+}
+
+std::chrono::seconds PublishBase::getExpiresAfter() const
+{
+    assert(hasExpireInfo);
+    return this->expiresAfter;
 }
 
 const std::chrono::time_point<std::chrono::steady_clock> PublishBase::getCreatedAt() const

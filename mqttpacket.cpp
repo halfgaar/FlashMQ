@@ -127,6 +127,9 @@ size_t MqttPacket::setClientSpecificPropertiesAndGetRequiredSizeForPublish(const
  * @brief Construct a packet for a specific protocol version.
  * @param protocolVersion is required here, and not on the Publish object, because publishes don't have a protocol until they are for a specific client.
  * @param _publish
+ *
+ * Important to note here is that there are two concepts here: writing the byte array for sending to clients, and setting the data in publishData. The latter
+ * will only have stuff important for internal logic. In other words, it won't contain the payload.
  */
 MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, Publish &_publish) :
     bites(setClientSpecificPropertiesAndGetRequiredSizeForPublish(protocolVersion, _publish))
@@ -172,6 +175,13 @@ MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, Publish &_publish)
         // Step 2: this line will make sure the whole byte array containing all properties as flat bytes is present in the 'bites' vector,
         // which is sent to the subscribers.
         writeProperties(_publish.propertyBuilder);
+
+        // And again, even though the expiry info has been written in the byte array, we need to store them in the publish object too,
+        // in case we use that, like when queueing QoS packets.
+        if (_publish.getHasExpireInfo())
+        {
+            this->publishData.setExpireAfter(_publish.getExpiresAfter().count());
+        }
     }
 
     payloadStart = pos;

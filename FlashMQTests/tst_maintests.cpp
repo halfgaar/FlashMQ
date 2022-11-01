@@ -1401,13 +1401,13 @@ void MainTests::testSavingSessions()
         ThreadGlobals::assignThreadData(t.get());
 
         std::shared_ptr<Client> c1(new Client(0, t, nullptr, false, nullptr, settings, false));
-        c1->setClientProperties(ProtocolVersion::Mqtt311, "c1", "user1", true, 60);
+        c1->setClientProperties(ProtocolVersion::Mqtt5, "c1", "user1", true, 60);
         store->registerClientAndKickExistingOne(c1, false, 512, 120);
         c1->getSession()->addIncomingQoS2MessageId(2);
         c1->getSession()->addIncomingQoS2MessageId(3);
 
         std::shared_ptr<Client> c2(new Client(0, t, nullptr, false, nullptr, settings, false));
-        c2->setClientProperties(ProtocolVersion::Mqtt311, "c2", "user2", true, 60);
+        c2->setClientProperties(ProtocolVersion::Mqtt5, "c2", "user2", true, 60);
         store->registerClientAndKickExistingOne(c2, false, 512, 120);
         c2->getSession()->addOutgoingQoS2MessageId(55);
         c2->getSession()->addOutgoingQoS2MessageId(66);
@@ -1433,14 +1433,19 @@ void MainTests::testSavingSessions()
         Publish publish("a/b/c", "Hello Barry", 1);
         publish.client_id = "ClientIdFromFakePublisher";
         publish.username = "UsernameFromFakePublisher";
+        publish.setExpireAfter(10);
+
+        usleep(1000000);
 
         std::shared_ptr<Session> c1ses = c1->getSession();
         c1.reset();
-        MqttPacket publishPacket(ProtocolVersion::Mqtt311, publish);
+        MqttPacket publishPacket(ProtocolVersion::Mqtt5, publish);
         PublishCopyFactory fac(&publishPacket);
         c1ses->writePacket(fac, 1);
 
         store->saveSessionsAndSubscriptions("/tmp/flashmqtests_sessions.db");
+
+        usleep(1000000);
 
         std::shared_ptr<SubscriptionStore> store2(new SubscriptionStore());
         store2->loadSessionsAndSubscriptions("/tmp/flashmqtests_sessions.db");
@@ -1501,6 +1506,8 @@ void MainTests::testSavingSessions()
         QCOMPARE(queuedPublishLoaded.getPublish().qos, 1);
         QCOMPARE(queuedPublishLoaded.getPublish().client_id, "ClientIdFromFakePublisher");
         QCOMPARE(queuedPublishLoaded.getPublish().username, "UsernameFromFakePublisher");
+        QCOMPARE(queuedPublishLoaded.getPublish().expiresAfter.count(), 9);
+        QCOMPARE(queuedPublishLoaded.getPublish().getAge().count(), 1);
     }
     catch (std::exception &ex)
     {

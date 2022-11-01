@@ -192,6 +192,10 @@ public:
  */
 class PublishBase
 {
+#ifdef TESTING
+    friend class MainTests;
+#endif
+
     friend class SessionsAndSubscriptionsDB;
     friend class RetainedMessagesDB;
 
@@ -225,6 +229,7 @@ public:
     void setExpireAfter(uint32_t s);
     void setExpireAfterToCeiling(uint32_t s);
     bool getHasExpireInfo() const;
+    std::chrono::seconds getExpiresAfter() const;
     const std::chrono::time_point<std::chrono::steady_clock> getCreatedAt() const;
 };
 
