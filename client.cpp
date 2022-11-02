@@ -70,6 +70,10 @@ Client::~Client()
 
     logger->logf(LOG_NOTICE, "Removing client '%s'. Reason(s): %s", repr().c_str(), disconnectReason.c_str());
 
+    std::shared_ptr<ThreadData> td = this->threadData.lock();
+    if (td && authenticated)
+        td->queueClientDisconnectEvent(this->getClientId());
+
     std::shared_ptr<SubscriptionStore> store = MainApp::getMainApp()->getSubscriptionStore();
 
     if (willPublish)

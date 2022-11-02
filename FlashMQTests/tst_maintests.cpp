@@ -174,6 +174,8 @@ private slots:
     void testChangePublish();
 
     void testTimePointToAge();
+
+    void testPluginOnDisconnect();
 };
 
 MainTests::MainTests()
@@ -3416,6 +3418,34 @@ void MainTests::testTimePointToAge()
 
     std::chrono::seconds diff = std::chrono::duration_cast<std::chrono::seconds>(pastCalculated - past);
     MYCASTCOMPARE(diff.count(), 0);
+}
+
+void MainTests::testPluginOnDisconnect()
+{
+    std::vector<ProtocolVersion> versions { ProtocolVersion::Mqtt311, ProtocolVersion::Mqtt5 };
+
+    ConfFileTemp confFile;
+    confFile.writeLine("plugin plugins/libtest_plugin.so.0.0.1");
+    confFile.closeFile();
+
+    std::vector<std::string> args {"--config-file", confFile.getFilePath()};
+
+    cleanup();
+    init(args);
+
+    FlashMQTestClient receiver;
+    receiver.start();
+    receiver.connectClient(ProtocolVersion::Mqtt5);
+    receiver.subscribe("#", 0);
+
+    FlashMQTestClient client;
+    client.start();
+    client.connectClient(ProtocolVersion::Mqtt5);
+    client.disconnect(ReasonCodes::Success);
+
+    receiver.waitForMessageCount(1);
+    MYCASTCOMPARE(receiver.receivedPublishes.size(), 1);
+    QCOMPARE(receiver.receivedPublishes.front().getTopic(), "disconnect/confirmed");
 }
 
 int main(int argc, char *argv[])

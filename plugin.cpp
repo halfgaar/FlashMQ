@@ -147,6 +147,7 @@ void Authentication::loadPlugin(const std::string &pathToSoFile)
         flashmq_plugin_extended_auth_v1 = (F_flashmq_plugin_extended_auth_v1)loadSymbol(r, "flashmq_plugin_extended_auth", false);
         flashmq_plugin_alter_subscription_v1 = (F_flashmq_plugin_alter_subscription_v1)loadSymbol(r, "flashmq_plugin_alter_subscription", false);
         flashmq_plugin_alter_publish_v1 = (F_flashmq_plugin_alter_publish_v1)loadSymbol(r, "flashmq_plugin_alter_publish", false);
+        flashmq_plugin_client_disconnected_v1 = (F_flashmq_plugin_client_disconnected_v1)loadSymbol(r, "flashmq_plugin_client_disconnected", false);
     }
 
     initialized = true;
@@ -491,6 +492,25 @@ bool Authentication::alterPublish(const std::string &clientid, std::string &topi
     }
 
     return false;
+}
+
+void Authentication::clientDisconnected(const std::string &clientid)
+{
+    if (pluginVersion == PluginVersion::None)
+    {
+        return;
+    }
+
+    if (!initialized)
+    {
+        logger->logf(LOG_ERR, "Plugin clientDisconnected called, but initialization failed or not performed.");
+        return;
+    }
+
+    if (pluginVersion == PluginVersion::FlashMQv1 && flashmq_plugin_client_disconnected_v1)
+    {
+        flashmq_plugin_client_disconnected_v1(pluginData, clientid);
+    }
 }
 
 void Authentication::setQuitting()

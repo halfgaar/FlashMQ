@@ -185,3 +185,11 @@ bool flashmq_plugin_alter_publish(void *thread_data, const std::string &clientid
     return false;
 }
 
+void flashmq_plugin_client_disconnected(void *thread_data, const std::string &clientid)
+{
+    (void)thread_data;
+
+    flashmq_logf(LOG_INFO, "flashmq_plugin_client_disconnected called for '%s'", clientid.c_str());
+    flashmq_publish_message("disconnect/confirmed", 0, false, "adsf");
+}
+

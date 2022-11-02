@@ -239,6 +239,11 @@ void ThreadData::continueAsyncAuths()
     }
 }
 
+void ThreadData::clientDisconnectEvent(const std::string &clientid)
+{
+    authentication.clientDisconnected(clientid);
+}
+
 void ThreadData::queueContinuationOfAuthentication(const std::shared_ptr<Client> &client, AuthResult authResult, const std::string &authMethod, const std::string &returnData)
 {
     bool wakeUpNeeded = true;
@@ -257,6 +262,15 @@ void ThreadData::queueContinuationOfAuthentication(const std::shared_ptr<Client>
 
         wakeUpThread();
     }
+}
+
+void ThreadData::queueClientDisconnectEvent(const std::string &clientid)
+{
+    auto f = std::bind(&ThreadData::clientDisconnectEvent, this, clientid);
+    std::lock_guard<std::mutex> lockertaskQueue(taskQueueMutex);
+    taskQueue.push_front(f);
+
+    wakeUpThread();
 }
 
 void ThreadData::publishStatsOnDollarTopic(std::vector<std::shared_ptr<ThreadData>> &threads)

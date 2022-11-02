@@ -285,6 +285,15 @@ AuthResult flashmq_plugin_login_check(void *thread_data, const std::string &clie
                                       const std::vector<std::pair<std::string, std::string>> *userProperties, const std::weak_ptr<Client> &client);
 
 /**
+ * @brief flashmq_plugin_client_disconnected Called when clients disconnect or their keep-alive expire.
+ * @param thread_data
+ * @param clientid
+ *
+ * Is only called for authenticated clients, to avoid spoofing.
+ */
+void flashmq_plugin_client_disconnected(void *thread_data, const std::string &clientid);
+
+/**
  * @brief flashmq_plugin_acl_check is called on publish, deliver and subscribe.
  * @param thread_data is memory allocated in flashmq_plugin_allocate_thread_memory().
  * @return
