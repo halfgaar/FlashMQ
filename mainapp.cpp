@@ -60,7 +60,6 @@ MainApp::MainApp(const std::string &configFilePath) :
     if (num_threads <= 0)
         throw std::runtime_error("Invalid number of CPUs: " + std::to_string(num_threads));
 
-    if (settings.expireSessionsAfterSeconds > 0)
     {
         auto f = std::bind(&MainApp::queueCleanup, this);
         //const uint64_t derrivedSessionCheckInterval = std::max<uint64_t>((settings.expireSessionsAfterSeconds)*1000*2, 600000);
