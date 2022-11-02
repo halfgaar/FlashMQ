@@ -458,8 +458,6 @@ void MainApp::start()
     }
 #endif
 
-    timer.start();
-
     std::map<int, std::shared_ptr<Listener>> listenerMap; // For finding listeners by fd.
     std::list<ScopedSocket> activeListenSockets; // For RAII/ownership
 
@@ -571,6 +569,8 @@ void MainApp::start()
     // Populate the $SYS topics, otherwise you have to wait until the timer expires.
     if (!threads.empty())
         threads.front()->queuePublishStatsOnDollarTopic(threads);
+
+    timer.start();
 
     uint next_thread_index = 0;
 
