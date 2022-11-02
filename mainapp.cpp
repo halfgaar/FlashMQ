@@ -284,29 +284,11 @@ void MainApp::saveStateInThread()
 
 void MainApp::queueSendQueuedWills()
 {
-    std::lock_guard<std::mutex> locker(eventMutex);
-
     if (!threads.empty())
     {
-        std::shared_ptr<ThreadData> t = threads[nextThreadForTasks++ % threads.size()];
-        auto f = std::bind(&ThreadData::queueSendingQueuedWills, t.get());
-        taskQueue.push_front(f);
-
-        wakeUpThread();
-    }
-}
-
-void MainApp::queueRemoveExpiredSessions()
-{
-    std::lock_guard<std::mutex> locker(eventMutex);
-
-    if (!threads.empty())
-    {
-        std::shared_ptr<ThreadData> t = threads[nextThreadForTasks++ % threads.size()];
-        auto f = std::bind(&ThreadData::queueRemoveExpiredSessions, t.get());
-        taskQueue.push_front(f);
-
-        wakeUpThread();
+        int threadnr = rand() % threads.size();
+        std::shared_ptr<ThreadData> t = threads[threadnr];
+        t->queueSendingQueuedWills();
     }
 }
 
@@ -839,12 +821,12 @@ void MainApp::queueConfigReload()
 
 void MainApp::queueCleanup()
 {
-    std::lock_guard<std::mutex> locker(eventMutex);
-
-    auto f = std::bind(&MainApp::queueRemoveExpiredSessions, this);
-    taskQueue.push_front(f);
-
-    wakeUpThread();
+    if (!threads.empty())
+    {
+        int threadnr = rand() % threads.size();
+        std::shared_ptr<ThreadData> t = threads[threadnr];
+        t->queueRemoveExpiredSessions();
+    }
 }
 
 std::shared_ptr<SubscriptionStore> MainApp::getSubscriptionStore()

@@ -62,7 +62,6 @@ class MainApp
     bool doConfigReload = false;
     std::mutex eventMutex;
     Timer timer;
-    uint16_t nextThreadForTasks = 0;
 
     Settings settings;
 
@@ -91,7 +90,6 @@ class MainApp
     void saveState(const Settings &settings);
     void saveStateInThread();
     void queueSendQueuedWills();
-    void queueRemoveExpiredSessions();
     void waitForWillsQueued();
     void waitForDisconnectsInitiated();
     void queueRetainedMessageExpiration();
