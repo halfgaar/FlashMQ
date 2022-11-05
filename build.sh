@@ -25,9 +25,9 @@ cmake -DCMAKE_BUILD_TYPE="$BUILD_TYPE" "$thisdir"
 make -j
 cpack
 
-FLASHMQ_VERSION=$(./FlashMQ --version | grep -Ei 'Flashmq.*version.*' | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+[^ ]*')
+FLASHMQ_VERSION=$(./flashmq --version | grep -Ei 'Flashmq.*version.*' | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+[^ ]*')
 
 if command -v linuxdeploy-x86_64.AppImage &> /dev/null; then
-  linuxdeploy-x86_64.AppImage --create-desktop-file --icon-file "../FlashMQ.png" --appdir "AppImageDir" --executable "FlashMQ" --output appimage
-  mv FlashMQ-*.AppImage "FlashMQ-${FLASHMQ_VERSION}-linux-amd64.AppImage"
+  linuxdeploy-x86_64.AppImage --create-desktop-file --icon-file "../flashmq.png" --appdir "AppImageDir" --executable "flashmq" --output appimage
+  mv flashmq-*.AppImage "flashmq-${FLASHMQ_VERSION}-linux-amd64.AppImage"
 fi

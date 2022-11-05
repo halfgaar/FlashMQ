@@ -32,7 +32,7 @@ COPY --from=build /lib64/ld-linux-x86-64.so.2 /lib64/ld-linux-x86-64.so.2
 COPY --from=build /lib/x86_64-linux-gnu/libm.so.6 /lib/x86_64-linux-gnu/libm.so.6
 
 # copy in the FlashMQ binary itself
-COPY --from=build /usr/src/app/FlashMQBuildRelease/FlashMQ /bin/FlashMQ
+COPY --from=build /usr/src/app/FlashMQBuildRelease/flashmq /bin/flashmq
 
 EXPOSE 1883
-CMD ["/bin/FlashMQ"]
+CMD ["/bin/flashmq"]

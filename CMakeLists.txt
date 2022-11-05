@@ -20,7 +20,7 @@ endif()
 
 add_compile_options(-Wall)
 
-add_executable(FlashMQ
+add_executable(flashmq
     forward_declarations.h
     mainapp.h
     utils.h
@@ -110,11 +110,11 @@ add_executable(FlashMQ
 
     )
 
-target_link_libraries(FlashMQ pthread dl ssl crypto)
+target_link_libraries(flashmq pthread dl ssl crypto)
 
 execute_process(COMMAND ../.get-os-codename-and-stamp.sh OUTPUT_VARIABLE OS_CODENAME)
 
-install(TARGETS FlashMQ
+install(TARGETS flashmq
   RUNTIME DESTINATION "/usr/bin/")
 
 install(DIRECTORY DESTINATION "/var/lib/flashmq")

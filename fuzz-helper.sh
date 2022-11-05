@@ -32,15 +32,15 @@ if [[ "$1" == "build" ]]; then
 
   "$thisdir/build.sh" Debug
 
-  if [[ -f "./FlashMQBuildDebug/FlashMQ" ]]; then
-    cp -v "./FlashMQBuildDebug/FlashMQ" ..
+  if [[ -f "./FlashMQBuildDebug/flashmq" ]]; then
+    cp -v "./FlashMQBuildDebug/flashmq" ..
   fi
 fi
 
 if [[ "$1" == "run" ]]; then
   INPUTDIR="$FLASHMQ_SRC/fuzztests"
   OUTPUTDIR="fuzzoutput"
-  BINARY="./FlashMQ"
+  BINARY="./flashmq"
 
   if [[ ! -d "$OUTPUTDIR" ]]; then
     mkdir "$OUTPUTDIR"
