@@ -7,15 +7,18 @@
 
 FlashMQ is a high-performance, light-weight MQTT broker/server, designed to take good advantage of multi-CPU environments.
 
-Builds (zip and a Debian apt server) are provided on [www.flashmq.org](https://www.flashmq.org).
+Builds (AppImage and a Debian/Ubuntu apt server) are provided on [www.flashmq.org](https://www.flashmq.org).
 
-Building from source can be done with `build.sh`.
+Building from source can be done with `build.sh`. It's best to checkout a tagged release first. See `git tag`.
 
 ## Docker
 
 Official Docker images aren't available yet, but building your own Docker image can be done with the provided Dockerfile.
 
 ```
+# It's best to checkout a tagged release. See 'git tag'.
+git checkout <tag name>
+
 # build flashmq docker image
 docker build . -t halfgaar/flashmq
 
