@@ -40,5 +40,5 @@ jobs:
       # Building
       - run: CXX="${{ matrix.CXX }}" ./build.sh "Release"
       # Testing build results
-      - run: ./FlashMQBuildRelease/FlashMQ --version
+      - run: ./FlashMQBuildRelease/flashmq --version
       - run: sudo dpkg -i ./FlashMQBuildRelease/*.deb
