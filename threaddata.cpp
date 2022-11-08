@@ -168,7 +168,9 @@ void ThreadData::queueClientNextKeepAliveCheckLocked(std::shared_ptr<Client> &cl
  */
 void ThreadData::continuationOfAuthentication(std::shared_ptr<Client> &client, AuthResult authResult, const std::string &authMethod, const std::string &returnData)
 {
+#ifndef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
     assert(pthread_self() == thread.native_handle());
+#endif
 
     std::shared_ptr<SubscriptionStore> subscriptionStore = MainApp::getMainApp()->getSubscriptionStore();
 
