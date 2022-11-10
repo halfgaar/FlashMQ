@@ -32,3 +32,12 @@ docker build . --target=build
 ```
 
 See [www.flashmq.org](https://www.flashmq.org)
+
+## Commercial services
+
+If your company requires commercial FlashMQ services, go to
+[www.flashmq.com](https://www.flashmq.com).  Services include:
+
+  - the development of custom FlashMQ plugins;
+  - MQTT integration advice; and
+  - managed FlashMQ (coming Q1 2023).
