@@ -146,6 +146,7 @@ void SubscriptionStore::addSubscription(std::shared_ptr<Client> &client, const s
         {
             const std::shared_ptr<Session> &ses = session_it->second;
             deepestNode->addSubscriber(ses, qos);
+            subscriptionCount++;
             lock_guard.unlock();
             giveClientRetainedMessages(ses, subtopics, qos);
         }
@@ -192,6 +193,7 @@ void SubscriptionStore::removeSubscription(std::shared_ptr<Client> &client, cons
         {
             const std::shared_ptr<Session> &ses = session_it->second;
             deepestNode->removeSubscriber(ses);
+            subscriptionCount--;
         }
     }
 
@@ -807,15 +809,35 @@ uint64_t SubscriptionStore::getSessionCount() const
     return sessionsByIdConst.size();
 }
 
+/**
+ * @brief SubscriptionStore::getSubscriptionCount Gets the approximate subscription count and occassionally accurately refreshes.
+ * @return
+ *
+ * With sessions that expire, log off, etc, one would have to validate each subscription's existence to count accurately. It's just not worth
+ * it to do so.
+ */
 int64_t SubscriptionStore::getSubscriptionCount()
 {
+    if (this->lastSubscriptionCountRefreshedAt + std::chrono::minutes(30) > std::chrono::steady_clock::now())
+        return this->subscriptionCount;
+
     int64_t count = 0;
 
-    RWLockGuard lock_guard(&sessionsAndSubscriptionsRwlock);
-    lock_guard.rdlock();
+    {
+        RWLockGuard lock_guard(&sessionsAndSubscriptionsRwlock);
+        lock_guard.rdlock();
 
-    countSubscriptions(&root, count);
-    countSubscriptions(&rootDollar, count);
+        countSubscriptions(&root, count);
+        countSubscriptions(&rootDollar, count);
+    }
+
+    {
+        RWLockGuard lock_guard(&sessionsAndSubscriptionsRwlock);
+        lock_guard.wrlock();
+
+        lastSubscriptionCountRefreshedAt = std::chrono::steady_clock::now();
+        this->subscriptionCount = count;
+    }
 
     return count;
 }

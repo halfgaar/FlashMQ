@@ -119,6 +119,9 @@ class SubscriptionStore
     RetainedMessageNode retainedMessagesRootDollar;
     int64_t retainedMessageCount = 0;
 
+    int64_t subscriptionCount = 0;
+    std::chrono::time_point<std::chrono::steady_clock> lastSubscriptionCountRefreshedAt;
+
     std::mutex pendingWillsMutex;
     std::map<std::chrono::seconds, std::vector<QueuedWill>> pendingWillMessages;
 
