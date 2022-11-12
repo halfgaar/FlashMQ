@@ -28,21 +28,30 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "acltree.h"
 #include "flashmq_plugin.h"
 
+enum class PasswordHashType
+{
+    SHA512,
+    SHA512_pbkdf2
+};
+
 /**
  * @brief The MosquittoPasswordFileEntry struct stores the decoded base64 password salt and hash.
  *
- * The Mosquitto encrypted format looks like that of crypt(2), but it's not. This is an example entry:
+ * The Mosquitto encrypted format looks like that of crypt(2), but it's not. These are example entries:
  *
  * one:$6$emTXKCHfxMnZLDWg$gDcJRPojvOX8l7W/DRhSPoxV3CgPfECJVGRzw2Sqjdc2KIQ/CVLS1mNEuZUsp/vLdj7RCuqXCkgG43+XIc8WBA==
+ * two:$7$101$twKcRmS7qxdZtFZiU+yLZHAIRNsm8deqMG9nN44pagg8t5wkUxtyWiNgbUF38cHzmgDja...VPMaNLw==
  *
- * $ is the seperator. '6' is hard-coded by the 'mosquitto_passwd' utility.
+ * $ is the seperator. '6' or '7' is the algorithm.
  */
 struct MosquittoPasswordFileEntry
 {
+    PasswordHashType type;
     std::vector<char> salt;
     std::vector<char> cryptedPassword;
+    int iterations = 0;
 
-    MosquittoPasswordFileEntry(const std::vector<char> &&salt, const std::vector<char> &&cryptedPassword);
+    MosquittoPasswordFileEntry(PasswordHashType type, const std::vector<char> &&salt, const std::vector<char> &&cryptedPassword, int iterations);
 
     // The plan was that objects of this type wouldn't be copied, but I can't get emplacing to work without it...?
     //MosquittoPasswordFileEntry(const MosquittoPasswordFileEntry &other) = delete;

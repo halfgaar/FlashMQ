@@ -176,6 +176,8 @@ private slots:
     void testTimePointToAge();
 
     void testPluginOnDisconnect();
+
+    void testMosquittoPasswordFile();
 };
 
 MainTests::MainTests()
@@ -3446,6 +3448,78 @@ void MainTests::testPluginOnDisconnect()
     receiver.waitForMessageCount(1);
     MYCASTCOMPARE(receiver.receivedPublishes.size(), 1);
     QCOMPARE(receiver.receivedPublishes.front().getTopic(), "disconnect/confirmed");
+}
+
+void MainTests::testMosquittoPasswordFile()
+{
+    std::vector<ProtocolVersion> versions { ProtocolVersion::Mqtt311, ProtocolVersion::Mqtt5 };
+
+    ConfFileTemp passwd_file;
+    passwd_file.writeLine("one:$6$JCNyGIZwxpaB++iTCwiT2e80YX6mEFymRCkRpHkm50dNP8IfHMWz97BdadZVsZCCC9yr7/OXxAbdfAVk71xqyA==$AL25hdhMm0CkQ3/nxtgGJ96xfSv6hCAf7aHZby8mZWnkNxmvRnuu6fHWi6yvyr1EjPD4P9vmIvKwqvdKEVDLLQ==");
+    passwd_file.writeLine("two:$7$101$QVgLoPCu8Lb9A6HRYFhcsIsYqE1QR5elwDr7oioyNw7n5OMqdpM0Xk+Iacbj+ZvXiIVihFYEVDgJMkr8vAR08A==$xTJ1tbPTZcaJH+ie9gXUDumHqdJYpGCMXW/asC/qMrdobawqU2tpBHzvJnm2VfsYCwgchOCegI8RvYt1IAUivg==");
+    passwd_file.closeFile();
+
+    ConfFileTemp confFile;
+    confFile.writeLine(formatString("mosquitto_password_file %s", passwd_file.getFilePath().c_str()));
+    confFile.writeLine("allow_anonymous false");
+    confFile.closeFile();
+
+    std::vector<std::string> args {"--config-file", confFile.getFilePath()};
+
+    cleanup();
+    init(args);
+
+    {
+        FlashMQTestClient client;
+        client.start();
+        client.connectClient(ProtocolVersion::Mqtt5, false, 120, [](Connect &connect) {
+            connect.username = "one";
+            connect.password = "one";
+        });
+
+        auto ack = client.receivedPackets.front();
+        ConnAckData ackData = ack.parseConnAckData();
+        QCOMPARE(ackData.reasonCode, ReasonCodes::Success);
+    }
+
+    {
+        FlashMQTestClient client;
+        client.start();
+        client.connectClient(ProtocolVersion::Mqtt5, false, 120, [](Connect &connect) {
+            connect.username = "two";
+            connect.password = "two";
+        });
+
+        auto ack = client.receivedPackets.front();
+        ConnAckData ackData = ack.parseConnAckData();
+        QCOMPARE(ackData.reasonCode, ReasonCodes::Success);
+    }
+
+    {
+        FlashMQTestClient client;
+        client.start();
+        client.connectClient(ProtocolVersion::Mqtt5, false, 120, [](Connect &connect) {
+            connect.username = "two";
+            connect.password = "wrongpasswordforexistinguser";
+        });
+
+        auto ack = client.receivedPackets.front();
+        ConnAckData ackData = ack.parseConnAckData();
+        QCOMPARE(ackData.reasonCode, ReasonCodes::NotAuthorized);
+    }
+
+    {
+        FlashMQTestClient client;
+        client.start();
+        client.connectClient(ProtocolVersion::Mqtt5, false, 120, [](Connect &connect) {
+            connect.username = "erqwerq";
+            connect.password = "nonexistinguser";
+        });
+
+        auto ack = client.receivedPackets.front();
+        ConnAckData ackData = ack.parseConnAckData();
+        QCOMPARE(ackData.reasonCode, ReasonCodes::NotAuthorized);
+    }
 }
 
 int main(int argc, char *argv[])

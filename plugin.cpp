@@ -41,9 +41,11 @@ void mosquitto_log_printf(int level, const char *fmt, ...)
     va_end(valist);
 }
 
-MosquittoPasswordFileEntry::MosquittoPasswordFileEntry(const std::vector<char> &&salt, const std::vector<char> &&cryptedPassword) :
+MosquittoPasswordFileEntry::MosquittoPasswordFileEntry(PasswordHashType type, const std::vector<char> &&salt, const std::vector<char> &&cryptedPassword, int iterations) :
+    type(type),
     salt(salt),
-    cryptedPassword(cryptedPassword)
+    cryptedPassword(cryptedPassword),
+    iterations(iterations)
 {
 
 }
@@ -570,17 +572,40 @@ void Authentication::loadMosquittoPasswordFile()
                     }
                 }
 
-                std::vector<std::string> fields2 = splitToVector(fields[1], '$', 3, false);
+                std::vector<std::string> fields2 = splitToVector(fields[1], '$', 4, false);
 
-                if (fields2.size() != 3)
-                    throw std::runtime_error(formatString("Invalid line format in '%s'. Expected three fields separated by '$'", line.c_str()));
+                int iterations = -1;
+                int saltField = -1;
+                int hashField = -1;
+                PasswordHashType type = PasswordHashType::SHA512;
 
-                if (fields2[0] != "6")
-                    throw std::runtime_error("Password fields must start with $6$");
+                if (fields2[0] == "6")
+                {
+                    if (fields2.size() != 3)
+                        throw std::runtime_error(formatString("Invalid line format in '%s'. Expected three fields separated by '$'", line.c_str()));
 
-                std::vector<char> salt = base64Decode(fields2[1]);
-                std::vector<char> cryptedPassword = base64Decode(fields2[2]);
-                passwordEntries_tmp->emplace(username, MosquittoPasswordFileEntry(std::move(salt), std::move(cryptedPassword)));
+                    type = PasswordHashType::SHA512;
+                    saltField = 1;
+                    hashField = 2;
+                }
+                else if (fields2[0] == "7")
+                {
+                    if (fields2.size() != 4)
+                        throw std::runtime_error(formatString("Invalid line format in '%s'. Expected four fields separated by '$'", line.c_str()));
+
+                    type = PasswordHashType::SHA512_pbkdf2;
+                    iterations = std::stoi(fields2[1]);
+                    saltField = 2;
+                    hashField = 3;
+                }
+                else
+                {
+                    throw std::runtime_error("Password fields must start with $6$ or $7$");
+                }
+
+                std::vector<char> salt = base64Decode(fields2[saltField]);
+                std::vector<char> cryptedPassword = base64Decode(fields2[hashField]);
+                passwordEntries_tmp->emplace(username, MosquittoPasswordFileEntry(type, std::move(salt), std::move(cryptedPassword), iterations));
             }
             catch (std::exception &ex)
             {
@@ -716,22 +741,40 @@ AuthResult Authentication::unPwdCheckFromMosquittoPasswordFile(const std::string
     {
         result = AuthResult::login_denied;
 
-        unsigned char md_value[EVP_MAX_MD_SIZE];
-        unsigned int output_len = 0;
-
         const MosquittoPasswordFileEntry &entry = it->second;
 
-        EVP_MD_CTX_reset(mosquittoDigestContext);
-        EVP_DigestInit_ex(mosquittoDigestContext, sha512, NULL);
-        EVP_DigestUpdate(mosquittoDigestContext, password.c_str(), password.length());
-        EVP_DigestUpdate(mosquittoDigestContext, entry.salt.data(), entry.salt.size());
-        EVP_DigestFinal_ex(mosquittoDigestContext, md_value, &output_len);
+        if (entry.type == PasswordHashType::SHA512)
+        {
 
-        std::vector<char> hashedSalted(output_len);
-        std::memcpy(hashedSalted.data(), md_value, output_len);
+            unsigned char md_value[EVP_MAX_MD_SIZE];
+            unsigned int output_len = 0;
 
-        if (hashedSalted == entry.cryptedPassword)
-            result = AuthResult::success;
+            EVP_MD_CTX_reset(mosquittoDigestContext);
+            EVP_DigestInit_ex(mosquittoDigestContext, sha512, NULL);
+            EVP_DigestUpdate(mosquittoDigestContext, password.c_str(), password.length());
+            EVP_DigestUpdate(mosquittoDigestContext, entry.salt.data(), entry.salt.size());
+            EVP_DigestFinal_ex(mosquittoDigestContext, md_value, &output_len);
+
+            std::vector<char> hashedSalted(output_len);
+            std::memcpy(hashedSalted.data(), md_value, output_len);
+
+            if (hashedSalted == entry.cryptedPassword)
+                result = AuthResult::success;
+        }
+        else if (entry.type == PasswordHashType::SHA512_pbkdf2)
+        {
+            unsigned char md_value[EVP_MAX_MD_SIZE];
+
+            const unsigned char *saltData = reinterpret_cast<const unsigned char*>(entry.salt.data());
+
+            PKCS5_PBKDF2_HMAC(password.c_str(), password.size(), saltData, entry.salt.size(), entry.iterations, sha512, EVP_MAX_MD_SIZE, md_value);
+
+            std::vector<char> derivedKey(EVP_MAX_MD_SIZE);
+            std::memcpy(derivedKey.data(), md_value, EVP_MAX_MD_SIZE);
+
+            if (derivedKey == entry.cryptedPassword)
+                result = AuthResult::success;
+        }
     }
 
     return result;
