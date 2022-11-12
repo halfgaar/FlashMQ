@@ -97,8 +97,6 @@ MainApp::MainApp(const std::string &configFilePath) :
 
     if (!settings.storageDir.empty())
     {
-        subscriptionStore->loadSessionsAndSubscriptions(settings.getSessionsDBFile());
-
         const std::string retainedDbPath = settings.getRetainedMessagesDBFile();
         if (settings.retainedMessagesMode == RetainedMessagesMode::Enabled)
             subscriptionStore->loadRetainedMessages(settings.getRetainedMessagesDBFile());
