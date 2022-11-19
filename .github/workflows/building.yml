@@ -33,7 +33,7 @@ jobs:
     name: "${{ matrix.os }}: ${{ matrix.friendly }}"
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - run: sudo apt update
       # Build prerequisites
       - run: sudo apt install docbook2x
