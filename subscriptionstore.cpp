@@ -505,6 +505,8 @@ void SubscriptionStore::giveClientRetainedMessagesRecursively(std::vector<std::s
     {
         Authentication &auth = *ThreadGlobals::getAuth();
 
+        std::lock_guard<std::mutex> locker(this_node->messageSetMutex);
+
         auto pos = this_node->retainedMessages.begin();
         while (pos != this_node->retainedMessages.end())
         {
@@ -590,25 +592,66 @@ void SubscriptionStore::setRetainedMessage(const Publish &publish, const std::ve
     if (!subtopics.empty() && !subtopics[0].empty() > 0 && subtopics[0][0] == '$')
         deepestNode = &retainedMessagesRootDollar;
 
-    RWLockGuard locker(&retainedMessagesRwlock);
-    locker.wrlock();
+    bool needsWriteLock = false;
+    auto subtopic_pos = subtopics.begin();
 
-    for(const std::string &subtopic : subtopics)
+    // First do a read-only search for the node.
     {
-        std::unique_ptr<RetainedMessageNode> &selectedChildren = deepestNode->children[subtopic];
+        RWLockGuard locker(&retainedMessagesRwlock);
+        locker.rdlock();
 
-        if (!selectedChildren)
+        while(subtopic_pos != subtopics.end())
         {
-            selectedChildren = std::make_unique<RetainedMessageNode>();
+            auto pos = deepestNode->children.find(*subtopic_pos);
+
+            if (pos == deepestNode->children.end())
+            {
+                needsWriteLock = true;
+                break;
+            }
+
+            std::unique_ptr<RetainedMessageNode> &selectedChildren = pos->second;
+
+            if (!selectedChildren)
+            {
+                needsWriteLock = true;
+                break;
+            }
+            deepestNode = selectedChildren.get();
+            subtopic_pos++;
         }
-        deepestNode = selectedChildren.get();
+
+        assert(deepestNode);
+
+        if (!needsWriteLock && deepestNode)
+        {
+            deepestNode->addPayload(publish, retainedMessageCount);
+        }
     }
 
-    assert(deepestNode);
-
-    if (deepestNode)
+    if (needsWriteLock)
     {
-        deepestNode->addPayload(publish, retainedMessageCount);
+        RWLockGuard locker(&retainedMessagesRwlock);
+        locker.wrlock();
+
+        while(subtopic_pos != subtopics.end())
+        {
+            std::unique_ptr<RetainedMessageNode> &selectedChildren = deepestNode->children[*subtopic_pos];
+
+            if (!selectedChildren)
+            {
+                selectedChildren = std::make_unique<RetainedMessageNode>();
+            }
+            deepestNode = selectedChildren.get();
+            subtopic_pos++;
+        }
+
+        assert(deepestNode);
+
+        if (deepestNode)
+        {
+            deepestNode->addPayload(publish, retainedMessageCount);
+        }
     }
 }
 
@@ -844,9 +887,13 @@ int64_t SubscriptionStore::getSubscriptionCount()
 
 void SubscriptionStore::getRetainedMessages(RetainedMessageNode *this_node, std::vector<RetainedMessage> &outputList) const
 {
-    for(const RetainedMessage &rm : this_node->retainedMessages)
     {
-        outputList.push_back(rm);
+        std::lock_guard<std::mutex> locker(this_node->messageSetMutex);
+
+        for(const RetainedMessage &rm : this_node->retainedMessages)
+        {
+            outputList.push_back(rm);
+        }
     }
 
     for(auto &pair : this_node->children)
@@ -1122,6 +1169,8 @@ void Subscription::reset()
 
 void RetainedMessageNode::addPayload(const Publish &publish, int64_t &totalCount)
 {
+    std::lock_guard<std::mutex> locker(this->messageSetMutex);
+
     const int64_t countBefore = retainedMessages.size();
     RetainedMessage rm(publish);
 
@@ -1133,14 +1182,14 @@ void RetainedMessageNode::addPayload(const Publish &publish, int64_t &totalCount
 
     if (retained_found && publish.payload.empty())
     {
-        retainedMessages.erase(rm);
+        retainedMessages.erase(retained_ptr);
         const int64_t diffCount = (retainedMessages.size() - countBefore);
         totalCount += diffCount;
         return;
     }
 
     if (retained_found)
-        retainedMessages.erase(rm);
+        retainedMessages.erase(retained_ptr);
 
     retainedMessages.insert(std::move(rm));
     const int64_t diffCount = (retainedMessages.size() - countBefore);

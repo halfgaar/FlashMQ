@@ -83,6 +83,7 @@ private slots:
     void test_validSubscribePath();
 
     void test_retained();
+    void test_retained_double_set();
     void test_retained_mode_drop();
     void test_retained_mode_downgrade();
     void test_retained_changed();
@@ -506,6 +507,52 @@ void MainTests::test_retained()
             QVERIFY2(!msg2.getRetain(), "Getting a retained message while already being subscribed must be marked as normal, not retain.");
         }
     }
+}
+
+/**
+ * @brief MainTests::test_retained_double_set Test incepted because of different locking paths in first tree node and second tree node.
+ */
+void MainTests::test_retained_double_set()
+{
+    FlashMQTestClient sender;
+    FlashMQTestClient receiver;
+
+    sender.start();
+    receiver.start();
+
+    const std::string topic = "one/two/three";
+
+    sender.connectClient(ProtocolVersion::Mqtt5);
+
+    {
+        Publish pub("one", "dummy node creator", 0);
+        pub.retain = true;
+        sender.publish(pub);
+    }
+
+    Publish pub1(topic, "nobody sees this", 0);
+    pub1.retain = true;
+    sender.publish(pub1);
+
+    pub1.payload = "We are setting twice";
+    sender.publish(pub1);
+
+    receiver.connectClient(ProtocolVersion::Mqtt5);
+    receiver.subscribe("#", 0);
+
+    receiver.waitForMessageCount(2);
+
+    MYCASTCOMPARE(receiver.receivedPublishes.size(), 2);
+
+    MqttPacket &msg = *std::find_if(receiver.receivedPublishes.begin(), receiver.receivedPublishes.end(), [](const MqttPacket &p) {return p.getTopic() == "one";});
+    QCOMPARE(msg.getPayloadCopy(), "dummy node creator");
+    QCOMPARE(msg.getTopic(), "one");
+    QVERIFY(msg.getRetain());
+
+    MqttPacket &msg2 = *std::find_if(receiver.receivedPublishes.begin(), receiver.receivedPublishes.end(), [&](const MqttPacket &p) {return p.getTopic() == topic;});
+    QCOMPARE(msg2.getPayloadCopy(), "We are setting twice");
+    QCOMPARE(msg2.getTopic(), topic);
+    QVERIFY(msg2.getRetain());
 }
 
 /**

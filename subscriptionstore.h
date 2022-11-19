@@ -80,6 +80,7 @@ class RetainedMessageNode
     friend class SubscriptionStore;
 
     std::unordered_map<std::string, std::unique_ptr<RetainedMessageNode>> children;
+    std::mutex messageSetMutex;
     std::unordered_set<RetainedMessage> retainedMessages;
 
     void addPayload(const Publish &publish, int64_t &totalCount);
