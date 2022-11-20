@@ -979,7 +979,7 @@ void SubscriptionStore::saveRetainedMessages(const std::string &filePath)
     {
         RWLockGuard locker(&retainedMessagesRwlock);
         locker.rdlock();
-        result.reserve(retainedMessageCount);
+        result.reserve(std::max<int64_t>(retainedMessageCount, 0));
         getRetainedMessages(&retainedMessagesRoot, result);
     }
 
