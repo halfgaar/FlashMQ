@@ -975,16 +975,6 @@ void SubscriptionStore::countSubscriptions(SubscriptionNode *this_node, int64_t 
 
 void SubscriptionStore::expireRetainedMessages(RetainedMessageNode *this_node, const std::chrono::time_point<std::chrono::steady_clock> &limit)
 {
-    if (std::chrono::steady_clock::now() > limit)
-    {
-        const Settings *settings = ThreadGlobals::getSettings();
-        Logger *logger = Logger::getInstance();
-        logger->logf(LOG_WARNING, "Aborting expiration of retained messages because it exceeded time budget of %d ms. If you see this warning "
-                                  "regarly, consider your retained message load or increase 'expire_retained_messages_time_budget_ms'.",
-                     settings->expireRetainedMessagesTimeBudgetMs);
-        return;
-    }
-
     auto pos = this_node->retainedMessages.begin();
     while (pos != this_node->retainedMessages.end())
     {
@@ -1003,6 +993,16 @@ void SubscriptionStore::expireRetainedMessages(RetainedMessageNode *this_node, c
     auto cpos = this_node->children.begin();
     while (cpos != this_node->children.end())
     {
+        if (std::chrono::steady_clock::now() > limit)
+        {
+            const Settings *settings = ThreadGlobals::getSettings();
+            Logger *logger = Logger::getInstance();
+            logger->logf(LOG_WARNING, "Aborting expiration of retained messages because it exceeded time budget of %d ms. If you see this warning "
+                                      "regarly, consider your retained message load or increase 'expire_retained_messages_time_budget_ms'.",
+                         settings->expireRetainedMessagesTimeBudgetMs);
+            break;
+        }
+
         auto cur = cpos;
         cpos++;
         auto &pair = *cur;
