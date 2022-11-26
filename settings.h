@@ -25,7 +25,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "mosquittoauthoptcompatwrap.h"
 #include "listener.h"
 
-#define ABSOLUTE_MAX_PACKET_SIZE 268435461 // 256 MB + 5
+#define ABSOLUTE_MAX_PACKET_SIZE 268435455
 
 enum class RetainedMessagesMode
 {
