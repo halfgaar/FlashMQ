@@ -385,6 +385,12 @@
     </a>
   </xsl:template>
 
+  <xsl:template match="dbk:link[@xlink:href]">
+    <a href="{@xlink:href}">
+      <xsl:apply-templates select="node()"/>
+    </a>
+  </xsl:template>
+
   <xsl:template match="dbk:citerefentry">
     <cite class="citerefentry">
       <span class="refentrytitle">

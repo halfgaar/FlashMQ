@@ -28,7 +28,9 @@ FlashMQ will auto-detect which plugin interface you\(cqre trying to load (Mosqui
 
 You can only have one plugin active, but you can combine it with 
 .URL #mosquitto_password_file mosquitto_password_file
-and \(lamosquitto_acl_file\(ra. The password and ACL file take precedence, and on a \(oqdeny\(cq, will not ask the plugin.
+and 
+.URL #mosquitto_acl_file mosquitto_acl_file
+\&. The password and ACL file take precedence, and on a \(oqdeny\(cq, will not ask the plugin.
 .TP 
 \*(T<\fBplugin_opt_*\fR\*(T> \fIvalue\fR 
 Options passed to the plugin \*(T<\fBinit()\fR\*(T> function.
@@ -237,7 +239,9 @@ Setting the listener to haproxy makes it expect the PROXY protocol and set clien
 
 Note that HAProxy's server health checks only started using the 'local' specifier as of version 2.4. This means earlier version will pretend to be a client and break the connection, causing log spam.
 
-See haproxy.org.
+See 
+.URL http://www.haproxy.org/ haproxy.org
+\&.
 .SH "EXAMPLE LISTENERS"
 .nf
 listen {
@@ -281,3 +285,5 @@ listen {
 Wiebe Cazemier <\*(T<contact@flashmq.org\*(T>>.
 .SH "SEE ALSO"
 \fBflashmq\fR(1)
+.PP
+.URL https://www.flashmq.org/ www.flashmq.org

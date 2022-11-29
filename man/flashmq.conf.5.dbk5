@@ -51,7 +51,7 @@
             FlashMQ will auto-detect which plugin interface you’re trying to load (Mosquitto version 2 or FlashMQ native). Keep in mind that each thread initializes the plugin, inline with multi-core programming (minimize shared data and interaction between threads). You could use static variables with thread synchronization if you really want to. And of course, any Mosquitto plugin that uses global and/or static variables instead of initializing memory in its <function>init()</function> method, will not be thread-safe and won’t work.
           </para>
           <para>
-            You can only have one plugin active, but you can combine it with <link xlink:href="#mosquitto_password_file"><option>mosquitto_password_file</option></link> and <link xlink:href="mosquitto_acl_file"><option>mosquitto_acl_file</option></link>. The password and ACL file take precedence, and on a ‘deny’, will not ask the plugin.
+            You can only have one plugin active, but you can combine it with <link xlink:href="#mosquitto_password_file"><option>mosquitto_password_file</option></link> and <link xlink:href="#mosquitto_acl_file"><option>mosquitto_acl_file</option></link>. The password and ACL file take precedence, and on a ‘deny’, will not ask the plugin.
           </para>
         </listitem>
       </varlistentry>
@@ -500,7 +500,7 @@
             Note that HAProxy's server health checks only started using the 'local' specifier as of version 2.4. This means earlier version will pretend to be a client and break the connection, causing log spam.
           </para>
           <para>
-            See <a href="http://www.haproxy.org/">haproxy.org</a>.
+            See <link xlink:href="http://www.haproxy.org/">haproxy.org</link>.
           </para>
         </listitem>
       </varlistentry>
@@ -567,6 +567,9 @@ listen {
           </citerefentry>
         </member>
       </simplelist>
+    </para>
+    <para>
+      <link xlink:href="https://www.flashmq.org/">www.flashmq.org</link>
     </para>
   </refsect1>
 </refentry>

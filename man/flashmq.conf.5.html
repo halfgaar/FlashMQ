@@ -105,7 +105,7 @@
             FlashMQ will auto-detect which plugin interface you’re trying to load (Mosquitto version 2 or FlashMQ native). Keep in mind that each thread initializes the plugin, inline with multi-core programming (minimize shared data and interaction between threads). You could use static variables with thread synchronization if you really want to. And of course, any Mosquitto plugin that uses global and/or static variables instead of initializing memory in its <code class="function">init()</code> method, will not be thread-safe and won’t work.
           </p>
           <p>
-            You can only have one plugin active, but you can combine it with mosquitto_password_file and mosquitto_acl_file. The password and ACL file take precedence, and on a ‘deny’, will not ask the plugin.
+            You can only have one plugin active, but you can combine it with <a href="#mosquitto_password_file">mosquitto_password_file</a> and <a href="#mosquitto_acl_file">mosquitto_acl_file</a>. The password and ACL file take precedence, and on a ‘deny’, will not ask the plugin.
           </p>
         </dd>
       
@@ -552,7 +552,7 @@
             Note that HAProxy's server health checks only started using the 'local' specifier as of version 2.4. This means earlier version will pretend to be a client and break the connection, causing log spam.
           </p>
           <p>
-            See haproxy.org.
+            See <a href="http://www.haproxy.org/">haproxy.org</a>.
           </p>
         </dd>
       
@@ -610,5 +610,8 @@ listen {
           <cite class="citerefentry"><span class="refentrytitle">flashmq</span><span class="manvolnum">(1)</span></cite>
         </span>
       </span>
+    </p>
+    <p>
+      <a href="https://www.flashmq.org/">www.flashmq.org</a>
     </p>
   </section></article></body></html>
