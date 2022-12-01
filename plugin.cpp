@@ -104,7 +104,7 @@ void Authentication::loadPlugin(const std::string &pathToSoFile)
         throw FatalError(oss.str());
     }
 
-    void *r = dlopen(pathToSoFile.c_str(), RTLD_NOW|RTLD_GLOBAL);
+    void *r = dlopen(pathToSoFile.c_str(), RTLD_LAZY|RTLD_GLOBAL);
 
     if (r == NULL)
     {
@@ -121,14 +121,6 @@ void Authentication::loadPlugin(const std::string &pathToSoFile)
         }
 
         pluginVersion = PluginVersion::MosquittoV2;
-
-        init_v2 = (F_plugin_init_v2)loadSymbol(r, "mosquitto_auth_plugin_init");
-        cleanup_v2 = (F_plugin_cleanup_v2)loadSymbol(r, "mosquitto_auth_plugin_cleanup");
-        security_init_v2 = (F_plugin_security_init_v2)loadSymbol(r, "mosquitto_auth_security_init");
-        security_cleanup_v2 = (F_plugin_security_cleanup_v2)loadSymbol(r, "mosquitto_auth_security_cleanup");
-        acl_check_v2 = (F_plugin_acl_check_v2)loadSymbol(r, "mosquitto_auth_acl_check");
-        unpwd_check_v2 = (F_plugin_unpwd_check_v2)loadSymbol(r, "mosquitto_auth_unpwd_check");
-        psk_key_get_v2 = (F_plugin_psk_key_get_v2)loadSymbol(r, "mosquitto_auth_psk_key_get");
     }
     else if ((version = (F_plugin_version)loadSymbol(r, "flashmq_plugin_version", false)) != nullptr)
     {
@@ -138,7 +130,39 @@ void Authentication::loadPlugin(const std::string &pathToSoFile)
         }
 
         pluginVersion = PluginVersion::FlashMQv1;
+    }
+    else
+    {
+        throw FatalError("This does not seem to be a FlashMQ native plugin or Mosquitto plugin version 2.");
+    }
 
+    if (dlclose(r) != 0)
+    {
+        std::string errmsg(dlerror());
+        throw FatalError(errmsg);
+    }
+    version = nullptr;
+
+    r = dlopen(pathToSoFile.c_str(), RTLD_NOW|RTLD_GLOBAL);
+
+    if (r == NULL)
+    {
+        std::string errmsg(dlerror());
+        throw FatalError(errmsg);
+    }
+
+    if (pluginVersion == PluginVersion::MosquittoV2)
+    {
+        init_v2 = (F_plugin_init_v2)loadSymbol(r, "mosquitto_auth_plugin_init");
+        cleanup_v2 = (F_plugin_cleanup_v2)loadSymbol(r, "mosquitto_auth_plugin_cleanup");
+        security_init_v2 = (F_plugin_security_init_v2)loadSymbol(r, "mosquitto_auth_security_init");
+        security_cleanup_v2 = (F_plugin_security_cleanup_v2)loadSymbol(r, "mosquitto_auth_security_cleanup");
+        acl_check_v2 = (F_plugin_acl_check_v2)loadSymbol(r, "mosquitto_auth_acl_check");
+        unpwd_check_v2 = (F_plugin_unpwd_check_v2)loadSymbol(r, "mosquitto_auth_unpwd_check");
+        psk_key_get_v2 = (F_plugin_psk_key_get_v2)loadSymbol(r, "mosquitto_auth_psk_key_get");
+    }
+    else if (pluginVersion == PluginVersion::FlashMQv1)
+    {
         flashmq_plugin_allocate_thread_memory_v1 = (F_flashmq_plugin_allocate_thread_memory_v1)loadSymbol(r, "flashmq_plugin_allocate_thread_memory");
         flashmq_plugin_deallocate_thread_memory_v1 = (F_flashmq_plugin_deallocate_thread_memory_v1)loadSymbol(r, "flashmq_plugin_deallocate_thread_memory");
         flashmq_plugin_init_v1 = (F_flashmq_plugin_init_v1)loadSymbol(r, "flashmq_plugin_init");
@@ -150,6 +174,10 @@ void Authentication::loadPlugin(const std::string &pathToSoFile)
         flashmq_plugin_alter_subscription_v1 = (F_flashmq_plugin_alter_subscription_v1)loadSymbol(r, "flashmq_plugin_alter_subscription", false);
         flashmq_plugin_alter_publish_v1 = (F_flashmq_plugin_alter_publish_v1)loadSymbol(r, "flashmq_plugin_alter_publish", false);
         flashmq_plugin_client_disconnected_v1 = (F_flashmq_plugin_client_disconnected_v1)loadSymbol(r, "flashmq_plugin_client_disconnected", false);
+    }
+    else
+    {
+        throw FatalError("Unreachable error reached?");
     }
 
     initialized = true;
