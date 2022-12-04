@@ -124,6 +124,8 @@ enum class ServerDisconnectReasons
  * Many clients will automatically reconnect, so you'll have to also remove permissions of the client in question, probably.
  *
  * Can be called from any thread: the action will be queued properly.
+ *
+ * [Function provided by FlashMQ]
  */
 void flashmq_plugin_remove_client(const std::string &clientid, bool alsoSession, ServerDisconnectReasons reasonCode);
 
@@ -138,6 +140,8 @@ void flashmq_plugin_remove_client(const std::string &clientid, bool alsoSession,
  * You need to keep track of subscriptions in 'flashmq_plugin_acl_check()' to be able to know what to remove.
  *
  * Can be called from any thread, because the global subscription store is mutexed.
+ *
+ * [Function provided by FlashMQ]
  */
 void flashmq_plugin_remove_subscription(const std::string &clientid, const std::string &topicFilter);
 
@@ -152,6 +156,8 @@ void flashmq_plugin_remove_subscription(const std::string &clientid, const std::
  * It uses a weak pointer to Client instead of client id, because clients are in limbo at this point, and a client id isn't necessarily
  * correct (anymore). The login functions also give this weak pointer so you can store it with the async operation, to be used again later for
  * a call to this function.
+ *
+ * [Function provided by FlashMQ]
  */
 void flashmq_continue_async_authentication(const std::weak_ptr<Client> &client, AuthResult result, const std::string &authMethod, const std::string &returnData);
 
@@ -159,6 +165,8 @@ void flashmq_continue_async_authentication(const std::weak_ptr<Client> &client, 
  * @brief flashmq_publish_message Publish a message from the plugin.
  *
  * Can be called from any thread.
+ *
+ * [Function provided by FlashMQ]
  */
 void flashmq_publish_message(const std::string &topic, const uint8_t qos, const bool retain, const std::string &payload, uint32_t expiryInterval=0,
                              const std::vector<std::pair<std::string, std::string>> *userProperties = nullptr,
@@ -185,12 +193,16 @@ public:
  * @param addr If not nullptr, will provide a sockaddr struct, for low level operations.
  *
  * The text and addr can be pointers to local variables in the calling context.
+ *
+ * [Function provided by FlashMQ]
  */
 void flashmq_get_client_address(const std::weak_ptr<Client> &client, std::string *text, FlashMQSockAddr *addr);
 
 /**
  * @brief flashmq_plugin_version must return FLASHMQ_PLUGIN_VERSION.
  * @return FLASHMQ_PLUGIN_VERSION.
+ *
+ * [Must be implemented by plugin]
  */
 int flashmq_plugin_version();
 
@@ -205,6 +217,8 @@ int flashmq_plugin_version();
  * variables for global scope if you must, or even create threads, but do provide proper locking where necessary.
  *
  * You can throw exceptions on errors.
+ *
+ * [Must be implemented by plugin]
  */
 void flashmq_plugin_allocate_thread_memory(void **thread_data, std::unordered_map<std::string, std::string> &plugin_opts);
 
@@ -214,6 +228,8 @@ void flashmq_plugin_allocate_thread_memory(void **thread_data, std::unordered_ma
  * @param plugin_opts. Map of flashmq_plugin_opt_* from the config file.
  *
  * You can throw exceptions on errors.
+ *
+ * [Must be implemented by plugin]
  */
 void flashmq_plugin_deallocate_thread_memory(void *thread_data, std::unordered_map<std::string, std::string> &plugin_opts);
 
@@ -233,6 +249,8 @@ void flashmq_plugin_deallocate_thread_memory(void *thread_data, std::unordered_m
  * case you run into problems.
  *
  * You can throw exceptions on errors.
+ *
+ * [Must be implemented by plugin]
  */
 void flashmq_plugin_init(void *thread_data, std::unordered_map<std::string, std::string> &plugin_opts, bool reloading);
 
@@ -243,6 +261,8 @@ void flashmq_plugin_init(void *thread_data, std::unordered_map<std::string, std:
  * @param reloading
  *
  * You can throw exceptions on errors.
+ *
+ * [Must be implemented by plugin]
  */
 void flashmq_plugin_deinit(void *thread_data, std::unordered_map<std::string, std::string> &plugin_opts, bool reloading);
 
@@ -258,9 +278,9 @@ void flashmq_plugin_deinit(void *thread_data, std::unordered_map<std::string, st
  *
  * The setting plugin_timer_period sets this interval in seconds.
  *
- * Implementing this is optional.
- *
  * You can throw exceptions on errors.
+ *
+ * [Can optionally be implemented by plugin]
  */
 void flashmq_plugin_periodic_event(void *thread_data);
 
@@ -284,6 +304,8 @@ bool flashmq_plugin_alter_subscription(void *thread_data, const std::string &cli
  * results in unpredictable behavior.
  *
  * Be aware that changing publishes may incur a (slight) reduction in performance.
+ *
+ * [Can optionally be implemented by plugin]
  */
 bool flashmq_plugin_alter_publish(void *thread_data, const std::string &clientid, std::string &topic, const std::vector<std::string> &subtopics,
                                   uint8_t &qos, bool &retain, std::vector<std::pair<std::string, std::string>> *userProperties);
@@ -305,6 +327,8 @@ bool flashmq_plugin_alter_publish(void *thread_data, const std::string &clientid
  * The AuthResult::async can be used if your auth check causes blocking IO (like network). You can save the weak pointer to the client
  * and do the auth in a thread or any kind of async way. FlashMQ's event loop will then continue. You can call flashmq_continue_async_authentication
  * later with the result.
+ *
+ * [Must be implemented by plugin]
  */
 AuthResult flashmq_plugin_login_check(void *thread_data, const std::string &clientid, const std::string &username, const std::string &password,
                                       const std::vector<std::pair<std::string, std::string>> *userProperties, const std::weak_ptr<Client> &client);
@@ -315,6 +339,8 @@ AuthResult flashmq_plugin_login_check(void *thread_data, const std::string &clie
  * @param clientid
  *
  * Is only called for authenticated clients, to avoid spoofing.
+ *
+ * [Can optionally be implemented by plugin]
  */
 void flashmq_plugin_client_disconnected(void *thread_data, const std::string &clientid);
 
@@ -336,6 +362,8 @@ void flashmq_plugin_client_disconnected(void *thread_data, const std::string &cl
  *
  * Note that there is a setting 'plugin_serialize_auth_checks'. Use only as a last resort if your plugin is not
  * thread-safe. It will negate much of FlashMQ's multi-core model.
+ *
+ * [Must be implemented by plugin]
  */
 AuthResult flashmq_plugin_acl_check(void *thread_data, const AclAccess access, const std::string &clientid, const std::string &username,
                                     const std::string &topic, const std::vector<std::string> &subtopics, const uint8_t qos, const bool retain,
@@ -353,6 +381,8 @@ AuthResult flashmq_plugin_acl_check(void *thread_data, const AclAccess access, c
  * @param username is a non-const string. You can set it, which will then apply to ACL checking and show in the logs.
  * @param client Use this for AuthResult::async. See flashmq_plugin_login_check().
  * @return an AuthResult enum class value
+ *
+ * [Can optionally be implemented by plugin]
  */
 AuthResult flashmq_plugin_extended_auth(void *thread_data, const std::string &clientid, ExtendedAuthStage stage, const std::string &authMethod,
                                         const std::string &authData, const std::vector<std::pair<std::string, std::string>> *userProperties, std::string &returnData,
