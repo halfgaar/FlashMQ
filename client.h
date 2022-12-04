@@ -111,6 +111,8 @@ class Client
 
     Logger *logger = Logger::getInstance();
 
+    sockaddr_in6 addr;
+
     void setReadyForWriting(bool val);
     void setReadyForReading(bool val);
 
@@ -161,6 +163,7 @@ public:
     // Do this before calling an action that makes this client ready for writing, so that the EPOLLOUT will handle it.
     void setReadyForDisconnect() { disconnectWhenBytesWritten = true; }
 
+    const sockaddr *getAddr() const;
     std::string repr();
     bool keepAliveExpired();
     std::string getKeepAliveInfoString() const;

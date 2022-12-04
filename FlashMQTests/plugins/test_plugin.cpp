@@ -83,6 +83,20 @@ AuthResult flashmq_plugin_login_check(void *thread_data, const std::string &clie
     if (username == "failme")
         return AuthResult::login_denied;
 
+    if (username == "getaddress")
+    {
+        std::string text;
+        FlashMQSockAddr addr;
+        flashmq_get_client_address(client, &text, &addr);
+
+        flashmq_publish_message("getaddresstest/address", 0, false, text);
+
+        if (addr.getAddr()->sa_family == AF_INET)
+        {
+            flashmq_publish_message("getaddresstest/family", 0, false, "AF_INET");
+        }
+    }
+
     return AuthResult::success;
 }
 

@@ -179,6 +179,8 @@ private slots:
     void testPluginOnDisconnect();
 
     void testMosquittoPasswordFile();
+
+    void testPluginGetClientAddress();
 };
 
 MainTests::MainTests()
@@ -3567,6 +3569,44 @@ void MainTests::testMosquittoPasswordFile()
         ConnAckData ackData = ack.parseConnAckData();
         QCOMPARE(ackData.reasonCode, ReasonCodes::NotAuthorized);
     }
+}
+
+void MainTests::testPluginGetClientAddress()
+{
+    ConfFileTemp confFile;
+    confFile.writeLine("plugin plugins/libtest_plugin.so.0.0.1");
+    confFile.closeFile();
+
+    std::vector<std::string> args {"--config-file", confFile.getFilePath()};
+
+    cleanup();
+    init(args);
+
+    FlashMQTestClient receiver;
+    receiver.start();
+    receiver.connectClient(ProtocolVersion::Mqtt5);
+    receiver.subscribe("getaddresstest/#", 0);
+
+    FlashMQTestClient client;
+    client.start();
+    client.connectClient(ProtocolVersion::Mqtt5, false, 120, [](Connect &connect) {
+        connect.username = "getaddress";
+    });
+
+    try
+    {
+        receiver.waitForMessageCount(2);
+    }
+    catch(std::exception &e)
+    {
+        MYCASTCOMPARE(receiver.receivedPublishes.size(), 2);
+    }
+
+    QCOMPARE(receiver.receivedPublishes[0].getTopic(), "getaddresstest/address");
+    QCOMPARE(receiver.receivedPublishes[0].getPayloadCopy(), "127.0.0.1");
+
+    QCOMPARE(receiver.receivedPublishes[1].getTopic(), "getaddresstest/family");
+    QCOMPARE(receiver.receivedPublishes[1].getPayloadCopy(), "AF_INET");
 }
 
 int main(int argc, char *argv[])

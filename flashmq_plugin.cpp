@@ -121,3 +121,29 @@ void flashmq_publish_message(const std::string &topic, const uint8_t qos, const 
 }
 
 
+
+void flashmq_get_client_address(const std::weak_ptr<Client> &client, std::string *text, FlashMQSockAddr *addr)
+{
+    std::shared_ptr<Client> c = client.lock();
+
+    if (!c)
+        return;
+
+    const struct sockaddr *orgAddr = c->getAddr();
+
+    if (text)
+        *text = sockaddrToString(orgAddr);
+
+    if (addr)
+        memcpy(addr->getAddr(), orgAddr, addr->getLen());
+}
+
+sockaddr *FlashMQSockAddr::getAddr()
+{
+    return reinterpret_cast<struct sockaddr*>(&this->addr_in6);
+}
+
+constexpr int FlashMQSockAddr::getLen()
+{
+    return sizeof(struct sockaddr_in6);
+}

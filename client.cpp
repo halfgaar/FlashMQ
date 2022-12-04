@@ -51,7 +51,10 @@ Client::Client(int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, bool we
     int flags = fcntl(fd, F_GETFL);
     fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 
-    this->address = sockaddrToString(addr);
+    if (addr)
+        memcpy(&this->addr, addr, sizeof(struct sockaddr_in6));
+
+    this->address = sockaddrToString(this->getAddr());
 
     if (ssl)
         transportStr = websocket ? "TCP/Websocket/MQTT/SSL" : "TCP/MQTT/SSL";
@@ -327,6 +330,11 @@ bool Client::writeBufIntoFd()
     setReadyForWriting(bufferHasData || error == IoWrapResult::Wouldblock);
 
     return true;
+}
+
+const sockaddr *Client::getAddr() const
+{
+    return reinterpret_cast<const struct sockaddr*>(&this->addr);
 }
 
 std::string Client::repr()

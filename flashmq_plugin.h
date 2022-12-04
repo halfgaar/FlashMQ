@@ -27,6 +27,7 @@
 #include <vector>
 #include <unordered_map>
 #include <memory>
+#include <arpa/inet.h>
 
 #define FLASHMQ_PLUGIN_VERSION 1
 
@@ -164,6 +165,30 @@ void flashmq_publish_message(const std::string &topic, const uint8_t qos, const 
                              const std::string *responseTopic=nullptr, const std::string *correlationData=nullptr, const std::string *contentType=nullptr);
 
 /**
+ * @brief The FlashMQSockAddr class is a simple helper for the C-style polymorfism of all the sockaddr structs.
+ *
+ * Primary struct is an sockaddr_in6 because that is the biggest one.
+ */
+class FlashMQSockAddr
+{
+    struct sockaddr_in6 addr_in6;
+
+public:
+    struct sockaddr *getAddr();
+    static constexpr int getLen();
+};
+
+/**
+ * @brief flashmq_get_client_address
+ * @param client A client pointer as provided by 'flashmq_plugin_login_check'.
+ * @param text If not nullptr, will be assigned the address in text form, like 192.168.1.1 or "2001:0db8:85a3:0000:1319:8a2e:0370:7344".
+ * @param addr If not nullptr, will provide a sockaddr struct, for low level operations.
+ *
+ * The text and addr can be pointers to local variables in the calling context.
+ */
+void flashmq_get_client_address(const std::weak_ptr<Client> &client, std::string *text, FlashMQSockAddr *addr);
+
+/**
  * @brief flashmq_plugin_version must return FLASHMQ_PLUGIN_VERSION.
  * @return FLASHMQ_PLUGIN_VERSION.
  */
@@ -268,7 +293,7 @@ bool flashmq_plugin_alter_publish(void *thread_data, const std::string &clientid
  * @param thread_data is memory allocated in flashmq_plugin_allocate_thread_memory().
  * @param username
  * @param password
- * @param client cannot be used for anything except async auth, to pass to the callback flashmq_continue_async_authentication.
+ * @param client Example use is for storing in a async operation and passing to flashmq_continue_async_authentication.
  * @return
  *
  * You could throw exceptions here, but that will be slow and pointless. It will just get converted into AuthResult::error,
