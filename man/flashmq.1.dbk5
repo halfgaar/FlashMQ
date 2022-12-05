@@ -74,12 +74,9 @@
           </citerefentry>
         </member>
         <member>
-          www.flashmq.org
+          <link xlink:href="https://www.flashmq.org/">www.flashmq.org</link>
         </member>
       </simplelist>
-    </para>
-    <para>
-      <link xlink:href="https://www.flashmq.org/">www.flashmq.org</link>
     </para>
   </refsect1>
 </refentry>
