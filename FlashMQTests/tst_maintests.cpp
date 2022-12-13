@@ -143,6 +143,7 @@ private slots:
 
     void testIncomingTopicAlias();
     void testOutgoingTopicAlias();
+    void testOutgoingTopicAliasStoredPublishes();
 
     void testReceivingRetainedMessageWithQoS();
 
@@ -2388,6 +2389,44 @@ void MainTests::testOutgoingTopicAlias()
         QCOMPARE(packet.getPayloadCopy(), "ABCDEF");
         MYCASTCOMPARE(packet.bites.size(), 28); // That's 3 less than the other one, because the alias id is not there.
     });
+}
+
+void MainTests::testOutgoingTopicAliasStoredPublishes()
+{
+    std::unique_ptr<FlashMQTestClient> sender = std::make_unique<FlashMQTestClient>();
+    sender->start();
+    std::shared_ptr<WillPublish> will = std::make_shared<WillPublish>();
+    will->topic = "last/dance/long/long";
+    will->payload = "will payload";
+    sender->setWill(will);
+    sender->connectClient(ProtocolVersion::Mqtt5);
+
+    FlashMQTestClient receiver1;
+    receiver1.start();
+    receiver1.connectClient(ProtocolVersion::Mqtt5, true, 300, [](Connect &connect){
+        connect.propertyBuilder->writeMaxTopicAliases(10);
+    });
+    receiver1.subscribe("last/dance/#", 0);
+
+    FlashMQTestClient sender2;
+    sender2.start();
+    sender2.connectClient(ProtocolVersion::Mqtt5);
+
+    // Establish the first time use of the topic for the alias.
+    sender2.publish("last/dance/long/long", "normal payload", 0);
+
+    receiver1.waitForMessageCount(1);
+    QCOMPARE(receiver1.receivedPublishes.front().getPayloadCopy(), "normal payload");
+    MYCASTCOMPARE(receiver1.receivedPublishes.front().bites.size(), 42);
+
+    receiver1.clearReceivedLists();
+
+    // This will send a will, which should re-use the alias.
+    sender.reset();
+
+    receiver1.waitForMessageCount(1);
+    QCOMPARE(receiver1.receivedPublishes.front().getPayloadCopy(), "will payload");
+    QVERIFY(receiver1.receivedPublishes.front().bites.size() < 35);
 }
 
 void MainTests::testReceivingRetainedMessageWithQoS()

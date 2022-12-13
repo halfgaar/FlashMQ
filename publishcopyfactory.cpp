@@ -55,6 +55,8 @@ MqttPacket *PublishCopyFactory::getOptimumPacket(const uint8_t max_qos, const Pr
     assert(publish);
 
     publish->qos = actualQos;
+    publish->topicAlias = topic_alias;
+    publish->skipTopic = skip_topic;
 
     this->oneShotPacket = std::make_unique<MqttPacket>(protocolVersion, *publish);
     return this->oneShotPacket.get();
