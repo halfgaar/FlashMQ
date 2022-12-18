@@ -92,6 +92,13 @@ void do_thread_work(ThreadData *threadData)
                 {
                     try
                     {
+                        if (__builtin_expect(client->needsHaProxyParsing(), 0))
+                        {
+                            if (client->readHaProxyData() == HaProxyConnectionType::Local)
+                            {
+                                client->setDisconnectReason("HAProxy health check");
+                            }
+                        }
                         if (cur_ev.events & (EPOLLERR | EPOLLHUP))
                         {
                             client->setDisconnectReason("epoll says socket is in ERR or HUP state.");

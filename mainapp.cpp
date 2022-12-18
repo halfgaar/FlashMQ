@@ -170,8 +170,13 @@ std::list<ScopedSocket> MainApp::createListenSocket(const std::shared_ptr<Listen
 
         try
         {
-            logger->logf(LOG_NOTICE, "Creating %s %s listener on [%s]:%d", pname.c_str(), listener->getProtocolName().c_str(),
-                         listener->getBindAddress(p).c_str(), listener->port);
+            std::string haproxy = "";
+
+            if (listener->isHaProxy())
+                haproxy = "haproxy ";
+
+            logger->logf(LOG_NOTICE, "Creating %s %s %slistener on [%s]:%d", pname.c_str(), listener->getProtocolName().c_str(),
+                         haproxy.c_str(), listener->getBindAddress(p).c_str(), listener->port);
 
             BindAddr bindAddr = getBindAddr(family, listener->getBindAddress(p), listener->port);
 
@@ -513,12 +518,12 @@ void MainApp::start()
             std::shared_ptr<ThreadData> threaddata = std::make_shared<ThreadData>(0, settings);
             ThreadGlobals::assignThreadData(threaddata.get());
 
-            std::shared_ptr<Client> client = std::make_shared<Client>(fd, threaddata, nullptr, fuzzWebsockets, nullptr, settings, true);
-            std::shared_ptr<Client> subscriber = std::make_shared<Client>(fdnull, threaddata, nullptr, fuzzWebsockets, nullptr, settings, true);
+            std::shared_ptr<Client> client = std::make_shared<Client>(fd, threaddata, nullptr, fuzzWebsockets, false, nullptr, settings, true);
+            std::shared_ptr<Client> subscriber = std::make_shared<Client>(fdnull, threaddata, nullptr, fuzzWebsockets, false, nullptr, settings, true);
             subscriber->setClientProperties(ProtocolVersion::Mqtt311, "subscriber", "subuser", true, 60);
             subscriber->setAuthenticated(true);
 
-            std::shared_ptr<Client> websocketsubscriber = std::make_shared<Client>(fdnull2, threaddata, nullptr, true, nullptr, settings, true);
+            std::shared_ptr<Client> websocketsubscriber = std::make_shared<Client>(fdnull2, threaddata, nullptr, true, false, nullptr, settings, true);
             websocketsubscriber->setClientProperties(ProtocolVersion::Mqtt311, "websocketsubscriber", "websocksubuser", true, 60);
             websocketsubscriber->setAuthenticated(true);
             websocketsubscriber->setFakeUpgraded();
@@ -597,7 +602,7 @@ void MainApp::start()
                     std::shared_ptr<Listener> listener = listenerMap[cur_fd];
                     std::shared_ptr<ThreadData> thread_data = threads[next_thread_index++ % num_threads];
 
-                    logger->logf(LOG_INFO, "Accepting connection on thread %d on %s", thread_data->threadnr, listener->getProtocolName().c_str());
+                    logger->logf(LOG_DEBUG, "Accepting connection on thread %d on %s", thread_data->threadnr, listener->getProtocolName().c_str());
 
                     struct sockaddr_in6 addrBiggest;
                     struct sockaddr *addr = reinterpret_cast<sockaddr*>(&addrBiggest);
@@ -620,7 +625,8 @@ void MainApp::start()
                         SSL_set_fd(clientSSL, fd);
                     }
 
-                    std::shared_ptr<Client> client = std::make_shared<Client>(fd, thread_data, clientSSL, listener->websocket, addr, settings);
+                    std::shared_ptr<Client> client = std::make_shared<Client>(fd, thread_data, clientSSL, listener->websocket, listener->isHaProxy(), addr, settings);
+
                     thread_data->giveClient(client);
 
                     globalStats->socketConnects.inc();

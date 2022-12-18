@@ -113,7 +113,7 @@ void FlashMQTestClient::connectClient(ProtocolVersion protocolVersion, bool clea
 
     const std::string clientid = formatString("testclient_%d", clientCount++);
 
-    this->client = std::make_shared<Client>(sockfd, testServerWorkerThreadData, nullptr, false, reinterpret_cast<struct sockaddr*>(&servaddr), settings);
+    this->client = std::make_shared<Client>(sockfd, testServerWorkerThreadData, nullptr, false, false, reinterpret_cast<struct sockaddr*>(&servaddr), settings);
     this->client->setClientProperties(protocolVersion, clientid, "user", false, 60);
 
     testServerWorkerThreadData->giveClient(this->client);

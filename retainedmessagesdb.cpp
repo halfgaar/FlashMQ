@@ -131,7 +131,7 @@ std::list<RetainedMessage> RetainedMessagesDB::readDataV3V4()
 
     const Settings &settings = *ThreadGlobals::getSettings();
     std::shared_ptr<ThreadData> dummyThreadData;
-    std::shared_ptr<Client> dummyClient(new Client(0, dummyThreadData, nullptr, false, nullptr, settings, false));
+    std::shared_ptr<Client> dummyClient(new Client(0, dummyThreadData, nullptr, false, false, nullptr, settings, false));
     dummyClient->setClientProperties(ProtocolVersion::Mqtt5, "Dummyforloadingretained", "nobody", true, 60);
 
     while (!feof(f))

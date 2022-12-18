@@ -124,6 +124,7 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validListenKeys.insert("inet_protocol");
     validListenKeys.insert("inet4_bind_address");
     validListenKeys.insert("inet6_bind_address");
+    validListenKeys.insert("haproxy");
 }
 
 void ConfigFileParser::loadFile(bool test)
@@ -288,6 +289,11 @@ void ConfigFileParser::loadFile(bool test)
                 if (key == "inet6_bind_address")
                 {
                     curListener->inet6BindAddress = value;
+                }
+                if (key == "haproxy")
+                {
+                    bool val = stringTruthiness(value);
+                    curListener->haproxy = val;
                 }
 
                 continue;

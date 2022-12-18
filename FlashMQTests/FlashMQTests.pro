@@ -55,6 +55,7 @@ SOURCES +=  tst_maintests.cpp \
     ../derivablecounter.cpp \
     ../packetdatatypes.cpp \
     ../flashmqtestclient.cpp \
+    ../haproxy.cpp \
     conffiletemp.cpp \
     mainappthread.cpp
 
@@ -103,6 +104,7 @@ HEADERS += \
     ../derivablecounter.h \
     ../packetdatatypes.h \
     ../flashmqtestclient.h \
+    ../haproxy.h \
     conffiletemp.h \
     mainappthread.h
 

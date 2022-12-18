@@ -56,6 +56,11 @@ bool Listener::isSsl() const
     return (!sslFullchain.empty() || !sslPrivkey.empty());
 }
 
+bool Listener::isHaProxy() const
+{
+    return this->haproxy;
+}
+
 std::string Listener::getProtocolName() const
 {
     if (isSsl())

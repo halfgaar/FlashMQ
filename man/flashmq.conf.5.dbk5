@@ -472,6 +472,20 @@
           </para>
         </listitem>
       </varlistentry>
+      <varlistentry xml:id="haproxy">
+        <term><option>haproxy</option> <replaceable>yes/no</replaceable></term>
+        <listitem>
+          <para>
+            Setting the listener to haproxy makes it expect the PROXY protocol and set client source address to the original client. Make sure this listener is private / firewalled, otherwise anybody can set a different source address.
+          </para>
+          <para>
+            Note that HAProxy's server health checks only started using the 'local' specifier as of version 2.4. This means earlier version will pretend to be a client and break the connection, causing log spam.
+          </para>
+          <para>
+            See <a href="http://www.haproxy.org/">haproxy.org</a>.
+          </para>
+        </listitem>
+      </varlistentry>
     </variablelist>
   </refsect1>
 
@@ -509,6 +523,10 @@ listen {
 
   # default = 8080
   port 8080
+}
+listen {
+  port 2883
+  haproxy on
 }]]></literallayout>
   </refsect1>
 

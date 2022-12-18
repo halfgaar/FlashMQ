@@ -64,6 +64,7 @@ add_executable(flashmq
     globalstats.h
     derivablecounter.h
     packetdatatypes.h
+    haproxy.h
 
     mainapp.cpp
     main.cpp
@@ -107,6 +108,7 @@ add_executable(flashmq
     globalstats.cpp
     derivablecounter.cpp
     packetdatatypes.cpp
+    haproxy.cpp
 
     )
 

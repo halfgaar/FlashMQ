@@ -117,7 +117,7 @@ class Client
     void setReadyForReading(bool val);
 
 public:
-    Client(int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, bool websocket, struct sockaddr *addr, const Settings &settings, bool fuzzMode=false);
+    Client(int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, bool websocket, bool haproxy, struct sockaddr *addr, const Settings &settings, bool fuzzMode=false);
     Client(const Client &other) = delete;
     Client(Client &&other) = delete;
     ~Client();
@@ -125,6 +125,8 @@ public:
     int getFd() { return fd;}
     bool isSslAccepted() const;
     bool isSsl() const;
+    bool needsHaProxyParsing() const;
+    HaProxyConnectionType readHaProxyData();
     bool getSslReadWantsWrite() const;
     bool getSslWriteWantsRead() const;
     ProtocolVersion getProtocolVersion() const;
@@ -165,6 +167,7 @@ public:
 
     const sockaddr *getAddr() const;
     std::string repr();
+    std::string repr_endpoint();
     bool keepAliveExpired();
     std::string getKeepAliveInfoString() const;
     void resetBuffersIfEligible();

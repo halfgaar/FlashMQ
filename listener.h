@@ -37,12 +37,14 @@ struct Listener
     std::string inet6BindAddress;
     int port = 0;
     bool websocket = false;
+    bool haproxy = false;
     std::string sslFullchain;
     std::string sslPrivkey;
     std::unique_ptr<SslCtxManager> sslctx;
 
     void isValid();
     bool isSsl() const;
+    bool isHaProxy() const;
     std::string getProtocolName() const;
     void loadCertAndKeyFromConfig();
 

@@ -29,6 +29,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "utils.h"
 #include "logger.h"
 #include "exceptions.h"
+#include "haproxy.h"
 
 #define WEBSOCKET_MIN_HEADER_BYTES_NEEDED 2
 #define WEBSOCKET_MAX_SENDING_HEADER_SIZE 10
@@ -117,6 +118,8 @@ class IoWrapper
     IncompleteWebsocketRead incompleteWebsocketRead;
     CirBuf websocketWriteRemainder;
 
+    bool _needsHaProxyParsing = false;
+
     Logger *logger = Logger::getInstance();
 
     ssize_t websocketBytesToReadBuffer(void *buf, const size_t nbytes, IoWrapResult *error);
@@ -135,6 +138,10 @@ public:
     bool hasPendingWrite() const;
     bool isWebsocket() const;
     WebsocketState getWebsocketState() const;
+
+    bool needsHaProxyParsing() const;
+    HaProxyConnectionType readHaProxyData(int fd, struct sockaddr *addr);
+    void setHaProxy(bool val);
 
 #ifndef NDEBUG
     void setFakeUpgraded();

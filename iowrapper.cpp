@@ -144,6 +144,94 @@ WebsocketState IoWrapper::getWebsocketState() const
     return websocketState;
 }
 
+bool IoWrapper::needsHaProxyParsing() const
+{
+    return _needsHaProxyParsing;
+}
+
+/**
+ * @brief IoWrapper::readHaProxyData Reads the PROXY protocol header in one go. It must fit in one TCP segment.
+ * @param fd
+ * @param addr
+ */
+HaProxyConnectionType IoWrapper::readHaProxyData(int fd, struct sockaddr *addr)
+{
+    _needsHaProxyParsing = false;
+
+    constexpr const int sig_len = 12;
+    constexpr const int min_len = 16;
+    const std::string signature("\r\n\r\n\0\r\nQUIT\n", sig_len);
+
+    char buf[min_len];
+    memset(buf, 0, min_len);
+
+    read_ha_proxy_helper(fd, buf, min_len);
+
+    int i = 0;
+
+    const std::string received_signature(buf, sig_len);
+    i += sig_len;
+
+    if (received_signature != signature)
+        throw std::runtime_error("Invalid HAProxy signature.");
+
+    const uint8_t ver_cmd = buf[i++];
+    const uint8_t fam_prot = buf[i++];
+    const uint8_t family = (fam_prot & 0xF0) >> 4;
+    const uint8_t prot = fam_prot & 0x0F;
+
+    const uint8_t ver = (ver_cmd & 0xF0) >> 4;
+    const uint8_t cmd = ver_cmd & 0x0F;
+
+    const uint8_t len_high = buf[i++];
+    const uint8_t len_low = buf[i++];
+    const uint16_t len = len_high | len_low;
+
+    if (len > sizeof(union proxy_addr))
+        throw std::runtime_error("Hacker be gone.");
+
+    union proxy_addr proxy_addr;
+    memset(&proxy_addr, 0, sizeof(union proxy_addr));
+    read_ha_proxy_helper(fd, &proxy_addr, len);
+
+    if (ver != 2)
+        throw std::runtime_error("Only HAProxy protocol version 2 is supported");
+
+    if (cmd == 0)
+        return HaProxyConnectionType::Local;
+
+    if (cmd != 1)
+        throw std::runtime_error("HAProxy command must be 1");
+
+    if (prot == 0)
+        return HaProxyConnectionType::Local;
+
+    if (prot > 2)
+        throw std::runtime_error("Invalid protocol in HAProxy.");
+
+    if (family == 1)
+    {
+        struct sockaddr_in *a = reinterpret_cast<struct sockaddr_in*>(addr);
+        a->sin_family = AF_INET;
+        a->sin_addr.s_addr = proxy_addr.ipv4_addr.src_addr;
+        a->sin_port = proxy_addr.ipv4_addr.src_port;
+    }
+    else if (family == 2)
+    {
+        struct sockaddr_in6 *a = reinterpret_cast<struct sockaddr_in6*>(addr);
+        a->sin6_family = AF_INET6;
+        memcpy(&a->sin6_addr, proxy_addr.ipv6_addr.src_addr, 16);
+        a->sin6_port = proxy_addr.ipv6_addr.src_port;
+    }
+
+    return HaProxyConnectionType::Remote;
+}
+
+void IoWrapper::setHaProxy(bool val)
+{
+    this->_needsHaProxyParsing = val;
+}
+
 #ifndef NDEBUG
 /**
  * @brief IoWrapper::setFakeUpgraded marks this wrapper as upgraded. This is for fuzzing, so to bypass the sha1 protected handshake

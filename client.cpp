@@ -35,7 +35,7 @@ StowedClientRegistrationData::StowedClientRegistrationData(bool clean_start, uin
 
 }
 
-Client::Client(int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, bool websocket, struct sockaddr *addr, const Settings &settings, bool fuzzMode) :
+Client::Client(int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, bool websocket, bool haproxy, struct sockaddr *addr, const Settings &settings, bool fuzzMode) :
     fd(fd),
     fuzzMode(fuzzMode),
     initialBufferSize(settings.clientInitialBufferSize), // The client is constructed in the main thread, so we need to use its settings copy
@@ -48,6 +48,8 @@ Client::Client(int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, bool we
     epoll_fd(threadData ? threadData->epollfd : 0),
     threadData(threadData)
 {
+    ioWrapper.setHaProxy(haproxy);
+
     int flags = fcntl(fd, F_GETFL);
     fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 
@@ -56,10 +58,13 @@ Client::Client(int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, bool we
 
     this->address = sockaddrToString(this->getAddr());
 
-    if (ssl)
-        transportStr = websocket ? "TCP/Websocket/MQTT/SSL" : "TCP/MQTT/SSL";
-    else
-        transportStr = websocket ? "TCP/Websocket/MQTT/Non-SSL" : "TCP/MQTT/Non-SSL";
+    const std::string haproxy_s = haproxy ? "/HAProxy" : "";
+    const std::string ssl_s = ssl ? "/SSL" : "/Non-SSL";
+    const std::string websocket_s = websocket ? "/Websocket" : "";
+
+    transportStr = formatString("TCP%s%s%s", haproxy_s.c_str(), websocket_s.c_str(), ssl_s.c_str());
+
+    logger->logf(LOG_NOTICE, "Accepting connection from: %s", repr_endpoint().c_str());
 }
 
 Client::~Client()
@@ -109,6 +114,19 @@ bool Client::isSslAccepted() const
 bool Client::isSsl() const
 {
     return ioWrapper.isSsl();
+}
+
+bool Client::needsHaProxyParsing() const
+{
+    return ioWrapper.needsHaProxyParsing();
+}
+
+HaProxyConnectionType Client::readHaProxyData()
+{
+    struct sockaddr* addr = reinterpret_cast<struct sockaddr*>(&this->addr);
+    HaProxyConnectionType result = this->ioWrapper.readHaProxyData(this->fd, addr);
+    this->address = sockaddrToString(this->getAddr());
+    return result;
 }
 
 bool Client::getSslReadWantsWrite() const
@@ -342,6 +360,13 @@ std::string Client::repr()
     std::string s = formatString("[ClientID='%s', username='%s', fd=%d, keepalive=%ds, transport='%s', address='%s', prot=%s, clean=%d]",
                                  clientid.c_str(), username.c_str(), fd, keepalive, this->transportStr.c_str(), this->address.c_str(),
                                  protocolVersionString(protocolVersion).c_str(), this->clean_start);
+    return s;
+}
+
+std::string Client::repr_endpoint()
+{
+    std::string s = formatString("address='%s', transport='%s', fd=%d",
+                                 this->address.c_str(), this->transportStr.c_str(), fd);
     return s;
 }
 
