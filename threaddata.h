@@ -104,7 +104,7 @@ public:
     int epollfd = 0;
     int taskEventFd = 0;
     std::mutex taskQueueMutex;
-    std::forward_list<std::function<void()>> taskQueue;
+    std::list<std::function<void()>> taskQueue;
 
     DerivableCounter receivedMessageCounter;
     DerivableCounter sentMessageCounter;

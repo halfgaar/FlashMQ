@@ -102,7 +102,7 @@ void ThreadData::queuePublishStatsOnDollarTopic(std::vector<std::shared_ptr<Thre
     std::lock_guard<std::mutex> locker(taskQueueMutex);
 
     auto f = std::bind(&ThreadData::publishStatsOnDollarTopic, this, threads);
-    taskQueue.push_front(f);
+    taskQueue.push_back(f);
 
     wakeUpThread();
 }
@@ -112,7 +112,7 @@ void ThreadData::queueSendingQueuedWills()
     std::lock_guard<std::mutex> locker(taskQueueMutex);
 
     auto f = std::bind(&ThreadData::sendQueuedWills, this);
-    taskQueue.push_front(f);
+    taskQueue.push_back(f);
 
     wakeUpThread();
 }
@@ -122,7 +122,7 @@ void ThreadData::queueRemoveExpiredSessions()
     std::lock_guard<std::mutex> locker(taskQueueMutex);
 
     auto f = std::bind(&ThreadData::removeExpiredSessions, this);
-    taskQueue.push_front(f);
+    taskQueue.push_back(f);
 
     wakeUpThread();
 }
@@ -132,7 +132,7 @@ void ThreadData::queueRemoveExpiredRetainedMessages()
     std::lock_guard<std::mutex> locker(taskQueueMutex);
 
     auto f = std::bind(&ThreadData::removeExpiredRetainedMessages, this);
-    taskQueue.push_front(f);
+    taskQueue.push_back(f);
 
     wakeUpThread();
 }
@@ -258,7 +258,7 @@ void ThreadData::queueContinuationOfAuthentication(const std::shared_ptr<Client>
     {
         auto f = std::bind(&ThreadData::continueAsyncAuths, this);
         std::lock_guard<std::mutex> lockertaskQueue(taskQueueMutex);
-        taskQueue.push_front(f);
+        taskQueue.push_back(f);
 
         wakeUpThread();
     }
@@ -268,7 +268,7 @@ void ThreadData::queueClientDisconnectEvent(const std::string &clientid)
 {
     auto f = std::bind(&ThreadData::clientDisconnectEvent, this, clientid);
     std::lock_guard<std::mutex> lockertaskQueue(taskQueueMutex);
-    taskQueue.push_front(f);
+    taskQueue.push_back(f);
 
     wakeUpThread();
 }
@@ -472,7 +472,7 @@ void ThreadData::removeClientQueued(const std::shared_ptr<Client> &client)
     {
         auto f = std::bind(&ThreadData::removeQueuedClients, this);
         std::lock_guard<std::mutex> lockertaskQueue(taskQueueMutex);
-        taskQueue.push_front(f);
+        taskQueue.push_back(f);
 
         wakeUpThread();
     }
@@ -504,7 +504,7 @@ void ThreadData::removeClientQueued(int fd)
         {
             auto f = std::bind(&ThreadData::removeQueuedClients, this);
             std::lock_guard<std::mutex> lockertaskQueue(taskQueueMutex);
-            taskQueue.push_front(f);
+            taskQueue.push_back(f);
 
             wakeUpThread();
         }
@@ -527,7 +527,7 @@ void ThreadData::queueDoKeepAliveCheck()
     std::lock_guard<std::mutex> locker(taskQueueMutex);
 
     auto f = std::bind(&ThreadData::doKeepAliveCheck, this);
-    taskQueue.push_front(f);
+    taskQueue.push_back(f);
 
     wakeUpThread();
 }
@@ -537,7 +537,7 @@ void ThreadData::queueQuit()
     std::lock_guard<std::mutex> locker(taskQueueMutex);
 
     auto f = std::bind(&ThreadData::quit, this);
-    taskQueue.push_front(f);
+    taskQueue.push_back(f);
 
     authentication.setQuitting();
 
@@ -554,10 +554,10 @@ void ThreadData::queuePasswdFileReload()
     std::lock_guard<std::mutex> locker(taskQueueMutex);
 
     auto f = std::bind(&Authentication::loadMosquittoPasswordFile, &authentication);
-    taskQueue.push_front(f);
+    taskQueue.push_back(f);
 
     auto f2 = std::bind(&Authentication::loadMosquittoAclFile, &authentication);
-    taskQueue.push_front(f2);
+    taskQueue.push_back(f2);
 
     wakeUpThread();
 }
@@ -572,7 +572,7 @@ void ThreadData::queuepluginPeriodicEvent()
     std::lock_guard<std::mutex> locker(taskQueueMutex);
 
     auto f = std::bind(&ThreadData::pluginPeriodicEvent, this);
-    taskQueue.push_front(f);
+    taskQueue.push_back(f);
 
     wakeUpThread();
 }
@@ -587,7 +587,7 @@ void ThreadData::queueSendWills()
     std::lock_guard<std::mutex> locker(taskQueueMutex);
 
     auto f = std::bind(&ThreadData::sendAllWills, this);
-    taskQueue.push_front(f);
+    taskQueue.push_back(f);
 
     wakeUpThread();
 }
@@ -597,7 +597,7 @@ void ThreadData::queueSendDisconnects()
     std::lock_guard<std::mutex> locker(taskQueueMutex);
 
     auto f = std::bind(&ThreadData::sendAllDisconnects, this);
-    taskQueue.push_front(f);
+    taskQueue.push_back(f);
 
     wakeUpThread();
 }
@@ -719,7 +719,7 @@ void ThreadData::queueReload(const Settings &settings)
     std::lock_guard<std::mutex> locker(taskQueueMutex);
 
     auto f = std::bind(&ThreadData::reload, this, settings);
-    taskQueue.push_front(f);
+    taskQueue.push_back(f);
 
     wakeUpThread();
 }

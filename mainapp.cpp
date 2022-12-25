@@ -253,7 +253,7 @@ void MainApp::queuePublishStatsOnDollarTopic()
     if (!threads.empty())
     {
         auto f = std::bind(&ThreadData::queuePublishStatsOnDollarTopic, threads.front().get(), threads);
-        taskQueue.push_front(f);
+        taskQueue.push_back(f);
 
         wakeUpThread();
     }
@@ -635,14 +635,11 @@ void MainApp::start()
                         reloadConfig();
                     }
 
-                    std::forward_list<std::function<void()>> tasks;
+                    std::list<std::function<void()>> tasks;
 
                     {
                         std::lock_guard<std::mutex> locker(eventMutex);
-                        for (auto &f : taskQueue)
-                        {
-                            tasks.push_front(f);
-                        }
+                        tasks = std::move(taskQueue);
                         taskQueue.clear();
                     }
 

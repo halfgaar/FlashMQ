@@ -56,7 +56,7 @@ class MainApp
     std::vector<std::shared_ptr<ThreadData>> threads;
     std::shared_ptr<SubscriptionStore> subscriptionStore;
     std::unique_ptr<ConfigFileParser> confFileParser;
-    std::forward_list<std::function<void()>> taskQueue;
+    std::list<std::function<void()>> taskQueue;
     int epollFdAccept = -1;
     int taskEventFd = -1;
     bool doConfigReload = false;

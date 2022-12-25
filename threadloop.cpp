@@ -70,14 +70,11 @@ void do_thread_work(ThreadData *threadData)
                     uint64_t eventfd_value = 0;
                     check<std::runtime_error>(read(fd, &eventfd_value, sizeof(uint64_t)));
 
-                    std::forward_list<std::function<void()>> copiedTasks;
+                    std::list<std::function<void()>> copiedTasks;
 
                     {
                         std::lock_guard<std::mutex> locker(threadData->taskQueueMutex);
-                        for(auto &f : threadData->taskQueue)
-                        {
-                            copiedTasks.push_front(std::move(f));
-                        }
+                        copiedTasks = std::move(threadData->taskQueue);
                         threadData->taskQueue.clear();
                     }
 
