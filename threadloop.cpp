@@ -58,123 +58,120 @@ void do_thread_work(ThreadData *threadData)
                 continue;
             logger->logf(LOG_ERR, "Problem waiting for fd: %s", strerror(errno));
         }
-        else if (fdcount > 0)
+        for (int i = 0; i < fdcount; i++)
         {
-            for (int i = 0; i < fdcount; i++)
+            struct epoll_event cur_ev = events[i];
+            int fd = cur_ev.data.fd;
+
+            if (fd == threadData->taskEventFd)
             {
-                struct epoll_event cur_ev = events[i];
-                int fd = cur_ev.data.fd;
+                uint64_t eventfd_value = 0;
+                check<std::runtime_error>(read(fd, &eventfd_value, sizeof(uint64_t)));
 
-                if (fd == threadData->taskEventFd)
+                std::list<std::function<void()>> copiedTasks;
+
                 {
-                    uint64_t eventfd_value = 0;
-                    check<std::runtime_error>(read(fd, &eventfd_value, sizeof(uint64_t)));
+                    std::lock_guard<std::mutex> locker(threadData->taskQueueMutex);
+                    copiedTasks = std::move(threadData->taskQueue);
+                    threadData->taskQueue.clear();
+                }
 
-                    std::list<std::function<void()>> copiedTasks;
+                for(auto &f : copiedTasks)
+                {
+                    f();
+                }
 
+                continue;
+            }
+
+            std::shared_ptr<Client> client = threadData->getClient(fd);
+
+            if (!client)
+                continue;
+
+            try
+            {
+                if (__builtin_expect(client->needsHaProxyParsing(), 0))
+                {
+                    if (client->readHaProxyData() == HaProxyConnectionType::Local)
                     {
-                        std::lock_guard<std::mutex> locker(threadData->taskQueueMutex);
-                        copiedTasks = std::move(threadData->taskQueue);
-                        threadData->taskQueue.clear();
+                        client->setDisconnectReason("HAProxy health check");
                     }
-
-                    for(auto &f : copiedTasks)
-                    {
-                        f();
-                    }
-
+                }
+                if (cur_ev.events & (EPOLLERR | EPOLLHUP))
+                {
+                    client->setDisconnectReason("epoll says socket is in ERR or HUP state.");
+                    threadData->removeClient(client);
                     continue;
                 }
-
-                std::shared_ptr<Client> client = threadData->getClient(fd);
-
-                if (client)
+                if (client->isSsl() && !client->isSslAccepted())
                 {
-                    try
-                    {
-                        if (__builtin_expect(client->needsHaProxyParsing(), 0))
-                        {
-                            if (client->readHaProxyData() == HaProxyConnectionType::Local)
-                            {
-                                client->setDisconnectReason("HAProxy health check");
-                            }
-                        }
-                        if (cur_ev.events & (EPOLLERR | EPOLLHUP))
-                        {
-                            client->setDisconnectReason("epoll says socket is in ERR or HUP state.");
-                            threadData->removeClient(client);
-                            continue;
-                        }
-                        if (client->isSsl() && !client->isSslAccepted())
-                        {
-                            client->startOrContinueSslAccept();
-                            continue;
-                        }
-                        if ((cur_ev.events & EPOLLIN) || ((cur_ev.events & EPOLLOUT) && client->getSslReadWantsWrite()))
-                        {
-                            VectorClearGuard vectorClear(packetQueueIn);
-                            bool readSuccess = client->readFdIntoBuffer();
-                            client->bufferToMqttPackets(packetQueueIn, client);
+                    client->startOrContinueSslAccept();
+                    continue;
+                }
+                if ((cur_ev.events & EPOLLIN) || ((cur_ev.events & EPOLLOUT) && client->getSslReadWantsWrite()))
+                {
+                    VectorClearGuard vectorClear(packetQueueIn);
+                    bool readSuccess = client->readFdIntoBuffer();
+                    client->bufferToMqttPackets(packetQueueIn, client);
 
-                            for (MqttPacket &packet : packetQueueIn)
-                            {
+                    for (MqttPacket &packet : packetQueueIn)
+                    {
 #ifdef TESTING
-                                if (client->onPacketReceived)
-                                    client->onPacketReceived(packet);
-                                else
-#endif
-                                packet.handle();
-                            }
-
-                            if (!readSuccess)
-                            {
-                                client->setDisconnectReason("socket disconnect detected");
-                                threadData->removeClient(client);
-                                continue;
-                            }
-                        }
-                        if ((cur_ev.events & EPOLLOUT) || ((cur_ev.events & EPOLLIN) && client->getSslWriteWantsRead()))
-                        {
-                            if (!client->writeBufIntoFd())
-                            {
-                                threadData->removeClient(client);
-                                continue;
-                            }
-
-                            if (client->readyForDisconnecting())
-                            {
-                                threadData->removeClient(client);
-                                continue;
-                            }
-                        }
-                    }
-                    catch (ProtocolError &ex)
-                    {
-                        client->setDisconnectReason(ex.what());
-                        if (client->getProtocolVersion() >= ProtocolVersion::Mqtt5 && client->hasConnectPacketSeen())
-                        {
-                            Disconnect d(client->getProtocolVersion(), ex.reasonCode);
-                            MqttPacket p(d);
-                            client->writeMqttPacket(p);
-                            client->setReadyForDisconnect();
-
-                            // When a client's TCP buffers are full (when the client is gone, for instance), EPOLLOUT will never be
-                            // reported. In those cases, the client is not removed; not until the keep-alive mechanism anyway. Is
-                            // that a problem?
-                        }
+                        if (client->onPacketReceived)
+                            client->onPacketReceived(packet);
                         else
-                        {
-                            logger->logf(LOG_ERR, "Protocol error: %s. Removing client.", ex.what());
-                            threadData->removeClient(client);
-                        }
+#endif
+                        packet.handle();
                     }
-                    catch(std::exception &ex)
+
+                    if (!readSuccess)
                     {
-                        client->setDisconnectReason(ex.what());
-                        logger->logf(LOG_ERR, "Packet read/write error: %s. Removing client.", ex.what());
+                        client->setDisconnectReason("socket disconnect detected");
                         threadData->removeClient(client);
+                        continue;
                     }
                 }
+                if ((cur_ev.events & EPOLLOUT) || ((cur_ev.events & EPOLLIN) && client->getSslWriteWantsRead()))
+                {
+                    if (!client->writeBufIntoFd())
+                    {
+                        threadData->removeClient(client);
+                        continue;
+                    }
+
+                    if (client->readyForDisconnecting())
+                    {
+                        threadData->removeClient(client);
+                        continue;
+                    }
+                }
+            }
+            catch (ProtocolError &ex)
+            {
+                client->setDisconnectReason(ex.what());
+                if (client->getProtocolVersion() >= ProtocolVersion::Mqtt5 && client->hasConnectPacketSeen())
+                {
+                    Disconnect d(client->getProtocolVersion(), ex.reasonCode);
+                    MqttPacket p(d);
+                    client->writeMqttPacket(p);
+                    client->setReadyForDisconnect();
+
+                    // When a client's TCP buffers are full (when the client is gone, for instance), EPOLLOUT will never be
+                    // reported. In those cases, the client is not removed; not until the keep-alive mechanism anyway. Is
+                    // that a problem?
+                }
+                else
+                {
+                    logger->logf(LOG_ERR, "Protocol error: %s. Removing client.", ex.what());
+                    threadData->removeClient(client);
+                }
+            }
+            catch(std::exception &ex)
+            {
+                client->setDisconnectReason(ex.what());
+                logger->logf(LOG_ERR, "Packet read/write error: %s. Removing client.", ex.what());
+                threadData->removeClient(client);
             }
         }
     }
