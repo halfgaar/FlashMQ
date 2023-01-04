@@ -35,6 +35,10 @@ static void signal_handler(int signal)
     {
         mainApp->queueConfigReload();
     }
+    else if (signal == SIGUSR1)
+    {
+        mainApp->queueReopenLogFile();
+    }
     else if (signal == SIGTERM || signal == SIGINT)
     {
         mainApp->quit();
@@ -54,11 +58,14 @@ int register_signal_handers()
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = SA_RESTART;
 
-    if (sigaction(SIGHUP, &sa, nullptr) != 0 || sigaction(SIGTERM, &sa, nullptr) != 0 || sigaction(SIGINT, &sa, nullptr) != 0)
+    for (int signal : {SIGHUP, SIGTERM, SIGINT, SIGUSR1})
     {
-        Logger *logger = Logger::getInstance();
-        logger->logf(LOG_ERR, "Error registering signal handlers");
-        return -1;
+        if (sigaction(signal, &sa, nullptr) != 0)
+        {
+            Logger *logger = Logger::getInstance();
+            logger->logf(LOG_ERR, "Error registering signal handlers");
+            return -1;
+        }
     }
 
     sigset_t set;

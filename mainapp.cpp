@@ -640,6 +640,10 @@ void MainApp::start()
                     {
                         reloadConfig();
                     }
+                    if (doLogFileReOpen)
+                    {
+                        reopenLogfile();
+                    }
 
                     std::list<std::function<void()>> tasks;
 
@@ -810,6 +814,15 @@ void MainApp::reloadConfig()
 
 }
 
+void MainApp::reopenLogfile()
+{
+    doLogFileReOpen = false;
+    Logger *logger = Logger::getInstance();
+    logger->logf(LOG_NOTICE, "Reopening log files");
+    logger->queueReOpen();
+    logger->logf(LOG_NOTICE, "Log files reopened");
+}
+
 /**
  * @brief MainApp::queueConfigReload is called by a signal handler, and it was observed that it should not do anything that allocates memory,
  * to avoid locking itself when another signal is received.
@@ -817,6 +830,12 @@ void MainApp::reloadConfig()
 void MainApp::queueConfigReload()
 {
     doConfigReload = true;
+    wakeUpThread();
+}
+
+void MainApp::queueReopenLogFile()
+{
+    doLogFileReOpen = true;
     wakeUpThread();
 }
 

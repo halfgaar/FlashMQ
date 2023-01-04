@@ -60,6 +60,7 @@ class MainApp
     int epollFdAccept = -1;
     int taskEventFd = -1;
     bool doConfigReload = false;
+    bool doLogFileReOpen = false;
     std::mutex eventMutex;
     Timer timer;
 
@@ -78,6 +79,7 @@ class MainApp
     void setlimits();
     void loadConfig();
     void reloadConfig();
+    void reopenLogfile();
     static void doHelp(const char *arg);
     static void showLicense();
     std::list<ScopedSocket> createListenSocket(const std::shared_ptr<Listener> &listener);
@@ -107,6 +109,7 @@ public:
     static void testConfig();
 
     void queueConfigReload();
+    void queueReopenLogFile();
     void queueCleanup();
 
     std::shared_ptr<SubscriptionStore> getSubscriptionStore();
