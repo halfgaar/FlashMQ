@@ -54,3 +54,18 @@ uint32_t Settings::getExpireSessionAfterSeconds() const
 {
     return expireSessionsAfterSeconds > 0 ? expireSessionsAfterSeconds : std::numeric_limits<uint32_t>::max();
 }
+
+bool Settings::matchAddrWithSetRealIpFrom(const sockaddr *addr) const
+{
+    return std::any_of(setRealIpFrom.begin(), setRealIpFrom.end(), [=](const Network &n) { return n.match(addr);});
+}
+
+bool Settings::matchAddrWithSetRealIpFrom(const sockaddr_in6 *addr) const
+{
+    return matchAddrWithSetRealIpFrom(reinterpret_cast<const struct sockaddr*>(addr));
+}
+
+bool Settings::matchAddrWithSetRealIpFrom(const sockaddr_in *addr) const
+{
+    return matchAddrWithSetRealIpFrom(reinterpret_cast<const struct sockaddr*>(addr));
+}

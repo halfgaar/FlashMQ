@@ -77,7 +77,7 @@ std::string str_tolower(std::string s);
 bool stringTruthiness(const std::string &val);
 bool isPowerOfTwo(int val);
 
-bool parseHttpHeader(CirBuf &buf, std::string &websocket_key, int &websocket_version, std::string &subprotocol);
+bool parseHttpHeader(CirBuf &buf, std::string &websocket_key, int &websocket_version, std::string &subprotocol, std::string &xRealIp);
 
 std::vector<char> base64Decode(const std::string &s);
 std::string base64Encode(const unsigned char *input, const int length);

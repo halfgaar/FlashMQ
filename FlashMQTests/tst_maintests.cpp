@@ -36,6 +36,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "conffiletemp.h"
 #include "packetdatatypes.h"
 #include "qospacketqueue.h"
+#include "network.h"
 
 #include "flashmqtestclient.h"
 
@@ -182,6 +183,9 @@ private slots:
     void testMosquittoPasswordFile();
 
     void testPluginGetClientAddress();
+
+    void testAddrMatchesSubnetIpv4();
+    void testAddrMatchesSubnetIpv6();
 };
 
 MainTests::MainTests()
@@ -3646,6 +3650,69 @@ void MainTests::testPluginGetClientAddress()
 
     QCOMPARE(receiver.receivedPublishes[1].getTopic(), "getaddresstest/family");
     QCOMPARE(receiver.receivedPublishes[1].getPayloadCopy(), "AF_INET");
+}
+
+void MainTests::testAddrMatchesSubnetIpv4()
+{
+    struct sockaddr_in reference_addr;
+    memset(&reference_addr, 0, sizeof(struct sockaddr_in));
+    reference_addr.sin_family = AF_INET;
+    QVERIFY(inet_pton(AF_INET, "12.13.14.15", &reference_addr.sin_addr) == 1);
+
+    const std::list<std::string> positives = {"12.13.14.15", "12.13.14.15/24", "12.13.14.00/24", "0.0.0.0/0"};
+    const std::list<std::string> negatives = {"12.13.99.00/24", "12.13.14.16/32", "11.13.14.15/32", "12.13.14.16"};
+
+    for(const std::string &network : positives)
+    {
+        Network net(network);
+        QVERIFY2(net.match(&reference_addr), formatString("'%s' failed", network.c_str()).c_str());
+    }
+
+    for(const std::string &network : negatives)
+    {
+        Network net(network);
+        QVERIFY2(!net.match(&reference_addr), formatString("'%s' failed", network.c_str()).c_str());
+    }
+
+}
+
+void MainTests::testAddrMatchesSubnetIpv6()
+{
+    struct sockaddr_in6 reference_addr;
+    memset(&reference_addr, 0, sizeof(struct sockaddr_in6));
+    reference_addr.sin6_family = AF_INET6;
+    QVERIFY(inet_pton(AF_INET6, "2001:db8::1", &reference_addr.sin6_addr) == 1);
+
+    const std::list<std::string> positives = {"2001:db8::1", "2001:db8:0::1", "2001:db8::1337:2/64", "2001:db8:2001:db8:1337::2/32", "3001:db8:2001:db8:1337::2/0"};
+    const std::list<std::string> negatives = {"2002:db8::1", "2001:db8::2", "2003:db8::1/64"};
+
+    for(const std::string &network : positives)
+    {
+        Network net(network);
+        QVERIFY2(net.match(&reference_addr), formatString("Equality '%s' failed", network.c_str()).c_str());
+    }
+
+    for(const std::string &network : negatives)
+    {
+        Network net(network);
+        QVERIFY2(!net.match(&reference_addr), formatString("Inequality '%s' failed", network.c_str()).c_str());
+    }
+
+    for (int i = 0; i < 128; i++)
+    {
+        std::string addressWithMask = formatString("2001:db8:0::1/%d", i);
+        Network net(addressWithMask);
+        QVERIFY2(net.match(&reference_addr), formatString("Fail mask range equal check: %s", addressWithMask.c_str()).c_str());
+    }
+
+    for (int i = 1; i < 128; i++)
+    {
+        std::string addressWithMask = formatString("f001:db8:0::1/%d", i);
+        Network net(addressWithMask);
+        Network netCopy(net);
+        QVERIFY2(!netCopy.match(&reference_addr), formatString("Fail mask range not equal check: %s", addressWithMask.c_str()).c_str());
+    }
+
 }
 
 int main(int argc, char *argv[])

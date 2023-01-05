@@ -115,6 +115,7 @@ class Client
 
     void setReadyForWriting(bool val);
     void setReadyForReading(bool val);
+    void setAddr(const std::string &address);
 
 public:
     Client(int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, bool websocket, bool haproxy, struct sockaddr *addr, const Settings &settings, bool fuzzMode=false);

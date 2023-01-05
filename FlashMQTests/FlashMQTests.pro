@@ -56,6 +56,7 @@ SOURCES +=  tst_maintests.cpp \
     ../packetdatatypes.cpp \
     ../flashmqtestclient.cpp \
     ../haproxy.cpp \
+    ../network.cpp \
     conffiletemp.cpp \
     mainappthread.cpp
 
@@ -105,10 +106,11 @@ HEADERS += \
     ../packetdatatypes.h \
     ../flashmqtestclient.h \
     ../haproxy.h \
+    ../network.h \
     conffiletemp.h \
     mainappthread.h
 
-LIBS += -ldl -lssl -lcrypto
+LIBS += -ldl -lssl -lcrypto -lresolv
 
 QMAKE_LFLAGS += -rdynamic
 QMAKE_CXXFLAGS += -msse4.2

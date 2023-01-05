@@ -65,6 +65,7 @@ add_executable(flashmq
     derivablecounter.h
     packetdatatypes.h
     haproxy.h
+    network.h
 
     mainapp.cpp
     main.cpp
@@ -109,10 +110,11 @@ add_executable(flashmq
     derivablecounter.cpp
     packetdatatypes.cpp
     haproxy.cpp
+    network.cpp
 
     )
 
-target_link_libraries(flashmq pthread dl ssl crypto)
+target_link_libraries(flashmq pthread dl ssl crypto resolv)
 
 execute_process(COMMAND ../.get-os-codename-and-stamp.sh OUTPUT_VARIABLE OS_CODENAME)
 

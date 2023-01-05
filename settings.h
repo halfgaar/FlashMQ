@@ -24,6 +24,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 
 #include "mosquittoauthoptcompatwrap.h"
 #include "listener.h"
+#include "network.h"
 
 #define ABSOLUTE_MAX_PACKET_SIZE 268435455
 
@@ -77,6 +78,8 @@ public:
     RetainedMessagesMode retainedMessagesMode = RetainedMessagesMode::Enabled;
     std::list<std::shared_ptr<Listener>> listeners; // Default one is created later, when none are defined.
 
+    std::list<Network> setRealIpFrom;
+
     AuthOptCompatWrap &getAuthOptsCompat();
     std::unordered_map<std::string, std::string> &getFlashmqpluginOpts();
 
@@ -84,6 +87,10 @@ public:
     std::string getSessionsDBFile() const;
 
     uint32_t getExpireSessionAfterSeconds() const;
+
+    bool matchAddrWithSetRealIpFrom(const struct sockaddr *addr) const;
+    bool matchAddrWithSetRealIpFrom(const struct sockaddr_in6 *addr) const;
+    bool matchAddrWithSetRealIpFrom(const struct sockaddr_in *addr) const;
 };
 
 #endif // SETTINGS_H

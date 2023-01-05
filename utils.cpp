@@ -349,7 +349,7 @@ bool isPowerOfTwo(int n)
     return (n != 0) && (n & (n - 1)) == 0;
 }
 
-bool parseHttpHeader(CirBuf &buf, std::string &websocket_key, int &websocket_version, std::string &subprotocol)
+bool parseHttpHeader(CirBuf &buf, std::string &websocket_key, int &websocket_version, std::string &subprotocol, std::string &xRealIp)
 {
     const std::string s(buf.tailPtr(), buf.usedBytes());
     std::istringstream is(s);
@@ -413,6 +413,10 @@ bool parseHttpHeader(CirBuf &buf, std::string &websocket_key, int &websocket_ver
                     subprotocol_seen = true;
                 }
             }
+        }
+        else if (name == "x-real-ip" && value.length() < 64)
+        {
+            xRealIp = value;
         }
     }
 

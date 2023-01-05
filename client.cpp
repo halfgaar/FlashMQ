@@ -658,6 +658,41 @@ void Client::setReadyForReading(bool val)
     }
 }
 
+void Client::setAddr(const std::string &address)
+{
+    const Settings *settings = ThreadGlobals::getSettings();
+
+    if (!settings->matchAddrWithSetRealIpFrom(&this->addr))
+        return;
+
+    bool success = false;
+
+    {
+        struct sockaddr_in *a = reinterpret_cast<struct sockaddr_in*>(&this->addr);
+        success = inet_pton(AF_INET, address.c_str(), &a->sin_addr) > 0;
+        if (success)
+        {
+            a->sin_port = 0;
+            a->sin_family = AF_INET;
+        }
+    }
+
+    if (!success)
+    {
+        success = inet_pton(AF_INET6, address.c_str(), &this->addr.sin6_addr) > 0;
+        if (success)
+        {
+            this->addr.sin6_port = 0;
+            this->addr.sin6_family = AF_INET6;
+        }
+    }
+
+    if (success)
+    {
+        this->address = sockaddrToString(this->getAddr());
+    }
+}
+
 void Client::bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn, std::shared_ptr<Client> &sender)
 {
     MqttPacket::bufferToMqttPackets(readbuf, packetQueueIn, sender);

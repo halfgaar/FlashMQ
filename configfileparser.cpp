@@ -116,6 +116,7 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validKeys.insert("retained_messages_mode");
     validKeys.insert("expire_retained_messages_after_seconds");
     validKeys.insert("expire_retained_messages_time_budget_ms");
+    validKeys.insert("websocket_set_real_ip_from");
 
     validListenKeys.insert("port");
     validListenKeys.insert("protocol");
@@ -526,6 +527,12 @@ void ConfigFileParser::loadFile(bool test)
                 {
                     uint32_t newVal = std::stoi(value);
                     tmpSettings.expireRetainedMessagesTimeBudgetMs = newVal;
+                }
+
+                if (key == "websocket_set_real_ip_from")
+                {
+                    Network net(value);
+                    tmpSettings.setRealIpFrom.push_back(std::move(net));
                 }
             }
         }

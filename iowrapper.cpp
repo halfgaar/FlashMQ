@@ -458,7 +458,8 @@ ssize_t IoWrapper::readWebsocketAndOrSsl(int fd, void *buf, size_t nbytes, IoWra
                     std::string websocketKey;
                     int websocketVersion;
                     std::string subprotocol;
-                    if (parseHttpHeader(websocketPendingBytes, websocketKey, websocketVersion, subprotocol))
+                    std::string xRealIp;
+                    if (parseHttpHeader(websocketPendingBytes, websocketKey, websocketVersion, subprotocol, xRealIp))
                     {
                         if (websocketKey.empty())
                             throw BadHttpRequest("No websocket key specified.");
@@ -473,6 +474,9 @@ ssize_t IoWrapper::readWebsocketAndOrSsl(int fd, void *buf, size_t nbytes, IoWra
                         websocketPendingBytes.reset();
                         websocketPendingBytes.resetSize(initialBufferSize);
                         *error = IoWrapResult::Success;
+
+                        if (!xRealIp.empty())
+                            parentClient->setAddr(xRealIp);
                     }
                 }
                 catch (BadWebsocketVersionException &ex)
