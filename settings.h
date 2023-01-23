@@ -36,6 +36,12 @@ enum class RetainedMessagesMode
     DisconnectWithError
 };
 
+enum class SharedSubscriptionTargeting
+{
+    RoundRobin,
+    SenderHash
+};
+
 class Settings
 {
     friend class ConfigFileParser;
@@ -76,6 +82,7 @@ public:
     uint maxQosBytesPendingPerClient = 65536;
     bool willsEnabled = true;
     RetainedMessagesMode retainedMessagesMode = RetainedMessagesMode::Enabled;
+    SharedSubscriptionTargeting sharedSubscriptionTargeting = SharedSubscriptionTargeting::RoundRobin;
     std::list<std::shared_ptr<Listener>> listeners; // Default one is created later, when none are defined.
 
     std::list<Network> setRealIpFrom;

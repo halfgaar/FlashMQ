@@ -23,6 +23,8 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "retainedmessagesdb.h"
 #include "publishcopyfactory.h"
 #include "threadglobals.h"
+#include "utils.h"
+#include "settings.h"
 
 ReceivingSubscriber::ReceivingSubscriber(const std::shared_ptr<Session> &ses, uint8_t qos) :
     session(ses),
@@ -37,9 +39,14 @@ SubscriptionNode::SubscriptionNode(const std::string &subtopic) :
 
 }
 
-std::unordered_map<std::string, Subscription> &SubscriptionNode::getSubscribers()
+const std::unordered_map<std::string, Subscription> &SubscriptionNode::getSubscribers() const
 {
     return subscribers;
+}
+
+std::unordered_map<std::string, SharedSubscribers> &SubscriptionNode::getSharedSubscribers()
+{
+    return sharedSubscribers;
 }
 
 const std::string &SubscriptionNode::getSubtopic() const
@@ -47,27 +54,51 @@ const std::string &SubscriptionNode::getSubtopic() const
     return subtopic;
 }
 
-void SubscriptionNode::addSubscriber(const std::shared_ptr<Session> &subscriber, uint8_t qos)
+void SubscriptionNode::addSubscriber(const std::shared_ptr<Session> &subscriber, uint8_t qos, const std::string &shareName)
 {
     Subscription sub;
     sub.session = subscriber;
     sub.qos = qos;
 
     const std::string &client_id = subscriber->getClientId();
-    subscribers[client_id] = sub;
+
+    if (shareName.empty())
+    {
+        subscribers[client_id] = sub;
+    }
+    else
+    {
+        SharedSubscribers &subscribers = sharedSubscribers[shareName];
+        subscribers.setName(shareName); // c++14 doesn't have try-emplace yet, in which case this separate step wouldn't be needed.
+        subscribers[client_id] = sub;
+    }
 }
 
-void SubscriptionNode::removeSubscriber(const std::shared_ptr<Session> &subscriber)
+void SubscriptionNode::removeSubscriber(const std::shared_ptr<Session> &subscriber, const std::string &shareName)
 {
     Subscription sub;
     sub.session = subscriber;
     sub.qos = 0;
 
-    auto it = subscribers.find(subscriber->getClientId());
+    const std::string &clientId = subscriber->getClientId();
 
-    if (it != subscribers.end())
+    if (shareName.empty())
     {
-        subscribers.erase(it);
+        auto it = subscribers.find(clientId);
+
+        if (it != subscribers.end())
+        {
+            subscribers.erase(it);
+        }
+    }
+    else
+    {
+        auto pos = sharedSubscribers.find(shareName);
+        if (pos != sharedSubscribers.end())
+        {
+            SharedSubscribers &subscribers = pos->second;
+            subscribers.erase(clientId);
+        }
     }
 }
 
@@ -102,11 +133,15 @@ SubscriptionStore::SubscriptionStore() :
  *
  * caller is responsible for locking.
  */
-SubscriptionNode *SubscriptionStore::getDeepestNode(const std::string &topic, const std::vector<std::string> &subtopics)
+SubscriptionNode *SubscriptionStore::getDeepestNode(const std::vector<std::string> &subtopics)
 {
     SubscriptionNode *deepestNode = &root;
-    if (topic.length() > 0 && topic[0] == '$')
-        deepestNode = &rootDollar;
+    if (!subtopics.empty())
+    {
+        const std::string &first = subtopics.front();
+        if (first.length() > 0 && first[0] == '$')
+            deepestNode = &rootDollar;
+    }
 
     for(const std::string &subtopic : subtopics)
     {
@@ -132,12 +167,19 @@ SubscriptionNode *SubscriptionStore::getDeepestNode(const std::string &topic, co
     return deepestNode;
 }
 
-void SubscriptionStore::addSubscription(std::shared_ptr<Client> &client, const std::string &topic, const std::vector<std::string> &subtopics, uint8_t qos)
+void SubscriptionStore::addSubscription(std::shared_ptr<Client> &client, const std::vector<std::string> &subtopics, uint8_t qos)
+{
+    const std::string empty;
+    addSubscription(client, subtopics, qos, empty);
+}
+
+void SubscriptionStore::addSubscription(std::shared_ptr<Client> &client, const std::vector<std::string> &subtopics, uint8_t qos,
+                                        const std::string &shareName)
 {
     RWLockGuard lock_guard(&sessionsAndSubscriptionsRwlock);
     lock_guard.wrlock();
 
-    SubscriptionNode *deepestNode = getDeepestNode(topic, subtopics);
+    SubscriptionNode *deepestNode = getDeepestNode(subtopics);
 
     if (deepestNode)
     {
@@ -145,21 +187,31 @@ void SubscriptionStore::addSubscription(std::shared_ptr<Client> &client, const s
         if (session_it != sessionsByIdConst.end())
         {
             const std::shared_ptr<Session> &ses = session_it->second;
-            deepestNode->addSubscriber(ses, qos);
+            deepestNode->addSubscriber(ses, qos, shareName);
             subscriptionCount++;
             lock_guard.unlock();
-            giveClientRetainedMessages(ses, subtopics, qos);
+
+            if (shareName.empty())
+                giveClientRetainedMessages(ses, subtopics, qos);
         }
     }
 }
 
 void SubscriptionStore::removeSubscription(std::shared_ptr<Client> &client, const std::string &topic)
 {
-    const std::list<std::string> subtopics = split(topic, '/');
+    std::vector<std::string> subtopics;
+    splitTopic(topic, subtopics);
+
+    std::string shareName;
+    parseSubscriptionShare(subtopics, shareName);
 
     SubscriptionNode *deepestNode = &root;
-    if (topic.length() > 0 && topic[0] == '$')
-        deepestNode = &rootDollar;
+    if (!subtopics.empty())
+    {
+        const std::string &first = subtopics.front();
+        if (first.length() > 0 && first[0] == '$')
+            deepestNode = &rootDollar;
+    }
 
     RWLockGuard lock_guard(&sessionsAndSubscriptionsRwlock);
     lock_guard.wrlock();
@@ -192,7 +244,7 @@ void SubscriptionStore::removeSubscription(std::shared_ptr<Client> &client, cons
         if (session_it != sessionsByIdConst.end())
         {
             const std::shared_ptr<Session> &ses = session_it->second;
-            deepestNode->removeSubscriber(ses);
+            deepestNode->removeSubscriber(ses, shareName);
             subscriptionCount--;
         }
     }
@@ -398,18 +450,52 @@ void SubscriptionStore::queueWillMessage(const std::shared_ptr<WillPublish> &wil
     this->pendingWillMessages[secondsSinceEpoch].push_back(queuedWill);
 }
 
-void SubscriptionStore::publishNonRecursively(const std::unordered_map<std::string, Subscription> &subscribers,
-                                              std::forward_list<ReceivingSubscriber> &targetSessions)
+void SubscriptionStore::publishNonRecursively(SubscriptionNode *this_node, std::forward_list<ReceivingSubscriber> &targetSessions, size_t distributionHash)
 {
-    for (auto &pair : subscribers)
     {
-        const Subscription &sub = pair.second;
+        const std::unordered_map<std::string, Subscription> &subscribers = this_node->getSubscribers();
 
-        const std::shared_ptr<Session> session = sub.session.lock();
-        if (session) // Shared pointer expires when session has been cleaned by 'clean session' connect.
+        for (auto &pair : subscribers)
         {
-            ReceivingSubscriber x(session, sub.qos);
-            targetSessions.emplace_front(session, sub.qos);
+            const Subscription &sub = pair.second;
+
+            const std::shared_ptr<Session> session = sub.session.lock();
+            if (session) // Shared pointer expires when session has been cleaned by 'clean session' connect.
+            {
+                ReceivingSubscriber x(session, sub.qos);
+                targetSessions.emplace_front(session, sub.qos);
+            }
+        }
+    }
+
+    {
+        std::unordered_map<std::string, SharedSubscribers> &sharedSubscribers = this_node->getSharedSubscribers();
+
+        if (!sharedSubscribers.empty())
+        {
+            const Settings *settings = ThreadGlobals::getSettings();
+
+            for(auto &pair : sharedSubscribers)
+            {
+                SharedSubscribers &subscribers = pair.second;
+
+                const Subscription *sub = nullptr;
+
+                if (settings->sharedSubscriptionTargeting == SharedSubscriptionTargeting::SenderHash)
+                    sub = subscribers.getNext(distributionHash);
+                else
+                    sub = subscribers.getNext();
+
+                if (sub == nullptr)
+                    continue;
+
+                const std::shared_ptr<Session> session = sub->session.lock();
+                if (session) // Shared pointer expires when session has been cleaned by 'clean session' connect.
+                {
+                    ReceivingSubscriber x(session, sub->qos);
+                    targetSessions.emplace_front(session, sub->qos);
+                }
+            }
         }
     }
 }
@@ -426,12 +512,12 @@ void SubscriptionStore::publishNonRecursively(const std::unordered_map<std::stri
  * look at objdump --disassemble --demangle to see how many calls (not jumps) to itself are made and compare.
  */
 void SubscriptionStore::publishRecursively(std::vector<std::string>::const_iterator cur_subtopic_it, std::vector<std::string>::const_iterator end,
-                                           SubscriptionNode *this_node, std::forward_list<ReceivingSubscriber> &targetSessions)
+                                           SubscriptionNode *this_node, std::forward_list<ReceivingSubscriber> &targetSessions, size_t distributionHash)
 {
     if (cur_subtopic_it == end) // This is the end of the topic path, so look for subscribers here.
     {
         if (this_node)
-            publishNonRecursively(this_node->getSubscribers(), targetSessions);
+            publishNonRecursively(this_node, targetSessions, distributionHash);
         return;
     }
 
@@ -448,18 +534,18 @@ void SubscriptionStore::publishRecursively(std::vector<std::string>::const_itera
 
     if (this_node->childrenPound)
     {
-        publishNonRecursively(this_node->childrenPound->getSubscribers(), targetSessions);
+        publishNonRecursively(this_node->childrenPound.get(), targetSessions, distributionHash);
     }
 
     const auto &sub_node = this_node->children.find(cur_subtop);
     if (sub_node != this_node->children.end())
     {
-        publishRecursively(next_subtopic, end, sub_node->second.get(), targetSessions);
+        publishRecursively(next_subtopic, end, sub_node->second.get(), targetSessions, distributionHash);
     }
 
     if (this_node->childrenPlus)
     {
-        publishRecursively(next_subtopic, end, this_node->childrenPlus.get(), targetSessions);
+        publishRecursively(next_subtopic, end, this_node->childrenPlus.get(), targetSessions, distributionHash);
     }
 }
 
@@ -488,7 +574,7 @@ void SubscriptionStore::queuePacketAtSubscribers(PublishCopyFactory &copyFactory
         const std::vector<std::string> &subtopics = copyFactory.getSubtopics();
         RWLockGuard lock_guard(&sessionsAndSubscriptionsRwlock);
         lock_guard.rdlock();
-        publishRecursively(subtopics.begin(), subtopics.end(), startNode, subscriberSessions);
+        publishRecursively(subtopics.begin(), subtopics.end(), startNode, subscriberSessions, copyFactory.getSharedSubscriptionHashKey());
     }
 
     for(const ReceivingSubscriber &x : subscriberSessions)
@@ -707,21 +793,38 @@ int SubscriptionNode::cleanSubscriptions()
         }
     }
 
-    // This is not particularlly fast when it's many items. But we don't do it often, so is probably okay.
-    auto it = subscribers.begin();
-    while (it != subscribers.end())
     {
-        std::shared_ptr<Session> ses = it->second.session.lock();
-        if (!ses)
+        // This is not particularlly fast when it's many items. But we don't do it often, so is probably okay.
+        auto it = subscribers.begin();
+        while (it != subscribers.end())
         {
-            Logger::getInstance()->logf(LOG_DEBUG, "Removing empty spot in subscribers map");
-            it = subscribers.erase(it);
-        }
-        else
+            auto cur_it = it;
             it++;
+
+            if (cur_it->second.session.expired())
+            {
+                Logger::getInstance()->logf(LOG_DEBUG, "Removing empty spot in subscribers map");
+                subscribers.erase(cur_it);
+            }
+        }
     }
 
-    return subscribers.size() + subscribersLeftInChildren;
+    {
+        auto shared_it = sharedSubscribers.begin();
+        while (shared_it != sharedSubscribers.end())
+        {
+            auto cur_shared = shared_it;
+            shared_it++;
+
+            SharedSubscribers &subscribers_of_share = cur_shared->second;
+            subscribers_of_share.purgeAndReIndex();
+
+            if (subscribers_of_share.empty())
+                sharedSubscribers.erase(cur_shared);
+        }
+    }
+
+    return subscribers.size() + sharedSubscribers.size() + subscribersLeftInChildren;
 }
 
 void SubscriptionStore::removeSession(const std::shared_ptr<Session> &session)
@@ -937,6 +1040,12 @@ void SubscriptionStore::getSubscriptions(SubscriptionNode *this_node, const std:
         }
     }
 
+    for (auto &pair : this_node->getSharedSubscribers())
+    {
+        const SharedSubscribers &node = pair.second;
+        node.getForSerializing(composedTopic, outputList);
+    }
+
     for (auto &pair : this_node->children)
     {
         SubscriptionNode *node = pair.second.get();
@@ -1141,13 +1250,13 @@ void SubscriptionStore::loadSessionsAndSubscriptions(const std::string &filePath
             for (const SubscriptionForSerializing &sub : subs)
             {
                 splitTopic(topic, subtopics);
-                SubscriptionNode *subscriptionNode = getDeepestNode(topic, subtopics);
+                SubscriptionNode *subscriptionNode = getDeepestNode(subtopics);
 
                 auto session_it = sessionsByIdConst.find(sub.clientId);
                 if (session_it != sessionsByIdConst.end())
                 {
                     const std::shared_ptr<Session> &ses = session_it->second;
-                    subscriptionNode->addSubscriber(ses, sub.qos);
+                    subscriptionNode->addSubscriber(ses, sub.qos, sub.shareName);
                 }
 
             }
@@ -1157,27 +1266,6 @@ void SubscriptionStore::loadSessionsAndSubscriptions(const std::string &filePath
     {
         logger->logf(LOG_WARNING, "File '%s' is not there (yet)", filePath.c_str());
     }
-}
-
-// QoS is not used in the comparision. This means you upgrade your QoS by subscribing again. The
-// specs don't specify what to do there.
-bool Subscription::operator==(const Subscription &rhs) const
-{
-    if (session.expired() && rhs.session.expired())
-        return true;
-    if (session.expired() || rhs.session.expired())
-        return false;
-
-    const std::shared_ptr<Session> lhs_ses = session.lock();
-    const std::shared_ptr<Session> rhs_ses = rhs.session.lock();
-
-    return lhs_ses && rhs_ses && lhs_ses->getClientId() == rhs_ses->getClientId();
-}
-
-void Subscription::reset()
-{
-    session.reset();
-    qos = 0;
 }
 
 void RetainedMessageNode::addPayload(const Publish &publish, int64_t &totalCount)

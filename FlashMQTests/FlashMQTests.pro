@@ -57,7 +57,10 @@ SOURCES +=  tst_maintests.cpp \
     ../flashmqtestclient.cpp \
     ../haproxy.cpp \
     ../network.cpp \
+    ../subscription.cpp \
+    ../sharedsubscribers.cpp \
     conffiletemp.cpp \
+    flashmqtempdir.cpp \
     mainappthread.cpp
 
 
@@ -107,7 +110,10 @@ HEADERS += \
     ../flashmqtestclient.h \
     ../haproxy.h \
     ../network.h \
+    ../subscription.h \
+    ../sharedsubscribers.h \
     conffiletemp.h \
+    flashmqtempdir.h \
     mainappthread.h
 
 LIBS += -ldl -lssl -lcrypto -lresolv

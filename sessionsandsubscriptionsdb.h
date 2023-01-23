@@ -27,6 +27,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #define MAGIC_STRING_SESSION_FILE_V1 "FlashMQRetainedDBv1" // That this is called 'retained' was a bug...
 #define MAGIC_STRING_SESSION_FILE_V2 "FlashMQSessionDBv2"
 #define MAGIC_STRING_SESSION_FILE_V3 "FlashMQSessionDBv3"
+#define MAGIC_STRING_SESSION_FILE_V4 "FlashMQSessionDBv4"
 #define RESERVED_SPACE_SESSIONS_DB_V2 32
 
 /**
@@ -36,8 +37,10 @@ struct SubscriptionForSerializing
 {
     const std::string clientId;
     const uint8_t qos = 0;
+    const std::string shareName;
 
     SubscriptionForSerializing(const std::string &clientId, uint8_t qos);
+    SubscriptionForSerializing(const std::string &clientId, uint8_t qos, const std::string &shareName);
     SubscriptionForSerializing(const std::string &&clientId, uint8_t qos);
 };
 
@@ -55,12 +58,13 @@ class SessionsAndSubscriptionsDB : public PersistenceFile
         unknown,
         v1,
         v2,
-        v3
+        v3,
+        v4
     };
 
     ReadVersion readVersion = ReadVersion::unknown;
 
-    SessionsAndSubscriptionsResult readDataV3();
+    SessionsAndSubscriptionsResult readDataV3V4();
     void writeRowHeader();
 public:
     SessionsAndSubscriptionsDB(const std::string &filePath);

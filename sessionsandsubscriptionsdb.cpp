@@ -29,6 +29,14 @@ SubscriptionForSerializing::SubscriptionForSerializing(const std::string &client
 
 }
 
+SubscriptionForSerializing::SubscriptionForSerializing(const std::string &clientId, uint8_t qos, const std::string &shareName) :
+    clientId(clientId),
+    qos(qos),
+    shareName(shareName)
+{
+
+}
+
 SubscriptionForSerializing::SubscriptionForSerializing(const std::string &&clientId, uint8_t qos) :
     clientId(clientId),
     qos(qos)
@@ -43,7 +51,7 @@ SessionsAndSubscriptionsDB::SessionsAndSubscriptionsDB(const std::string &filePa
 
 void SessionsAndSubscriptionsDB::openWrite()
 {
-    PersistenceFile::openWrite(MAGIC_STRING_SESSION_FILE_V3);
+    PersistenceFile::openWrite(MAGIC_STRING_SESSION_FILE_V4);
 }
 
 void SessionsAndSubscriptionsDB::openRead()
@@ -56,11 +64,13 @@ void SessionsAndSubscriptionsDB::openRead()
         readVersion = ReadVersion::v2;
     else if (detectedVersionString == MAGIC_STRING_SESSION_FILE_V3)
         readVersion = ReadVersion::v3;
+    else if (detectedVersionString == MAGIC_STRING_SESSION_FILE_V4)
+        readVersion = ReadVersion::v4;
     else
         throw std::runtime_error("Unknown file version.");
 }
 
-SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV3()
+SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV3V4()
 {
     const Settings &settings = *ThreadGlobals::getSettings();
 
@@ -212,12 +222,16 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV3()
 
             for (uint32_t i = 0; i < nrOfClientIds; i++)
             {
+                std::string sharename;
+                if (readVersion >= ReadVersion::v4)
+                    sharename = readString(eofFound);
+
                 std::string clientId = readString(eofFound);
                 uint8_t qos = readUint8(eofFound);
 
                 logger->logf(LOG_DEBUG, "Saving session '%s' subscription to '%s' QoS %d.", clientId.c_str(), topic.c_str(), qos);
 
-                SubscriptionForSerializing sub(std::move(clientId), qos);
+                SubscriptionForSerializing sub(std::move(clientId), qos, sharename);
                 result.subscriptions[topic].push_back(std::move(sub));
             }
 
@@ -367,8 +381,17 @@ void SessionsAndSubscriptionsDB::saveData(const std::vector<std::shared_ptr<Sess
 
         for (const SubscriptionForSerializing &subscription : subscriptions)
         {
-            logger->logf(LOG_DEBUG, "Saving session '%s' subscription to '%s' QoS %d.", subscription.clientId.c_str(), topic.c_str(), subscription.qos);
+            if (!subscription.shareName.empty())
+            {
+                logger->logf(LOG_DEBUG, "Saving session '%s' subscription with sharename '%s' to '%s' QoS %d.", subscription.clientId.c_str(),
+                             subscription.shareName.c_str(), topic.c_str(), subscription.qos);
+            }
+            else
+            {
+                logger->logf(LOG_DEBUG, "Saving session '%s' subscription to '%s' QoS %d.", subscription.clientId.c_str(), topic.c_str(), subscription.qos);
+            }
 
+            writeString(subscription.shareName);
             writeString(subscription.clientId);
             writeUint8(subscription.qos);
         }
@@ -388,8 +411,8 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readData()
         logger->logf(LOG_WARNING, "File '%s' is version 1, an internal development version that was never finalized. Not reading.", getFilePath().c_str());
     if (readVersion == ReadVersion::v2)
         logger->logf(LOG_WARNING, "File '%s' is version 2, an internal development version that was never finalized. Not reading.", getFilePath().c_str());
-    if (readVersion == ReadVersion::v3)
-        return readDataV3();
+    if (readVersion >= ReadVersion::v3 || readVersion == ReadVersion::v4)
+        return readDataV3V4();
 
     return defaultResult;
 }

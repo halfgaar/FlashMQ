@@ -215,6 +215,20 @@ bool isValidSubscribePath(const std::string &s)
     return true;
 }
 
+bool isValidShareName(const std::string &s)
+{
+    if (s.empty())
+        return false;
+
+    for (const char c : s)
+    {
+        if ((c == '#') | (c == '+') | (c == '/'))
+            return false;
+    }
+
+    return true;
+}
+
 bool containsDangerousCharacters(const std::string &s)
 {
     if (s.empty())
@@ -730,3 +744,36 @@ int maskAllSignalsCurrentThread()
     int r = pthread_sigmask(SIG_SETMASK, &set, NULL);
     return r;
 }
+
+void parseSubscriptionShare(std::vector<std::string> &subtopics, std::string &shareName)
+{
+    if (subtopics.size() < 3)
+        return;
+
+    const std::string &match = subtopics[0];
+
+    if (match != "$share")
+        return;
+
+    const std::string _shareName = subtopics[1];
+
+    if (!isValidShareName(_shareName))
+        throw ProtocolError("Invalid character in share name", ReasonCodes::ProtocolError);
+
+    for (int i = 0; i < 2; i++)
+    {
+        subtopics.erase(subtopics.begin());
+    }
+
+    shareName = _shareName;
+}
+
+
+
+
+
+
+
+
+
+

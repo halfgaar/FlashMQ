@@ -149,3 +149,13 @@ const std::vector<std::pair<std::string, std::string> > *PublishCopyFactory::get
 
     return publish->getUserProperties();
 }
+
+void PublishCopyFactory::setSharedSubscriptionHashKey(size_t hash)
+{
+    this->sharedSubscriptionHashKey = hash;
+}
+
+size_t PublishCopyFactory::getSharedSubscriptionHashKey() const
+{
+    return this->sharedSubscriptionHashKey;
+}

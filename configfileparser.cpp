@@ -117,6 +117,7 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validKeys.insert("expire_retained_messages_after_seconds");
     validKeys.insert("expire_retained_messages_time_budget_ms");
     validKeys.insert("websocket_set_real_ip_from");
+    validKeys.insert("shared_subscription_targeting");
 
     validListenKeys.insert("port");
     validListenKeys.insert("protocol");
@@ -533,6 +534,18 @@ void ConfigFileParser::loadFile(bool test)
                 {
                     Network net(value);
                     tmpSettings.setRealIpFrom.push_back(std::move(net));
+                }
+
+                if (key == "shared_subscription_targeting")
+                {
+                    const std::string _val = str_tolower(value);
+
+                    if (_val == "round_robin")
+                        tmpSettings.sharedSubscriptionTargeting = SharedSubscriptionTargeting::RoundRobin;
+                    else if (_val == "sender_hash")
+                        tmpSettings.sharedSubscriptionTargeting = SharedSubscriptionTargeting::SenderHash;
+                    else
+                        throw ConfigFileException(formatString("Value '%s' for '%s' is invalid.", value.c_str(), key.c_str()));
                 }
             }
         }

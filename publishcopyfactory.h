@@ -23,6 +23,7 @@ class PublishCopyFactory
     std::unique_ptr<MqttPacket> oneShotPacket;
     const uint8_t orgQos;
     std::unordered_map<uint8_t, std::unique_ptr<MqttPacket>> constructedPacketCache;
+    size_t sharedSubscriptionHashKey;
 public:
     PublishCopyFactory(MqttPacket *packet);
     PublishCopyFactory(Publish *publish);
@@ -37,6 +38,8 @@ public:
     Publish getNewPublish(uint8_t new_max_qos) const;
     std::shared_ptr<Client> getSender();
     const std::vector<std::pair<std::string, std::string>> *getUserProperties() const;
+    void setSharedSubscriptionHashKey(size_t hash);
+    size_t getSharedSubscriptionHashKey() const;
 
 };
 

@@ -813,7 +813,7 @@ void MqttPacket::handleConnect()
             connAck->propertyBuilder->writeMaxTopicAliases(sender->getMaxIncomingTopicAliasValue());
             connAck->propertyBuilder->writeWildcardSubscriptionAvailable(1);
             connAck->propertyBuilder->writeSubscriptionIdentifiersAvailable(0);
-            connAck->propertyBuilder->writeSharedSubscriptionAvailable(0);
+            connAck->propertyBuilder->writeSharedSubscriptionAvailable(1);
             connAck->propertyBuilder->writeServerKeepAlive(connectData.keep_alive);
 
             if (!connectData.authenticationMethod.empty())
@@ -1080,9 +1080,12 @@ void MqttPacket::handleSubscribe()
         if (qos > 2)
             throw ProtocolError("QoS is greater than 2, and/or reserved bytes in QoS field are not 0.", ReasonCodes::MalformedPacket);
 
+        std::string shareName;
+        parseSubscriptionShare(subtopics, shareName);
+
         if (authentication.aclCheck(sender->getClientId(), sender->getUsername(), topic, subtopics, AclAccess::subscribe, qos, false, getUserProperties()) == AuthResult::success)
         {
-            deferredSubscribes.emplace_front(topic, subtopics, qos);
+            deferredSubscribes.emplace_front(topic, subtopics, qos, shareName);
             subs_reponse_codes.push_back(static_cast<ReasonCodes>(qos));
         }
         else
@@ -1109,7 +1112,7 @@ void MqttPacket::handleSubscribe()
     for(const SubscriptionTuple &tup : deferredSubscribes)
     {
         logger->logf(LOG_SUBSCRIBE, "Client '%s' subscribed to '%s' QoS %d", sender->repr().c_str(), tup.topic.c_str(), tup.qos);
-        MainApp::getMainApp()->getSubscriptionStore()->addSubscription(sender, tup.topic, tup.subtopics, tup.qos);
+        MainApp::getMainApp()->getSubscriptionStore()->addSubscription(sender, tup.subtopics, tup.qos, tup.shareName);
     }
 }
 
@@ -1345,6 +1348,13 @@ void MqttPacket::handlePublish()
                 publishData.retain = false;
 
                 PublishCopyFactory factory(this);
+
+                if (settings->sharedSubscriptionTargeting == SharedSubscriptionTargeting::SenderHash)
+                {
+                    const size_t senderHash = std::hash<std::string>()(sender->getClientId());
+                    factory.setSharedSubscriptionHashKey(senderHash);
+                }
+
                 MainApp::getMainApp()->getSubscriptionStore()->queuePacketAtSubscribers(factory);
             }
         }
@@ -1897,10 +1907,11 @@ void MqttPacket::readIntoBuf(CirBuf &buf) const
     buf.write(bites.data(), bites.size());
 }
 
-SubscriptionTuple::SubscriptionTuple(const std::string &topic, const std::vector<std::string> &subtopics, uint8_t qos) :
+SubscriptionTuple::SubscriptionTuple(const std::string &topic, const std::vector<std::string> &subtopics, uint8_t qos, const std::string &shareName) :
     topic(topic),
     subtopics(subtopics),
-    qos(qos)
+    qos(qos),
+    shareName(shareName)
 {
 
 }

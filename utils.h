@@ -137,5 +137,7 @@ ReasonCodes authResultToReasonCode(AuthResult authResult);
 
 int maskAllSignalsCurrentThread();
 
+void parseSubscriptionShare(std::vector<std::string> &subtopics, std::string &shareName);
+
 
 #endif // UTILS_H

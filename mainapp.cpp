@@ -509,6 +509,8 @@ void MainApp::start()
 
         try
         {
+            const std::string empty;
+
             std::vector<MqttPacket> packetQueueIn;
             std::vector<std::string> subtopics;
 
@@ -529,10 +531,10 @@ void MainApp::start()
             websocketsubscriber->setFakeUpgraded();
             subscriptionStore->registerClientAndKickExistingOne(websocketsubscriber);
             splitTopic("#", subtopics);
-            subscriptionStore->addSubscription(websocketsubscriber, "#", subtopics, 0);
+            subscriptionStore->addSubscription(websocketsubscriber, subtopics, 0, empty);
 
             subscriptionStore->registerClientAndKickExistingOne(subscriber);
-            subscriptionStore->addSubscription(subscriber, "#", subtopics, 0);
+            subscriptionStore->addSubscription(subscriber, subtopics, 0, empty);
 
             if (fuzzWebsockets && strContains(fuzzFilePathLower, "upgrade"))
             {

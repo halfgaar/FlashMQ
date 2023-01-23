@@ -66,6 +66,9 @@ add_executable(flashmq
     packetdatatypes.h
     haproxy.h
     network.h
+    subscription.h
+    sharedsubscribers.h
+
 
     mainapp.cpp
     main.cpp
@@ -111,6 +114,8 @@ add_executable(flashmq
     packetdatatypes.cpp
     haproxy.cpp
     network.cpp
+    subscription.cpp
+    sharedsubscribers.cpp
 
     )
 

@@ -293,6 +293,11 @@ void flashmq_plugin_periodic_event(void *thread_data);
  * @param qos non-const reference which can be changed.
  * @param userProperties
  * @return boolean indicating whether the subscription was changed. Not returning the truth here results in unpredictable behavior.
+ *
+ * In case of shared subscriptions, you will see the original subscription path, like '$share/myshare/battery/voltage'. You have the
+ * chance to change every aspect of it, like make it non-shared.
+ *
+ * [Can optionally be implemented by plugin]
  */
 bool flashmq_plugin_alter_subscription(void *thread_data, const std::string &clientid, std::string &topic, const std::vector<std::string> &subtopics,
                                        uint8_t &qos, const std::vector<std::pair<std::string, std::string>> *userProperties);
@@ -362,6 +367,9 @@ void flashmq_plugin_client_disconnected(void *thread_data, const std::string &cl
  *
  * Note that there is a setting 'plugin_serialize_auth_checks'. Use only as a last resort if your plugin is not
  * thread-safe. It will negate much of FlashMQ's multi-core model.
+ *
+ * When the 'access' is 'subscribe' and it's a shared subscription (like '$share/myshare/one/two/three'), you only get
+ * the effective topic filter (like 'one/two/three').
  *
  * [Must be implemented by plugin]
  */

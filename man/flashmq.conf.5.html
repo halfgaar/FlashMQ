@@ -435,6 +435,24 @@
         </dd>
       
 
+      
+        <dt id="shared_subscription_targeting">shared_subscription_targeting <code class="replaceable">round_robin/sender_hash</code><a class="hash-anchor" href="#shared_subscription_targeting">#</a></dt>
+        <dd>
+          <p>
+            When having multiple subscribers on a shared subscription (like '$share/myshare/jane/doe'), select how the messages should be distributed over the subscribers.
+          </p>
+          <p>
+            <code class="replaceable">round_robin</code>. Select the next subscriber for each message. There is still some amount of randomness to it because the counter for this is not thread safe. Using an atomic/mutexed counter for it would just be too slow to justify.
+          </p>
+          <p>
+            <code class="replaceable">sender_hash</code>. Selects a receiver deterministically based on the hash of the client ID of the sender. The selected subscriber will depend on how many subscribers there are, so if some disconnect, the distribution will change. Moreover, the selection may also change when FlashMQ cleans up empty spaces in the list of shared subscribers.
+          </p>
+          <p>
+            Default: <code class="replaceable">round_robin</code>
+          </p>
+        </dd>
+      
+
     </dl>
   </section><section class="refsect1">
     <header><h2>Listen parameters</h2></header>

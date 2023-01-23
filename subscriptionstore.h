@@ -33,15 +33,9 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "utils.h"
 #include "retainedmessage.h"
 #include "logger.h"
+#include "subscription.h"
+#include "sharedsubscribers.h"
 
-
-struct Subscription
-{
-    std::weak_ptr<Session> session; // Weak pointer expires when session has been cleaned by 'clean session' connect or when it was remove because it expired
-    uint8_t qos;
-    bool operator==(const Subscription &rhs) const;
-    void reset();
-};
 
 struct ReceivingSubscriber
 {
@@ -56,16 +50,18 @@ class SubscriptionNode
 {
     std::string subtopic;
     std::unordered_map<std::string, Subscription> subscribers;
+    std::unordered_map<std::string, SharedSubscribers> sharedSubscribers;
 
 public:
     SubscriptionNode(const std::string &subtopic);
     SubscriptionNode(const SubscriptionNode &node) = delete;
     SubscriptionNode(SubscriptionNode &&node) = delete;
 
-    std::unordered_map<std::string, Subscription> &getSubscribers();
+    const std::unordered_map<std::string, Subscription> &getSubscribers() const;
+    std::unordered_map<std::string, SharedSubscribers> &getSharedSubscribers();
     const std::string &getSubtopic() const;
-    void addSubscriber(const std::shared_ptr<Session> &subscriber, uint8_t qos);
-    void removeSubscriber(const std::shared_ptr<Session> &subscriber);
+    void addSubscriber(const std::shared_ptr<Session> &subscriber, uint8_t qos, const std::string &shareName);
+    void removeSubscriber(const std::shared_ptr<Session> &subscriber, const std::string &shareName);
     std::unordered_map<std::string, std::unique_ptr<SubscriptionNode>> children;
     std::unique_ptr<SubscriptionNode> childrenPlus;
     std::unique_ptr<SubscriptionNode> childrenPound;
@@ -130,10 +126,10 @@ class SubscriptionStore
 
     Logger *logger = Logger::getInstance();
 
-    static void publishNonRecursively(const std::unordered_map<std::string, Subscription> &subscribers,
-                               std::forward_list<ReceivingSubscriber> &targetSessions);
+    static void publishNonRecursively(SubscriptionNode *this_node,
+                               std::forward_list<ReceivingSubscriber> &targetSessions, size_t distributionHash);
     static void publishRecursively(std::vector<std::string>::const_iterator cur_subtopic_it, std::vector<std::string>::const_iterator end,
-                            SubscriptionNode *this_node, std::forward_list<ReceivingSubscriber> &targetSessions);
+                            SubscriptionNode *this_node, std::forward_list<ReceivingSubscriber> &targetSessions, size_t distributionHash);
     static void giveClientRetainedMessagesRecursively(std::vector<std::string>::const_iterator cur_subtopic_it,
                                                std::vector<std::string>::const_iterator end, RetainedMessageNode *this_node, bool poundMode,
                                                std::forward_list<Publish> &packetList, int &count);
@@ -143,11 +139,12 @@ class SubscriptionStore
     void countSubscriptions(SubscriptionNode *this_node, int64_t &count) const;
     void expireRetainedMessages(RetainedMessageNode *this_node, const std::chrono::time_point<std::chrono::steady_clock> &limit);
 
-    SubscriptionNode *getDeepestNode(const std::string &topic, const std::vector<std::string> &subtopics);
+    SubscriptionNode *getDeepestNode(const std::vector<std::string> &subtopics);
 public:
     SubscriptionStore();
 
-    void addSubscription(std::shared_ptr<Client> &client, const std::string &topic, const std::vector<std::string> &subtopics, uint8_t qos);
+    void addSubscription(std::shared_ptr<Client> &client, const std::vector<std::string> &subtopics, uint8_t qos);
+    void addSubscription(std::shared_ptr<Client> &client, const std::vector<std::string> &subtopics, uint8_t qos, const std::string &shareName);
     void removeSubscription(std::shared_ptr<Client> &client, const std::string &topic);
     void registerClientAndKickExistingOne(std::shared_ptr<Client> &client);
     void registerClientAndKickExistingOne(std::shared_ptr<Client> &client, bool clean_start, uint16_t clientReceiveMax, uint32_t sessionExpiryInterval);
