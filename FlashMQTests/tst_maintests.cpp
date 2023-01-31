@@ -3493,7 +3493,7 @@ void MainTests::testChangePublish()
 
         sender.publish("changeme", "hello", 1);
 
-        receiver.waitForPacketCount(1);
+        receiver.waitForMessageCount(1);
 
         MYCASTCOMPARE(receiver.receivedPublishes.size(), 1);
         MYCASTCOMPARE(receiver.receivedPublishes.front().getTopic(), "changed");
