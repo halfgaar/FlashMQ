@@ -236,6 +236,11 @@ void PersistenceFile::writeUint16(const uint16_t val)
     writeCheck(buf, 1, 2, f);
 }
 
+void PersistenceFile::writeUint8(const uint8_t val)
+{
+    writeCheck(&val, 1, 1, f);
+}
+
 void PersistenceFile::writeString(const std::string &s)
 {
     writeUint32(s.size());
@@ -273,6 +278,16 @@ uint16_t PersistenceFile::readUint16(bool &eofFound)
     uint16_t val;
     unsigned char *buf_ = reinterpret_cast<unsigned char *>(buf.data());
     val = ((buf_[0]) << 8) | (buf_[1]);
+    return val;
+}
+
+uint8_t PersistenceFile::readUint8(bool &eofFound)
+{
+    uint8_t val;
+
+    if (readCheck(&val, 1, 1, f) < 0)
+        eofFound = true;
+
     return val;
 }
 

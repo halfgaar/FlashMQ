@@ -95,13 +95,8 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV3()
         {
             readCheck(buf.data(), 1, RESERVED_SPACE_SESSIONS_DB_V2, f);
 
-            uint32_t usernameLength = readUint32(eofFound);
-            readCheck(buf.data(), 1, usernameLength, f);
-            std::string username(buf.data(), usernameLength);
-
-            uint32_t clientIdLength = readUint32(eofFound);
-            readCheck(buf.data(), 1, clientIdLength, f);
-            std::string clientId(buf.data(), clientIdLength);
+            std::string username = readString(eofFound);
+            std::string clientId = readString(eofFound);
 
             std::shared_ptr<Session> ses = std::make_shared<Session>();
             result.sessions.push_back(ses);
@@ -209,9 +204,7 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV3()
         const uint32_t nrOfSubscriptions = readUint32(eofFound);
         for (uint32_t i = 0; i < nrOfSubscriptions; i++)
         {
-            const uint32_t topicLength = readUint32(eofFound);
-            readCheck(buf.data(), 1, topicLength, f);
-            const std::string topic(buf.data(), topicLength);
+            const std::string topic = readString(eofFound);
 
             logger->logf(LOG_DEBUG, "Loading subscriptions to topic '%s'.", topic.c_str());
 
@@ -219,12 +212,8 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV3()
 
             for (uint32_t i = 0; i < nrOfClientIds; i++)
             {
-                const uint32_t clientIdLength = readUint32(eofFound);
-                readCheck(buf.data(), 1, clientIdLength, f);
-                const std::string clientId(buf.data(), clientIdLength);
-
-                uint8_t qos;
-                readCheck(&qos, 1, 1, f);
+                std::string clientId = readString(eofFound);
+                uint8_t qos = readUint8(eofFound);
 
                 logger->logf(LOG_DEBUG, "Saving session '%s' subscription to '%s' QoS %d.", clientId.c_str(), topic.c_str(), qos);
 
@@ -381,7 +370,7 @@ void SessionsAndSubscriptionsDB::saveData(const std::vector<std::shared_ptr<Sess
             logger->logf(LOG_DEBUG, "Saving session '%s' subscription to '%s' QoS %d.", subscription.clientId.c_str(), topic.c_str(), subscription.qos);
 
             writeString(subscription.clientId);
-            writeCheck(&subscription.qos, 1, 1, f);
+            writeUint8(subscription.qos);
         }
     }
 
