@@ -37,8 +37,10 @@ const std::string &ConfFileTemp::getFilePath() const
 
 void ConfFileTemp::writeLine(const std::string &line)
 {
-    write(this->fd, line.c_str(), line.size());
-    write(this->fd, "\n", 1);
+    if (write(this->fd, line.c_str(), line.size()) < 0)
+        throw std::runtime_error("Config file write failed");
+    if (write(this->fd, "\n", 1) < 0)
+        throw std::runtime_error("Config file write failed");
 }
 
 void ConfFileTemp::closeFile()
