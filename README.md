@@ -9,7 +9,11 @@ FlashMQ is a high-performance, light-weight MQTT broker/server, designed to take
 
 Builds (AppImage and a Debian/Ubuntu apt server) are provided on [www.flashmq.org](https://www.flashmq.org).
 
-Building from source can be done with `build.sh`. It's best to checkout a tagged release first. See `git tag`.
+## Building from source
+
+Building from source should be done with `build.sh`. It's best to checkout a tagged release first. See `git tag`.
+
+If you build manually with `cmake` with default options, you won't have `-DCMAKE_BUILD_TYPE=Release` and you will have debug code enabled and no compiler optimizations (`-O3`). In other words, it's essentially a debug build, but without debugging symbols.
 
 ## Docker
 
