@@ -1,0 +1,283 @@
+'\" -*- coding: us-ascii -*-
+.if \n(.g .ds T< \\FC
+.if \n(.g .ds T> \\F[\n[.fam]]
+.de URL
+\\$2 \(la\\$1\(ra\\$3
+..
+.if \n(.g .mso www.tmac
+.TH flashmq.conf 5 "2 February 2023" "" ""
+.SH NAME
+flashmq.conf \- FlashMQ configuration file format
+.SH SYNOPSIS
+The \*(T<\fIflashmq.conf\fR\*(T> file is the configuration used for configuring the FlashMQ MQTT broker. It doesn't necessarily have to be called \*(T<\fIflashmq.conf\fR\*(T>; the \fBflashmq\fR daemon program sports a \*(T<\fB\-\-config\-file\fR\*(T> parameter.
+.SH "FILE FORMAT"
+To set a parameter, its name must appear on a single line, followed by whitespace, followed by the parameter value.
+.PP
+\*(T<\fBparameter\-name\fR\*(T>
+\fIparameter-value\fR
+.PP
+To configure the listeners, use \*(T<\fBlisten\fR\*(T> blocks, defined by { and }. See EXAMPLE LISTENERS for details.
+.PP
+Lines beginning with the hash character (\(lq\*(T<#\*(T>\(rq) and empty lines are ignored. Thus, a line can be commented out by prepending a \(lq\*(T<#\*(T>\(rq to it.
+.SH "GLOBAL PARAMETERS"
+.TP 
+\*(T<\fBplugin\fR\*(T> \fI/path/to/plugin.so\fR 
+FlashMQ supports an ELF shared object (\*(T<\fI.so\fR\*(T> file) plugin interface to add functionality, authorization and authentication, because it\(cqs hard to provide a declarative mechanism that works for everybody. See \*(T<\fIflashmq_plugin.h\fR\*(T> for the API and its documentation. It\(cqs written in C++ for ease of passing FlashMQ internals without conversion to C, but you can basically just use a C++ compiler and program like it was C; the C++ constructs are simple.
+
+FlashMQ will auto-detect which plugin interface you\(cqre trying to load (Mosquitto version 2 or FlashMQ native). Keep in mind that each thread initializes the plugin, inline with multi-core programming (minimize shared data and interaction between threads). You could use static variables with thread synchronization if you really want to. And of course, any Mosquitto plugin that uses global and/or static variables instead of initializing memory in its \*(T<\fBinit()\fR\*(T> method, will not be thread-safe and won\(cqt work.
+
+You can only have one plugin active, but you can combine it with 
+.URL #mosquitto_password_file mosquitto_password_file
+and \(lamosquitto_acl_file\(ra. The password and ACL file take precedence, and on a \(oqdeny\(cq, will not ask the plugin.
+.TP 
+\*(T<\fBplugin_opt_*\fR\*(T> \fIvalue\fR 
+Options passed to the plugin \*(T<\fBinit()\fR\*(T> function.
+.TP 
+\*(T<\fBplugin_serialize_init\fR\*(T> \fIyes/no\fR 
+There could be circumstances where the plugin code is mostly thread-safe, but not on initialization. Libmysqlclient for instance, needs a one-time initialization. To add to the confusion, Qt hides that away.
+
+The plugin should preferrably be written with proper synchronization like that, but as a last resort, you can use this to synchronize initialization.
+
+Default value: \*(T<true\*(T>
+.TP 
+\*(T<\fBplugin_serialize_auth_checks\fR\*(T> \fIyes/no\fR 
+Like \*(T<\fBplugin_serialize_init\fR\*(T>, but then for all login and ACL checks.
+
+This option may be dropped at some point, because it negates much of the multi-core design. One may as well run with only one thread then.
+
+Default value: \*(T<false\*(T>
+.TP 
+\*(T<\fBplugin_timer_period\fR\*(T> \fIseconds\fR 
+The FlashMQ auth plugin interface has a function that is called periodically this amount of seconds. This can be used to refresh state, commit data, etc.
+
+See \*(T<\fIflashmq_plugin.h\fR\*(T> for details.
+
+Default value: \*(T<60\*(T>
+.TP 
+\*(T<\fBlog_file\fR\*(T> \fI/path/to/flashmq.log\fR 
+This configuration parameter sets the path to FlashMQ's log file. If you omit the, the output will go to stdout.
+
+Default value: \*(T<\fI/var/log/flashmq/flashmq.log\fR\*(T>
+.TP 
+\*(T<\fBlog_debug\fR\*(T> \fIyes/no\fR 
+Debug logging obviously creates a lot of log noise, so should only be done to diagnose problems.
+
+Default value: \*(T<false\*(T>
+.TP 
+\*(T<\fBlog_subscriptions\fR\*(T> \fIyes/no\fR 
+Default value: \*(T<false\*(T>
+.TP 
+\*(T<\fBallow_unsafe_clientid_chars\fR\*(T> \fIyes/no\fR 
+If you have topics with client IDs in it, people can possibly manipulate your ACL checking by saying their client ID is 'John+foobar'. Audit your security before you allow this.
+
+Default value: \*(T<false\*(T>
+.TP 
+\*(T<\fBallow_unsafe_username_chars\fR\*(T> \fIyes/no\fR 
+If you have topics with usernames in it, people can possibly manipulate your ACL checking by saying their username is 'John+foobar'. Audit your security before you allow this.
+
+Default value: \*(T<false\*(T>
+.TP 
+\*(T<\fBmax_packet_size\fR\*(T> \fIbytes\fR 
+MQTT packets are 256 MB max, approximately. This memory will (temporarily) be allocated upon arrival of such packets, so there may be cause to set it lower.
+
+Default value: \*(T<268435461\*(T>
+.TP 
+\*(T<\fBmosquitto_password_file\fR\*(T> \fI/foo/bar/mosquitto_password_file\fR 
+File with usernames and hashed+salted passwords as generated by Mosquitto's \fBmosquitto_passwd\fR.
+
+Mosquitto up to version 1.6 uses the sha512 algorithm. Newer version use sha512-pbkdf2. Both are supported.
+.TP 
+\*(T<\fBmosquitto_acl_file\fR\*(T> \fI/foo/bar/mosquitto_acl_file\fR 
+ACL (access control lists) for users, anonymous users and patterns expandable with %u (username) and %c (clientid). Format is Mosquitto's acl_file.
+.TP 
+\*(T<\fBallow_anonymous\fR\*(T> \fIyes/no\fR 
+Default value: \*(T<false\*(T>
+.TP 
+\*(T<\fBrlimit_nofile\fR\*(T> \fInumber\fR 
+The general Linux default of \*(T<1024\*(T> can be overridden. Note: \*(T<systemd\*(T> blocks you from setting it, so it needs to be set on the unit. The default systemd unit file sets \*(T<\fBLimitNOFILE=infinity\fR\*(T>. You may also need to set \*(T<\fBsysctl \-w fs.file\-max=10000000\fR\*(T>
+
+Default value: \*(T<1000000\*(T>
+.TP 
+\*(T<\fBexpire_sessions_after_seconds\fR\*(T> \fIseconds\fR 
+Expire sessions after this time. Setting to 0 disables it and is (MQTT3) standard-compliant. But, existing sessions cause load on the server (because they cost memory and are still subscribers), so keeping sessions after any client that connects with a random ID doesn't make sense.
+
+Default value: \*(T<1209600\*(T>
+.TP 
+\*(T<\fBquiet\fR\*(T> \fIyes/no\fR 
+Don't log LOG_INFO and LOG_NOTICE. This is useful when you have a lot of foot traffic, because otherwise the log gets filled with connect/disconnect notices.
+
+Default value: \*(T<false\*(T>
+.TP 
+\*(T<\fBstorage_dir\fR\*(T> \fI/path/to/dir\fR 
+Location to store sessions, subscriptions and retained messages.
+Not specifying this will turn off persistence.
+.TP 
+\*(T<\fBmax_qos_msg_pending_per_client\fR\*(T> , \*(T<\fBmax_qos_bytes_pending_per_client\fR\*(T> 
+There is a limit to how many QoS packets can be stored in a session, so you can define a maximum amount of messages and bytes. If any of these is exceeded, the packet is dropped.
+
+These are essentially superfluous for MQTT >= 3.1.1 clients with \*(T<\fBcleansession=true\fR\*(T> (MQTT 3) / \*(T<\fBsession expirty = 0\fR\*(T> (MQTT 5). Because queues would get destroyed upon client disconnect, there is no point in actually queuing them. In those cases, it just allows 65536 'in flight' packets.
+
+Defaults:
+.RS 
+.TP 0.2i
+\(bu
+max_qos_msg_pending_per_client 512
+.TP 0.2i
+\(bu
+max_qos_bytes_pending_per_client 65536
+.RE
+.TP 
+\*(T<\fBmax_incoming_topic_alias_value\fR\*(T> \fInumber\fR 
+Is communicated towards MQTT5 clients. It is then up to them to decide to set them or not.
+
+Changing this setting and reloading the config only has effect on new clients, because existing clients would otherwise exceed the limit they think applies.
+
+Default value: \*(T<65535\*(T>
+.TP 
+\*(T<\fBmax_outgoing_topic_alias_value\fR\*(T> \fInumber\fR 
+FlashMQ will make this many aliases per MQTT5 client, if they ask for aliases (with the connect property \*(T<\fBTopicAliasMaximum\fR\*(T>).
+
+Default value: \*(T<65535\*(T>
+.TP 
+\*(T<\fBthread_count\fR\*(T> \fInumber\fR 
+If you want to have a different amount of worker threads then CPUs, you can set this value. Typically you don't need to set this.
+
+Default value: \*(T<\fIauto\-detect\fR\*(T>
+.TP 
+\*(T<\fBwills_enabled\fR\*(T> \fIyes/no\fR 
+When disabled, the server will not set last will and testament specified by connecting clients.
+
+Default value: \*(T<\fItrue\fR\*(T>
+.TP 
+\*(T<\fBretained_messages_mode\fR\*(T> \fIenabled/downgrade/drop/disconnect_with_error\fR 
+Retained messages can be a strain on the server you may not need. You can set various ways of dealing with them:
+
+\*(T<\fIenabled\fR\*(T>. This is normal operation.
+
+\*(T<\fIdowngrade\fR\*(T>. The retain flag is removed and treated like a normal publish.
+
+\*(T<\fIdrop\fR\*(T>. Messages with retain set are dropped.
+
+\*(T<\fIdisconnect_with_error\fR\*(T>. Disconnect clients who try to set them.
+
+Default value: \*(T<\fIenabled\fR\*(T>
+.TP 
+\*(T<\fBexpire_retained_messages_after_seconds\fR\*(T> \fIseconds\fR 
+Use this to limit the life time of retained messages. Without this, the amount of retained messages may never decrease.
+
+Default value: \*(T<\fI4294967296\fR\*(T>
+.TP 
+\*(T<\fBexpire_retained_messages_time_budget_ms\fR\*(T> \fImilliseconds\fR 
+When purging the retained messages tree, spend a maximum of this many milliseconds on it. The purge requires a write lock, so you don't want to hold up everything too long.
+
+Currently, the purge frequency is 3949193 milliseconds, but this is subject to change.
+
+Default value: \*(T<\fI200\fR\*(T>
+.TP 
+\*(T<\fBwebsocket_set_real_ip_from\fR\*(T> \fIinet4_address/inet6_address\fR 
+HTTP proxies in front of the websocket listeners can set the \fIX-Real-IP\fR header to identify the original connecting client. With \*(T<\fBwebsocket_set_real_ip_from\fR\*(T> you can mark IP networks as trusted. By default, clients are not trusted, to avoid spoofing.
+
+You can repeat the option to allow for mutiple addresses. Valid notations are \fI1.2.3.4\fR, \fI1.2.3.4/16\fR, \fI1.2.0.0/16\fR, \fI2a01:1337::1\fR, \fI2a01:1337::1/64\fR, etc.
+
+The header \fIX-Forwarded-For\fR is not used, because that's designed to contain a list of addresses, if applicable.
+
+As a side note about using a proxy on your listener; you can only have an absolute max of 65535 connections between two IP addresses (and the practical limit is lower), so if you need more, you'll have to use multiple IP addresses.
+.SH "LISTEN PARAMETERS"
+Listen parameters can only be used within \*(T<listen { }\*(T> blocks.
+.TP 
+\*(T<\fBport\fR\*(T> 
+The default port depends on the \*(T<\fBprotocol\fR\*(T> parameter and whether or not \*(T<\fBfullchain\fR\*(T> and \*(T<\fBprivkey\fR\*(T> parameters are supplied:
+.RS 
+.TP 0.2i
+\(bu
+For unencrypted MQTT, the default port is \*(T<1883\*(T>
+.TP 0.2i
+\(bu
+For encrypted MQTT, the default port is \*(T<8883\*(T>
+.TP 0.2i
+\(bu
+For plain HTTP websockets, the default port is \*(T<8080\*(T>
+.TP 0.2i
+\(bu
+For encrypted HTTPS websockets, the default port is \*(T<4443\*(T>
+.RE
+.TP 
+\*(T<\fBprotocol\fR\*(T> 
+Valid values:
+
+\*(T<mqtt\*(T>
+.br
+\*(T<websockets\*(T>
+.TP 
+\*(T<\fBinet_protocol\fR\*(T> 
+Valid values:
+
+\*(T<ip4_ip6\*(T>
+.br
+\*(T<ip4\*(T>
+.br
+\*(T<ip6\*(T>
+
+Default: ip4_ip6
+.TP 
+\*(T<\fBinet4_bind_address\fR\*(T> \fIinet4address\fR 
+Default: 0.0.0.0
+.TP 
+\*(T<\fBinet6_bind_address\fR\*(T> \fIinet6address\fR 
+Default: ::0
+.TP 
+\*(T<\fBfullchain\fR\*(T> \fI/foobar/server.crt\fR 
+Specifying a chain makes the listener SSL, and also requires the \*(T<\fBprivkey\fR\*(T> to be set.
+.TP 
+\*(T<\fBprivkey\fR\*(T> \fI/foobar/server.key\fR 
+Specifying a private key makes the listener SSL, and also requires the \*(T<\fBfullchain\fR\*(T> to be set.
+.TP 
+\*(T<\fBhaproxy\fR\*(T> \fIyes/no\fR 
+Setting the listener to haproxy makes it expect the PROXY protocol and set client source address to the original client. Make sure this listener is private / firewalled, otherwise anybody can set a different source address.
+
+Note that HAProxy's server health checks only started using the 'local' specifier as of version 2.4. This means earlier version will pretend to be a client and break the connection, causing log spam.
+
+See haproxy.org.
+.SH "EXAMPLE LISTENERS"
+.nf
+listen {
+  protocol mqtt
+  inet_protocol ip4_ip6
+  inet4_bind_address 127.0.0.1
+  inet6_bind_address ::1
+  fullchain /foobar/server.crt
+  privkey /foobar/server.key
+
+  # default = 8883
+  port 8883
+}
+listen {
+  protocol mqtt
+  inet_protocol ip4
+
+  # default = 1883
+  port 1883
+}
+listen {
+  protocol websockets
+  fullchain /foobar/server.crt
+  privkey /foobar/server.key
+
+  # default = 4443
+  port 4443
+}
+listen {
+  protocol websockets
+
+  # default = 8080
+  port 8080
+}
+listen {
+  port 2883
+  haproxy on
+}
+.fi
+.SH AUTHOR
+Wiebe Cazemier <\*(T<contact@flashmq.org\*(T>>.
+.SH "SEE ALSO"
+\fBflashmq\fR(1)

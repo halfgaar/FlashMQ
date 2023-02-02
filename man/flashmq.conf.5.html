@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>flashmq.conf (5) – FlashMQ configuration file format</title><style type="text/css" media="screen">
+        html {
+          margin: 0;
+          padding: 0;
+          font-size: 18px;  /* Set rem */
+          font-family: sans-serif;
+        }
+        body {
+          padding: 1rem 2rem;
+          line-height: 1.5em;
+        }
+        article {
+          box-sizing: border-box;
+          max-width: 50em;
+          padding-left: 3rem;
+        }
+        header {
+          margin-top: 2.5rem;
+          margin-bottom: -.25rem;
+          margin-left: -3rem;
+        }
+        h1 {
+          margin: 0;
+          line-height: 1.2em;
+          font-size: 2rem;
+          font-weight: bold;
+          color: #111;
+        }
+        h1 code.manvolnum {
+          font-size: 70%;
+        }
+        h2.refpurpose {
+          margin-top: -.25em;
+          font-size: 1em;
+          text-transform: none;
+        }
+        h2 {
+          margin: 0;
+          line-height: 1.2em;
+          font-size: .9rem;
+          font-weight: 600;
+          color: #111;
+          text-transform: uppercase;
+        }
+        dt {
+          margin-bottom: -.5rem;
+          font-weight: bold;
+          color: #111;
+        }
+        dt .replaceable {
+          text-decoration: underline;
+          font-weight: normal;
+        }
+        dd {
+          margin-bottom: 2em;
+        }
+        a.hash-anchor {
+          margin-left: .5em;
+          color: #aaa;
+          text-decoration: none;
+          font-weight: normal;
+        }
+        a.hash-anchor:hover {
+          text-decoration: underline;
+          color: #111;
+        }
+        code {
+          font-family: monospace;
+        }
+        pre.monospaced, pre.cmdsynopsis {
+          background-color: #ddd;
+          font-family: monospace;
+          padding: 2em 2em;
+        }
+      </style></head><body><article id="flashmq.conf"><header><h1>flashmq.conf<code class="manvolnum"> (5)</code></h1><h2 class="refpurpose">FlashMQ configuration file format</h2></header><section class="refsynopsisdiv" id="synopsis"><header><h2>Synopsis</h2></header>
+    <p>
+      The <code class="filename">flashmq.conf</code> file is the configuration used for configuring the FlashMQ MQTT broker. It doesn't necessarily have to be called <code class="filename">flashmq.conf</code>; the <code class="command">flashmq</code> daemon program sports a --config-file parameter.
+    </p>
+  </section><section class="refsect1" id="file-format">
+    <header><h2>File format<a class="hash-anchor" href="#file-format">#</a></h2></header>
+    <p>
+      To set a parameter, its name must appear on a single line, followed by whitespace, followed by the parameter value.
+    </p>
+    <p>
+      parameter-name <code class="replaceable">parameter-value</code>
+    </p>
+    <p>
+      To configure the listeners, use listen blocks, defined by { and }. See EXAMPLE LISTENERS for details.
+    </p>
+    <p>
+      Lines beginning with the hash character (“<code class="literal">#</code>”) and empty lines are ignored. Thus, a line can be commented out by prepending a “<code class="literal">#</code>” to it.
+    </p>
+  </section><section class="refsect1" id="global-parameters">
+    <header><h2>Global parameters<a class="hash-anchor" href="#global-parameters">#</a></h2></header>
+    <dl>
+      
+        <dt id="plugin">plugin <code class="replaceable">/path/to/plugin.so</code><a class="hash-anchor" href="#plugin">#</a></dt>
+        <dd>
+          <p>
+            FlashMQ supports an ELF shared object (<code class="filename">.so</code> file) plugin interface to add functionality, authorization and authentication, because it’s hard to provide a declarative mechanism that works for everybody. See <code class="filename">flashmq_plugin.h</code> for the API and its documentation. It’s written in C++ for ease of passing FlashMQ internals without conversion to C, but you can basically just use a C++ compiler and program like it was C; the C++ constructs are simple.
+          </p>
+          <p>
+            FlashMQ will auto-detect which plugin interface you’re trying to load (Mosquitto version 2 or FlashMQ native). Keep in mind that each thread initializes the plugin, inline with multi-core programming (minimize shared data and interaction between threads). You could use static variables with thread synchronization if you really want to. And of course, any Mosquitto plugin that uses global and/or static variables instead of initializing memory in its <code class="function">init()</code> method, will not be thread-safe and won’t work.
+          </p>
+          <p>
+            You can only have one plugin active, but you can combine it with mosquitto_password_file and mosquitto_acl_file. The password and ACL file take precedence, and on a ‘deny’, will not ask the plugin.
+          </p>
+        </dd>
+      
+
+      
+        <dt id="plugin_opt_">plugin_opt_* <code class="replaceable">value</code><a class="hash-anchor" href="#plugin_opt_">#</a></dt>
+        <dd>
+          <p>
+            Options passed to the plugin <code class="function">init()</code> function.
+          </p>
+        </dd>
+      
+
+      
+        <dt id="plugin_serialize_init">plugin_serialize_init <code class="replaceable">yes/no</code><a class="hash-anchor" href="#plugin_serialize_init">#</a></dt>
+        <dd>
+          <p>
+            There could be circumstances where the plugin code is mostly thread-safe, but not on initialization. Libmysqlclient for instance, needs a one-time initialization. To add to the confusion, Qt hides that away.
+          </p>
+          <p>
+            The plugin should preferrably be written with proper synchronization like that, but as a last resort, you can use this to synchronize initialization.
+          </p>
+          <p>
+            Default value: <code class="literal">true</code>
+          </p>
+        </dd>
+      
+      
+        <dt id="plugin_serialize_auth_checks">plugin_serialize_auth_checks <code class="replaceable">yes/no</code><a class="hash-anchor" href="#plugin_serialize_auth_checks">#</a></dt>
+        <dd>
+          <p>
+            Like plugin_serialize_init, but then for all login and ACL checks.
+          </p>
+          <p>
+            This option may be dropped at some point, because it negates much of the multi-core design. One may as well run with only one thread then.
+          </p>
+          <p>
+            Default value: <code class="literal">false</code>
+          </p>
+        </dd>
+      
+      
+        <dt id="plugin_timer_period">plugin_timer_period <code class="replaceable">seconds</code><a class="hash-anchor" href="#plugin_timer_period">#</a></dt>
+        <dd>
+          <p>
+            The FlashMQ auth plugin interface has a function that is called periodically this amount of seconds. This can be used to refresh state, commit data, etc.
+          </p>
+          <p>
+            See <code class="filename">flashmq_plugin.h</code> for details.
+          </p>
+          <p>
+            Default value: <code class="literal">60</code>
+          </p>
+        </dd>
+      
+      
+        <dt id="log_file">log_file <code class="replaceable">/path/to/flashmq.log</code><a class="hash-anchor" href="#log_file">#</a></dt>
+        <dd>
+          <p>
+            This configuration parameter sets the path to FlashMQ's log file. If you omit the, the output will go to stdout.
+          </p>
+          <p>
+            Default value: <code class="filename">/var/log/flashmq/flashmq.log</code>
+          </p>
+        </dd>
+      
+      
+        <dt id="log_debug">log_debug <code class="replaceable">yes/no</code><a class="hash-anchor" href="#log_debug">#</a></dt>
+        <dd>
+          <p>
+            Debug logging obviously creates a lot of log noise, so should only be done to diagnose problems.
+          </p>
+          <p>
+            Default value: <code class="literal">false</code>
+          </p>
+        </dd>
+      
+      
+        <dt id="log_subscriptions">log_subscriptions <code class="replaceable">yes/no</code><a class="hash-anchor" href="#log_subscriptions">#</a></dt>
+        <dd>
+          <p>
+            Default value: <code class="literal">false</code>
+          </p>
+        </dd>
+      
+      
+        <dt id="allow_unsafe_clientid_chars">allow_unsafe_clientid_chars <code class="replaceable">yes/no</code><a class="hash-anchor" href="#allow_unsafe_clientid_chars">#</a></dt>
+        <dd>
+          <p>
+            If you have topics with client IDs in it, people can possibly manipulate your ACL checking by saying their client ID is 'John+foobar'. Audit your security before you allow this.
+          </p>
+          <p>
+            Default value: <code class="literal">false</code>
+          </p>
+        </dd>
+      
+      
+        <dt id="allow_unsafe_username_chars">allow_unsafe_username_chars <code class="replaceable">yes/no</code><a class="hash-anchor" href="#allow_unsafe_username_chars">#</a></dt>
+        <dd>
+          <p>
+            If you have topics with usernames in it, people can possibly manipulate your ACL checking by saying their username is 'John+foobar'. Audit your security before you allow this.
+          </p>
+          <p>
+            Default value: <code class="literal">false</code>
+          </p>
+        </dd>
+      
+      
+        <dt id="max_packet_size">max_packet_size <code class="replaceable">bytes</code><a class="hash-anchor" href="#max_packet_size">#</a></dt>
+        <dd>
+          <p>
+            MQTT packets are 256 MB max, approximately. This memory will (temporarily) be allocated upon arrival of such packets, so there may be cause to set it lower.
+          </p>
+          <p>
+            Default value: <code class="literal">268435461</code>
+          </p>
+        </dd>
+      
+      
+        <dt id="mosquitto_password_file">mosquitto_password_file <code class="replaceable">/foo/bar/mosquitto_password_file</code><a class="hash-anchor" href="#mosquitto_password_file">#</a></dt>
+        <dd>
+          <p>
+            File with usernames and hashed+salted passwords as generated by Mosquitto's <code class="command">mosquitto_passwd</code>.
+          </p>
+          <p>
+            Mosquitto up to version 1.6 uses the sha512 algorithm. Newer version use sha512-pbkdf2. Both are supported.
+          </p>
+        </dd>
+      
+      
+        <dt id="mosquitto_acl_file">mosquitto_acl_file <code class="replaceable">/foo/bar/mosquitto_acl_file</code><a class="hash-anchor" href="#mosquitto_acl_file">#</a></dt>
+        <dd>
+          <p>
+            ACL (access control lists) for users, anonymous users and patterns expandable with %u (username) and %c (clientid). Format is Mosquitto's acl_file.
+          </p>
+        </dd>
+      
+      
+        <dt id="allow_anonymous">allow_anonymous <code class="replaceable">yes/no</code><a class="hash-anchor" href="#allow_anonymous">#</a></dt>
+        <dd>
+          <p>
+            Default value: <code class="literal">false</code>
+          </p>
+        </dd>
+      
+      
+        <dt id="rlimit_nofile">rlimit_nofile <code class="replaceable">number</code><a class="hash-anchor" href="#rlimit_nofile">#</a></dt>
+        <dd>
+          <p>
+            The general Linux default of <code class="literal">1024</code> can be overridden. Note: <code class="systemitem daemon">systemd</code> blocks you from setting it, so it needs to be set on the unit. The default systemd unit file sets LimitNOFILE=infinity. You may also need to set sysctl -w fs.file-max=10000000
+          </p>
+          <p>
+            Default value: <code class="literal">1000000</code>
+          </p>
+        </dd>
+      
+      
+        <dt id="expire_sessions_after_seconds">expire_sessions_after_seconds <code class="replaceable">seconds</code><a class="hash-anchor" href="#expire_sessions_after_seconds">#</a></dt>
+        <dd>
+          <p>
+            Expire sessions after this time. Setting to 0 disables it and is (MQTT3) standard-compliant. But, existing sessions cause load on the server (because they cost memory and are still subscribers), so keeping sessions after any client that connects with a random ID doesn't make sense.
+          </p>
+          <p>
+            Default value: <code class="literal">1209600</code>
+          </p>
+        </dd>
+      
+      
+        <dt id="quiet">quiet <code class="replaceable">yes/no</code><a class="hash-anchor" href="#quiet">#</a></dt>
+        <dd>
+          <p>
+            Don't log LOG_INFO and LOG_NOTICE. This is useful when you have a lot of foot traffic, because otherwise the log gets filled with connect/disconnect notices.
+          </p>
+          <p>
+            Default value: <code class="literal">false</code>
+          </p>
+        </dd>
+      
+      
+        <dt id="storage_dir">storage_dir <code class="replaceable">/path/to/dir</code><a class="hash-anchor" href="#storage_dir">#</a></dt>
+        <dd>
+          <p>
+            Location to store sessions, subscriptions and retained messages.
+            Not specifying this will turn off persistence.
+          </p>
+        </dd>
+      
+      
+        <dt id="max_qos_msg_pending_per_client">max_qos_msg_pending_per_client</dt>
+        <dt id="max_qos_bytes_pending_per_client">max_qos_bytes_pending_per_client<a class="hash-anchor" href="#max_qos_bytes_pending_per_client">#</a></dt>
+        <dd>
+          <p>
+            There is a limit to how many QoS packets can be stored in a session, so you can define a maximum amount of messages and bytes. If any of these is exceeded, the packet is dropped.
+          </p>
+          <p>
+            These are essentially superfluous for MQTT &gt;= 3.1.1 clients with cleansession=true (MQTT 3) / session expirty = 0 (MQTT 5). Because queues would get destroyed upon client disconnect, there is no point in actually queuing them. In those cases, it just allows 65536 'in flight' packets.
+          </p>
+          <p>
+            Defaults:
+          </p>
+          
+            
+              <p>max_qos_msg_pending_per_client 512</p>
+            
+            
+              <p>max_qos_bytes_pending_per_client 65536</p>
+            
+          
+        </dd>
+      
+      
+        <dt id="max_incoming_topic_alias_value">max_incoming_topic_alias_value <code class="replaceable">number</code><a class="hash-anchor" href="#max_incoming_topic_alias_value">#</a></dt>
+        <dd>
+          <p>
+            Is communicated towards MQTT5 clients. It is then up to them to decide to set them or not.
+          </p>
+          <p>
+            Changing this setting and reloading the config only has effect on new clients, because existing clients would otherwise exceed the limit they think applies.
+          </p>
+          <p>
+            Default value: <code class="literal">65535</code>
+          </p>
+        </dd>
+      
+      
+        <dt id="max_outgoing_topic_alias_value">max_outgoing_topic_alias_value <code class="replaceable">number</code><a class="hash-anchor" href="#max_outgoing_topic_alias_value">#</a></dt>
+        <dd>
+          <p>
+            FlashMQ will make this many aliases per MQTT5 client, if they ask for aliases (with the connect property TopicAliasMaximum).
+          </p>
+          <p>
+            Default value: <code class="literal">65535</code>
+          </p>
+        </dd>
+      
+
+      
+        <dt id="thread_count">thread_count <code class="replaceable">number</code><a class="hash-anchor" href="#thread_count">#</a></dt>
+        <dd>
+          <p>
+            If you want to have a different amount of worker threads then CPUs, you can set this value. Typically you don't need to set this.
+          </p>
+          <p>
+            Default value: <code class="filename">auto-detect</code>
+          </p>
+        </dd>
+      
+
+      
+        <dt id="wills_enabled">wills_enabled <code class="replaceable">yes/no</code><a class="hash-anchor" href="#wills_enabled">#</a></dt>
+        <dd>
+          <p>
+            When disabled, the server will not set last will and testament specified by connecting clients.
+          </p>
+          <p>
+            Default value: <code class="filename">true</code>
+          </p>
+        </dd>
+      
+
+      
+        <dt id="retained_messages_mode">retained_messages_mode <code class="replaceable">enabled/downgrade/drop/disconnect_with_error</code><a class="hash-anchor" href="#retained_messages_mode">#</a></dt>
+        <dd>
+          <p>
+            Retained messages can be a strain on the server you may not need. You can set various ways of dealing with them:
+          </p>
+          <p>
+            <code class="filename">enabled</code>. This is normal operation.
+          </p>
+          <p>
+            <code class="filename">downgrade</code>. The retain flag is removed and treated like a normal publish.
+          </p>
+          <p>
+            <code class="filename">drop</code>. Messages with retain set are dropped.
+          </p>
+          <p>
+            <code class="filename">disconnect_with_error</code>. Disconnect clients who try to set them.
+          </p>
+          <p>
+            Default value: <code class="filename">enabled</code>
+          </p>
+        </dd>
+      
+
+      
+        <dt id="expire_retained_messages_after_seconds">expire_retained_messages_after_seconds <code class="replaceable">seconds</code><a class="hash-anchor" href="#expire_retained_messages_after_seconds">#</a></dt>
+        <dd>
+          <p>
+            Use this to limit the life time of retained messages. Without this, the amount of retained messages may never decrease.
+          </p>
+          <p>
+            Default value: <code class="filename">4294967296</code>
+          </p>
+        </dd>
+      
+
+      
+        <dt id="expire_retained_messages_time_budget_ms">expire_retained_messages_time_budget_ms <code class="replaceable">milliseconds</code><a class="hash-anchor" href="#expire_retained_messages_time_budget_ms">#</a></dt>
+        <dd>
+          <p>
+            When purging the retained messages tree, spend a maximum of this many milliseconds on it. The purge requires a write lock, so you don't want to hold up everything too long.
+          </p>
+          <p>
+            Currently, the purge frequency is 3949193 milliseconds, but this is subject to change.
+          </p>
+          <p>
+            Default value: <code class="filename">200</code>
+          </p>
+        </dd>
+      
+
+      
+        <dt id="websocket_set_real_ip_from">websocket_set_real_ip_from <code class="replaceable">inet4_address/inet6_address</code><a class="hash-anchor" href="#websocket_set_real_ip_from">#</a></dt>
+        <dd>
+          <p>
+              HTTP proxies in front of the websocket listeners can set the <code class="replaceable">X-Real-IP</code> header to identify the original connecting client. With websocket_set_real_ip_from you can mark IP networks as trusted. By default, clients are not trusted, to avoid spoofing.
+          </p>
+          <p>
+              You can repeat the option to allow for mutiple addresses. Valid notations are <code class="replaceable">1.2.3.4</code>, <code class="replaceable">1.2.3.4/16</code>, <code class="replaceable">1.2.0.0/16</code>, <code class="replaceable">2a01:1337::1</code>, <code class="replaceable">2a01:1337::1/64</code>, etc.
+          </p>
+          <p>
+              The header <code class="replaceable">X-Forwarded-For</code> is not used, because that's designed to contain a list of addresses, if applicable.
+          </p>
+          <p>
+            As a side note about using a proxy on your listener; you can only have an absolute max of 65535 connections between two IP addresses (and the practical limit is lower), so if you need more, you'll have to use multiple IP addresses.
+          </p>
+        </dd>
+      
+
+    </dl>
+  </section><section class="refsect1">
+    <header><h2>Listen parameters</h2></header>
+    <p>
+       Listen parameters can only be used within <code class="literal">listen { }</code> blocks.
+    </p>
+    <dl>
+      
+        <dt id="port">port<a class="hash-anchor" href="#port">#</a></dt>
+        <dd>
+          <p>
+            The default port depends on the protocol parameter and whether or not fullchain and privkey parameters are supplied:
+          </p>
+          
+            
+              <p>
+                  For unencrypted MQTT, the default port is <code class="literal">1883</code>
+              </p>
+            
+            
+              <p>
+                  For encrypted MQTT, the default port is <code class="literal">8883</code>
+              </p>
+            
+            
+              <p>
+                  For plain HTTP websockets, the default port is <code class="literal">8080</code>
+              </p>
+            
+            
+              <p>
+                  For encrypted HTTPS websockets, the default port is <code class="literal">4443</code>
+              </p>
+            
+          
+        </dd>
+      
+      
+        <dt id="protocol">protocol<a class="hash-anchor" href="#protocol">#</a></dt>
+        <dd>
+          <p>
+            Valid values:
+            
+              <span class="member">
+                <code class="literal">mqtt</code>
+              </span>
+               <span class="member-sep">, </span><span class="member">
+                <code class="literal">websockets</code>
+              </span>
+            
+          </p>
+        </dd>
+      
+      
+        <dt id="inet_protocol">inet_protocol<a class="hash-anchor" href="#inet_protocol">#</a></dt>
+        <dd>
+          <p>
+            Valid values:
+            
+              <span class="member">
+                <code class="literal">ip4_ip6</code>
+              </span>
+              <span class="member-sep">, </span><span class="member">
+                <code class="literal">ip4</code>
+              </span>
+              <span class="member-sep">, </span><span class="member">
+                <code class="literal">ip6</code>
+              </span>
+            
+            <p>
+              Default: ip4_ip6
+            </p>
+          </p>
+        </dd>
+      
+      
+        <dt id="inet4_bind_address">inet4_bind_address <code class="replaceable">inet4address</code><a class="hash-anchor" href="#inet4_bind_address">#</a></dt>
+        <dd>
+          <p>
+            Default: 0.0.0.0
+          </p>
+        </dd>
+      
+      
+        <dt id="inet6_bind_address">inet6_bind_address <code class="replaceable">inet6address</code><a class="hash-anchor" href="#inet6_bind_address">#</a></dt>
+        <dd>
+          <p>
+            Default: ::0
+          </p>
+        </dd>
+      
+      
+        <dt id="fullchain">fullchain <code class="replaceable">/foobar/server.crt</code><a class="hash-anchor" href="#fullchain">#</a></dt>
+        <dd>
+          <p>
+            Specifying a chain makes the listener SSL, and also requires the privkey to be set.
+          </p>
+        </dd>
+      
+      
+        <dt id="privkey">privkey <code class="replaceable">/foobar/server.key</code><a class="hash-anchor" href="#privkey">#</a></dt>
+        <dd>
+          <p>
+            Specifying a private key makes the listener SSL, and also requires the fullchain to be set.
+          </p>
+        </dd>
+      
+      
+        <dt id="haproxy">haproxy <code class="replaceable">yes/no</code><a class="hash-anchor" href="#haproxy">#</a></dt>
+        <dd>
+          <p>
+            Setting the listener to haproxy makes it expect the PROXY protocol and set client source address to the original client. Make sure this listener is private / firewalled, otherwise anybody can set a different source address.
+          </p>
+          <p>
+            Note that HAProxy's server health checks only started using the 'local' specifier as of version 2.4. This means earlier version will pretend to be a client and break the connection, causing log spam.
+          </p>
+          <p>
+            See haproxy.org.
+          </p>
+        </dd>
+      
+    </dl>
+  </section><section class="refsect1" id="example_config">
+    <header><h2>Example listeners<a class="hash-anchor" href="#example_config">#</a></h2></header>
+
+    <pre class="literallayout monospaced">listen {
+  protocol mqtt
+  inet_protocol ip4_ip6
+  inet4_bind_address 127.0.0.1
+  inet6_bind_address ::1
+  fullchain /foobar/server.crt
+  privkey /foobar/server.key
+
+  # default = 8883
+  port 8883
+}
+listen {
+  protocol mqtt
+  inet_protocol ip4
+
+  # default = 1883
+  port 1883
+}
+listen {
+  protocol websockets
+  fullchain /foobar/server.crt
+  privkey /foobar/server.key
+
+  # default = 4443
+  port 4443
+}
+listen {
+  protocol websockets
+
+  # default = 8080
+  port 8080
+}
+listen {
+  port 2883
+  haproxy on
+}</pre>
+  </section><section class="refsect1">
+    <header><h2>Author</h2></header>
+    <p>
+        Wiebe Cazemier <a href="mailto:contact@flashmq.org">contact@flashmq.org</a>.
+    </p>
+  </section><section class="refsect1">
+    <header><h2>See also</h2></header>
+
+    <p>
+      <span class="simplelist inline">
+        <span class="member">
+          <cite class="citerefentry"><span class="refentrytitle">flashmq</span><span class="manvolnum">(1)</span></cite>
+        </span>
+      </span>
+    </p>
+  </section></article></body></html>

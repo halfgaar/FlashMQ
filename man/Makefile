@@ -4,7 +4,7 @@ all: $(TARGETS)
 
 .PHONY: clean
 clean:
-	rm $(TARGETS)
+	rm *.dbk4
 
 # Why `docbook2x-man` from the `docbook2x` Debian package, and _not_
 # `docbook-to-man` from the `docbook-to-man` Debian package?  Because
