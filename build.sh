@@ -28,7 +28,7 @@ while [[ "$#" -gt 0 ]]; do
       FAIL_ON_DOC_FAILURE="yeah"
       shift
       ;;
-    -*|--*)
+    --*|-*)
       echo -e "\e[31mUnknown option: \e[1m$1\e[0m" >&2
       usage >&2
       exit 2
@@ -45,8 +45,7 @@ while [[ "$#" -gt 0 ]]; do
   esac
 done
 
-make -C "$thisdir/man"
-if [[ "$?" -ne 0 ]]; then
+if ! make -C "$thisdir/man"; then
   if [[ -z "$FAIL_ON_DOC_FAILURE" ]]; then
     echo -e "\e[33mIgnoring failed man page builds; run \e[1m$script_name\e[22m with the \e[1m--fail-on-doc-failure\e[22m option to make such failures fatal.\e[0m"
   else
