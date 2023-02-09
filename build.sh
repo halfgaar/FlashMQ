@@ -2,10 +2,57 @@
 
 thisfile=$(readlink --canonicalize "$0")
 thisdir=$(dirname "$thisfile")
+script_name=$(basename "$0")
 
-BUILD_TYPE="Release"
-if [[ "$1" == "Debug" ]]; then
-  BUILD_TYPE="Debug"
+DEFAULT_BUILD_TYPE="Release"
+
+usage() {
+  cat <<EOF
+Usage:
+  $script_name fail-on-doc-failure] <build_type>
+  $script_name --help     Display this help
+
+  <build_type>  'Debug' or 'Release'; default: $DEFAULT_BUILD_TYPE
+EOF
+}
+
+FAIL_ON_DOC_FAILURE=""
+BUILD_TYPE="$DEFAULT_BUILD_TYPE"
+while [[ "$#" -gt 0 ]]; do
+  case "$1" in
+    --help|-h)
+      usage
+      exit 0
+      ;;
+    --fail-on-doc-failure)
+      FAIL_ON_DOC_FAILURE="yeah"
+      shift
+      ;;
+    -*|--*)
+      echo -e "\e[31mUnknown option: \e[1m$1\e[0m" >&2
+      usage >&2
+      exit 2
+      ;;
+    Debug|Release)
+      if [[ "$#" -gt 1 ]]; then
+        echo -e "\e[31mRelease type (\e[1m$1\e[22m) must be the last argument\e[0m" >&2
+        usage >&2
+        exit 2
+      fi
+      BUILD_TYPE="$1"
+      shift
+      ;;
+  esac
+done
+
+make -C "$thisdir/man"
+if [[ "$?" -ne 0 ]]; then
+  if [[ -z "$FAIL_ON_DOC_FAILURE" ]]; then
+    echo -e "\e[33mIgnoring failed man page builds; run \e[1m$script_name\e[22m with the \e[1m--fail-on-doc-failure\e[22m option to make such failures fatal.\e[0m"
+  else
+    echo -e "\e[31mMaking the man pages failed; dying now in obedience of the \e[1m--fail-on-doc-failure\e[22m option.\e[0m"
+    exit 3
+  fi
 fi
 
 BUILD_DIR="FlashMQBuild$BUILD_TYPE"
