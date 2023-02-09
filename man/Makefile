@@ -23,7 +23,7 @@ clean:
 # DocBook 4 first.  Why not “just” directly author in DocBook 4?  DocBook 5 has
 # more powerful schemas (and thus validation).
 #
-#.PRECIOUS: %.dbk4  # Uncomment to keep intermediate `*.dbk4` files for debugging.
+#.SECONDARY: %.dbk4  # Uncomment to keep intermediate `*.dbk4` files for debugging.
 %.dbk4: %.dbk5
 	xsltproc db5to4/db5to4-withinfo.xsl $< > $@
 
