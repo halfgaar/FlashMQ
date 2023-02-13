@@ -573,14 +573,17 @@ void testSsl(const std::string &fullchain, const std::string &privkey)
 
 std::string formatString(const std::string str, ...)
 {
-    char buf[512];
+    constexpr const int bufsize = 512;
+
+    char buf[bufsize + 1];
+    buf[bufsize] = 0;
 
     va_list valist;
     va_start(valist, str);
-    vsnprintf(buf, 512, str.c_str(), valist);
+    vsnprintf(buf, bufsize, str.c_str(), valist);
     va_end(valist);
 
-    size_t len = strlen(buf);
+    size_t len = std::min<size_t>(strlen(buf), bufsize);
     std::string result(buf, len);
 
     return result;
