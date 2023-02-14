@@ -68,6 +68,7 @@ add_executable(flashmq
     network.h
     subscription.h
     sharedsubscribers.h
+    pluginloader.h
 
 
     mainapp.cpp
@@ -116,6 +117,7 @@ add_executable(flashmq
     network.cpp
     subscription.cpp
     sharedsubscribers.cpp
+    pluginloader.cpp
 
     )
 

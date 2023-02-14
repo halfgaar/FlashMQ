@@ -15,8 +15,8 @@
 int FlashMQTestClient::clientCount = 0;
 
 FlashMQTestClient::FlashMQTestClient() :
-    testServerWorkerThreadData(std::make_shared<ThreadData>(0, settings)),
-    dummyThreadData(std::make_shared<ThreadData>(666, settings))
+    testServerWorkerThreadData(std::make_shared<ThreadData>(0, settings, pluginLoader)),
+    dummyThreadData(std::make_shared<ThreadData>(666, settings, pluginLoader))
 {
 
 }

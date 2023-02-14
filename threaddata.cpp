@@ -37,7 +37,8 @@ AsyncAuth::AsyncAuth(std::weak_ptr<Client> client, AuthResult result, const std:
 
 }
 
-ThreadData::ThreadData(int threadnr, const Settings &settings) :
+ThreadData::ThreadData(int threadnr, const Settings &settings, const PluginLoader &pluginLoader) :
+    pluginLoader(pluginLoader),
     settingsLocalCopy(settings),
     authentication(settingsLocalCopy),
     threadnr(threadnr)
@@ -686,7 +687,7 @@ void ThreadData::initplugin()
 {
     authentication.loadMosquittoPasswordFile();
     authentication.loadMosquittoAclFile();
-    authentication.loadPlugin(settingsLocalCopy.pluginPath);
+    authentication.loadPlugin(pluginLoader);
     authentication.init();
     authentication.securityInit(false);
 }

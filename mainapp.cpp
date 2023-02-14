@@ -517,7 +517,9 @@ void MainApp::start()
             Authentication auth(settings);
             ThreadGlobals::assign(&auth);
 
-            std::shared_ptr<ThreadData> threaddata = std::make_shared<ThreadData>(0, settings);
+            PluginLoader pluginLoader;
+
+            std::shared_ptr<ThreadData> threaddata = std::make_shared<ThreadData>(0, settings, pluginLoader);
             ThreadGlobals::assignThreadData(threaddata.get());
 
             std::shared_ptr<Client> client = std::make_shared<Client>(fd, threaddata, nullptr, fuzzWebsockets, false, nullptr, settings, true);
@@ -564,9 +566,12 @@ void MainApp::start()
 
     GlobalStats *globalStats = GlobalStats::getInstance();
 
+    PluginLoader pluginLoader;
+    pluginLoader.loadPlugin(settings.pluginPath);
+
     for (int i = 0; i < num_threads; i++)
     {
-        std::shared_ptr<ThreadData> t = std::make_shared<ThreadData>(i, settings);
+        std::shared_ptr<ThreadData> t = std::make_shared<ThreadData>(i, settings, pluginLoader);
         t->start(&do_thread_work);
         threads.push_back(t);
     }

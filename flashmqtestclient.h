@@ -5,12 +5,14 @@
 #include <memory>
 
 #include "subscriptionstore.h"
+#include "pluginloader.h"
 
 /**
  * @brief The FlashMQTestClient class uses the existing server code as a client, for testing purposes.
  */
 class FlashMQTestClient
 {
+    PluginLoader pluginLoader;
     Settings settings;
     std::shared_ptr<ThreadData> testServerWorkerThreadData;
     std::shared_ptr<Client> client;

@@ -75,6 +75,8 @@ class ThreadData
     std::mutex queuedKeepAliveMutex;
     std::map<std::chrono::seconds, std::vector<KeepAliveCheck>> queuedKeepAliveChecks;
 
+    const PluginLoader &pluginLoader;
+
     void reload(const Settings &settings);
     void wakeUpThread();
     void doKeepAliveCheck();
@@ -110,7 +112,7 @@ public:
     DerivableCounter sentMessageCounter;
     DerivableCounter mqttConnectCounter;
 
-    ThreadData(int threadnr, const Settings &settings);
+    ThreadData(int threadnr, const Settings &settings, const PluginLoader &pluginLoader);
     ThreadData(const ThreadData &other) = delete;
     ThreadData(ThreadData &&other) = delete;
 

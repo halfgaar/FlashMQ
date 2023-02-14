@@ -59,6 +59,7 @@ SOURCES +=  tst_maintests.cpp \
     ../network.cpp \
     ../subscription.cpp \
     ../sharedsubscribers.cpp \
+    ../pluginloader.cpp \
     conffiletemp.cpp \
     flashmqtempdir.cpp \
     mainappthread.cpp
@@ -112,6 +113,7 @@ HEADERS += \
     ../network.h \
     ../subscription.h \
     ../sharedsubscribers.h \
+    ../pluginloader.h \
     conffiletemp.h \
     flashmqtempdir.h \
     mainappthread.h

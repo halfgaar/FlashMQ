@@ -27,6 +27,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "configfileparser.h"
 #include "acltree.h"
 #include "flashmq_plugin.h"
+#include "pluginloader.h"
 
 enum class PasswordHashType
 {
@@ -56,8 +57,6 @@ struct MosquittoPasswordFileEntry
     // The plan was that objects of this type wouldn't be copied, but I can't get emplacing to work without it...?
     //MosquittoPasswordFileEntry(const MosquittoPasswordFileEntry &other) = delete;
 };
-
-typedef int (*F_plugin_version)(void);
 
 // Mosquitto functions
 typedef int (*F_plugin_init_v2)(void **, struct mosquitto_auth_opt *, int);
@@ -94,14 +93,6 @@ extern "C"
     void mosquitto_log_printf(int level, const char *fmt, ...);
 }
 
-enum class PluginVersion
-{
-    None,
-    Determining,
-    FlashMQ,
-    MosquittoV2,
-};
-
 std::string AuthResultToString(AuthResult r);
 
 /**
@@ -111,8 +102,6 @@ std::string AuthResultToString(AuthResult r);
  */
 class Authentication
 {
-    F_plugin_version version = nullptr;
-
     // Mosquitto functions
     F_plugin_init_v2 init_v2 = nullptr;
     F_plugin_cleanup_v2 cleanup_v2 = nullptr;
@@ -137,13 +126,14 @@ class Authentication
     static std::mutex initMutex;
     static std::mutex authChecksMutex;
 
+    PluginFamily pluginFamily = PluginFamily::None;
+    int flashmqPluginVersionNumber = 0;
+
     Settings &settings; // A ref because I want it to always be the same as the thread's settings
 
     void *pluginData = nullptr;
     Logger *logger = nullptr;
     bool initialized = false;
-    PluginVersion pluginVersion = PluginVersion::None;
-    int flashmqPluginVersionNumber = 0;
     bool quitting = false;
 
     /**
@@ -172,7 +162,7 @@ public:
     Authentication(Authentication &&other) = delete;
     ~Authentication();
 
-    void loadPlugin(const std::string &pathToSoFile);
+    void loadPlugin(const PluginLoader &l);
     void init();
     void cleanup();
     void securityInit(bool reloading);

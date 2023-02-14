@@ -37,6 +37,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "packetdatatypes.h"
 #include "qospacketqueue.h"
 #include "network.h"
+#include "pluginloader.h"
 
 #include "flashmqtestclient.h"
 #include "flashmqtempdir.h"
@@ -216,7 +217,8 @@ void MainTests::init(const std::vector<std::string> &args)
     // We test functions directly that the server normally only calls from worker threads, in which thread data is available. This is kind of a dummy-fix, until
     // we actually need correct thread data at those points (at this point, it's only to increase message counters).
     Settings settings;
-    this->dummyThreadData = std::make_shared<ThreadData>(666, settings);
+    PluginLoader pluginLoader;
+    this->dummyThreadData = std::make_shared<ThreadData>(666, settings, pluginLoader);
     ThreadGlobals::assignThreadData(dummyThreadData.get());
 }
 
@@ -1458,8 +1460,9 @@ void MainTests::testSavingSessions()
     try
     {
         Settings settings;
+        PluginLoader pluginLoader;
         std::shared_ptr<SubscriptionStore> store(new SubscriptionStore());
-        std::shared_ptr<ThreadData> t(new ThreadData(0, settings));
+        std::shared_ptr<ThreadData> t(new ThreadData(0, settings, pluginLoader));
 
         // Kind of a hack...
         Authentication auth(settings);
@@ -1588,7 +1591,8 @@ void MainTests::testParsePacketHelper(const std::string &topic, uint8_t from_qos
     Settings settings;
     settings.logDebug = false;
     std::shared_ptr<SubscriptionStore> store(new SubscriptionStore());
-    std::shared_ptr<ThreadData> t(new ThreadData(0, settings));
+    PluginLoader pluginLoader;
+    std::shared_ptr<ThreadData> t(new ThreadData(0, settings, pluginLoader));
 
     // Kind of a hack...
     Authentication auth(settings);
@@ -3726,7 +3730,8 @@ void MainTests::testAddrMatchesSubnetIpv6()
 void MainTests::testSharedSubscribersUnit()
 {
     Settings settings;
-    std::shared_ptr<ThreadData> t(new ThreadData(0, settings));
+    PluginLoader pluginLoader;
+    std::shared_ptr<ThreadData> t(new ThreadData(0, settings, pluginLoader));
 
     // Kind of a hack...
     Authentication auth(settings);
