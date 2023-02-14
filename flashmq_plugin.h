@@ -207,6 +207,14 @@ void flashmq_get_client_address(const std::weak_ptr<Client> &client, std::string
 int flashmq_plugin_version();
 
 /**
+ * @brief flashmq_plugin_main_init is called once before the event loops start.
+ * @param plugin_opts
+ *
+ * [Can optionally be implemented by plugin]
+ */
+void flashmq_plugin_main_init(std::unordered_map<std::string, std::string> &plugin_opts);
+
+/**
  * @brief flashmq_plugin_allocate_thread_memory is called once by each thread. Never again.
  * @param thread_data. Create a memory structure and assign it to *thread_data.
  * @param plugin_opts. Map of flashmq_plugin_opt_* from the config file.

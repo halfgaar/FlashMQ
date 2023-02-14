@@ -11,6 +11,8 @@ public:
 
     std::weak_ptr<Client> c;
 
+    bool main_init_ran = false;
+
 public:
     ~TestPluginData();
 };

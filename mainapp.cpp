@@ -569,6 +569,9 @@ void MainApp::start()
     PluginLoader pluginLoader;
     pluginLoader.loadPlugin(settings.pluginPath);
 
+    std::unordered_map<std::string, std::string> &authOpts = settings.getFlashmqpluginOpts();
+    pluginLoader.mainInit(authOpts);
+
     for (int i = 0; i < num_threads; i++)
     {
         std::shared_ptr<ThreadData> t = std::make_shared<ThreadData>(i, settings, pluginLoader);

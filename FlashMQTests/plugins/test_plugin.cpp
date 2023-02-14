@@ -42,6 +42,11 @@ void flashmq_plugin_init(void *thread_data, std::unordered_map<std::string, std:
     (void)thread_data;
     (void)plugin_opts;
     (void)reloading;
+
+    TestPluginData *p = static_cast<TestPluginData*>(thread_data);
+
+    if (plugin_opts.find("main_init was here") != plugin_opts.end())
+        p->main_init_ran = true;
 }
 
 void flashmq_plugin_deinit(void *thread_data, std::unordered_map<std::string, std::string> &plugin_opts, bool reloading)
@@ -189,10 +194,18 @@ bool flashmq_plugin_alter_publish(void *thread_data, const std::string &clientid
     (void)retain;
     (void)userProperties;
 
+    TestPluginData *p = static_cast<TestPluginData*>(thread_data);
+
     if (topic == "changeme")
     {
         topic = "changed";
         qos = 2;
+        return true;
+    }
+
+    if (topic == "check_main_init_presence" && p->main_init_ran)
+    {
+        topic = "check_main_init_presence_confirmed";
         return true;
     }
 
@@ -207,3 +220,12 @@ void flashmq_plugin_client_disconnected(void *thread_data, const std::string &cl
     flashmq_publish_message("disconnect/confirmed", 0, false, "adsf");
 }
 
+void flashmq_plugin_main_init(std::unordered_map<std::string, std::string> &plugin_opts)
+{
+    (void)plugin_opts;
+
+    flashmq_logf(LOG_INFO, "The tester was here.");
+
+    // The plugin_opts aren't const. I don't know if that was a mistake or not anymore, but it works in my favor now.
+    plugin_opts["main_init was here"] = "true";
+}

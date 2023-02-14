@@ -195,6 +195,8 @@ private slots:
     void testUnsubscribedSharedSubscribers();
     void testSharedSubscribersSurviveRestart();
     void testSharedSubscriberDoesntGetRetainedMessages();
+
+    void testPluginMainInit();
 };
 
 MainTests::MainTests()
@@ -3999,6 +4001,34 @@ void MainTests::testSharedSubscriberDoesntGetRetainedMessages()
     usleep(250000);
 
     MYCASTCOMPARE(receiver.receivedPublishes.size(), 0);
+}
+
+void MainTests::testPluginMainInit()
+{
+    ConfFileTemp confFile;
+    confFile.writeLine("plugin plugins/libtest_plugin.so.0.0.1");
+    confFile.closeFile();
+
+    std::vector<std::string> args {"--config-file", confFile.getFilePath()};
+
+    cleanup();
+    init(args);
+
+    FlashMQTestClient sender;
+    sender.start();
+    sender.connectClient(ProtocolVersion::Mqtt5);
+
+    FlashMQTestClient receiver;
+    receiver.start();
+    receiver.connectClient(ProtocolVersion::Mqtt5, false, 120);
+    receiver.subscribe("#", 2);
+
+    sender.publish("check_main_init_presence", "booboo", 0);
+
+    receiver.waitForMessageCount(1);
+
+    MYCASTCOMPARE(receiver.receivedPublishes.size(), 1);
+    MYCASTCOMPARE(receiver.receivedPublishes.front().getTopic(), "check_main_init_presence_confirmed");
 }
 
 int main(int argc, char *argv[])
