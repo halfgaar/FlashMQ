@@ -98,7 +98,7 @@ enum class PluginVersion
 {
     None,
     Determining,
-    FlashMQv1,
+    FlashMQ,
     MosquittoV2,
 };
 
@@ -143,6 +143,7 @@ class Authentication
     Logger *logger = nullptr;
     bool initialized = false;
     PluginVersion pluginVersion = PluginVersion::None;
+    int flashmqPluginVersionNumber = 0;
     bool quitting = false;
 
     /**
