@@ -62,7 +62,11 @@ SOURCES +=  tst_maintests.cpp \
     ../pluginloader.cpp \
     conffiletemp.cpp \
     flashmqtempdir.cpp \
-    mainappthread.cpp
+    mainappthread.cpp \
+    plugintests.cpp \
+    retaintests.cpp \
+    sharedsubscriptionstests.cpp \
+    willtests.cpp
 
 
 HEADERS += \
@@ -116,7 +120,8 @@ HEADERS += \
     ../pluginloader.h \
     conffiletemp.h \
     flashmqtempdir.h \
-    mainappthread.h
+    mainappthread.h \
+    tst_maintests.h
 
 LIBS += -ldl -lssl -lcrypto -lresolv
 
