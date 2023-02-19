@@ -5,6 +5,10 @@ TEMPLATE = lib
 
 VERSION=0.0.1
 
-HEADERS += test_plugin.h
+LIBS += -lcurl
 
-SOURCES += test_plugin.cpp
+HEADERS += test_plugin.h \
+    curlfunctions.h
+
+SOURCES += test_plugin.cpp \
+    curlfunctions.cpp

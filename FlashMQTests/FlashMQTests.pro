@@ -60,6 +60,7 @@ SOURCES +=  tst_maintests.cpp \
     ../subscription.cpp \
     ../sharedsubscribers.cpp \
     ../pluginloader.cpp \
+    ../queuedtasks.cpp \
     conffiletemp.cpp \
     flashmqtempdir.cpp \
     mainappthread.cpp \
@@ -118,6 +119,7 @@ HEADERS += \
     ../subscription.h \
     ../sharedsubscribers.h \
     ../pluginloader.h \
+    ../queuedtasks.h \
     conffiletemp.h \
     flashmqtempdir.h \
     mainappthread.h \

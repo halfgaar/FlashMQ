@@ -50,7 +50,15 @@ void do_thread_work(ThreadData *threadData)
 
     while (threadData->running)
     {
-        int fdcount = epoll_wait(epoll_fd, events, MAX_EVENTS, 100);
+        const uint32_t next_task_delay = threadData->delayedTasks.getTimeTillNext();
+        const uint32_t epoll_wait_time = std::min<uint32_t>(next_task_delay, 100);
+
+        int fdcount = epoll_wait(epoll_fd, events, MAX_EVENTS, epoll_wait_time);
+
+        if (__builtin_expect(epoll_wait_time == 0, 0))
+        {
+            threadData->delayedTasks.performAll();
+        }
 
         if (fdcount < 0)
         {
@@ -86,8 +94,18 @@ void do_thread_work(ThreadData *threadData)
 
             std::shared_ptr<Client> client = threadData->getClient(fd);
 
-            if (!client)
+            if (__builtin_expect(!client, 0))
+            {
+                // If the fd is not a client, it may be an externally monitored fd, from the plugin.
+                auto pos = threadData->externalFds.find(fd);
+                if (pos != threadData->externalFds.end())
+                {
+                    std::weak_ptr<void> &p = pos->second;
+                    threadData->authentication.fdReady(fd, cur_ev.events, p);
+                }
+
                 continue;
+            }
 
             try
             {

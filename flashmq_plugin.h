@@ -28,6 +28,7 @@
 #include <unordered_map>
 #include <memory>
 #include <arpa/inet.h>
+#include <functional>
 
 #define FLASHMQ_PLUGIN_VERSION 1
 
@@ -197,6 +198,73 @@ public:
  * [Function provided by FlashMQ]
  */
 void flashmq_get_client_address(const std::weak_ptr<Client> &client, std::string *text, FlashMQSockAddr *addr);
+
+/**
+ * @brief Allows async operation of outgoing connections you may need to make. It adds the file descriptor to
+ *        the epoll listener.
+ * @param fd
+ * @param events epoll events, typically EPOLLIN (ready read) and EPOLLOUT (ready write). Should be or'ed together,
+ *        like 'EPOLLOUT | EPOLLIN'. See 'man epoll'.
+ * @param p weak pointer. Can be a weak copy of a shared pointer with proper type. Like p = std::make_share<T>().
+ *        You'll get it back in 'flashmq_plugin_poll_event_received()'. Use is optional. For libcurl multi socket,
+ *        you don't need it.
+ *
+ * You can do this once you have a connection with something external.
+ *
+ * You can also call it again with different events, in which case it will modify the existing entry.
+ *
+ * Will throw exceptions on error, so be sure to handle them.
+ *
+ * [Function provided by FlashMQ]
+ */
+void flashmq_poll_add_fd(int fd, uint32_t events, const std::weak_ptr<void> &p);
+
+/**
+ * @brief Remove the fd from the event polling system.
+ * @param fd
+ *
+ * Closing a socket will also remove it from the epoll system, but if you don't call this function on close, you may get stray
+ * events once the fd number is reused. There is protection against it, but you may end up with unpredictable behavior.
+ *
+ * Will throw exceptions on error, so be sure to handle them.
+ *
+ * [Function provided by FlashMQ]
+ */
+void flashmq_poll_remove_fd(uint32_t fd);
+
+/**
+ * @brief Is called when the socket watched by 'flashmq_poll_add_fd()' has an event.
+ * @param thread_data is memory allocated in flashmq_plugin_allocate_thread_memory().
+ * @param fd
+ * @param events contains the events as a bit flags. See 'man epoll'.
+ * @param p can be made back into your type with 'std::shared_ptr<T> sp = std::static_pointer_cast<T>(b.lock())'.
+ *        This allows you to properly lend pointers to the event system that you can actually check for expiration.
+ *
+ * [Can optionally be implemented by plugin]
+ */
+void flashmq_plugin_poll_event_received(void *thread_data, int fd, uint32_t events, const std::weak_ptr<void> &p);
+
+/**
+ * @brief call a task later, once.
+ * @param f Function, that can be created with std::bind, for instance.
+ * @param delay_in_ms
+ * @return id of the timer, which can be used to remove it.
+ *
+ * This can be necessary for asynchronous interfaces, like libcurl.
+ *
+ * Can throw an exceptions.
+ *
+ * [Function provided by FlashMQ]
+ */
+uint32_t flashmq_add_task(std::function<void()> f, uint32_t delay_in_ms);
+
+/**
+ * @brief Remove a task with id as given by 'flashmq_add_task()'.
+ * @param id
+ *
+ * [Function provided by FlashMQ]
+ */
+void flashmq_remove_task(uint32_t id);
 
 /**
  * @brief flashmq_plugin_version must return FLASHMQ_PLUGIN_VERSION.

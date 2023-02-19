@@ -185,6 +185,7 @@ private slots:
     void testPublishByPlugin();
     void testWillDenialByPlugin();
     void testPluginMainInit();
+    void testAsyncCurl();
 };
 
 

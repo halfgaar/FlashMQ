@@ -38,6 +38,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "plugin.h"
 #include "logger.h"
 #include "derivablecounter.h"
+#include "queuedtasks.h"
 
 typedef void (*thread_f)(ThreadData *);
 
@@ -107,6 +108,8 @@ public:
     int taskEventFd = 0;
     std::mutex taskQueueMutex;
     std::list<std::function<void()>> taskQueue;
+    QueuedTasks delayedTasks;
+    std::unordered_map<int, std::weak_ptr<void>> externalFds;
 
     DerivableCounter receivedMessageCounter;
     DerivableCounter sentMessageCounter;
@@ -147,6 +150,11 @@ public:
 
     void queueSendWills();
     void queueSendDisconnects();
+
+    void pollExternalFd(int fd, uint32_t events, const std::weak_ptr<void> &p);
+    void pollExternalRemove(int fd);
+    uint32_t addTask(std::function<void()> f, uint32_t delayMs);
+    void removeTask(uint32_t id);
 };
 
 #endif // THREADDATA_H

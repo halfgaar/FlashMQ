@@ -120,6 +120,7 @@ void Authentication::loadPlugin(const PluginLoader &l)
         flashmq_plugin_alter_subscription_v1 = (F_flashmq_plugin_alter_subscription_v1)l.loadSymbol("flashmq_plugin_alter_subscription", false);
         flashmq_plugin_alter_publish_v1 = (F_flashmq_plugin_alter_publish_v1)l.loadSymbol("flashmq_plugin_alter_publish", false);
         flashmq_plugin_client_disconnected_v1 = (F_flashmq_plugin_client_disconnected_v1)l.loadSymbol("flashmq_plugin_client_disconnected", false);
+        flashmq_plugin_poll_event_received_v1 = (F_flashmq_plugin_poll_event_received_v1)l.loadSymbol("flashmq_plugin_poll_event_received", false);
     }
     else
     {
@@ -508,6 +509,32 @@ void Authentication::clientDisconnected(const std::string &clientid)
         catch (std::exception &ex)
         {
             logger->logf(LOG_ERR, "Exception in 'flashmq_plugin_client_disconnected': '%s'.", ex.what());
+        }
+    }
+}
+
+void Authentication::fdReady(int fd, int events, const std::weak_ptr<void> &p)
+{
+    if (pluginFamily == PluginFamily::None)
+    {
+        return;
+    }
+
+    if (!initialized)
+    {
+        logger->logf(LOG_ERR, "Plugin fdReady called, but initialization failed or not performed.");
+        return;
+    }
+
+    if (pluginFamily == PluginFamily::FlashMQ && flashmq_plugin_poll_event_received_v1)
+    {
+        try
+        {
+            flashmq_plugin_poll_event_received_v1(pluginData, fd, events, p);
+        }
+        catch (std::exception &ex)
+        {
+            logger->logf(LOG_ERR, "In 'flashmq_plugin_poll_event_v1(): '", ex.what());
         }
     }
 }

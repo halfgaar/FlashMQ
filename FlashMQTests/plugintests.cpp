@@ -765,3 +765,28 @@ void MainTests::testPluginMainInit()
     MYCASTCOMPARE(receiver.receivedPublishes.size(), 1);
     MYCASTCOMPARE(receiver.receivedPublishes.front().getTopic(), "check_main_init_presence_confirmed");
 }
+
+void MainTests::testAsyncCurl()
+{
+    ConfFileTemp confFile;
+    confFile.writeLine("plugin plugins/libtest_plugin.so.0.0.1");
+    confFile.closeFile();
+
+    std::vector<std::string> args {"--config-file", confFile.getFilePath()};
+
+    cleanup();
+    init(args);
+
+    FlashMQTestClient client;
+    client.start();
+    client.connectClient(ProtocolVersion::Mqtt5, false, 120, [](Connect &connect) {
+        connect.username = "curl";
+        connect.password = "boo";
+    });
+
+    QVERIFY(client.receivedPackets.size() == 1);
+
+    ConnAckData connAckData = client.receivedPackets.front().parseConnAckData();
+
+    QVERIFY(connAckData.reasonCode == ReasonCodes::Success);
+}
