@@ -65,9 +65,6 @@ void PluginLoader::loadPlugin(const std::string &pathToSoFile)
         throw FatalError("This does not seem to be a FlashMQ native plugin or Mosquitto plugin version 2.");
     }
 
-    main_init_v1 = (F_flashmq_plugin_main_init_v1)loadSymbol("flashmq_plugin_main_init", false);
-    main_deinit_v1 = (F_flashmq_plugin_main_deinit_v1)loadSymbol("flashmq_plugin_main_deinit", false);
-
     if (dlclose(handle) != 0)
     {
         std::string errmsg(dlerror());
@@ -82,6 +79,9 @@ void PluginLoader::loadPlugin(const std::string &pathToSoFile)
         std::string errmsg(dlerror());
         throw FatalError(errmsg);
     }
+
+    main_init_v1 = (F_flashmq_plugin_main_init_v1)loadSymbol("flashmq_plugin_main_init", false);
+    main_deinit_v1 = (F_flashmq_plugin_main_deinit_v1)loadSymbol("flashmq_plugin_main_deinit", false);
 }
 
 void *PluginLoader::loadSymbol(const char *symbol, bool exceptionOnError) const
