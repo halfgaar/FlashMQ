@@ -66,6 +66,7 @@ void PluginLoader::loadPlugin(const std::string &pathToSoFile)
     }
 
     main_init_v1 = (F_flashmq_plugin_main_init_v1)loadSymbol("flashmq_plugin_main_init", false);
+    main_deinit_v1 = (F_flashmq_plugin_main_deinit_v1)loadSymbol("flashmq_plugin_main_deinit", false);
 
     if (dlclose(handle) != 0)
     {
@@ -112,4 +113,20 @@ void PluginLoader::mainInit(std::unordered_map<std::string, std::string> &plugin
         return;
 
     main_init_v1(plugin_opts);
+}
+
+void PluginLoader::mainDeinit(std::unordered_map<std::string, std::string> &plugin_opts)
+{
+    if (!main_deinit_v1)
+        return;
+
+    try
+    {
+        main_deinit_v1(plugin_opts);
+    }
+    catch(std::exception &ex)
+    {
+        Logger *logger = Logger::getInstance();
+        logger->logf(LOG_ERR, "Exception in flashmq_plugin_main_deinit(): ", ex.what());
+    }
 }

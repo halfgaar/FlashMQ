@@ -215,6 +215,12 @@ int flashmq_plugin_version();
 void flashmq_plugin_main_init(std::unordered_map<std::string, std::string> &plugin_opts);
 
 /**
+ * @brief flashmq_plugin_main_deinit is the complementary pair of flashmq_plugin_main_init(). It's called after the threads have stopped.
+ * @param plugin_opts
+ */
+void flashmq_plugin_main_deinit(std::unordered_map<std::string, std::string> &plugin_opts);
+
+/**
  * @brief flashmq_plugin_allocate_thread_memory is called once by each thread. Never again.
  * @param thread_data. Create a memory structure and assign it to *thread_data.
  * @param plugin_opts. Map of flashmq_plugin_opt_* from the config file.

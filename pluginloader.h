@@ -17,6 +17,7 @@ enum class PluginFamily
 
 typedef int (*F_plugin_version)(void);
 typedef void(*F_flashmq_plugin_main_init_v1)(std::unordered_map<std::string, std::string> &auth_opts);
+typedef void(*F_flashmq_plugin_main_deinit_v1)(std::unordered_map<std::string, std::string> &auth_opts);
 
 class PluginLoader
 {
@@ -26,6 +27,7 @@ class PluginLoader
     void* handle = nullptr;
     F_plugin_version version = nullptr;
     F_flashmq_plugin_main_init_v1 main_init_v1 = nullptr;
+    F_flashmq_plugin_main_deinit_v1 main_deinit_v1 = nullptr;
 
 public:
     PluginLoader();
@@ -38,6 +40,7 @@ public:
     int getFlashMQPluginVersion() const;
 
     void mainInit(std::unordered_map<std::string, std::string> &plugin_opts);
+    void mainDeinit(std::unordered_map<std::string, std::string> &plugin_opts);
 };
 
 #endif // PLUGINLOADER_H

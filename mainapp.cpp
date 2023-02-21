@@ -728,6 +728,8 @@ void MainApp::start()
         }
     }
 
+    pluginLoader.mainDeinit(settings.getFlashmqpluginOpts());
+
     saveState(this->settings);
 
     if (saveStateThread.joinable())
