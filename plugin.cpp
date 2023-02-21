@@ -220,6 +220,7 @@ void Authentication::securityInit(bool reloading)
     }
     else if (pluginFamily == PluginFamily::FlashMQ)
     {
+        // The exception handling is higher up in the call stack, because it needs to be different on first start vs reload.
         std::unordered_map<std::string, std::string> &authOpts = settings.getFlashmqpluginOpts();
         flashmq_plugin_init_v1(pluginData, authOpts, reloading);
     }
@@ -252,6 +253,7 @@ void Authentication::securityCleanup(bool reloading)
     }
     else if (pluginFamily == PluginFamily::FlashMQ)
     {
+        // The exception handling is higher up in the call stack, because it needs to be different on first start vs reload.
         std::unordered_map<std::string, std::string> &authOpts = settings.getFlashmqpluginOpts();
         flashmq_plugin_deinit_v1(pluginData, authOpts, reloading);
     }
@@ -442,7 +444,14 @@ bool Authentication::alterSubscribe(const std::string &clientid, std::string &to
 
     if (pluginFamily == PluginFamily::FlashMQ && flashmq_plugin_alter_subscription_v1)
     {
-        return flashmq_plugin_alter_subscription_v1(pluginData, clientid, topic, subtopics, qos, userProperties);
+        try
+        {
+            return flashmq_plugin_alter_subscription_v1(pluginData, clientid, topic, subtopics, qos, userProperties);
+        }
+        catch (std::exception &ex)
+        {
+            logger->logf(LOG_ERR, "Exception in 'flashmq_plugin_alter_subscription': '%s'. You now have undefined behavior.", ex.what());
+        }
     }
 
     return false;
@@ -464,7 +473,14 @@ bool Authentication::alterPublish(const std::string &clientid, std::string &topi
 
     if (pluginFamily == PluginFamily::FlashMQ && flashmq_plugin_alter_publish_v1)
     {
-        return flashmq_plugin_alter_publish_v1(pluginData, clientid, topic, subtopics, qos, retain, userProperties);
+        try
+        {
+            return flashmq_plugin_alter_publish_v1(pluginData, clientid, topic, subtopics, qos, retain, userProperties);
+        }
+        catch (std::exception &ex)
+        {
+            logger->logf(LOG_ERR, "Exception in 'flashmq_plugin_alter_publish': '%s'. You now have undefined behavior.", ex.what());
+        }
     }
 
     return false;
@@ -485,7 +501,14 @@ void Authentication::clientDisconnected(const std::string &clientid)
 
     if (pluginFamily == PluginFamily::FlashMQ && flashmq_plugin_client_disconnected_v1)
     {
-        flashmq_plugin_client_disconnected_v1(pluginData, clientid);
+        try
+        {
+            flashmq_plugin_client_disconnected_v1(pluginData, clientid);
+        }
+        catch (std::exception &ex)
+        {
+            logger->logf(LOG_ERR, "Exception in 'flashmq_plugin_client_disconnected': '%s'.", ex.what());
+        }
     }
 }
 
@@ -767,7 +790,14 @@ void Authentication::periodicEvent()
 
     if (pluginFamily == PluginFamily::FlashMQ && flashmq_plugin_periodic_event_v1)
     {
-        flashmq_plugin_periodic_event_v1(pluginData);
+        try
+        {
+            flashmq_plugin_periodic_event_v1(pluginData);
+        }
+        catch (std::exception &ex)
+        {
+            logger->logf(LOG_ERR, "Exception in 'flashmq_plugin_periodic_event': '%s'.", ex.what());
+        }
     }
 }
 
