@@ -293,7 +293,8 @@ void flashmq_plugin_main_deinit(std::unordered_map<std::string, std::string> &pl
  * @param thread_data. Create a memory structure and assign it to *thread_data.
  * @param plugin_opts. Map of flashmq_plugin_opt_* from the config file.
  *
- * Only allocate the plugin's memory here. Don't open connections, etc. That's because the reload mechanism doesn't call this function.
+ * Only allocate the plugin's memory here, or other things that you really only have to do once. Don't open connections, etc. That's
+ * because the reload mechanism doesn't call this function.
  *
  * Because of the multi-core design of FlashMQ, you should treat each thread as its own domain with its own data. You can use static
  * variables for global scope if you must, or even create threads, but do provide proper locking where necessary.
@@ -322,10 +323,13 @@ void flashmq_plugin_deallocate_thread_memory(void *thread_data, std::unordered_m
  * @param reloading.
  *
  * The best approach to state keeping is doing everything per thread. You can initialize connections to database servers, load encryption keys,
- * create maps, etc.
+ * create maps, etc. However, remember that for instance with libcurl, initing a 'multi handle' is best not done here, or at least not done
+ * AGAIN on reload, because it will distrupt your ongoing transfers. Memory structures that you really only need to init once are best
+ * done in 'flashmq_plugin_allocate_thread_memory()' or even 'flashmq_plugin_main_init()'.
  *
  * Keep in mind that libraries you use may not be thread safe (by default). Sometimes they use global scope in treacherous ways. As a random
- * example: Qt's QSqlDatabase needs a unique name for each connection, otherwise it is not thread safe and will crash.
+ * example: Qt's QSqlDatabase needs a unique name for each connection, otherwise it is not thread safe and will crash. It will also hide away
+ * libmysqlclient's requirement to do a global one-time init, that would be best done in 'flashmq_plugin_main_init()'.
  *
  * There is the option to set 'plugin_serialize_init true' in the config file, which allows some mitigation in
  * case you run into problems.
