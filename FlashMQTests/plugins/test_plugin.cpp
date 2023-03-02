@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <cassert>
 #include <cstring>
+#include <stdexcept>
 
 #include "../../flashmq_plugin.h"
 #include "test_plugin.h"
