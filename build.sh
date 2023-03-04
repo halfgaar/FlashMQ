@@ -65,10 +65,16 @@ else
   mkdir "$BUILD_DIR"
 fi
 
+nprocs=4
+
+if _nprocs=$(nproc); then
+  nprocs="$_nprocs"
+fi
+
 cd "$BUILD_DIR"
 
 cmake -DCMAKE_BUILD_TYPE="$BUILD_TYPE" "$thisdir"
-make -j
+make -j "$nprocs"
 cpack
 
 FLASHMQ_VERSION=$(./flashmq --version | grep -Ei 'Flashmq.*version.*' | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+[^ ]*')
