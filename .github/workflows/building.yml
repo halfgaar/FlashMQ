@@ -37,7 +37,9 @@ jobs:
       - run: sudo apt update
       # Build prerequisites
       - run: sudo apt install docbook2x
-      - run: sudo apt install -y cmake libssl-dev ${{ matrix.aptpkg }}
+      - run: sudo apt install -y cmake libssl-dev libcurl4-openssl-dev ${{ matrix.aptpkg }}
+      # Build example plugin(s)
+      - run: CXX="${{ matrix.CXX }}" ./examples/plugin_libcurl/build.sh "Release"
       # Building
       - run: CXX="${{ matrix.CXX }}" ./build.sh "Release"
       # Testing build results

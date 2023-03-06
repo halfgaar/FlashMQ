@@ -35,7 +35,11 @@ docker run -p 1883:1883 -v /srv/flashmq/etc/:/etc/flashmq halfgaar/flashmq
 docker build . --target=build
 ```
 
-See [www.flashmq.org](https://www.flashmq.org)
+## Plugins
+
+A plugin interface is defined and documented in `flashmq_plugin.h`. It allows custom authentication and other behavior.
+
+See the `examples` directory for example implementations of this interface.
 
 ## Commercial services
 
