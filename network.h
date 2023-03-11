@@ -21,7 +21,6 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include <arpa/inet.h>
 #include "string"
 #include <memory>
-#include <emmintrin.h>
 
 class Network
 {
@@ -29,9 +28,8 @@ class Network
 
     uint32_t in_mask = 0;
 
-    __m128i in6_mask;
-    __m128i in6_zero;
-    __m128i in6_network_128;
+    uint32_t in6_mask[4];
+    struct in6_addr network_addr_relevant_bits;
 
 public:
     Network(const std::string &network);

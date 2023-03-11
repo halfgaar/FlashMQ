@@ -70,12 +70,8 @@ Network::Network(const std::string &network)
             throw std::runtime_error(formatString("Network '%s' is not a valid network notation.", network.c_str()));
         }
 
-        this->in6_zero = _mm_set1_epi8(0);
-        this->in6_network_128 = _mm_loadu_si128((__m128i*)&_sockaddr_in6->sin6_addr);
-
         int m = maskbits;
-        uint32_t mask[4];
-        memset(mask, 0, 16);
+        memset(in6_mask, 0, 16);
         int i = 0;
         const uint64_t x = 0xFFFFFFFF00000000;
 
@@ -83,11 +79,14 @@ Network::Network(const std::string &network)
         {
             int shift_remainder = std::min<int>(m, 32);
             uint32_t b = x >> shift_remainder;
-            mask[i++] = htonl(b);
+            in6_mask[i++] = htonl(b);
             m -= 32;
         }
 
-        this->in6_mask = _mm_loadu_si128((__m128i*)mask);
+        for (int i = 0; i < 4; i++)
+        {
+            network_addr_relevant_bits.__in6_u.__u6_addr32[i] = _sockaddr_in6->sin6_addr.__in6_u.__u6_addr32[i] & in6_mask[i];
+        }
     }
     else
     {
@@ -107,14 +106,21 @@ bool Network::match(const sockaddr *addr) const
     }
     else if (_sockaddr->sa_family == AF_INET6)
     {
-        const struct sockaddr_in6 *_addr = reinterpret_cast<const struct sockaddr_in6*>(addr);
+        const struct sockaddr_in6 *arg_addr = reinterpret_cast<const struct sockaddr_in6*>(addr);
 
-        __m128i _addr_128 = _mm_loadu_si128((__m128i*)&_addr->sin6_addr);
-        __m128i _xored_128 = _mm_xor_si128(this->in6_network_128, _addr_128);
-        _xored_128 = _mm_and_si128(this->in6_mask, _xored_128);
-        __m128i equals_to_zero = _mm_cmpeq_epi8(_xored_128, this->in6_zero);
-        int equals_to_zero_mask = _mm_movemask_epi8(equals_to_zero);
-        return equals_to_zero_mask == 0xFFFF;
+        struct in6_addr arg_addr_relevant_bits;
+        for (int i = 0; i < 4; i++)
+        {
+            arg_addr_relevant_bits.__in6_u.__u6_addr32[i] = arg_addr->sin6_addr.__in6_u.__u6_addr32[i] & in6_mask[i];
+        }
+
+        uint8_t matches[4];
+        for (int i = 0; i < 4; i++)
+        {
+            matches[i] = arg_addr_relevant_bits.__in6_u.__u6_addr32[i] == network_addr_relevant_bits.__in6_u.__u6_addr32[i];
+        }
+
+        return (_sockaddr->sa_family == addr->sa_family) & (matches[0] & matches[1] & matches[2] & matches[3]);
     }
 
     return false;
