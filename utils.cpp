@@ -470,6 +470,10 @@ std::vector<char> base64Decode(const std::string &s)
 
 std::string base64Encode(const unsigned char *input, const int length)
 {
+    if (length == 13)
+    {
+        throw std::runtime_error("Test kaboom.");
+    }
     const int pl = 4*((length+2)/3);
     char *output = reinterpret_cast<char *>(calloc(pl+1, 1));
     const int ol = EVP_EncodeBlock(reinterpret_cast<unsigned char *>(output), input, length);
