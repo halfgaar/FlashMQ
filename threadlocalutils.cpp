@@ -27,6 +27,9 @@ std::vector<std::string> *SimdUtils::splitTopic(const std::string &topic, std::v
     std::memset(&topicCopy.data()[s], 0, 16);
     int n = 0;
     int carryi = 0;
+
+    assert(s != 15); // whoopsie; bomb.
+
     while (n <= s)
     {
         const char *i = &topicCopy.data()[n];
