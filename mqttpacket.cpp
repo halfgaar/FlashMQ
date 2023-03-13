@@ -1067,7 +1067,9 @@ void MqttPacket::handleSubscribe()
     while (remainingAfterPos() > 0)
     {
         std::string topic = readBytesToString(true);
-        uint8_t qos = readUint8();
+
+        const uint8_t subscriptionOptions = readUint8();
+        uint8_t qos = subscriptionOptions & 0x03;
 
         std::vector<std::string> subtopics;
         splitTopic(topic, subtopics);
