@@ -29,8 +29,9 @@
 #include <memory>
 #include <arpa/inet.h>
 #include <functional>
+#include <string_view>
 
-#define FLASHMQ_PLUGIN_VERSION 1
+#define FLASHMQ_PLUGIN_VERSION 2
 
 // Compatible with Mosquitto, for (auth) plugin compatability.
 #define LOG_NONE 0x00
@@ -399,7 +400,7 @@ bool flashmq_plugin_alter_subscription(void *thread_data, const std::string &cli
  * [Can optionally be implemented by plugin]
  */
 bool flashmq_plugin_alter_publish(void *thread_data, const std::string &clientid, std::string &topic, const std::vector<std::string> &subtopics,
-                                  uint8_t &qos, bool &retain, std::vector<std::pair<std::string, std::string>> *userProperties);
+                                  std::string_view payload, uint8_t &qos, bool &retain, std::vector<std::pair<std::string, std::string>> *userProperties);
 
 /**
  * @brief flashmq_plugin_login_check is called on login of a client.
@@ -460,8 +461,8 @@ void flashmq_plugin_client_disconnected(void *thread_data, const std::string &cl
  * [Must be implemented by plugin]
  */
 AuthResult flashmq_plugin_acl_check(void *thread_data, const AclAccess access, const std::string &clientid, const std::string &username,
-                                    const std::string &topic, const std::vector<std::string> &subtopics, const uint8_t qos, const bool retain,
-                                    const std::vector<std::pair<std::string, std::string>> *userProperties);
+                                    const std::string &topic, const std::vector<std::string> &subtopics, std::string_view payload,
+                                    const uint8_t qos, const bool retain, const std::vector<std::pair<std::string, std::string>> *userProperties);
 
 /**
  * @brief flashmq_plugin_extended_auth can be used to implement MQTT 5 extended auth. This is optional.

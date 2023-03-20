@@ -90,6 +90,14 @@ const std::vector<std::string> &PublishCopyFactory::getSubtopics()
     throw std::runtime_error("Bug in &PublishCopyFactory::getSubtopics()");
 }
 
+std::string_view PublishCopyFactory::getPayload() const
+{
+    if (packet)
+        return packet->getPayloadView();
+    assert(publish);
+    return publish->payload;
+}
+
 bool PublishCopyFactory::getRetain() const
 {
     if (packet)

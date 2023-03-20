@@ -1,5 +1,7 @@
 QT -= gui
 
+CONFIG += c++17
+
 TARGET = test_plugin
 TEMPLATE = lib
 

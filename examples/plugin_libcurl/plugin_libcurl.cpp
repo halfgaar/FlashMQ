@@ -174,8 +174,8 @@ AuthResult flashmq_plugin_login_check(void *thread_data, const std::string &clie
 }
 
 AuthResult flashmq_plugin_acl_check(void *thread_data, const AclAccess access, const std::string &clientid, const std::string &username,
-                                    const std::string &topic, const std::vector<std::string> &subtopics, const uint8_t qos, const bool retain,
-                                    const std::vector<std::pair<std::string, std::string>> *userProperties)
+                                    const std::string &topic, const std::vector<std::string> &subtopics, std::string_view payload, const uint8_t qos,
+                                    const bool retain, const std::vector<std::pair<std::string, std::string>> *userProperties)
 {
     (void)thread_data;
     (void)access;
@@ -186,6 +186,7 @@ AuthResult flashmq_plugin_acl_check(void *thread_data, const AclAccess access, c
     (void)(retain);
     (void)userProperties;
     (void)topic;
+    (void)payload;
 
     return AuthResult::success;
 }

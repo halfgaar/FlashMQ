@@ -157,7 +157,7 @@ void Session::writePacket(PublishCopyFactory &copyFactory, const uint8_t max_qos
     Authentication *_auth = ThreadGlobals::getAuth();
     assert(_auth);
     Authentication &auth = *_auth;
-    if (auth.aclCheck(client_id, username, copyFactory.getTopic(), copyFactory.getSubtopics(), AclAccess::read, effectiveQos, copyFactory.getRetain(), copyFactory.getUserProperties()) == AuthResult::success)
+    if (auth.aclCheck(client_id, username, copyFactory.getTopic(), copyFactory.getSubtopics(), copyFactory.getPayload(), AclAccess::read, effectiveQos, copyFactory.getRetain(), copyFactory.getUserProperties()) == AuthResult::success)
     {
         std::shared_ptr<Client> c = makeSharedClient();
         if (effectiveQos == 0)
@@ -262,7 +262,7 @@ void Session::sendAllPendingQosData()
             QueuedPublish &queuedPublish = *qp;
             Publish &pub = queuedPublish.getPublish();
 
-            if (pub.hasExpired() || (authentication.aclCheck(pub) != AuthResult::success))
+            if (pub.hasExpired() || (authentication.aclCheck(pub, pub.payload) != AuthResult::success))
             {
                 qosPacketQueue.erase(qp->getPacketId());
                 continue;

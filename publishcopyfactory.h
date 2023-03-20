@@ -34,6 +34,7 @@ public:
     uint8_t getEffectiveQos(uint8_t max_qos) const;
     const std::string &getTopic() const;
     const std::vector<std::string> &getSubtopics();
+    std::string_view getPayload() const;
     bool getRetain() const;
     Publish getNewPublish(uint8_t new_max_qos) const;
     std::shared_ptr<Client> getSender();

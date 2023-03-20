@@ -3,6 +3,8 @@ cmake_policy(SET CMP0048 NEW)
 
 project(plugin_libcurl VERSION 1.0.0 LANGUAGES CXX)
 
+set(CMAKE_CXX_STANDARD 17)
+
 add_compile_options(-Wall)
 
 add_library(plugin_libcurl SHARED

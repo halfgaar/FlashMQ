@@ -55,9 +55,9 @@ void PluginLoader::loadPlugin(const std::string &pathToSoFile)
         pluginFamily = PluginFamily::FlashMQ;
         flashmqPluginVersionNumber = version();
 
-        if (flashmqPluginVersionNumber != 1)
+        if (!(flashmqPluginVersionNumber == 1 || flashmqPluginVersionNumber == 2))
         {
-            throw FatalError("FlashMQ plugin only supports version 1.");
+            throw FatalError("FlashMQ plugin only supports version 1 or 2.");
         }
     }
     else

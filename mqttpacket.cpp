@@ -788,7 +788,7 @@ void MqttPacket::handleConnect()
 
     if (settings.willsEnabled && connectData.will_flag)
     {
-        if (authentication.aclCheck(connectData.willpublish, AclAccess::register_will) == AuthResult::success)
+        if (authentication.aclCheck(connectData.willpublish, connectData.willpublish.payload, AclAccess::register_will) == AuthResult::success)
         {
             sender->setWill(std::move(connectData.willpublish));
         }
@@ -1092,7 +1092,7 @@ void MqttPacket::handleSubscribe()
         std::string shareName;
         parseSubscriptionShare(subtopics, shareName);
 
-        if (authentication.aclCheck(sender->getClientId(), sender->getUsername(), topic, subtopics, AclAccess::subscribe, qos, false, getUserProperties()) == AuthResult::success)
+        if (authentication.aclCheck(sender->getClientId(), sender->getUsername(), topic, subtopics, std::string_view(), AclAccess::subscribe, qos, false, getUserProperties()) == AuthResult::success)
         {
             deferredSubscribes.emplace_front(topic, subtopics, qos, shareName);
             subs_reponse_codes.push_back(static_cast<ReasonCodes>(qos));
@@ -1337,10 +1337,10 @@ void MqttPacket::handlePublish()
         if (publishData.qos == 2)
             sender->getSession()->addIncomingQoS2MessageId(_packet_id);
 
-        this->alteredByPlugin = authentication.alterPublish(this->publishData.client_id, this->publishData.topic, this->publishData.getSubtopics(), this->publishData.qos,
-            this->publishData.retain, this->publishData.getUserProperties());
+        this->alteredByPlugin = authentication.alterPublish(this->publishData.client_id, this->publishData.topic, this->publishData.getSubtopics(),
+                                                            getPayloadView(), this->publishData.qos, this->publishData.retain, this->publishData.getUserProperties());
 
-        if (authentication.aclCheck(this->publishData) == AuthResult::success)
+        if (authentication.aclCheck(this->publishData, getPayloadView()) == AuthResult::success)
         {
             if (publishData.retain && settings->retainedMessagesMode == RetainedMessagesMode::Enabled)
             {
@@ -1604,6 +1604,13 @@ std::string MqttPacket::getPayloadCopy() const
     return payload;
 }
 
+std::string_view MqttPacket::getPayloadView() const
+{
+    assert(payloadStart > 0);
+    assert(pos <= bites.size());
+    std::string_view payload(&bites[payloadStart], payloadLen);
+    return payload;
+}
 
 
 uint8_t MqttPacket::getFixedHeaderLength() const

@@ -389,7 +389,7 @@ void SubscriptionStore::sendQueuedWillMessages()
                 if (s && !s->hasActiveClient())
                 {
                     logger->logf(LOG_DEBUG, "Sending delayed will on topic '%s'.", p->topic.c_str() );
-                    if (auth.aclCheck(*p) == AuthResult::success)
+                    if (auth.aclCheck(*p, p->payload) == AuthResult::success)
                     {
                         PublishCopyFactory factory(p.get());
                         queuePacketAtSubscribers(factory);
@@ -427,7 +427,7 @@ void SubscriptionStore::queueWillMessage(const std::shared_ptr<WillPublish> &wil
 
     if (delay == 0)
     {
-        if (settings->willsEnabled && auth.aclCheck(*willMessage) == AuthResult::success)
+        if (settings->willsEnabled && auth.aclCheck(*willMessage, willMessage->payload) == AuthResult::success)
         {
             PublishCopyFactory factory(willMessage.get());
             queuePacketAtSubscribers(factory);
@@ -609,7 +609,7 @@ void SubscriptionStore::giveClientRetainedMessagesRecursively(std::vector<std::s
             if (!rm.hasExpired()) // We can't also erase here, because we're operating under a read lock.
             {
                 Publish publish = rm.publish;
-                if (auth.aclCheck(publish) == AuthResult::success)
+                if (auth.aclCheck(publish, publish.payload) == AuthResult::success)
                 {
                    packetList.push_front(std::move(publish));
                    count++;

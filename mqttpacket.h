@@ -157,6 +157,7 @@ public:
     void setDuplicate();
     void readIntoBuf(CirBuf &buf) const;
     std::string getPayloadCopy() const;
+    std::string_view getPayloadView() const;
     bool getRetain() const;
     void setRetain();
     const Publish &getPublishData();

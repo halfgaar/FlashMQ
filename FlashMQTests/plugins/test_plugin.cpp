@@ -175,8 +175,8 @@ AuthResult flashmq_plugin_login_check(void *thread_data, const std::string &clie
 }
 
 AuthResult flashmq_plugin_acl_check(void *thread_data, const AclAccess access, const std::string &clientid, const std::string &username,
-                                    const std::string &topic, const std::vector<std::string> &subtopics, const uint8_t qos, const bool retain,
-                                    const std::vector<std::pair<std::string, std::string>> *userProperties)
+                                    const std::string &topic, const std::vector<std::string> &subtopics, std::string_view payload,
+                                    const uint8_t qos, const bool retain, const std::vector<std::pair<std::string, std::string>> *userProperties)
 {
     (void)thread_data;
     (void)access;
@@ -186,6 +186,8 @@ AuthResult flashmq_plugin_acl_check(void *thread_data, const AclAccess access, c
     (void)qos;
     (void)retain;
     (void)userProperties;
+
+    assert(access == AclAccess::subscribe || !payload.empty());
 
     if (access == AclAccess::register_will && topic == "will/disallowed")
         return AuthResult::acl_denied;
@@ -253,7 +255,7 @@ AuthResult flashmq_plugin_extended_auth(void *thread_data, const std::string &cl
     return AuthResult::auth_method_not_supported;
 }
 
-bool flashmq_plugin_alter_publish(void *thread_data, const std::string &clientid, std::string &topic, const std::vector<std::string> &subtopics,
+bool flashmq_plugin_alter_publish(void *thread_data, const std::string &clientid, std::string &topic, const std::vector<std::string> &subtopics, std::string_view payload,
                                   uint8_t &qos, bool &retain, std::vector<std::pair<std::string, std::string>> *userProperties)
 {
     (void)thread_data;
@@ -264,6 +266,8 @@ bool flashmq_plugin_alter_publish(void *thread_data, const std::string &clientid
     (void)userProperties;
 
     TestPluginData *p = static_cast<TestPluginData*>(thread_data);
+
+    assert(!payload.empty());
 
     if (topic == "changeme")
     {

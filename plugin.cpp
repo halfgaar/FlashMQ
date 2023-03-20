@@ -113,7 +113,6 @@ void Authentication::loadPlugin(const PluginLoader &l)
         flashmq_plugin_deallocate_thread_memory_v1 = (F_flashmq_plugin_deallocate_thread_memory_v1)l.loadSymbol("flashmq_plugin_deallocate_thread_memory");
         flashmq_plugin_init_v1 = (F_flashmq_plugin_init_v1)l.loadSymbol("flashmq_plugin_init");
         flashmq_plugin_deinit_v1 = (F_flashmq_plugin_deinit_v1)l.loadSymbol("flashmq_plugin_deinit");
-        flashmq_plugin_acl_check_v1 = (F_flashmq_plugin_acl_check_v1)l.loadSymbol("flashmq_plugin_acl_check");
         flashmq_plugin_login_check_v1 = (F_flashmq_plugin_login_check_v1)l.loadSymbol("flashmq_plugin_login_check");
         flashmq_plugin_periodic_event_v1 = (F_flashmq_plugin_periodic_event_v1)l.loadSymbol("flashmq_plugin_periodic_event", false);
         flashmq_plugin_extended_auth_v1 = (F_flashmq_plugin_extended_auth_v1)l.loadSymbol("flashmq_plugin_extended_auth", false);
@@ -121,6 +120,17 @@ void Authentication::loadPlugin(const PluginLoader &l)
         flashmq_plugin_alter_publish_v1 = (F_flashmq_plugin_alter_publish_v1)l.loadSymbol("flashmq_plugin_alter_publish", false);
         flashmq_plugin_client_disconnected_v1 = (F_flashmq_plugin_client_disconnected_v1)l.loadSymbol("flashmq_plugin_client_disconnected", false);
         flashmq_plugin_poll_event_received_v1 = (F_flashmq_plugin_poll_event_received_v1)l.loadSymbol("flashmq_plugin_poll_event_received", false);
+
+        if (flashmqPluginVersionNumber == 1)
+        {
+            flashmq_plugin_acl_check_v1 = (F_flashmq_plugin_acl_check_v1)l.loadSymbol("flashmq_plugin_acl_check");
+            flashmq_plugin_alter_publish_v1 = (F_flashmq_plugin_alter_publish_v1)l.loadSymbol("flashmq_plugin_alter_publish", false);
+        }
+        else
+        {
+            flashmq_plugin_acl_check_v2 = (F_flashmq_plugin_acl_check_v2)l.loadSymbol("flashmq_plugin_acl_check");
+            flashmq_plugin_alter_publish_v2 = (F_flashmq_plugin_alter_publish_v2)l.loadSymbol("flashmq_plugin_alter_publish", false);
+        }
     }
     else
     {
@@ -265,20 +275,26 @@ void Authentication::securityCleanup(bool reloading)
  * @param publishData
  * @return
  */
-AuthResult Authentication::aclCheck(Publish &publishData, AclAccess access)
+AuthResult Authentication::aclCheck(Publish &publishData, std::string_view payload, AclAccess access)
 {
     // Anonymous publishes come from FlashMQ internally, like SYS topics. We need to allow them.
     if (publishData.client_id.empty())
         return AuthResult::success;
 
-    return aclCheck(publishData.client_id, publishData.username, publishData.topic, publishData.getSubtopics(), access, publishData.qos,
+    return aclCheck(publishData.client_id, publishData.username, publishData.topic, publishData.getSubtopics(), payload, access, publishData.qos,
                     publishData.retain, publishData.getUserProperties());
 }
 
 AuthResult Authentication::aclCheck(const std::string &clientid, const std::string &username, const std::string &topic, const std::vector<std::string> &subtopics,
-                                    AclAccess access, uint8_t qos, bool retain, const std::vector<std::pair<std::string, std::string>> *userProperties)
+                                    std::string_view payload, AclAccess access, uint8_t qos, bool retain,
+                                    const std::vector<std::pair<std::string, std::string>> *userProperties)
 {
     assert(subtopics.size() > 0);
+#ifdef TESTING
+    // I could technically test with empty payload, but so far I don't, and this is a good way for now to check I don't miss the payload
+    // because of the payload copy prevention optimization.
+    assert(retain || access == AclAccess::subscribe || !payload.empty());
+#endif
 
     AuthResult firstResult = aclCheckFromMosquittoAclFile(clientid, username, subtopics, access);
 
@@ -324,7 +340,10 @@ AuthResult Authentication::aclCheck(const std::string &clientid, const std::stri
         // gets disconnected.
         try
         {
-            return flashmq_plugin_acl_check_v1(pluginData, access, clientid, username, topic, subtopics, qos, retain, userProperties);
+            if (flashmqPluginVersionNumber == 1)
+                return flashmq_plugin_acl_check_v1(pluginData, access, clientid, username, topic, subtopics, qos, retain, userProperties);
+            else
+                return flashmq_plugin_acl_check_v2(pluginData, access, clientid, username, topic, subtopics, payload, qos, retain, userProperties);
         }
         catch (std::exception &ex)
         {
@@ -458,9 +477,15 @@ bool Authentication::alterSubscribe(const std::string &clientid, std::string &to
     return false;
 }
 
-bool Authentication::alterPublish(const std::string &clientid, std::string &topic, const std::vector<std::string> &subtopics,
+bool Authentication::alterPublish(const std::string &clientid, std::string &topic, const std::vector<std::string> &subtopics, std::string_view payload,
                                   uint8_t &qos, bool &retain, std::vector<std::pair<std::string, std::string>> *userProperties)
 {
+#ifdef TESTING
+    // I could technically test with empty payload, but so far I don't, and this is a good way for now to check I don't miss the payload
+    // because of the payload copy prevention optimization.
+    assert(retain || !payload.empty());
+#endif
+
     if (pluginFamily == PluginFamily::None)
     {
         return false;
@@ -476,7 +501,10 @@ bool Authentication::alterPublish(const std::string &clientid, std::string &topi
     {
         try
         {
-            return flashmq_plugin_alter_publish_v1(pluginData, clientid, topic, subtopics, qos, retain, userProperties);
+            if (flashmqPluginVersionNumber == 1)
+                return flashmq_plugin_alter_publish_v1(pluginData, clientid, topic, subtopics, qos, retain, userProperties);
+            else
+                return flashmq_plugin_alter_publish_v2(pluginData, clientid, topic, subtopics, payload, qos, retain, userProperties);
         }
         catch (std::exception &ex)
         {

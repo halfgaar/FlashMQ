@@ -21,14 +21,6 @@ jobs:
             friendly: gcc
             CXX: /usr/bin/g++
             aptpkg: build-essential
-          - os: ubuntu-18.04
-            friendly: clang
-            CXX: /usr/bin/clang++
-            aptpkg: clang
-          - os: ubuntu-18.04
-            friendly: gcc
-            CXX: /usr/bin/g++
-            aptpkg: build-essential
     runs-on: ${{ matrix.os }}
     name: "${{ matrix.os }}: ${{ matrix.friendly }}"
     steps:
