@@ -17,7 +17,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 
 #include "rwlockguard.h"
 #include "utils.h"
-#include "stdexcept"
+#include <stdexcept>
 
 RWLockGuard::RWLockGuard(pthread_rwlock_t *rwlock) :
     rwlock(rwlock)

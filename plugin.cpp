@@ -22,8 +22,8 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include <sstream>
 #include <dlfcn.h>
 #include <fstream>
-#include "sys/stat.h"
-#include "cassert"
+#include <sys/stat.h>
+#include <cassert>
 
 #include "exceptions.h"
 #include "unscopedlock.h"

@@ -15,7 +15,7 @@ You should have received a copy of the GNU Affero General Public
 License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "cassert"
+#include <cassert>
 
 #include "types.h"
 #include "mqtt5properties.h"

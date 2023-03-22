@@ -2,10 +2,10 @@
 #define PUBLISHCOPYFACTORY_H
 
 #include <vector>
+#include <unordered_map>
 
 #include "forward_declarations.h"
 #include "types.h"
-#include "unordered_map"
 
 /**
  * @brief The PublishCopyFactory class is for managing copies of an incoming publish, including sometimes not making copies at all.

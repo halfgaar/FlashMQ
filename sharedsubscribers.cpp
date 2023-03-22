@@ -1,5 +1,5 @@
 #include "sharedsubscribers.h"
-#include "cassert"
+#include <cassert>
 
 SharedSubscribers::SharedSubscribers() noexcept
 {

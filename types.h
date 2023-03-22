@@ -18,7 +18,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #ifndef TYPES_H
 #define TYPES_H
 
-#include "stdint.h"
+#include <stdint.h>
 #include <list>
 #include <string>
 #include <memory>

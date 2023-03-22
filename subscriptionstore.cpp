@@ -17,7 +17,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 
 #include "subscriptionstore.h"
 
-#include "cassert"
+#include <cassert>
 
 #include "rwlockguard.h"
 #include "retainedmessagesdb.h"

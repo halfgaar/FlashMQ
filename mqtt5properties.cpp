@@ -1,8 +1,8 @@
 #include "mqtt5properties.h"
 
-#include "cstring"
-#include "vector"
-#include "cassert"
+#include <cstring>
+#include <vector>
+#include <cassert>
 
 #include "exceptions.h"
 

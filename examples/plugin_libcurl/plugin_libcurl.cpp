@@ -28,7 +28,7 @@ For more information, please refer to <http://unlicense.org/>
 
 #include "vendor/flashmq_plugin.h"
 
-#include "curl/curl.h"
+#include <curl/curl.h>
 #include <sys/epoll.h>
 #include <stdexcept>
 

@@ -18,7 +18,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #ifndef SSLCTXMANAGER_H
 #define SSLCTXMANAGER_H
 
-#include "openssl/ssl.h"
+#include <openssl/ssl.h>
 
 class SslCtxManager
 {

@@ -19,7 +19,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #define NETWORK_H
 
 #include <arpa/inet.h>
-#include "string"
+#include <string>
 #include <memory>
 
 class Network

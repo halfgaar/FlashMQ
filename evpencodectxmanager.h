@@ -18,7 +18,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #ifndef EVPENCODECTXMANAGER_H
 #define EVPENCODECTXMANAGER_H
 
-#include "openssl/evp.h"
+#include <openssl/evp.h>
 
 struct EvpEncodeCtxManager
 {

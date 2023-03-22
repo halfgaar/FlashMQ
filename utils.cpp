@@ -15,19 +15,19 @@ You should have received a copy of the GNU Affero General Public
 License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "sys/stat.h"
+#include <sys/stat.h>
 
 #include "utils.h"
 
-#include "sys/time.h"
-#include "sys/random.h"
+#include <sys/time.h>
+#include <sys/random.h>
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
-#include "signal.h"
+#include <signal.h>
 
-#include "openssl/ssl.h"
-#include "openssl/err.h"
+#include <openssl/ssl.h>
+#include <openssl/err.h>
 
 #include "exceptions.h"
 #include "cirbuf.h"

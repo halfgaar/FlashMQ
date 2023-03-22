@@ -1,7 +1,7 @@
 #ifndef GLOBALSTATS_H
 #define GLOBALSTATS_H
 
-#include "stdint.h"
+#include <stdint.h>
 #include "derivablecounter.h"
 
 class GlobalStats

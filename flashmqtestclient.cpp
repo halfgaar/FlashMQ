@@ -2,8 +2,8 @@
 
 #include <sys/epoll.h>
 #include <cstring>
-#include "errno.h"
-#include "functional"
+#include <errno.h>
+#include <functional>
 
 #include "threadloop.h"
 #include "utils.h"

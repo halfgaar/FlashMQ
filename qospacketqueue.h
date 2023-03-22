@@ -1,8 +1,8 @@
 #ifndef QOSPACKETQUEUE_H
 #define QOSPACKETQUEUE_H
 
-#include "list"
-#include "map"
+#include <list>
+#include <map>
 
 #include "forward_declarations.h"
 #include "types.h"

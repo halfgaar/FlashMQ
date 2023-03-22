@@ -20,7 +20,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "threadglobals.h"
 #include "utils.h"
 
-#include "cassert"
+#include <cassert>
 
 SubscriptionForSerializing::SubscriptionForSerializing(const std::string &clientId, uint8_t qos) :
     clientId(clientId),

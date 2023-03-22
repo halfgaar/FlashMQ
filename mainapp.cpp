@@ -16,9 +16,9 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 */
 
 #include "mainapp.h"
-#include "cassert"
+#include <cassert>
 #include "exceptions.h"
-#include "getopt.h"
+#include <getopt.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <sys/sysinfo.h>

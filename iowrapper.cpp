@@ -17,7 +17,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 
 #include "iowrapper.h"
 
-#include "cassert"
+#include <cassert>
 
 #include "logger.h"
 #include "client.h"
