@@ -19,6 +19,9 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "mqttpacket.h"
 #include "threadglobals.h"
 #include "utils.h"
+#include "client.h"
+#include "session.h"
+#include "settings.h"
 
 #include <cassert>
 

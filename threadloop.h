@@ -18,11 +18,9 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #ifndef THREADLOOP_H
 #define THREADLOOP_H
 
-#include "threaddata.h"
-#include "threadglobals.h"
-
 #define MAX_EVENTS 65536
 
+#include <vector>
 #include "forward_declarations.h"
 
 class VectorClearGuard

@@ -21,8 +21,6 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "persistencefile.h"
 #include "retainedmessage.h"
 
-#include "logger.h"
-
 #define MAGIC_STRING_V1 "FlashMQRetainedDBv1"
 #define MAGIC_STRING_V2 "FlashMQRetainedDBv2"
 #define MAGIC_STRING_V3 "FlashMQRetainedDBv3"

@@ -26,6 +26,9 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "logger.h"
 #include "utils.h"
 #include "threadglobals.h"
+#include "subscriptionstore.h"
+#include "mainapp.h"
+#include "exceptions.h"
 
 StowedClientRegistrationData::StowedClientRegistrationData(bool clean_start, uint16_t clientReceiveMax, uint32_t sessionExpiryInterval) :
     clean_start(clean_start),

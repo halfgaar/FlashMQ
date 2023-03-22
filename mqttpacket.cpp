@@ -23,6 +23,9 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 
 #include "utils.h"
 #include "threadglobals.h"
+#include "subscriptionstore.h"
+#include "mainapp.h"
+#include "exceptions.h"
 
 // constructor for parsing incoming packets
 MqttPacket::MqttPacket(CirBuf &buf, size_t packet_len, size_t fixed_header_length, std::shared_ptr<Client> &sender) :

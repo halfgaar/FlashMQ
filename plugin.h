@@ -21,13 +21,12 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include <string>
 #include <cstring>
 
-#include "enums.h"
-
 #include "logger.h"
-#include "configfileparser.h"
 #include "acltree.h"
 #include "flashmq_plugin.h"
 #include "pluginloader.h"
+#include "settings.h"
+#include "types.h"
 
 enum class PasswordHashType
 {

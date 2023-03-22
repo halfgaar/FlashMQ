@@ -1,7 +1,8 @@
 #include <cassert>
 
 #include "acltree.h"
-
+#include "utils.h"
+#include "exceptions.h"
 
 /**
  * @brief AclNode::getChildren gets the children node, and makes it if not there. Use in places that you know this level in the tree exists or should be created.

@@ -21,6 +21,9 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include <cassert>
 
 #include "globalstats.h"
+#include "subscriptionstore.h"
+#include "mainapp.h"
+#include "utils.h"
 
 KeepAliveCheck::KeepAliveCheck(const std::shared_ptr<Client> client) :
     client(client)

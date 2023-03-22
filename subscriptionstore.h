@@ -25,12 +25,10 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include <map>
 #include <vector>
 #include <pthread.h>
-
-#include "forward_declarations.h"
+#include <unordered_set>
 
 #include "client.h"
 #include "session.h"
-#include "utils.h"
 #include "retainedmessage.h"
 #include "logger.h"
 #include "subscription.h"

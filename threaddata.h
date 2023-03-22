@@ -30,15 +30,12 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include <chrono>
 #include <forward_list>
 
-#include "forward_declarations.h"
-
 #include "client.h"
-#include "utils.h"
-#include "configfileparser.h"
 #include "plugin.h"
 #include "logger.h"
 #include "derivablecounter.h"
 #include "queuedtasks.h"
+#include "settings.h"
 
 typedef void (*thread_f)(ThreadData *);
 

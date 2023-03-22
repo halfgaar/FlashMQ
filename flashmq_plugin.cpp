@@ -4,6 +4,8 @@
 #include "threaddata.h"
 #include "threadglobals.h"
 #include "subscriptionstore.h"
+#include "mainapp.h"
+#include "utils.h"
 
 void flashmq_logf(int level, const char *str, ...)
 {

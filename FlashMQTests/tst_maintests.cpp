@@ -21,6 +21,8 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include <unordered_map>
 #include <sys/sysinfo.h>
 
+#include "utils.h"
+
 MainTests::MainTests()
 {
 

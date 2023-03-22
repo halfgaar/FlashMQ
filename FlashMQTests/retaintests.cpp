@@ -1,5 +1,7 @@
 #include "tst_maintests.h"
 
+#include "utils.h"
+
 void MainTests::test_retained()
 {
     std::vector<ProtocolVersion> protocols {ProtocolVersion::Mqtt311, ProtocolVersion::Mqtt5};

@@ -30,12 +30,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include <list>
 #include <sys/resource.h>
 
-#include "forward_declarations.h"
-
-#include "utils.h"
 #include "threaddata.h"
-#include "client.h"
-#include "mqttpacket.h"
 #include "subscriptionstore.h"
 #include "configfileparser.h"
 #include "timer.h"

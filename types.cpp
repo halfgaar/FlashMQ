@@ -19,7 +19,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 
 #include "types.h"
 #include "mqtt5properties.h"
-#include "mqttpacket.h"
+#include "exceptions.h"
 
 #include "utils.h"
 

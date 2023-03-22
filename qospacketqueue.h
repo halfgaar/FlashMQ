@@ -4,7 +4,6 @@
 #include <list>
 #include <map>
 
-#include "forward_declarations.h"
 #include "types.h"
 #include "publishcopyfactory.h"
 

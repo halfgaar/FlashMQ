@@ -4,8 +4,9 @@
 #include <thread>
 #include <memory>
 
-#include "subscriptionstore.h"
 #include "pluginloader.h"
+#include "settings.h"
+#include "threaddata.h"
 
 /**
  * @brief The FlashMQTestClient class uses the existing server code as a client, for testing purposes.

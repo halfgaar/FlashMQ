@@ -22,6 +22,8 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include <openssl/ssl.h>
 
 #include "mainapp.h"
+#include "utils.h"
+#include "exceptions.h"
 
 MainApp *mainApp = nullptr;
 

@@ -23,7 +23,6 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include <list>
 
 #include "logger.h"
-#include "utils.h"
 
 #define MAX_TIMER_EVENTS 32
 

@@ -18,9 +18,12 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "iowrapper.h"
 
 #include <cassert>
+#include <string.h>
 
 #include "logger.h"
 #include "client.h"
+#include "utils.h"
+#include "exceptions.h"
 
 IncompleteSslWrite::IncompleteSslWrite(size_t nbytes) :
     valid(true),

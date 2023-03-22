@@ -30,9 +30,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 
 #include "forward_declarations.h"
 
-#include "threaddata.h"
 #include "mqttpacket.h"
-#include "exceptions.h"
 #include "cirbuf.h"
 #include "types.h"
 #include "iowrapper.h"

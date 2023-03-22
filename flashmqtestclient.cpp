@@ -8,7 +8,7 @@
 #include "threadloop.h"
 #include "utils.h"
 #include "client.h"
-
+#include "threaddata.h"
 
 #define TEST_CLIENT_MAX_EVENTS 25
 

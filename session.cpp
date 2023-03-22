@@ -21,6 +21,9 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "client.h"
 #include "threadglobals.h"
 #include "threadglobals.h"
+#include "exceptions.h"
+#include "plugin.h"
+#include "settings.h"
 
 Session::Session()
 {

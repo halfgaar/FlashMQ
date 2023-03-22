@@ -1,5 +1,7 @@
 #include "tst_maintests.h"
 
+#include "utils.h"
+
 void MainTests::testSharedSubscribersUnit()
 {
     Settings settings;

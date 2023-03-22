@@ -4,8 +4,7 @@
 #include <dlfcn.h>
 #include <string>
 #include <unistd.h>
-
-#include "settings.h"
+#include <unordered_map>
 
 enum class PluginFamily
 {

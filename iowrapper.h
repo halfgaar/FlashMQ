@@ -25,11 +25,9 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 
 #include "forward_declarations.h"
 
-#include "types.h"
-#include "utils.h"
 #include "logger.h"
-#include "exceptions.h"
 #include "haproxy.h"
+#include "cirbuf.h"
 
 #define WEBSOCKET_MIN_HEADER_BYTES_NEEDED 2
 #define WEBSOCKET_MAX_SENDING_HEADER_SIZE 10

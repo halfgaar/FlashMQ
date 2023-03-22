@@ -16,6 +16,11 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 */
 
 #include "threadloop.h"
+#include "settings.h"
+#include "threadglobals.h"
+#include "mainapp.h"
+#include "utils.h"
+#include "exceptions.h"
 
 void do_thread_work(ThreadData *threadData)
 {

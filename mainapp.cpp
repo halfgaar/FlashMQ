@@ -34,6 +34,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "plugin.h"
 #include "threadglobals.h"
 #include "globalstats.h"
+#include "utils.h"
 
 MainApp *MainApp::instance = nullptr;
 

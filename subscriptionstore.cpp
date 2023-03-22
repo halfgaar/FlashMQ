@@ -25,6 +25,9 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "threadglobals.h"
 #include "utils.h"
 #include "settings.h"
+#include "plugin.h"
+#include "exceptions.h"
+#include "threaddata.h"
 
 ReceivingSubscriber::ReceivingSubscriber(const std::shared_ptr<Session> &ses, uint8_t qos) :
     session(ses),

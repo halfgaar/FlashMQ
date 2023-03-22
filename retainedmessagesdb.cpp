@@ -29,6 +29,8 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "logger.h"
 #include "mqttpacket.h"
 #include "threadglobals.h"
+#include "client.h"
+#include "logger.h"
 
 RetainedMessagesDB::RetainedMessagesDB(const std::string &filePath) : PersistenceFile(filePath)
 {

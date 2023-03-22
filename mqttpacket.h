@@ -25,13 +25,9 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 
 #include "forward_declarations.h"
 
-#include "client.h"
-#include "exceptions.h"
 #include "types.h"
-#include "subscriptionstore.h"
 #include "cirbuf.h"
 #include "logger.h"
-#include "mainapp.h"
 
 #include "variablebyteint.h"
 #include "mqtt5properties.h"
