@@ -48,12 +48,20 @@ mosquitto_auth_opt::~mosquitto_auth_opt()
 mosquitto_auth_opt &mosquitto_auth_opt::operator=(const mosquitto_auth_opt &other)
 {
     if (key)
+    {
         delete key;
+        key = nullptr;
+    }
     if (value)
+    {
         delete value;
+        value = nullptr;
+    }
 
-    this->key = strdup(other.key);
-    this->value = strdup(other.value);
+    if (other.key)
+        this->key = strdup(other.key);
+    if (other.value)
+        this->value = strdup(other.value);
 
     return *this;
 }
