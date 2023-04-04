@@ -68,6 +68,7 @@ class MqttPacket
 
     Logger *logger = Logger::getInstance();
 
+    void advancePos(size_t len);
     char *readBytes(size_t length);
     char readByte();
     uint8_t readUint8();

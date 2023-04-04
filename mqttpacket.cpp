@@ -162,8 +162,12 @@ MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, Publish &_publish)
     {
         // Reserve the space for the packet id, which will be assigned later.
         packet_id_pos = pos;
-        char zero[2];
+#ifndef NDEBUG
+        char zero[2] = {0,0};
         writeBytes(zero, 2);
+#else
+        advancePos(2);
+#endif
     }
 
     if (protocolVersion >= ProtocolVersion::Mqtt5)
@@ -1678,6 +1682,14 @@ void MqttPacket::setSender(const std::shared_ptr<Client> &value)
 bool MqttPacket::containsFixedHeader() const
 {
     return fixed_header_length > 0;
+}
+
+void MqttPacket::advancePos(size_t len)
+{
+    if (pos + len > bites.size())
+        throw ProtocolError("Exceeding packet size", ReasonCodes::MalformedPacket);
+
+    pos += len;
 }
 
 char *MqttPacket::readBytes(size_t length)
