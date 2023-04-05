@@ -212,7 +212,8 @@ void flashmq_get_client_address(const std::weak_ptr<Client> &client, std::string
  *
  * You can do this once you have a connection with something external.
  *
- * You can also call it again with different events, in which case it will modify the existing entry.
+ * You can also call it again with different events, in which case it will modify the existing entry. If you specify
+ * a non-expired p, it will overwrite the original data associated with the fd.
  *
  * Will throw exceptions on error, so be sure to handle them.
  *
