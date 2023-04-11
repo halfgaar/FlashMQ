@@ -512,11 +512,11 @@ void MainApp::start()
         {
             const std::string empty;
 
-            std::vector<MqttPacket> packetQueueIn;
-            std::vector<std::string> subtopics;
-
             Authentication auth(settings);
             ThreadGlobals::assign(&auth);
+
+            std::vector<MqttPacket> packetQueueIn;
+            std::vector<std::string> subtopics;
 
             PluginLoader pluginLoader;
 
@@ -545,16 +545,19 @@ void MainApp::start()
                 subscriber->setFakeUpgraded();
             }
 
-            client->readFdIntoBuffer();
-            client->bufferToMqttPackets(packetQueueIn, client);
-
-            for (MqttPacket &packet : packetQueueIn)
             {
-                packet.handle();
-            }
+                VectorClearGuard vectorClearGuard(packetQueueIn);
+                client->readFdIntoBuffer();
+                client->bufferToMqttPackets(packetQueueIn, client);
 
-            subscriber->writeBufIntoFd();
-            websocketsubscriber->writeBufIntoFd();
+                for (MqttPacket &packet : packetQueueIn)
+                {
+                    packet.handle();
+                }
+
+                subscriber->writeBufIntoFd();
+                websocketsubscriber->writeBufIntoFd();
+            }
         }
         catch (ProtocolError &ex)
         {
