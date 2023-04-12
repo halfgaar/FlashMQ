@@ -140,6 +140,11 @@ void CirBuf::doubleSize(uint factor)
     if (newBuf == NULL)
         throw std::runtime_error("Malloc error doubling buffer size.");
 
+#ifdef TESTING
+    // I use this to detect the affected memory locations.
+    memset(&newBuf[size], 68, newSize - size);
+#endif
+
     uint maxRead = maxReadSize();
     buf = newBuf;
 
@@ -157,7 +162,7 @@ void CirBuf::doubleSize(uint factor)
 #endif
 
 #ifdef TESTING
-    memset(&buf[head], 5, maxWriteSize() + 2);
+    memset(&buf[head], 5, maxWriteSize());
 #endif
 
     primedForSizeReset = false;

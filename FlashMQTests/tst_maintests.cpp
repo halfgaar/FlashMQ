@@ -158,10 +158,12 @@ void MainTests::test_circbuf_unwrapped_doubling()
         QCOMPARE(tail[i], i+1);
     }
 
-    for (int i = 63; i < 128; i++)
+    for (int i = 63; i < 127; i++)
     {
         QCOMPARE(tail[i], 5);
     }
+
+    QCOMPARE(tail[127], 68);
 
     MYCASTCOMPARE(buf.tail, 0);
     MYCASTCOMPARE(buf.head, 63);
