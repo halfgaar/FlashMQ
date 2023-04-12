@@ -58,6 +58,8 @@ Client::Client(int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, bool we
 
     if (addr)
         memcpy(&this->addr, addr, sizeof(struct sockaddr_in6));
+    else
+        memset(&this->addr, 0, sizeof(struct sockaddr_in6));
 
     this->address = sockaddrToString(this->getAddr());
 
