@@ -319,10 +319,19 @@ bool startsWith(const std::string &s, const std::string &needle)
 
 std::string getSecureRandomString(const ssize_t len)
 {
-    std::vector<unsigned char> buf(len);
-    ssize_t actual_len = getrandom(buf.data(), len, 0);
+    std::vector<uint64_t> buf(len);
+    const ssize_t random_len = len * 8;
+    ssize_t actual_len = -1;
 
-    if (actual_len < 0 || actual_len != len)
+    while ((actual_len = getrandom(buf.data(), random_len, 0)) < 0)
+    {
+        if (errno == EINTR)
+            continue;
+
+        break;
+    }
+
+    if (actual_len < 0 || actual_len != random_len)
     {
         throw std::runtime_error("Error requesting random data");
     }
@@ -331,7 +340,7 @@ std::string getSecureRandomString(const ssize_t len)
     const int possibleCharactersCount = possibleCharacters.length();
 
     std::string randomString;
-    for(const unsigned char c : buf)
+    for(const uint64_t c : buf)
     {
         unsigned int index = c % possibleCharactersCount;
         char nextChar = possibleCharacters.at(index);
