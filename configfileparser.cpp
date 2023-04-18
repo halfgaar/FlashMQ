@@ -118,6 +118,8 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validKeys.insert("expire_retained_messages_time_budget_ms");
     validKeys.insert("websocket_set_real_ip_from");
     validKeys.insert("shared_subscription_targeting");
+    validKeys.insert("max_incoming_topic_alias_value");
+    validKeys.insert("max_outgoing_topic_alias_value");
 
     validListenKeys.insert("port");
     validListenKeys.insert("protocol");
