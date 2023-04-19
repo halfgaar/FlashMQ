@@ -225,7 +225,7 @@ void FlashMQTestClient::publish(Publish &pub)
     if (pub.qos == 1)
     {
         waitForCondition([&]() {
-           return this->receivedPackets.size() == 1;
+           return !this->receivedPackets.empty();
         });
 
         MqttPacket &pubAckPack = this->receivedPackets.front();
@@ -234,7 +234,14 @@ void FlashMQTestClient::publish(Publish &pub)
         if (pubAckPack.packetType != PacketType::PUBACK)
             throw std::runtime_error("First packet received from server is not a PUBACK.");
 
-        if (pubAckPack.getPacketId() != packet_id || this->receivedPackets.size() != 1)
+        if (pubAckPack.getPacketId() != packet_id)
+            throw std::runtime_error("Packet ID mismatch between publish and ack on QoS 1 publish.");
+
+        // We may have received publishes along with our acks, if we publish and subscribe to the same topic with
+        // one client, so we have to filter out the publishes.
+        int metaPacketCount = std::count_if(receivedPackets.begin(), receivedPackets.end(), [](MqttPacket &pack){return pack.packetType != PacketType::PUBLISH;});
+
+        if (metaPacketCount != 1)
             throw std::runtime_error("Packet ID mismatch on QoS 1 publish or packet count wrong.");
     }
     else if (pub.qos == 2)

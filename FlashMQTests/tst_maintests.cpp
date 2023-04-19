@@ -2016,6 +2016,37 @@ void MainTests::testAddrMatchesSubnetIpv6()
 
 }
 
+void MainTests::testPublishToItself()
+{
+    FlashMQTestClient client;
+    client.start();
+    client.connectClient(ProtocolVersion::Mqtt5);
+
+    client.subscribe("mytopic", 1);
+
+    try
+    {
+        client.publish("mytopic", "mypayload", 1);
+    }
+    catch (std::exception &ex)
+    {
+        QVERIFY2(false, ex.what());
+    }
+
+    try
+    {
+        client.waitForMessageCount(1);
+    }
+    catch (std::exception &ex)
+    {
+        QVERIFY2(false, ex.what());
+    }
+
+    MYCASTCOMPARE(client.receivedPublishes.size(), 1);
+
+
+}
+
 int main(int argc, char *argv[])
 {
     QCoreApplication app(argc, argv);

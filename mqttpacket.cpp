@@ -26,6 +26,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "subscriptionstore.h"
 #include "mainapp.h"
 #include "exceptions.h"
+#include "acksender.h"
 
 // constructor for parsing incoming packets
 MqttPacket::MqttPacket(CirBuf &buf, size_t packet_len, size_t fixed_header_length, std::shared_ptr<Client> &sender) :
@@ -1315,8 +1316,6 @@ void MqttPacket::handlePublish()
     logger->logf(LOG_DEBUG, "Publish received, topic '%s'. QoS=%d. Retain=%d, dup=%d", publishData.topic.c_str(), publishData.qos, publishData.retain, duplicate);
 #endif
 
-    ReasonCodes ackCode = ReasonCodes::Success;
-
     ThreadGlobals::getThreadData()->receivedMessageCounter.inc();
 
     Authentication &authentication = *ThreadGlobals::getAuth();
@@ -1324,7 +1323,9 @@ void MqttPacket::handlePublish()
 
     // Working with a local copy because the subscribing action will modify this->packet_id. See the PublishCopyFactory.
     const uint16_t _packet_id = this->packet_id;
-    const uint8_t _qos = this->publishData.qos;
+
+    // Stage the ack, with the proper ID.
+    AckSender ackSender(this->publishData.qos, this->packet_id, this->protocolVersion, sender);
 
     if (publishData.retain && settings->retainedMessagesMode == RetainedMessagesMode::DisconnectWithError)
     {
@@ -1333,7 +1334,7 @@ void MqttPacket::handlePublish()
 
     if (publishData.qos == 2 && sender->getSession()->incomingQoS2MessageIdInTransit(_packet_id))
     {
-        ackCode = ReasonCodes::PacketIdentifierInUse;
+        ackSender.setAckCode(ReasonCodes::PacketIdentifierInUse);
     }
     else
     {
@@ -1368,12 +1369,13 @@ void MqttPacket::handlePublish()
                     factory.setSharedSubscriptionHashKey(senderHash);
                 }
 
+                ackSender.sendNow();
                 MainApp::getMainApp()->getSubscriptionStore()->queuePacketAtSubscribers(factory);
             }
         }
         else
         {
-            ackCode = ReasonCodes::NotAuthorized;
+            ackSender.setAckCode(ReasonCodes::NotAuthorized);
         }
     }
 
@@ -1382,14 +1384,6 @@ void MqttPacket::handlePublish()
     this->packet_id = 0;
     this->publishData.qos = 0;
 #endif
-
-    if (_qos > 0)
-    {
-        const PacketType responseType = _qos == 1 ? PacketType::PUBACK : PacketType::PUBREC;
-        PubResponse pubAck(this->protocolVersion, responseType, ackCode, _packet_id);
-        MqttPacket response(pubAck);
-        sender->writeMqttPacket(response);
-    }
 }
 
 void MqttPacket::parsePubAckData()

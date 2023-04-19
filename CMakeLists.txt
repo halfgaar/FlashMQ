@@ -70,6 +70,7 @@ add_executable(flashmq
     sharedsubscribers.h
     pluginloader.h
     queuedtasks.h
+    acksender.h
 
 
     mainapp.cpp
@@ -120,6 +121,7 @@ add_executable(flashmq
     sharedsubscribers.cpp
     pluginloader.cpp
     queuedtasks.cpp
+    acksender.cpp
 
     )
 
