@@ -126,6 +126,10 @@ AuthResult flashmq_plugin_login_check(void *thread_data, const std::string &clie
         AuthResult result = password == "success" ? AuthResult::success : AuthResult::login_denied;
 
         auto delayedResult = std::bind(&get_auth_result_delayed, p->c, result);
+
+        if (p->t.joinable())
+            p->t.join();
+
         p->t = std::thread(delayedResult);
 
         return AuthResult::async;
