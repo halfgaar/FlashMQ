@@ -1888,7 +1888,7 @@ bool MqttPacket::containsClientSpecificProperties() const
     assert(packetType == PacketType::PUBLISH);
     assert(this->externallyReceived);
 
-    if (protocolVersion <= ProtocolVersion::Mqtt311 || !publishData.propertyBuilder)
+    if (protocolVersion <= ProtocolVersion::Mqtt311)
         return false;
 
     // TODO: for the on-line clients, even with expire info, we can just copy the same packet. So, that case can be excluded.
