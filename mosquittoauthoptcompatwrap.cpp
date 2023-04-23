@@ -40,21 +40,21 @@ mosquitto_auth_opt::mosquitto_auth_opt(const mosquitto_auth_opt &other)
 mosquitto_auth_opt::~mosquitto_auth_opt()
 {
     if (key)
-        delete key;
+        free(key);
     if (value)
-        delete value;
+        free(value);
 }
 
 mosquitto_auth_opt &mosquitto_auth_opt::operator=(const mosquitto_auth_opt &other)
 {
     if (key)
     {
-        delete key;
+        free(key);
         key = nullptr;
     }
     if (value)
     {
-        delete value;
+        free(value);
         value = nullptr;
     }
 
