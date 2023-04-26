@@ -15,7 +15,9 @@ uint32_t QueuedTasks::addTask(std::function<void ()> f, uint32_t delayInMs)
 {
     std::chrono::time_point<std::chrono::steady_clock> when = std::chrono::steady_clock::now() + std::chrono::milliseconds(delayInMs);
 
-    const uint32_t id = nextId++;
+    while(++nextId == 0) {}
+
+    const uint32_t id = nextId;
     tasks[id] = f;
 
     QueuedTask t;
