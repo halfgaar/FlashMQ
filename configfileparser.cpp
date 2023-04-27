@@ -29,10 +29,18 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 
 #include "exceptions.h"
 #include "utils.h"
-#include "logger.h"
 
 
-void ConfigFileParser::testKeyValidity(const std::string &key, const std::set<std::string> &validKeys) const
+/**
+ * @brief ConfigFileParser::testKeyValidity tests if two strings match and whether it's a valid config key.
+ * @param key
+ * @param matchKey
+ * @param validKeys
+ * @return
+ *
+ * Use of this function prevents adding config keys that you forget to add to the sets with valid keys.
+ */
+bool ConfigFileParser::testKeyValidity(const std::string &key, const std::string &matchKey, const std::set<std::string> &validKeys) const
 {
     auto valid_key_it = validKeys.find(key);
     if (valid_key_it == validKeys.end())
@@ -41,6 +49,18 @@ void ConfigFileParser::testKeyValidity(const std::string &key, const std::set<st
         oss << "Config key '" << key << "' is not valid (here).";
         throw ConfigFileException(oss.str());
     }
+
+    {
+        auto valid_key_it = validKeys.find(matchKey);
+        if (valid_key_it == validKeys.end())
+        {
+            std::ostringstream oss;
+            oss << "BUG: you still need to add '" << matchKey << "' as valid config key.";
+            throw ConfigFileException(oss.str());
+        }
+    }
+
+    return key == matchKey;
 }
 
 void ConfigFileParser::checkFileExistsAndReadable(const std::string &key, const std::string &pathToCheck, ssize_t max_size) const
@@ -253,29 +273,27 @@ void ConfigFileParser::loadFile(bool test)
         {
             if (curParseLevel == ConfigParseLevel::Listen)
             {
-                testKeyValidity(key, validListenKeys);
-
-                if (key == "protocol")
+                if (testKeyValidity(key, "protocol", validListenKeys))
                 {
                     if (value != "mqtt" && value != "websockets")
                         throw ConfigFileException(formatString("Protocol '%s' is not a valid listener protocol", value.c_str()));
                     curListener->websocket = value == "websockets";
                 }
-                else if (key == "port")
+                else if (testKeyValidity(key, "port", validListenKeys))
                 {
                     curListener->port = std::stoi(value);
                 }
-                else if (key == "fullchain")
+                else if (testKeyValidity(key, "fullchain", validListenKeys))
                 {
                     checkFileExistsAndReadable("SSL fullchain", value, 1024*1024);
                     curListener->sslFullchain = value;
                 }
-                if (key == "privkey")
+                if (testKeyValidity(key, "privkey", validListenKeys))
                 {
                     checkFileExistsAndReadable("SSL privkey", value, 1024*1024);
                     curListener->sslPrivkey = value;
                 }
-                if (key == "inet_protocol")
+                if (testKeyValidity(key, "inet_protocol", validListenKeys))
                 {
                     if (value == "ip4")
                         curListener->protocol = ListenerProtocol::IPv4;
@@ -286,15 +304,15 @@ void ConfigFileParser::loadFile(bool test)
                     else
                         throw ConfigFileException(formatString("Invalid inet protocol: %s", value.c_str()));
                 }
-                if (key == "inet4_bind_address")
+                if (testKeyValidity(key, "inet4_bind_address", validListenKeys))
                 {
                     curListener->inet4BindAddress = value;
                 }
-                if (key == "inet6_bind_address")
+                if (testKeyValidity(key, "inet6_bind_address", validListenKeys))
                 {
                     curListener->inet6BindAddress = value;
                 }
-                if (key == "haproxy")
+                if (testKeyValidity(key, "haproxy", validListenKeys))
                 {
                     bool val = stringTruthiness(value);
                     curListener->haproxy = val;
@@ -312,51 +330,49 @@ void ConfigFileParser::loadFile(bool test)
             }
             else
             {
-                testKeyValidity(key, validKeys);
-
-                if (key == "plugin")
+                if (testKeyValidity(key, "plugin", validKeys))
                 {
                     checkFileExistsAndReadable(key, value, 1024*1024*100);
                     tmpSettings.pluginPath = value;
                 }
 
-                if (key == "log_file")
+                if (testKeyValidity(key, "log_file", validKeys))
                 {
                     checkFileOrItsDirWritable(value);
                     tmpSettings.logPath = value;
                 }
 
-                if (key == "quiet")
+                if (testKeyValidity(key, "quiet", validKeys))
                 {
                     bool tmp = stringTruthiness(value);
                     tmpSettings.quiet = tmp;
                 }
 
-                if (key == "allow_unsafe_clientid_chars")
+                if (testKeyValidity(key, "allow_unsafe_clientid_chars", validKeys))
                 {
                     bool tmp = stringTruthiness(value);
                     tmpSettings.allowUnsafeClientidChars = tmp;
                 }
 
-                if (key == "allow_unsafe_username_chars")
+                if (testKeyValidity(key, "allow_unsafe_username_chars", validKeys))
                 {
                     bool tmp = stringTruthiness(value);
                     tmpSettings.allowUnsafeUsernameChars = tmp;
                 }
 
-                if (key == "plugin_serialize_init")
+                if (testKeyValidity(key, "plugin_serialize_init", validKeys))
                 {
                     bool tmp = stringTruthiness(value);
                     tmpSettings.pluginSerializeInit = tmp;
                 }
 
-                if (key == "plugin_serialize_auth_checks")
+                if (testKeyValidity(key, "plugin_serialize_auth_checks", validKeys))
                 {
                     bool tmp = stringTruthiness(value);
                     tmpSettings.pluginSerializeAuthChecks = tmp;
                 }
 
-                if (key == "client_initial_buffer_size")
+                if (testKeyValidity(key, "client_initial_buffer_size", validKeys))
                 {
                     int newVal = std::stoi(value);
                     if (!isPowerOfTwo(newVal))
@@ -364,7 +380,7 @@ void ConfigFileParser::loadFile(bool test)
                     tmpSettings.clientInitialBufferSize = newVal;
                 }
 
-                if (key == "max_packet_size")
+                if (testKeyValidity(key, "max_packet_size", validKeys))
                 {
                     int newVal = std::stoi(value);
                     if (newVal > ABSOLUTE_MAX_PACKET_SIZE)
@@ -376,37 +392,37 @@ void ConfigFileParser::loadFile(bool test)
                     tmpSettings.maxPacketSize = newVal;
                 }
 
-                if (key == "log_debug")
+                if (testKeyValidity(key, "log_debug", validKeys))
                 {
                     bool tmp = stringTruthiness(value);
                     tmpSettings.logDebug = tmp;
                 }
 
-                if (key == "log_subscriptions")
+                if (testKeyValidity(key, "log_subscriptions", validKeys))
                 {
                     bool tmp = stringTruthiness(value);
                     tmpSettings.logSubscriptions = tmp;
                 }
 
-                if (key == "mosquitto_password_file")
+                if (testKeyValidity(key, "mosquitto_password_file", validKeys))
                 {
                     checkFileExistsAndReadable("mosquitto_password_file", value, 1024*1024*1024);
                     tmpSettings.mosquittoPasswordFile = value;
                 }
 
-                if (key == "mosquitto_acl_file")
+                if (testKeyValidity(key, "mosquitto_acl_file", validKeys))
                 {
                     checkFileExistsAndReadable("mosquitto_acl_file", value, 1024*1024*1024);
                     tmpSettings.mosquittoAclFile = value;
                 }
 
-                if (key == "allow_anonymous")
+                if (testKeyValidity(key, "allow_anonymous", validKeys))
                 {
                     bool tmp = stringTruthiness(value);
                     tmpSettings.allowAnonymous = tmp;
                 }
 
-                if (key == "rlimit_nofile")
+                if (testKeyValidity(key, "rlimit_nofile", validKeys))
                 {
                     int newVal = std::stoi(value);
                     if (newVal <= 0)
@@ -416,7 +432,7 @@ void ConfigFileParser::loadFile(bool test)
                     tmpSettings.rlimitNoFile = newVal;
                 }
 
-                if (key == "expire_sessions_after_seconds")
+                if (testKeyValidity(key, "expire_sessions_after_seconds", validKeys))
                 {
                     uint32_t newVal = std::stoi(value);
                     if (newVal > 0 && newVal < 60) // 0 means disable
@@ -426,7 +442,7 @@ void ConfigFileParser::loadFile(bool test)
                     tmpSettings.expireSessionsAfterSeconds = newVal;
                 }
 
-                if (key == "plugin_timer_period")
+                if (testKeyValidity(key, "plugin_timer_period", validKeys))
                 {
                     int newVal = std::stoi(value);
                     if (newVal < 0)
@@ -436,7 +452,7 @@ void ConfigFileParser::loadFile(bool test)
                     tmpSettings.pluginTimerPeriod = newVal;
                 }
 
-                if (key == "storage_dir")
+                if (testKeyValidity(key, "storage_dir", validKeys))
                 {
                     std::string newPath = value;
                     rtrim(newPath, '/');
@@ -444,7 +460,7 @@ void ConfigFileParser::loadFile(bool test)
                     tmpSettings.storageDir = newPath;
                 }
 
-                if (key == "thread_count")
+                if (testKeyValidity(key, "thread_count", validKeys))
                 {
                     int newVal = std::stoi(value);
                     if (newVal < 0)
@@ -454,7 +470,7 @@ void ConfigFileParser::loadFile(bool test)
                     tmpSettings.threadCount = newVal;
                 }
 
-                if (key == "max_qos_msg_pending_per_client")
+                if (testKeyValidity(key, "max_qos_msg_pending_per_client", validKeys))
                 {
                     int newVal = std::stoi(value);
                     if (newVal < 32 || newVal > 65535)
@@ -464,7 +480,7 @@ void ConfigFileParser::loadFile(bool test)
                     tmpSettings.maxQosMsgPendingPerClient = newVal;
                 }
 
-                if (key == "max_qos_bytes_pending_per_client")
+                if (testKeyValidity(key, "max_qos_bytes_pending_per_client", validKeys))
                 {
                     int newVal = std::stoi(value);
                     if (newVal < 4096)
@@ -474,7 +490,7 @@ void ConfigFileParser::loadFile(bool test)
                     tmpSettings.maxQosBytesPendingPerClient = newVal;
                 }
 
-                if (key == "max_incoming_topic_alias_value")
+                if (testKeyValidity(key, "max_incoming_topic_alias_value", validKeys))
                 {
                     int newVal = std::stoi(value);
                     if (newVal < 0 || newVal > 0xFFFF)
@@ -484,7 +500,7 @@ void ConfigFileParser::loadFile(bool test)
                     tmpSettings.maxIncomingTopicAliasValue = newVal;
                 }
 
-                if (key == "max_outgoing_topic_alias_value")
+                if (testKeyValidity(key, "max_outgoing_topic_alias_value", validKeys))
                 {
                     int newVal = std::stoi(value);
                     if (newVal < 0 || newVal > 0xFFFF)
@@ -494,13 +510,13 @@ void ConfigFileParser::loadFile(bool test)
                     tmpSettings.maxOutgoingTopicAliasValue = newVal;
                 }
 
-                if (key == "wills_enabled")
+                if (testKeyValidity(key, "wills_enabled", validKeys))
                 {
                     bool tmp = stringTruthiness(value);
                     tmpSettings.willsEnabled = tmp;
                 }
 
-                if (key == "retained_messages_mode")
+                if (testKeyValidity(key, "retained_messages_mode", validKeys))
                 {
                     const std::string _val = str_tolower(value);
 
@@ -516,7 +532,7 @@ void ConfigFileParser::loadFile(bool test)
                         throw ConfigFileException(formatString("Value '%s' for '%s' is invalid.", value.c_str(), key.c_str()));
                 }
 
-                if (key == "expire_retained_messages_after_seconds")
+                if (testKeyValidity(key, "expire_retained_messages_after_seconds", validKeys))
                 {
                     uint32_t newVal = std::stoi(value);
                     if (newVal < 1)
@@ -526,19 +542,19 @@ void ConfigFileParser::loadFile(bool test)
                     tmpSettings.expireRetainedMessagesAfterSeconds = newVal;
                 }
 
-                if (key == "expire_retained_messages_time_budget_ms")
+                if (testKeyValidity(key, "expire_retained_messages_time_budget_ms", validKeys))
                 {
                     uint32_t newVal = std::stoi(value);
                     tmpSettings.expireRetainedMessagesTimeBudgetMs = newVal;
                 }
 
-                if (key == "websocket_set_real_ip_from")
+                if (testKeyValidity(key, "websocket_set_real_ip_from", validKeys))
                 {
                     Network net(value);
                     tmpSettings.setRealIpFrom.push_back(std::move(net));
                 }
 
-                if (key == "shared_subscription_targeting")
+                if (testKeyValidity(key, "shared_subscription_targeting", validKeys))
                 {
                     const std::string _val = str_tolower(value);
 
