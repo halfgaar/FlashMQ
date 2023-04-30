@@ -131,3 +131,9 @@ LIBS += -ldl -lssl -lcrypto -lresolv
 
 QMAKE_LFLAGS += -rdynamic
 QMAKE_CXXFLAGS += -msse4.2
+
+copydata.commands = $(COPY_DIR) $$PWD/UTF-8-test.txt $$OUT_PWD
+first.depends = $(first) copydata
+export(first.depends)
+export(copydata.commands)
+QMAKE_EXTRA_TARGETS += first copydata

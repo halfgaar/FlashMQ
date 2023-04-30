@@ -103,8 +103,9 @@ bool topicsMatch(const std::string &subscribeTopic, const std::string &publishTo
 bool isValidUtf8Generic(const std::string &s, bool alsoCheckInvalidPublishChars)
 {
     int multibyte_remain = 0;
-    int cur_code_point = 0;
-    for(const char x : s)
+    uint32_t cur_code_point = 0;
+    int total_char_len = 0;
+    for(const uint8_t x : s)
     {
         if (alsoCheckInvalidPublishChars && (x == '#' || x == '+'))
             return false;
@@ -136,6 +137,8 @@ bool isValidUtf8Generic(const std::string &s, bool alsoCheckInvalidPublishChars)
                 return false;
             else
                 cur_code_point += (x & 0b01111111);
+
+            total_char_len = multibyte_remain + 1;
         }
         else // All remainer bytes of this code point needs to start with 10
         {
@@ -147,15 +150,39 @@ bool isValidUtf8Generic(const std::string &s, bool alsoCheckInvalidPublishChars)
 
         if (multibyte_remain == 0)
         {
-            // Invalid range for MQTT. [MQTT-1.5.3-1]
-            if (cur_code_point >= 0xD800 && cur_code_point <= 0xDFFF) // Dec 55296-57343
+            // Check overlong values, to avoid having mulitiple representations of the same value.
+            if (total_char_len == 1)
+            {
+
+            }
+            else if (total_char_len == 2 && cur_code_point < 0x80)
                 return false;
+            else if (total_char_len == 3 && cur_code_point < 0x800)
+                return false;
+            else if (total_char_len == 4 && cur_code_point < 0x10000)
+                return false;
+
             if (cur_code_point <= 0x001F)
                 return false;
             if (cur_code_point >= 0x007F && cur_code_point <= 0x009F)
                 return false;
-            if (cur_code_point == 0xFFFF)
-                return false;
+
+            if (total_char_len > 1)
+            {
+                // Invalid range for MQTT. [MQTT-1.5.3-1]
+                if (cur_code_point >= 0xD800 && cur_code_point <= 0xDFFF) // Dec 55296-57343
+                    return false;
+
+                // Unicode spec: "Which code points are noncharacters?".
+                if (cur_code_point >= 0xFDD0 && cur_code_point <= 0xFDEF)
+                    return false;
+                // The last two code points of each of the 17 planes are the remaining 34 non-chars.
+                const uint32_t plane = (cur_code_point & 0x1F0000) >> 16;
+                const uint32_t last_16_bit = cur_code_point & 0xFFFF;
+                if (plane <= 16 && (last_16_bit == 0xFFFE || last_16_bit == 0xFFFF))
+                    return false;
+            }
+
             cur_code_point = 0;
         }
     }

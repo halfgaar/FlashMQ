@@ -86,29 +86,32 @@ bool SimdUtils::isValidUtf8(const std::string &s, bool alsoCheckInvalidPublishCh
         // have a minimum of multi byte chars.
         if (index < 16)
         {
-            char x = i[n++];
-            char char_len = 0;
-            int cur_code_point = 0;
+            uint8_t x = i[n++];
+            int8_t char_len_left = 0;
+            int8_t total_char_len = 0;
+            uint32_t cur_code_point = 0;
 
             if((x & 0b11100000) == 0b11000000) // 2 byte char
             {
-                char_len = 1;
+                char_len_left = 1;
                 cur_code_point += ((x & 0b00011111) << 6);
             }
             else if((x & 0b11110000) == 0b11100000) // 3 byte char
             {
-                char_len = 2;
+                char_len_left = 2;
                 cur_code_point += ((x & 0b00001111) << 12);
             }
             else if((x & 0b11111000) == 0b11110000) // 4 byte char
             {
-                char_len = 3;
+                char_len_left = 3;
                 cur_code_point += ((x & 0b00000111) << 18);
             }
             else
                 return false;
 
-            while (char_len > 0)
+            total_char_len = char_len_left + 1;
+
+            while (char_len_left > 0)
             {
                 if (n >= len)
                     return false;
@@ -117,14 +120,31 @@ bool SimdUtils::isValidUtf8(const std::string &s, bool alsoCheckInvalidPublishCh
 
                 if((x & 0b11000000) != 0b10000000) // All remainer bytes of this code point needs to start with 10
                     return false;
-                char_len--;
-                cur_code_point += ((x & 0b00111111) << (6*char_len));
+                char_len_left--;
+                cur_code_point += ((x & 0b00111111) << (6*char_len_left));
             }
+
+            // Check overlong values, to avoid having mulitiple representations of the same value.
+            if (total_char_len == 2 && cur_code_point < 0x80)
+                return false;
+            else if (total_char_len == 3 && cur_code_point < 0x800)
+                return false;
+            else if (total_char_len == 4 && cur_code_point < 0x10000)
+                return false;
 
             if (cur_code_point >= 0xD800 && cur_code_point <= 0xDFFF) // Dec 55296-57343
                 return false;
 
-            if (cur_code_point == 0xFFFF)
+            if (cur_code_point >= 0x7F && cur_code_point <= 0x009F)
+                return false;
+
+            // Unicode spec: "Which code points are noncharacters?".
+            if (cur_code_point >= 0xFDD0 && cur_code_point <= 0xFDEF)
+                return false;
+            // The last two code points of each of the 17 planes are the remaining 34 non-chars.
+            const uint32_t plane = (cur_code_point & 0x1F0000) >> 16;
+            const uint32_t last_16_bit = cur_code_point & 0xFFFF;
+            if (plane <= 16 && (last_16_bit == 0xFFFE || last_16_bit == 0xFFFF))
                 return false;
         }
         else

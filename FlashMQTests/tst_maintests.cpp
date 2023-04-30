@@ -20,6 +20,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include <list>
 #include <unordered_map>
 #include <sys/sysinfo.h>
+#include <fstream>
 
 #include "utils.h"
 
@@ -640,6 +641,153 @@ void MainTests::test_validUtf8Sse()
     m[0] = 127;
     std::string e(m, 1);
     QVERIFY(!data.isValidUtf8(e));
+}
+
+/**
+ * @brief MainTests::test_utf8_nonchars tests the 66 non-chars in unicode, and a bit around them.
+ */
+void MainTests::test_utf8_nonchars()
+{
+    SimdUtils simd_utils;
+
+    for (int i = 0x80; i < 0x90; i++)
+    {
+        std::string c;
+        c.push_back(0xEF);
+        c.push_back(0xB7);
+        c.push_back(i);
+
+        QVERIFY(isValidUtf8Generic(c));
+        QVERIFY(simd_utils.isValidUtf8(c));
+    }
+
+    // The invalid ones
+    for (int i = 0x90; i <= 0xAF; i++)
+    {
+        std::string c;
+        c.push_back(0xEF);
+        c.push_back(0xB7);
+        c.push_back(i);
+
+        QVERIFY(!isValidUtf8Generic(c));
+        QVERIFY(!simd_utils.isValidUtf8(c));
+    }
+
+    for (int i = 0xB0; i < 0xB5; i++)
+    {
+        std::string c;
+        c.push_back(0xEF);
+        c.push_back(0xB7);
+        c.push_back(i);
+
+        QVERIFY(isValidUtf8Generic(c));
+        QVERIFY(simd_utils.isValidUtf8(c));
+    }
+
+    // Now the last two code points of the multilingual planes
+
+    {
+        std::string s;
+        s.clear(); s.push_back(0xEF); s.push_back(0xBF); s.push_back(0xBE);
+        QVERIFY(!isValidUtf8Generic(s));
+        QVERIFY(!simd_utils.isValidUtf8(s));
+
+        s.clear(); s.push_back(0xEF); s.push_back(0xBF); s.push_back(0xBF);
+        QVERIFY(!isValidUtf8Generic(s));
+        QVERIFY(!simd_utils.isValidUtf8(s));
+
+        // Adjacent one that is valid.
+        s.clear(); s.push_back(0xEF); s.push_back(0xBF); s.push_back(0xBD);
+        QVERIFY(isValidUtf8Generic(s));
+        QVERIFY(simd_utils.isValidUtf8(s));
+    }
+
+    {
+        std::string s;
+        s.clear(); s.push_back(0xF0); s.push_back(0x9F); s.push_back(0xBF); s.push_back(0xBE);
+        QVERIFY(!isValidUtf8Generic(s));
+        QVERIFY(!simd_utils.isValidUtf8(s));
+
+        s.clear(); s.push_back(0xF0); s.push_back(0x9F); s.push_back(0xBF); s.push_back(0xBF);
+        QVERIFY(!isValidUtf8Generic(s));
+        QVERIFY(!simd_utils.isValidUtf8(s));
+
+        // Adjacent one that is valid.
+        s.clear(); s.push_back(0xF0); s.push_back(0x9F); s.push_back(0xBF); s.push_back(0xBD);
+        QVERIFY(isValidUtf8Generic(s));
+        QVERIFY(simd_utils.isValidUtf8(s));
+    }
+
+    // TODO: there are more planes to check, but programming that out means encoding in UTF8.
+}
+
+/**
+ * @brief MainTests::test_utf8_overlong tests multiple representations of '/' (ASCII 0xAF).
+ *
+ * U+002F = c0 af
+ * U+002F = e0 80 af
+ * U+002F = f0 80 80 af
+ */
+void MainTests::test_utf8_overlong()
+{
+    SimdUtils simd_utils;
+
+    {
+        std::string two;
+        two.push_back(0xc0);
+        two.push_back(0xaf);
+        QVERIFY(!isValidUtf8Generic(two));
+        QVERIFY(!simd_utils.isValidUtf8(two));
+    }
+
+    {
+        std::string three;
+        three.push_back(0xe0);
+        three.push_back(0x80);
+        three.push_back(0xaf);
+        QVERIFY(!isValidUtf8Generic(three));
+        QVERIFY(!simd_utils.isValidUtf8(three));
+    }
+
+    {
+        std::string four;
+        four.push_back(0xf0);
+        four.push_back(0x80);
+        four.push_back(0x80);
+        four.push_back(0xaf);
+        QVERIFY(!isValidUtf8Generic(four));
+        QVERIFY(!simd_utils.isValidUtf8(four));
+    }
+}
+
+void MainTests::test_utf8_compare_implementation()
+{
+    SimdUtils simd_utils;
+
+    // Just something to look at. It prefixes lines with a red cross when the checker returns false. Note that this means you
+    // don't see the difference between invalid UTF8 and valid but invalid for MQTT.
+    std::ofstream outfile("/tmp/flashmq_utf8_test_result.txt", std::ios::binary);
+
+    int line_count = 0;
+    std::ifstream infile("UTF-8-test.txt", std::ios::binary);
+    for(std::string line; getline(infile, line ); )
+    {
+        const bool a = isValidUtf8Generic(line);
+        const bool b = simd_utils.isValidUtf8(line);
+
+        QVERIFY(a == b);
+
+        if (a)
+            outfile << "\u2705 ";
+        else
+            outfile << "\u274C ";
+
+        outfile << line << std::endl;
+
+        line_count++;
+    }
+
+    QVERIFY(line_count > 40);
 }
 
 void MainTests::testPacketInt16Parse()

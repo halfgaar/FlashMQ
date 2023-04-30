@@ -91,6 +91,9 @@ private slots:
 
     void test_validUtf8Generic();
     void test_validUtf8Sse();
+    void test_utf8_nonchars();
+    void test_utf8_overlong();
+    void test_utf8_compare_implementation();
 
     void testPacketInt16Parse();
 
