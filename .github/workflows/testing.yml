@@ -25,6 +25,5 @@ jobs:
       # Build prerequisites
       - run: sudo apt install -y cmake libssl-dev qtbase5-dev libcurl4-openssl-dev ${{ matrix.aptpkg }}
       # Building
-      - run: qmake -spec "${{ matrix.SPEC }}" FlashMQTestsMeta.pro
-      - run: ./run-make-from-ci.sh
+      - run: ./run-make-from-ci.sh "${{ matrix.SPEC }}"
       - run: ./run-tests-from-ci.sh
