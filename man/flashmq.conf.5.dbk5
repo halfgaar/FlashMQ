@@ -31,6 +31,9 @@
       <option>parameter-name</option> <replaceable>parameter-value</replaceable>
     </para>
     <para>
+      When setting boolean values, <literal>yes/no</literal>, <literal>true/false</literal> and <literal>on/off</literal> can all be used.
+    </para>
+    <para>
       To configure the listeners, use <option>listen</option> blocks, defined by { and }. See EXAMPLE LISTENERS for details.
     </para>
     <para>
