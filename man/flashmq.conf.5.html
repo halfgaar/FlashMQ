@@ -120,7 +120,7 @@
       
 
       
-        <dt id="plugin_serialize_init">plugin_serialize_init <code class="replaceable">yes/no</code><a class="hash-anchor" href="#plugin_serialize_init">#</a></dt>
+        <dt id="plugin_serialize_init">plugin_serialize_init <code class="replaceable">true/false</code><a class="hash-anchor" href="#plugin_serialize_init">#</a></dt>
         <dd>
           <p>
             There could be circumstances where the plugin code is mostly thread-safe, but not on initialization. Libmysqlclient for instance, needs a one-time initialization. To add to the confusion, Qt hides that away.
@@ -134,7 +134,7 @@
         </dd>
       
       
-        <dt id="plugin_serialize_auth_checks">plugin_serialize_auth_checks <code class="replaceable">yes/no</code><a class="hash-anchor" href="#plugin_serialize_auth_checks">#</a></dt>
+        <dt id="plugin_serialize_auth_checks">plugin_serialize_auth_checks <code class="replaceable">true/false</code><a class="hash-anchor" href="#plugin_serialize_auth_checks">#</a></dt>
         <dd>
           <p>
             Like plugin_serialize_init, but then for all login and ACL checks.
@@ -173,7 +173,7 @@
         </dd>
       
       
-        <dt id="log_debug">log_debug <code class="replaceable">yes/no</code><a class="hash-anchor" href="#log_debug">#</a></dt>
+        <dt id="log_debug">log_debug <code class="replaceable">true/false</code><a class="hash-anchor" href="#log_debug">#</a></dt>
         <dd>
           <p>
             Debug logging obviously creates a lot of log noise, so should only be done to diagnose problems.
@@ -184,7 +184,7 @@
         </dd>
       
       
-        <dt id="log_subscriptions">log_subscriptions <code class="replaceable">yes/no</code><a class="hash-anchor" href="#log_subscriptions">#</a></dt>
+        <dt id="log_subscriptions">log_subscriptions <code class="replaceable">true/false</code><a class="hash-anchor" href="#log_subscriptions">#</a></dt>
         <dd>
           <p>
             Default value: <code class="literal">false</code>
@@ -192,7 +192,7 @@
         </dd>
       
       
-        <dt id="allow_unsafe_clientid_chars">allow_unsafe_clientid_chars <code class="replaceable">yes/no</code><a class="hash-anchor" href="#allow_unsafe_clientid_chars">#</a></dt>
+        <dt id="allow_unsafe_clientid_chars">allow_unsafe_clientid_chars <code class="replaceable">true/false</code><a class="hash-anchor" href="#allow_unsafe_clientid_chars">#</a></dt>
         <dd>
           <p>
             If you have topics with client IDs in it, people can possibly manipulate your ACL checking by saying their client ID is 'John+foobar'. Audit your security before you allow this.
@@ -203,7 +203,7 @@
         </dd>
       
       
-        <dt id="allow_unsafe_username_chars">allow_unsafe_username_chars <code class="replaceable">yes/no</code><a class="hash-anchor" href="#allow_unsafe_username_chars">#</a></dt>
+        <dt id="allow_unsafe_username_chars">allow_unsafe_username_chars <code class="replaceable">true/false</code><a class="hash-anchor" href="#allow_unsafe_username_chars">#</a></dt>
         <dd>
           <p>
             If you have topics with usernames in it, people can possibly manipulate your ACL checking by saying their username is 'John+foobar'. Audit your security before you allow this.
@@ -244,7 +244,7 @@
         </dd>
       
       
-        <dt id="allow_anonymous">allow_anonymous <code class="replaceable">yes/no</code><a class="hash-anchor" href="#allow_anonymous">#</a></dt>
+        <dt id="allow_anonymous">allow_anonymous <code class="replaceable">true/false</code><a class="hash-anchor" href="#allow_anonymous">#</a></dt>
         <dd>
           <p>
             Default value: <code class="literal">false</code>
@@ -274,7 +274,7 @@
         </dd>
       
       
-        <dt id="quiet">quiet <code class="replaceable">yes/no</code><a class="hash-anchor" href="#quiet">#</a></dt>
+        <dt id="quiet">quiet <code class="replaceable">true/false</code><a class="hash-anchor" href="#quiet">#</a></dt>
         <dd>
           <p>
             Don't log LOG_INFO and LOG_NOTICE. This is useful when you have a lot of foot traffic, because otherwise the log gets filled with connect/disconnect notices.
@@ -355,7 +355,7 @@
       
 
       
-        <dt id="wills_enabled">wills_enabled <code class="replaceable">yes/no</code><a class="hash-anchor" href="#wills_enabled">#</a></dt>
+        <dt id="wills_enabled">wills_enabled <code class="replaceable">true/false</code><a class="hash-anchor" href="#wills_enabled">#</a></dt>
         <dd>
           <p>
             When disabled, the server will not set last will and testament specified by connecting clients.
@@ -561,7 +561,7 @@
         </dd>
       
       
-        <dt id="haproxy">haproxy <code class="replaceable">yes/no</code><a class="hash-anchor" href="#haproxy">#</a></dt>
+        <dt id="haproxy">haproxy <code class="replaceable">true/false</code><a class="hash-anchor" href="#haproxy">#</a></dt>
         <dd>
           <p>
             Setting the listener to haproxy makes it expect the PROXY protocol and set client source address to the original client. Make sure this listener is private / firewalled, otherwise anybody can set a different source address.

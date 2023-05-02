@@ -66,7 +66,7 @@
       </varlistentry>
 
       <varlistentry xml:id="plugin_serialize_init">
-        <term><option>plugin_serialize_init</option> <replaceable>yes/no</replaceable></term>
+        <term><option>plugin_serialize_init</option> <replaceable>true/false</replaceable></term>
         <listitem>
           <para>
             There could be circumstances where the plugin code is mostly thread-safe, but not on initialization. Libmysqlclient for instance, needs a one-time initialization. To add to the confusion, Qt hides that away.
@@ -80,7 +80,7 @@
         </listitem>
       </varlistentry>
       <varlistentry xml:id="plugin_serialize_auth_checks">
-        <term><option>plugin_serialize_auth_checks</option> <replaceable>yes/no</replaceable></term>
+        <term><option>plugin_serialize_auth_checks</option> <replaceable>true/false</replaceable></term>
         <listitem>
           <para>
             Like <option>plugin_serialize_init</option>, but then for all login and ACL checks.
@@ -119,7 +119,7 @@
         </listitem>
       </varlistentry>
       <varlistentry xml:id="log_debug">
-        <term><option>log_debug</option> <replaceable>yes/no</replaceable></term>
+        <term><option>log_debug</option> <replaceable>true/false</replaceable></term>
         <listitem>
           <para>
             Debug logging obviously creates a lot of log noise, so should only be done to diagnose problems.
@@ -130,7 +130,7 @@
         </listitem>
       </varlistentry>
       <varlistentry xml:id="log_subscriptions">
-        <term><option>log_subscriptions</option> <replaceable>yes/no</replaceable></term>
+        <term><option>log_subscriptions</option> <replaceable>true/false</replaceable></term>
         <listitem>
           <para>
             Default value: <literal>false</literal>
@@ -138,7 +138,7 @@
         </listitem>
       </varlistentry>
       <varlistentry xml:id="allow_unsafe_clientid_chars">
-        <term><option>allow_unsafe_clientid_chars</option> <replaceable>yes/no</replaceable></term>
+        <term><option>allow_unsafe_clientid_chars</option> <replaceable>true/false</replaceable></term>
         <listitem>
           <para>
             If you have topics with client IDs in it, people can possibly manipulate your ACL checking by saying their client ID is 'John+foobar'. Audit your security before you allow this.
@@ -149,7 +149,7 @@
         </listitem>
       </varlistentry>
       <varlistentry xml:id="allow_unsafe_username_chars">
-        <term><option>allow_unsafe_username_chars</option> <replaceable>yes/no</replaceable></term>
+        <term><option>allow_unsafe_username_chars</option> <replaceable>true/false</replaceable></term>
         <listitem>
           <para>
             If you have topics with usernames in it, people can possibly manipulate your ACL checking by saying their username is 'John+foobar'. Audit your security before you allow this.
@@ -190,7 +190,7 @@
         </listitem>
       </varlistentry>
       <varlistentry xml:id="allow_anonymous">
-        <term><option>allow_anonymous</option> <replaceable>yes/no</replaceable></term>
+        <term><option>allow_anonymous</option> <replaceable>true/false</replaceable></term>
         <listitem>
           <para>
             Default value: <literal>false</literal>
@@ -220,7 +220,7 @@
         </listitem>
       </varlistentry>
       <varlistentry xml:id="quiet">
-        <term><option>quiet</option> <replaceable>yes/no</replaceable></term>
+        <term><option>quiet</option> <replaceable>true/false</replaceable></term>
         <listitem>
           <para>
             Don't log LOG_INFO and LOG_NOTICE. This is useful when you have a lot of foot traffic, because otherwise the log gets filled with connect/disconnect notices.
@@ -301,7 +301,7 @@
       </varlistentry>
 
       <varlistentry xml:id="wills_enabled">
-        <term><option>wills_enabled</option> <replaceable>yes/no</replaceable></term>
+        <term><option>wills_enabled</option> <replaceable>true/false</replaceable></term>
         <listitem>
           <para>
             When disabled, the server will not set last will and testament specified by connecting clients.
@@ -509,7 +509,7 @@
         </listitem>
       </varlistentry>
       <varlistentry xml:id="haproxy">
-        <term><option>haproxy</option> <replaceable>yes/no</replaceable></term>
+        <term><option>haproxy</option> <replaceable>true/false</replaceable></term>
         <listitem>
           <para>
             Setting the listener to haproxy makes it expect the PROXY protocol and set client source address to the original client. Make sure this listener is private / firewalled, otherwise anybody can set a different source address.
