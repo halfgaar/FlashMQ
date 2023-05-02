@@ -181,7 +181,7 @@ Default value: \*(T<\fI200\fR\*(T>
 \*(T<\fBwebsocket_set_real_ip_from\fR\*(T> \fIinet4_address/inet6_address\fR 
 HTTP proxies in front of the websocket listeners can set the \fIX-Real-IP\fR header to identify the original connecting client. With \*(T<\fBwebsocket_set_real_ip_from\fR\*(T> you can mark IP networks as trusted. By default, clients are not trusted, to avoid spoofing.
 
-You can repeat the option to allow for mutiple addresses. Valid notations are \fI1.2.3.4\fR, \fI1.2.3.4/16\fR, \fI1.2.0.0/16\fR, \fI2a01:1337::1\fR, \fI2a01:1337::1/64\fR, etc.
+You can repeat the option to allow for multiple addresses. Valid notations are \fI1.2.3.4\fR, \fI1.2.3.4/16\fR, \fI1.2.0.0/16\fR, \fI2a01:1337::1\fR, \fI2a01:1337::1/64\fR, etc.
 
 The header \fIX-Forwarded-For\fR is not used, because that's designed to contain a list of addresses, if applicable.
 
