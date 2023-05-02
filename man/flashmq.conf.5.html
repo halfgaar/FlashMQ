@@ -427,7 +427,7 @@
               HTTP proxies in front of the websocket listeners can set the <code class="replaceable">X-Real-IP</code> header to identify the original connecting client. With websocket_set_real_ip_from you can mark IP networks as trusted. By default, clients are not trusted, to avoid spoofing.
           </p>
           <p>
-              You can repeat the option to allow for mutiple addresses. Valid notations are <code class="replaceable">1.2.3.4</code>, <code class="replaceable">1.2.3.4/16</code>, <code class="replaceable">1.2.0.0/16</code>, <code class="replaceable">2a01:1337::1</code>, <code class="replaceable">2a01:1337::1/64</code>, etc.
+              You can repeat the option to allow for multiple addresses. Valid notations are <code class="replaceable">1.2.3.4</code>, <code class="replaceable">1.2.3.4/16</code>, <code class="replaceable">1.2.0.0/16</code>, <code class="replaceable">2a01:1337::1</code>, <code class="replaceable">2a01:1337::1/64</code>, etc.
           </p>
           <p>
               The header <code class="replaceable">X-Forwarded-For</code> is not used, because that's designed to contain a list of addresses, if applicable.
