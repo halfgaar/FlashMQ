@@ -38,16 +38,26 @@ StowedClientRegistrationData::StowedClientRegistrationData(bool clean_start, uin
 
 }
 
+/**
+ * @brief Client::Client
+ * @param fd
+ * @param threadData
+ * @param ssl
+ * @param websocket
+ * @param haproxy
+ * @param addr
+ * @param settings The client is constructed in the main thread, so we need to use its settings copy
+ * @param fuzzMode
+ */
 Client::Client(int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, bool websocket, bool haproxy, struct sockaddr *addr, const Settings &settings, bool fuzzMode) :
     fd(fd),
     fuzzMode(fuzzMode),
-    initialBufferSize(settings.clientInitialBufferSize), // The client is constructed in the main thread, so we need to use its settings copy
-    maxOutgoingPacketSize(settings.maxPacketSize), // Same as initialBufferSize comment.
+    maxOutgoingPacketSize(settings.maxPacketSize),
     maxIncomingPacketSize(settings.maxPacketSize),
     maxIncomingTopicAliasValue(settings.maxIncomingTopicAliasValue), // Retaining snapshot of current setting, to not confuse clients when the setting changes.
-    ioWrapper(ssl, websocket, initialBufferSize, this),
-    readbuf(initialBufferSize),
-    writebuf(initialBufferSize),
+    ioWrapper(ssl, websocket, settings.clientInitialBufferSize, this),
+    readbuf(settings.clientInitialBufferSize),
+    writebuf(settings.clientInitialBufferSize),
     epoll_fd(threadData ? threadData->epollfd : 0),
     threadData(threadData)
 {
@@ -410,6 +420,9 @@ std::string Client::getKeepAliveInfoString() const
 
 void Client::resetBuffersIfEligible()
 {
+    const Settings *settings = ThreadGlobals::getSettings();
+    const size_t initialBufferSize = settings->clientInitialBufferSize;
+
     readbuf.resetSizeIfEligable(initialBufferSize);
     ioWrapper.resetBuffersIfEligible();
 

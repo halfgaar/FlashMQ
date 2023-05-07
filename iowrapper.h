@@ -102,7 +102,6 @@ enum class WebsocketState
 class IoWrapper
 {
     Client *parentClient;
-    const size_t initialBufferSize;
 
     SSL *ssl = nullptr;
     bool sslAccepted = false;

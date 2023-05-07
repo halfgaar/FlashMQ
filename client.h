@@ -61,7 +61,6 @@ class Client
 
     ProtocolVersion protocolVersion = ProtocolVersion::None;
 
-    const size_t initialBufferSize = 0;
     uint32_t maxOutgoingPacketSize;
     const uint32_t maxIncomingPacketSize;
 

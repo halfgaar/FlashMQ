@@ -24,6 +24,8 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "client.h"
 #include "utils.h"
 #include "exceptions.h"
+#include "threadglobals.h"
+#include "settings.h"
 
 IncompleteSslWrite::IncompleteSslWrite(size_t nbytes) :
     valid(true),
@@ -63,7 +65,6 @@ char IncompleteWebsocketRead::getNextMaskingByte()
 
 IoWrapper::IoWrapper(SSL *ssl, bool websocket, const size_t initialBufferSize, Client *parent) :
     parentClient(parent),
-    initialBufferSize(initialBufferSize),
     ssl(ssl),
     websocket(websocket),
     websocketPendingBytes(websocket ? initialBufferSize : 0),
@@ -471,6 +472,9 @@ ssize_t IoWrapper::readWebsocketAndOrSsl(int fd, void *buf, size_t nbytes, IoWra
 
                         const std::string acceptString = generateWebsocketAcceptString(websocketKey);
 
+                        const Settings *settings = ThreadGlobals::getSettings();
+                        const size_t initialBufferSize = settings->clientInitialBufferSize;
+
                         std::string answer = generateWebsocketAnswer(acceptString, subprotocol);
                         parentClient->writeText(answer);
                         websocketState = WebsocketState::Upgrading;
@@ -764,6 +768,9 @@ ssize_t IoWrapper::writeWebsocketAndOrSsl(int fd, const void *buf, size_t nbytes
 
 void IoWrapper::resetBuffersIfEligible()
 {
+    const Settings *settings = ThreadGlobals::getSettings();
+    const size_t initialBufferSize = settings->clientInitialBufferSize;
+
     const size_t sz = websocket ? initialBufferSize : 0;
     websocketPendingBytes.resetSizeIfEligable(sz),
     websocketWriteRemainder.resetSizeIfEligable(sz);
