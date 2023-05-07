@@ -140,6 +140,7 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validKeys.insert("shared_subscription_targeting");
     validKeys.insert("max_incoming_topic_alias_value");
     validKeys.insert("max_outgoing_topic_alias_value");
+    validKeys.insert("client_max_write_buffer_size");
 
     validListenKeys.insert("port");
     validListenKeys.insert("protocol");
@@ -564,6 +565,17 @@ void ConfigFileParser::loadFile(bool test)
                         tmpSettings.sharedSubscriptionTargeting = SharedSubscriptionTargeting::SenderHash;
                     else
                         throw ConfigFileException(formatString("Value '%s' for '%s' is invalid.", value.c_str(), key.c_str()));
+                }
+
+                if (testKeyValidity(key, "client_max_write_buffer_size", validKeys))
+                {
+                    const uint32_t minVal = 4096;
+                    uint32_t newVal = std::stoul(value);
+
+                    if (newVal < minVal)
+                        throw ConfigFileException(formatString("Value '%s' for '%s' is too low. It must be at least %d.", value.c_str(), key.c_str(), minVal));
+
+                    tmpSettings.clientMaxWriteBufferSize = newVal;
                 }
             }
         }

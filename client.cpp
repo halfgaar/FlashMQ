@@ -233,11 +233,12 @@ void Client::writeMqttPacket(const MqttPacket &packet)
         return;
     }
 
-    std::lock_guard<std::mutex> locker(writeBufMutex);
+    const Settings *settings = ThreadGlobals::getSettings();
 
-    // We have to allow big packets, yet don't allow a slow loris subscriber to grow huge write buffers. This
-    // could be enhanced a lot, but it's a start.
-    const uint32_t growBufMaxTo = std::min<int>(packetSize * 1000, this->maxOutgoingPacketSize);
+    // After introducing the client_max_write_buffer_size with low default, this makes it somewhat backwards compatible with the default big packet size.
+    const uint32_t growBufMaxTo = std::max<uint32_t>(settings->clientMaxWriteBufferSize, packetSize * 2);
+
+    std::lock_guard<std::mutex> locker(writeBufMutex);
 
     // Grow as far as we can. We have to make room for one MQTT packet.
     writebuf.ensureFreeSpace(packetSize, growBufMaxTo);

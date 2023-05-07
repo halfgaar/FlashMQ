@@ -220,10 +220,27 @@
         <dt id="max_packet_size">max_packet_size <code class="replaceable">bytes</code><a class="hash-anchor" href="#max_packet_size">#</a></dt>
         <dd>
           <p>
-            MQTT packets are 256 MB max, approximately. This memory will (temporarily) be allocated upon arrival of such packets, so there may be cause to set it lower.
+            MQTT packets have a maximum size of about 256 MB. This memory will (temporarily) be allocated upon arrival of such packets, so there may be cause to set it lower.
+          </p>
+          <p>
+            This option works in conjunction with client_max_write_buffer_size to limit memory use.
           </p>
           <p>
             Default value: <code class="literal">268435461</code>
+          </p>
+        </dd>
+      
+      
+        <dt id="client_max_write_buffer_size">client_max_write_buffer_size <code class="replaceable">bytes</code><a class="hash-anchor" href="#client_max_write_buffer_size">#</a></dt>
+        <dd>
+          <p>
+            The client's write buffer is where packets are stored before the event loop has the chance to flush them out. Any time a client's connection is bad and bytes can't be flushed, this buffer fills. So, there's good reason to limit this to something sensible. A good indication is your average packet size (or better yet, a configured max_packet_size) multiplied by the amount of packets you want to be able to buffer.
+          </p>
+          <p>
+            Note that it's an approximate value and not a hard limit. Buffer sizes only grow by powers of two, and buffers are always allowed to grow to make place for ping packets. Additionally, upon arrival of large packets (up to max_packet_size bytes), room will be made up to twice their size. So, you may also want to reduce max_packet_size from the default.
+          </p>
+          <p>
+            Default value is <code class="literal">1048576</code> (1 MB)
           </p>
         </dd>
       
