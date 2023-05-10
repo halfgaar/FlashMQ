@@ -479,6 +479,7 @@ void MainTests::test_acl_patterns_clientid()
     QCOMPARE(aclTree.findPermission(splitToVector("d/clientid_one/f/A/B", '/'), AclGrant::Read, "foo", "clientid_one"), AuthResult::success);
 }
 
+#ifndef FMQ_NO_SSE
 void MainTests::test_sse_split()
 {
     SimdUtils data;
@@ -505,6 +506,7 @@ void MainTests::test_sse_split()
         QCOMPARE(output, splitToVector(t, '/'));
     }
 }
+#endif
 
 void MainTests::test_validUtf8Generic()
 {
@@ -570,6 +572,7 @@ void MainTests::test_validUtf8Generic()
     QVERIFY(!isValidUtf8Generic(e));
 }
 
+#ifndef FMQ_NO_SSE
 void MainTests::test_validUtf8Sse()
 {
     SimdUtils data;
@@ -789,6 +792,7 @@ void MainTests::test_utf8_compare_implementation()
 
     QVERIFY(line_count > 40);
 }
+#endif
 
 void MainTests::testPacketInt16Parse()
 {

@@ -1,4 +1,4 @@
-name: Testing
+name: TestingNoSse
 on: [push]
 jobs:
   compilation:
@@ -25,5 +25,5 @@ jobs:
       # Build prerequisites
       - run: sudo apt install -y cmake libssl-dev qtbase5-dev libcurl4-openssl-dev ${{ matrix.aptpkg }}
       # Building
-      - run: ./run-make-from-ci.sh --spec "${{ matrix.SPEC }}"
+      - run: ./run-make-from-ci.sh --spec "${{ matrix.SPEC }}" --extra-config "DEFINES += FMQ_NO_SSE"
       - run: ./run-tests-from-ci.sh

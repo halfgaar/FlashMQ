@@ -87,13 +87,14 @@ private slots:
     void test_acl_patterns_username();
     void test_acl_patterns_clientid();
 
-    void test_sse_split();
-
     void test_validUtf8Generic();
+#ifndef FMQ_NO_SSE
+    void test_sse_split();
     void test_validUtf8Sse();
     void test_utf8_nonchars();
     void test_utf8_overlong();
     void test_utf8_compare_implementation();
+#endif
 
     void testPacketInt16Parse();
 
