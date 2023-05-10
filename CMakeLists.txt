@@ -10,7 +10,10 @@ add_definitions(-DFLASHMQ_VERSION=\"${PROJECT_VERSION}\")
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-SET(CMAKE_CXX_FLAGS "-msse4.2")
+check_cxx_compiler_flag("-msse4.2"   COMPILER_RT_HAS_MSSE4_2_FLAG)
+if (${COMPILER_RT_HAS_MSSE4_2_FLAG})
+    SET(CMAKE_CXX_FLAGS "-msse4.2")
+endif()
 
 check_cxx_compiler_flag("-rdynamic" COMPILER_SUPPORTS_RDYNAMIC)
 if (${COMPILER_SUPPORTS_RDYNAMIC})
