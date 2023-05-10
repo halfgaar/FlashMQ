@@ -13,9 +13,9 @@ SimdUtils::SimdUtils() :
 }
 
 /**
- * @brief SimdUtils::splitTopic uses SSE4.2 to detect the '/' chars, 16 chars at a time, and returns a pointer to thread-local memory.
+ * @brief SimdUtils::splitTopic uses SSE4.2 to detect the '/' chars, 16 chars at a time.
  * @param topic
- * @param output is cleared and emplaced in. You can give it members from the Utils class, to avoid re-allocation.
+ * @param output is cleared and emplaced in.
  * @return
  */
 std::vector<std::string> *SimdUtils::splitTopic(const std::string &topic, std::vector<std::string> &output)
