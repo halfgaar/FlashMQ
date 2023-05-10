@@ -63,10 +63,8 @@ PersistenceFile::~PersistenceFile()
         f = nullptr;
     }
 
-    if (digestContext)
-    {
-        EVP_MD_CTX_free(digestContext);
-    }
+    EVP_MD_CTX_free(digestContext);
+    digestContext = nullptr;
 }
 
 /**

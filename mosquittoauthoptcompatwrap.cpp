@@ -39,24 +39,19 @@ mosquitto_auth_opt::mosquitto_auth_opt(const mosquitto_auth_opt &other)
 
 mosquitto_auth_opt::~mosquitto_auth_opt()
 {
-    if (key)
-        free(key);
-    if (value)
-        free(value);
+    free(key);
+    key = nullptr;
+    free(value);
+    value = nullptr;
 }
 
 mosquitto_auth_opt &mosquitto_auth_opt::operator=(const mosquitto_auth_opt &other)
 {
-    if (key)
-    {
-        free(key);
-        key = nullptr;
-    }
-    if (value)
-    {
-        free(value);
-        value = nullptr;
-    }
+    free(key);
+    key = nullptr;
+
+    free(value);
+    value = nullptr;
 
     if (other.key)
         this->key = strdup(other.key);

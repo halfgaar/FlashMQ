@@ -75,12 +75,10 @@ IoWrapper::IoWrapper(SSL *ssl, bool websocket, const size_t initialBufferSize, C
 
 IoWrapper::~IoWrapper()
 {
-    if (ssl)
-    {
-        // I don't do SSL_shutdown(), because I don't want to keep the session, plus, that takes active de-negiotation, so it can't be done
-        // in the destructor.
-        SSL_free(ssl);
-    }
+    // I don't do SSL_shutdown(), because I don't want to keep the session, plus, that takes active de-negiotation, so it can't be done
+    // in the destructor.
+    SSL_free(ssl);
+    ssl = nullptr;
 }
 
 void IoWrapper::startOrContinueSslAccept()

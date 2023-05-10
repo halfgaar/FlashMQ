@@ -25,8 +25,8 @@ SslCtxManager::SslCtxManager() :
 
 SslCtxManager::~SslCtxManager()
 {
-    if (ssl_ctx)
-        SSL_CTX_free(ssl_ctx);
+    SSL_CTX_free(ssl_ctx);
+    ssl_ctx = nullptr;
 }
 
 SSL_CTX *SslCtxManager::get() const

@@ -70,8 +70,8 @@ Authentication::Authentication(Settings &settings) :
 
 Authentication::~Authentication()
 {
-    if (mosquittoDigestContext)
-        EVP_MD_CTX_free(mosquittoDigestContext);
+    EVP_MD_CTX_free(mosquittoDigestContext);
+    mosquittoDigestContext = nullptr;
 }
 
 void *Authentication::loadSymbol(void *handle, const char *symbol, bool exceptionOnError) const

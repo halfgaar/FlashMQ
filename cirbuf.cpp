@@ -44,8 +44,8 @@ CirBuf::CirBuf(size_t size) :
 
 CirBuf::~CirBuf()
 {
-    if (buf)
-        free(buf);
+    free(buf);
+    buf = nullptr;
 }
 
 uint32_t CirBuf::usedBytes() const

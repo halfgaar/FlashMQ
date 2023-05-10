@@ -31,6 +31,6 @@ EvpEncodeCtxManager::EvpEncodeCtxManager()
 
 EvpEncodeCtxManager::~EvpEncodeCtxManager()
 {
-    if (ctx)
-        EVP_ENCODE_CTX_free(ctx);
+    EVP_ENCODE_CTX_free(ctx);
+    ctx = nullptr;
 }
