@@ -18,6 +18,7 @@ class SslCtxManager
     SSL_CTX *ssl_ctx = nullptr;
 public:
     SslCtxManager();
+    SslCtxManager(const SSL_METHOD *method);
     ~SslCtxManager();
 
     SSL_CTX *get() const;

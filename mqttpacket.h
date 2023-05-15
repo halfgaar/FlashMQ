@@ -118,10 +118,12 @@ public:
     ConnectData parseConnectData();
     ConnAckData parseConnAckData();
     void handleConnect();
+    void handleConnAck();
     void handleExtendedAuth();
     DisconnectData parseDisconnectData();
     void handleDisconnect();
     void handleSubscribe();
+    void handleSubAck();
     void handleUnsubscribe();
     void handlePing();
     void parsePublishData();

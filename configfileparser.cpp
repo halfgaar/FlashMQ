@@ -101,6 +101,19 @@ void ConfigFileParser::checkFileOrItsDirWritable(const std::string &filepath)
     }
 }
 
+void ConfigFileParser::checkDirExists(const std::string &key, const std::string &dir)
+{
+    struct stat statbuf;
+    memset(&statbuf, 0, sizeof(struct stat));
+    if (stat(dir.c_str(), &statbuf) < 0)
+        throw ConfigFileException(formatString("Reading stat of '%s' failed.", dir.c_str()));
+
+    if (!S_ISDIR(statbuf.st_mode))
+    {
+        throw ConfigFileException(formatString("Error for '%s': '%s' is not a directory.", key.c_str(), dir.c_str()));
+    }
+}
+
 ConfigFileParser::ConfigFileParser(const std::string &path) :
     path(path)
 {
@@ -144,6 +157,29 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validListenKeys.insert("inet4_bind_address");
     validListenKeys.insert("inet6_bind_address");
     validListenKeys.insert("haproxy");
+
+    validBridgeKeys.insert("local_username");
+    validBridgeKeys.insert("remote_username");
+    validBridgeKeys.insert("remote_password");
+    validBridgeKeys.insert("remote_clean_start");
+    validBridgeKeys.insert("remote_session_expiry_interval");
+    validBridgeKeys.insert("local_clean_start");
+    validBridgeKeys.insert("local_session_expiry_interval");
+    validBridgeKeys.insert("subscribe");
+    validBridgeKeys.insert("publish");
+    validBridgeKeys.insert("clientid_prefix");
+    validBridgeKeys.insert("use_saved_clientid");
+    validBridgeKeys.insert("inet_protocol");
+    validBridgeKeys.insert("address");
+    validBridgeKeys.insert("ca_file");
+    validBridgeKeys.insert("ca_dir");
+    validBridgeKeys.insert("port");
+    validBridgeKeys.insert("tls");
+    validBridgeKeys.insert("protocol_version");
+    validBridgeKeys.insert("bridge_protocol_bit");
+    validBridgeKeys.insert("keepalive");
+    validBridgeKeys.insert("max_outgoing_topic_aliases");
+    validBridgeKeys.insert("max_incoming_topic_aliases");
 }
 
 void ConfigFileParser::loadFile(bool test)
@@ -164,7 +200,7 @@ void ConfigFileParser::loadFile(bool test)
 
     std::list<std::string> lines;
 
-    const std::regex key_value_regex("^([a-zA-Z0-9_\\-]+) +([a-zA-Z0-9_\\-/\\.:]+)$");
+    const std::regex key_value_regex("^([a-zA-Z0-9_\\-]+) +([a-zA-Z0-9_\\-/.:#+]+) *([a-zA-Z0-9_\\-/.:#+]+)?$");
     const std::regex block_regex_start("^([a-zA-Z0-9_\\-]+) *\\{$");
     const std::regex block_regex_end("^\\}$");
 
@@ -224,6 +260,7 @@ void ConfigFileParser::loadFile(bool test)
 
     ConfigParseLevel curParseLevel = ConfigParseLevel::Root;
     std::shared_ptr<Listener> curListener;
+    std::shared_ptr<BridgeConfig> curBridge;
     Settings tmpSettings;
 
     // Then once we know the config file is valid, process it.
@@ -233,11 +270,16 @@ void ConfigFileParser::loadFile(bool test)
 
         if (std::regex_match(line, matches, block_regex_start))
         {
-            std::string key = matches[1].str();
-            if (matches[1].str() == "listen")
+            const std::string &key = matches[1].str();
+            if (key == "listen")
             {
                 curParseLevel = ConfigParseLevel::Listen;
                 curListener = std::make_shared<Listener>();
+            }
+            else if (key == "bridge")
+            {
+                curParseLevel = ConfigParseLevel::Bridge;
+                curBridge = std::make_unique<BridgeConfig>();
             }
             else
             {
@@ -253,6 +295,12 @@ void ConfigFileParser::loadFile(bool test)
                 curListener->isValid();
                 tmpSettings.listeners.push_back(curListener);
                 curListener.reset();
+            }
+            else if (curParseLevel == ConfigParseLevel::Bridge)
+            {
+                curBridge->isValid();
+
+                tmpSettings.bridges.push_back(std::move(curBridge));
             }
 
             curParseLevel = ConfigParseLevel::Root;
@@ -311,6 +359,204 @@ void ConfigFileParser::loadFile(bool test)
                 {
                     bool val = stringTruthiness(value);
                     curListener->haproxy = val;
+                }
+
+                continue;
+            }
+            else if (curParseLevel == ConfigParseLevel::Bridge)
+            {
+                if (testKeyValidity(key, "local_username", validBridgeKeys))
+                {
+                    curBridge->local_username = value;
+                }
+                if (testKeyValidity(key, "remote_username", validBridgeKeys))
+                {
+                    curBridge->remote_username = value;
+                }
+                if (testKeyValidity(key, "remote_password", validBridgeKeys))
+                {
+                    curBridge->remote_password = value;
+                }
+                if (testKeyValidity(key, "remote_clean_start", validBridgeKeys))
+                {
+                    curBridge->remoteCleanStart = stringTruthiness(value);
+                }
+                if (testKeyValidity(key, "remote_session_expiry_interval", validBridgeKeys))
+                {
+                    int64_t newVal = std::stoi(value);
+                    if (newVal <= 0 || newVal > std::numeric_limits<uint32_t>::max())
+                    {
+                        throw ConfigFileException(formatString("Value '%d' doesn't fit in uint32_t.", newVal));
+                    }
+                    curBridge->remoteSessionExpiryInterval = newVal;
+                }
+                if (testKeyValidity(key, "local_clean_start", validBridgeKeys))
+                {
+                    curBridge->localCleanStart = stringTruthiness(value);
+                }
+                if (testKeyValidity(key, "local_session_expiry_interval", validBridgeKeys))
+                {
+                    int64_t newVal = std::stoi(value);
+                    if (newVal <= 0 || newVal > std::numeric_limits<uint32_t>::max())
+                    {
+                        throw ConfigFileException(formatString("Value '%d' doesn't fit in uint32_t.", newVal));
+                    }
+                    curBridge->localSessionExpiryInterval = newVal;
+                }
+                if (testKeyValidity(key, "subscribe", validBridgeKeys))
+                {
+                    if (!isValidUtf8(value) || !isValidSubscribePath(value))
+                        throw ConfigFileException(formatString("Path '%s' is not a valid subscribe match", value.c_str()));
+
+                    BridgeTopicPath topicPath;
+
+                    if (matches.size() == 4)
+                    {
+                        const std::string &qosstr = matches[3];
+
+                        if (!qosstr.empty())
+                        {
+                            topicPath.qos = std::stoul(qosstr);
+
+                            if (!topicPath.isValidQos())
+                                throw ConfigFileException(formatString("Qos '%s' is not a valid qos level", qosstr.c_str()));
+                        }
+                    }
+
+                    topicPath.topic = value;
+                    curBridge->subscribes.push_back(topicPath);
+                }
+                if (testKeyValidity(key, "publish", validBridgeKeys))
+                {
+                    if (!isValidUtf8(value) || !isValidSubscribePath(value))
+                        throw ConfigFileException(formatString("Path '%s' is not a valid publish match", value.c_str()));
+
+                    BridgeTopicPath topicPath;
+
+                    if (matches.size() == 4)
+                    {
+                        const std::string &qosstr = matches[3];
+
+                        if (!qosstr.empty())
+                        {
+                            topicPath.qos = std::stoul(qosstr);
+
+                            if (!topicPath.isValidQos())
+                                throw ConfigFileException(formatString("Qos '%s' is not a valid qos level", qosstr.c_str()));
+                        }
+                    }
+
+                    topicPath.topic = value;
+                    curBridge->publishes.push_back(topicPath);
+                }
+                if (testKeyValidity(key, "clientid_prefix", validBridgeKeys))
+                {
+                    if (value.length() > 10)
+                        throw ConfigFileException("Value for 'clientid_prefix' can't be longer than 10 chars");
+
+                    if (!isValidShareName(value))
+                        throw ConfigFileException("Value for 'clientid_prefix' contains invalid charachters");
+
+                    curBridge->clientidPrefix = value;
+                }
+                if (testKeyValidity(key, "address", validBridgeKeys))
+                {
+                    curBridge->address = value;
+                }
+                if (testKeyValidity(key, "port", validBridgeKeys))
+                {
+                    const int64_t newVal = std::stoi(value);
+                    if (newVal <= 0 || newVal > std::numeric_limits<uint16_t>::max())
+                    {
+                        throw ConfigFileException(formatString("Value '%d' doesn't fit in uint16_t.", newVal));
+                    }
+                    curBridge->port = newVal;
+                }
+                if (testKeyValidity(key, "protocol_version", validBridgeKeys))
+                {
+                    ProtocolVersion v;
+
+                    if (value == "mqtt3.1")
+                        v = ProtocolVersion::Mqtt31;
+                    else if (value == "mqtt3.1.1")
+                        v = ProtocolVersion::Mqtt311;
+                    else if (value == "mqtt5")
+                        v = ProtocolVersion::Mqtt5;
+                    else
+                        throw ConfigFileException(formatString("Value '%s' is not valid for 'protocol_version'", value.c_str()));
+
+                    curBridge->protocolVersion = v;
+                }
+                if (testKeyValidity(key, "bridge_protocol_bit", validBridgeKeys))
+                {
+                    curBridge->bridgeProtocolBit = stringTruthiness(value);
+                }
+                if (testKeyValidity(key, "keepalive", validBridgeKeys))
+                {
+                    int64_t newVal = std::stoi(value);
+                    if (newVal < 10 || newVal > std::numeric_limits<uint16_t>::max())
+                    {
+                        throw ConfigFileException(formatString("Value '%d' doesn't fit in uint16_t and must be at least 10.", newVal));
+                    }
+                    curBridge->keepalive = newVal;
+                }
+                if (testKeyValidity(key, "tls", validBridgeKeys))
+                {
+                    BridgeTLSMode mode = BridgeTLSMode::None;
+
+                    if (value == "unverified")
+                        mode = BridgeTLSMode::Unverified;
+                    else if (value == "on")
+                        mode = BridgeTLSMode::On;
+                    else if (value == "off")
+                        mode = BridgeTLSMode::None;
+                    else
+                        throw ConfigFileException(formatString("Value '%s' is not valid for 'tls'", value.c_str()));
+
+                    curBridge->tlsMode = mode;
+                }
+                if (testKeyValidity(key, "ca_file", validBridgeKeys))
+                {
+                    checkFileExistsAndReadable(key, value, 1024*1024*100);
+                    curBridge->caFile = value;
+                }
+                if (testKeyValidity(key, "ca_dir", validBridgeKeys))
+                {
+                    checkDirExists(key, value);
+                    curBridge->caDir = value;
+                }
+                if (testKeyValidity(key, "max_incoming_topic_aliases", validBridgeKeys))
+                {
+                    const int64_t newVal = std::stoi(value);
+                    if (newVal < 0 || newVal > std::numeric_limits<uint16_t>::max())
+                    {
+                        throw ConfigFileException(formatString("Value '%d' doesn't fit in uint16_t.", newVal));
+                    }
+                    curBridge->maxIncomingTopicAliases = newVal;
+                }
+                if (testKeyValidity(key, "max_outgoing_topic_aliases", validBridgeKeys))
+                {
+                    const int64_t newVal = std::stoi(value);
+                    if (newVal < 0 || newVal > std::numeric_limits<uint16_t>::max())
+                    {
+                        throw ConfigFileException(formatString("Value '%d' doesn't fit in uint16_t.", newVal));
+                    }
+                    curBridge->maxOutgoingTopicAliases = newVal;
+                }
+                if (testKeyValidity(key, "inet_protocol", validBridgeKeys))
+                {
+                    if (value == "ip4")
+                        curBridge->inet_protocol = ListenerProtocol::IPv4;
+                    else if (value == "ip6")
+                        curBridge->inet_protocol = ListenerProtocol::IPv6;
+                    else if (value == "ip4_ip6")
+                        curBridge->inet_protocol = ListenerProtocol::IPv46;
+                    else
+                        throw ConfigFileException(formatString("Invalid inet protocol: %s", value.c_str()));
+                }
+                if (testKeyValidity(key, "use_saved_clientid", validBridgeKeys))
+                {
+                    curBridge->useSavedClientId = stringTruthiness(value);
                 }
 
                 continue;
@@ -589,6 +835,7 @@ void ConfigFileParser::loadFile(bool test)
         }
     }
 
+    tmpSettings.checkUniqueBridgeNames();
     tmpSettings.authOptCompatWrap = AuthOptCompatWrap(pluginOpts);
     tmpSettings.flashmqpluginOpts = std::move(pluginOpts);
 

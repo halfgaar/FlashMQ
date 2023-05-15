@@ -63,10 +63,19 @@ bool Session::requiresQoSQueueing() const
     return !destroyOnDisconnect;
 }
 
-void Session::increasePacketId()
+/**
+ * @brief get next packet ID and decrease the flow control counter. Remember to increase the flow control counter in the proper places.
+ * @return
+ *
+ * You should also check that flowControl is higher than 0 before you use this.
+ */
+uint16_t Session::getNextPacketId()
 {
     nextPacketId++;
     nextPacketId = std::max<uint16_t>(nextPacketId, 1);
+    assert(flowControlQuota > 0);
+    flowControlQuota--;
+    return nextPacketId;
 }
 
 Session::~Session()
@@ -109,6 +118,7 @@ void Session::writePacket(PublishCopyFactory &copyFactory, const uint8_t max_qos
     assert(max_qos <= 2);
 
     const uint8_t effectiveQos = copyFactory.getEffectiveQos(max_qos);
+    retainAsPublished = retainAsPublished || bridge;
     const bool effectiveRetain = copyFactory.getEffectiveRetain(retainAsPublished);
 
     const Settings *settings = ThreadGlobals::getSettings();
@@ -149,15 +159,14 @@ void Session::writePacket(PublishCopyFactory &copyFactory, const uint8_t max_qos
                 return;
             }
 
-            increasePacketId();
-            flowControlQuota--;
+            const uint16_t pack_id = getNextPacketId();
 
             if (requiresQoSQueueing())
-                qosPacketQueue.queuePublish(copyFactory, nextPacketId, effectiveQos, effectiveRetain);
+                qosPacketQueue.queuePublish(copyFactory, pack_id, effectiveQos, effectiveRetain);
 
             if (c)
             {
-                c->writeMqttPacketAndBlameThisClient(copyFactory, effectiveQos, nextPacketId, effectiveRetain);
+                c->writeMqttPacketAndBlameThisClient(copyFactory, effectiveQos, pack_id, effectiveRetain);
             }
         }
     }
@@ -273,6 +282,11 @@ void Session::setWill(WillPublish &&pub)
     this->willPublish = std::make_shared<WillPublish>(std::move(pub));
 }
 
+void Session::setBridge(bool val)
+{
+    this->bridge = val;
+}
+
 void Session::addIncomingQoS2MessageId(uint16_t packet_id)
 {
     assert(packet_id > 0);
@@ -331,6 +345,18 @@ void Session::removeOutgoingQoS2MessageId(u_int16_t packet_id)
         outgoingQoS2MessageIds.erase(it);
 
     increaseFlowControlQuota();
+}
+
+void Session::increaseFlowControlQuotaLocked()
+{
+    std::unique_lock<std::mutex> locker(qosQueueMutex);
+    increaseFlowControlQuota();
+}
+
+uint16_t Session::getNextPacketIdLocked()
+{
+    std::unique_lock<std::mutex> locker(qosQueueMutex);
+    return getNextPacketId();
 }
 
 /**

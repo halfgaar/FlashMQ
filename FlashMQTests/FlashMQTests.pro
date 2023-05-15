@@ -62,7 +62,11 @@ SOURCES +=  tst_maintests.cpp \
     ../pluginloader.cpp \
     ../queuedtasks.cpp \
     ../acksender.cpp \
+    ../bridgeconfig.cpp \
+    ../dnsresolver.cpp \
+    ../bridgeinfodb.cpp \
     conffiletemp.cpp \
+    dnstests.cpp \
     flashmqtempdir.cpp \
     mainappthread.cpp \
     plugintests.cpp \
@@ -122,12 +126,15 @@ HEADERS += \
     ../pluginloader.h \
     ../queuedtasks.h \
     ../acksender.h \
+    ../bridgeconfig.h \
+    ../dnsresolver.h \
+    ../bridgeinfodb.h \
     conffiletemp.h \
     flashmqtempdir.h \
     mainappthread.h \
     tst_maintests.h
 
-LIBS += -ldl -lssl -lcrypto -lresolv
+LIBS += -ldl -lssl -lcrypto -lresolv -lanl
 
 QMAKE_LFLAGS += -rdynamic
 

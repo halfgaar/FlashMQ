@@ -12,6 +12,7 @@ See LICENSE for license details.
 
 #include <cassert>
 #include <string.h>
+#include <openssl/x509v3.h>
 
 #include "logger.h"
 #include "client.h"
@@ -74,6 +75,45 @@ IoWrapper::~IoWrapper()
     ssl = nullptr;
 }
 
+void IoWrapper::startOrContinueSslHandshake()
+{
+    if (parentClient->isOutgoingConnection())
+        startOrContinueSslConnect();
+    else
+        startOrContinueSslAccept();
+}
+
+void IoWrapper::startOrContinueSslConnect()
+{
+    assert(ssl);
+    ERR_clear_error();
+    char sslErrorBuf[OPENSSL_ERROR_STRING_SIZE];
+    int connected = SSL_connect(ssl);
+    if (connected <= 0)
+    {
+        int err = SSL_get_error(ssl, connected);
+
+        if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE)
+        {
+            parentClient->setReadyForWriting(err == SSL_ERROR_WANT_WRITE);
+            return;
+        }
+
+        unsigned long error_code = ERR_get_error();
+
+        ERR_error_string(error_code, sslErrorBuf);
+        std::string errorMsg(sslErrorBuf, OPENSSL_ERROR_STRING_SIZE);
+
+        if (error_code == 0)
+            errorMsg = "Error code was 0. Are you really connecting to a TLS socket?";
+
+        throw std::runtime_error("Problem connecting to SSL socket: " + errorMsg);
+
+    }
+    parentClient->setReadyForWriting(false); // Undo write readiness that may have have happened during SSL handshake
+    sslAccepted = true;
+}
+
 void IoWrapper::startOrContinueSslAccept()
 {
     ERR_clear_error();
@@ -122,6 +162,65 @@ bool IoWrapper::isSslAccepted() const
 bool IoWrapper::isSsl() const
 {
     return this->ssl != nullptr;
+}
+
+static int verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
+{
+    SSL *ssl = static_cast<SSL*>(X509_STORE_CTX_get_ex_data(ctx, SSL_get_ex_data_X509_STORE_CTX_idx()));
+
+    const int mode = SSL_get_verify_mode(ssl);
+
+    if (mode == SSL_VERIFY_NONE)
+        return 1;
+
+    std::vector<char> buf(512);
+
+    X509 *err_cert = X509_STORE_CTX_get_current_cert(ctx);
+    int err = X509_STORE_CTX_get_error(ctx);
+    int depth = X509_STORE_CTX_get_error_depth(ctx);
+
+    X509_NAME_oneline(X509_get_subject_name(err_cert), buf.data(), 256);
+    const std::string subject_name(buf.data());
+
+    /*
+     * Explicity catch long chains, to avoid other random chain errors.
+     */
+    if (depth > 50)
+    {
+        preverify_ok = 0;
+        err = X509_V_ERR_CERT_CHAIN_TOO_LONG;
+        X509_STORE_CTX_set_error(ctx, err);
+    }
+
+    Logger *logger = Logger::getInstance();
+
+    if (!preverify_ok)
+    {
+        X509_NAME_oneline(X509_get_issuer_name(err_cert), buf.data(), 256);
+        const std::string issuer(buf.data());
+        logger->logf(LOG_ERR, "X509 verify error. Num=%d. Error: %s. Depth=%d. Subject = %s. Issuer = %s",
+                     err, X509_verify_cert_error_string(err), depth, subject_name.c_str(), issuer.c_str());
+    }
+
+    return preverify_ok;
+}
+
+void IoWrapper::setSslVerify(int mode, const std::string &hostname)
+{
+    assert(mode == SSL_VERIFY_PEER || mode == SSL_VERIFY_NONE);
+
+    if (!ssl)
+        return;
+
+    SSL_set_hostflags(ssl, X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS);
+
+    if (!SSL_set1_host(ssl, hostname.c_str()))
+        throw std::runtime_error("Failed setting hostname of SSL context.");
+
+    if (SSL_set_tlsext_host_name(ssl, hostname.c_str()) != 1)
+        throw std::runtime_error("Failed setting SNI hostname of SSL context.");
+
+    SSL_set_verify(ssl, mode, verify_callback);
 }
 
 bool IoWrapper::hasPendingWrite() const

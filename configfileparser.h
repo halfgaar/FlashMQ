@@ -24,7 +24,8 @@ See LICENSE for license details.
 enum class ConfigParseLevel
 {
     Root,
-    Listen
+    Listen,
+    Bridge
 };
 
 class ConfigFileParser
@@ -32,12 +33,15 @@ class ConfigFileParser
     const std::string path;
     std::set<std::string> validKeys;
     std::set<std::string> validListenKeys;
+    std::set<std::string> validBridgeKeys;
 
     Settings settings;
 
     bool testKeyValidity(const std::string &key, const std::string &matchKey, const std::set<std::string> &validKeys) const;
     void static checkFileExistsAndReadable(const std::string &key, const std::string &pathToCheck, ssize_t max_size = std::numeric_limits<ssize_t>::max());
     void static checkFileOrItsDirWritable(const std::string &filepath);
+    void static checkDirExists(const std::string &key, const std::string &dir);
+
 public:
     ConfigFileParser(const std::string &path);
     void loadFile(bool test);

@@ -13,6 +13,7 @@ See LICENSE for license details.
 #include <memory>
 #include <string.h>
 #include <openssl/ssl.h>
+#include <openssl/opensslconf.h>
 
 #include "mainapp.h"
 #include "utils.h"
@@ -84,6 +85,7 @@ int main(int argc, char *argv[])
 #endif
 
     Logger *logger = nullptr;
+
     try
     {
         logger = Logger::getInstance();

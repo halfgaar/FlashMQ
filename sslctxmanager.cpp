@@ -16,6 +16,12 @@ SslCtxManager::SslCtxManager() :
 
 }
 
+SslCtxManager::SslCtxManager(const SSL_METHOD *method) :
+    ssl_ctx(SSL_CTX_new(method))
+{
+
+}
+
 SslCtxManager::~SslCtxManager()
 {
     SSL_CTX_free(ssl_ctx);

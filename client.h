@@ -27,6 +27,7 @@ See LICENSE for license details.
 #include "cirbuf.h"
 #include "types.h"
 #include "iowrapper.h"
+#include "bridgeconfig.h"
 
 #include "publishcopyfactory.h"
 
@@ -58,7 +59,7 @@ class Client
     const uint32_t maxIncomingPacketSize;
 
     uint16_t maxOutgoingTopicAliasValue = 0;
-    const uint16_t maxIncomingTopicAliasValue;
+    uint16_t maxIncomingTopicAliasValue = 0;
 
     IoWrapper ioWrapper;
     std::string transportStr;
@@ -73,6 +74,9 @@ class Client
     bool readyForReading = true;
     bool disconnectWhenBytesWritten = false;
     bool disconnecting = false;
+    bool outgoingConnection = false;
+    bool outgoingConnectionEstablished = false;
+    bool bridge = false;
     std::string disconnectReason;
     std::chrono::time_point<std::chrono::steady_clock> lastActivity;
 
@@ -103,6 +107,8 @@ class Client
 
     sockaddr_in6 addr;
 
+    std::weak_ptr<BridgeState> bridgeState;
+
     void setReadyForWriting(bool val);
     void setReadyForReading(bool val);
     void setAddr(const std::string &address);
@@ -121,14 +127,16 @@ public:
     bool getSslReadWantsWrite() const;
     bool getSslWriteWantsRead() const;
     ProtocolVersion getProtocolVersion() const;
+    void connectToBridgeTarget(FMQSockaddr_in6 addr);
 
-    void startOrContinueSslAccept();
+    void startOrContinueSslHandshake();
     void markAsDisconnecting();
     bool readFdIntoBuffer();
     void bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn, std::shared_ptr<Client> &sender);
     void setClientProperties(ProtocolVersion protocolVersion, const std::string &clientId, const std::string username, bool connectPacketSeen, uint16_t keepalive);
     void setClientProperties(ProtocolVersion protocolVersion, const std::string &clientId, const std::string username, bool connectPacketSeen, uint16_t keepalive,
                              uint32_t maxOutgoingPacketSize, uint16_t maxOutgoingTopicAliasValue);
+    void setClientProperties(bool connectPacketSeen, uint16_t keepalive, uint32_t maxOutgoingPacketSize, uint16_t maxOutgoingTopicAliasValue);
     void setWill(const std::string &topic, const std::string &payload, bool retain, uint8_t qos);
     void setWill(WillPublish &&willPublish);
     void clearWill();
@@ -142,10 +150,12 @@ public:
     void assignSession(std::shared_ptr<Session> &session);
     std::shared_ptr<Session> getSession();
     void setDisconnectReason(const std::string &reason);
-    std::chrono::seconds getSecondsTillKillTime() const;
+    std::chrono::seconds getSecondsTillKeepAliveAction() const;
 
     void writeText(const std::string &text);
+    void writePing();
     void writePingResp();
+    void writeLoginPacket();
     void writeMqttPacket(const MqttPacket &packet);
     void writeMqttPacketAndBlameThisClient(PublishCopyFactory &copyFactory, uint8_t max_qos, uint16_t packet_id, bool retain);
     void writeMqttPacketAndBlameThisClient(const MqttPacket &packet);
@@ -185,6 +195,14 @@ public:
     const std::string &getExtendedAuthenticationMethod() const;
 
     std::shared_ptr<ThreadData> lockThreadData();
+
+    void setBridgeConfig(std::shared_ptr<BridgeState> bridgeConfig);
+    bool isOutgoingConnection() const;
+    std::shared_ptr<BridgeState> getBridgeConfig();
+    void setBridgeConnected();
+    bool getOutgoingConnectionEstablished() const;
+    bool isBridge() const { return bridge; }
+    void setBridge(bool val);
 
 #ifdef TESTING
     std::function<void(MqttPacket &packet)> onPacketReceived;

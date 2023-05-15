@@ -29,6 +29,7 @@ See LICENSE for license details.
 #include "timer.h"
 #include "scopedsocket.h"
 #include "oneinstancelock.h"
+#include "bridgeinfodb.h"
 
 class MainApp
 {
@@ -55,6 +56,7 @@ class MainApp
     Settings settings;
 
     std::list<std::shared_ptr<Listener>> listeners;
+    std::list<std::shared_ptr<BridgeConfig>> bridges;
     std::mutex quitMutex;
     std::string fuzzFilePath;
     OneInstanceLock oneInstanceLock;
@@ -65,7 +67,7 @@ class MainApp
     static std::mutex saveStateMutex;
 
     void setlimits();
-    void loadConfig();
+    void loadConfig(bool reload);
     void reloadConfig();
     void reopenLogfile();
     static void doHelp(const char *arg);
@@ -77,12 +79,16 @@ class MainApp
     void queuepluginPeriodicEventAllThreads();
     void setFuzzFile(const std::string &fuzzFilePath);
     void queuePublishStatsOnDollarTopic();
-    static void saveState(const Settings &settings);
+    static void saveState(const Settings &settings, const std::list<BridgeInfoForSerializing> &bridgeInfos);
+    static void saveBridgeInfo(const std::string &filePath, const std::list<BridgeInfoForSerializing> &bridgeInfos);
+    void loadBridgeInfo();
     void saveStateInThread();
     void queueSendQueuedWills();
     void waitForWillsQueued();
     void waitForDisconnectsInitiated();
     void queueRetainedMessageExpiration();
+    void createBridge(std::shared_ptr<ThreadData> &thread, const std::shared_ptr<BridgeConfig> &bridgeConfig);
+    void queueBridgeReconnectAllThreads(bool alsoQueueNexts);
 
     MainApp(const std::string &configFilePath);
 public:

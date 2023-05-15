@@ -252,16 +252,15 @@ MqttPacket::MqttPacket(const Connect &connect) :
     protocolVersion(connect.protocolVersion),
     packetType(PacketType::CONNECT)
 {
-#ifndef TESTING
-    throw NotImplementedException("Code is only for testing.");
-#endif
-
     first_byte = static_cast<char>(packetType) << 4;
 
     const std::string_view magicString = connect.getMagicString();
     writeString(magicString);
 
-    writeByte(static_cast<char>(protocolVersion));
+    uint8_t protocolVersionByte = static_cast<uint8_t>(protocolVersion);
+    if (connect.bridgeProtocolBit && protocolVersion <= ProtocolVersion::Mqtt311) // MQTT5 uses subscription options for it.
+        protocolVersionByte |= 0x80;
+    writeByte(protocolVersionByte);
 
     uint8_t flags = connect.clean_start << 1;
     flags |= !connect.username.empty() << 7;
@@ -276,8 +275,7 @@ MqttPacket::MqttPacket(const Connect &connect) :
 
     writeByte(flags);
 
-    // Keep-alive
-    writeUint16(60);
+    writeUint16(connect.keepalive);
 
     if (connect.protocolVersion >= ProtocolVersion::Mqtt5)
     {
@@ -309,10 +307,6 @@ MqttPacket::MqttPacket(const Subscribe &subscribe) :
     bites(subscribe.getLengthWithoutFixedHeader()),
     packetType(PacketType::SUBSCRIBE)
 {
-#ifndef TESTING
-    throw NotImplementedException("Code is only for testing.");
-#endif
-
     first_byte = static_cast<char>(packetType) << 4;
     first_byte |= 2; // required reserved bit
 
@@ -435,7 +429,7 @@ void MqttPacket::handle()
         }
 
         if (!(packetType == PacketType::CONNECT || packetType == PacketType::AUTH || packetType == PacketType::DISCONNECT ||
-              packetType == PacketType::PINGREQ || packetType == PacketType::PINGRESP))
+              packetType == PacketType::PINGREQ || packetType == PacketType::PINGRESP || packetType == PacketType::CONNACK))
         {
             logger->logf(LOG_WARNING, "Unapproved packet type (code %d) from non-authenticated client. Dropping packet.", packetType);
             return;
@@ -458,10 +452,14 @@ void MqttPacket::handle()
         handleSubscribe();
     else if (packetType == PacketType::UNSUBSCRIBE)
         handleUnsubscribe();
+    else if (packetType == PacketType::SUBACK)
+        handleSubAck();
     else if (packetType == PacketType::CONNECT)
         handleConnect();
     else if (packetType == PacketType::DISCONNECT)
         handleDisconnect();
+    else if (packetType == PacketType::CONNACK)
+        handleConnAck();
     else if (packetType == PacketType::AUTH)
         handleExtendedAuth();
 }
@@ -489,7 +487,7 @@ ConnectData MqttPacket::parseConnectData()
 
     const uint8_t protocolVersionByte = readUint8();
     result.protocol_level_byte = protocolVersionByte & 0x7F;
-    result.bridge = protocolVersionByte & 0x80; // Unofficial, defacto, way of specifying that.
+    result.bridge = protocolVersionByte & 0x80; // Unofficial, defacto, way of specifying that. MQTT5 uses subscription options for it.
 
     if (magic_marker == "MQTT")
     {
@@ -701,6 +699,8 @@ ConnAckData MqttPacket::parseConnAckData()
     if (this->packetType != PacketType::CONNACK)
         throw std::runtime_error("Packet must be connack packet.");
 
+    const Settings &settings = *ThreadGlobals::getSettings();
+
     setPosToDataStart();
 
     ConnAckData result;
@@ -721,11 +721,65 @@ ConnAckData MqttPacket::parseConnAckData()
 
             switch (prop)
             {
+            case Mqtt5Properties::SessionExpiryInterval:
+                result.session_expire = std::min<uint32_t>(readFourBytesToUint32(), result.session_expire);
+                break;
+            case Mqtt5Properties::ReceiveMaximum:
+                result.client_receive_max = std::min<int16_t>(readTwoBytesToUInt16(), result.client_receive_max);
+                break;
+            case Mqtt5Properties::MaximumQoS:
+                result.max_qos = std::min<uint8_t>(readUint8(), result.max_qos);
+                break;
+            case Mqtt5Properties::RetainAvailable:
+                readByte();
+                break;
+            case Mqtt5Properties::MaximumPacketSize:
+                result.max_outgoing_packet_size = std::min<uint32_t>(readFourBytesToUint32(), result.max_outgoing_packet_size);
+                break;
+            case Mqtt5Properties::AssignedClientIdentifier:
+                result.assigned_client_id = readBytesToString();
+                break;
+            case Mqtt5Properties::TopicAliasMaximum:
+                result.max_outgoing_topic_aliases = std::min<uint16_t>(readTwoBytesToUInt16(), settings.maxOutgoingTopicAliasValue);
+                break;
+            case Mqtt5Properties::ReasonString:
+            {
+                const std::string reason = readBytesToString();
+                logger->logf(LOG_INFO, "ConnAck reason string: %s", reason.c_str());
+                break;
+            }
+            case Mqtt5Properties::UserProperty:
+            {
+                std::string key = readBytesToString();
+                std::string value = readBytesToString();
+                break;
+            }
+            case Mqtt5Properties::WildcardSubscriptionAvailable:
+                readByte();
+                break;
+            case Mqtt5Properties::SubscriptionIdentifierAvailable:
+                readByte();
+                break;
+            case Mqtt5Properties::SharedSubscriptionAvailable:
+                result.shared_subscriptions_available = !!readByte();
+                break;
+            case Mqtt5Properties::ServerKeepAlive:
+                result.keep_alive = readTwoBytesToUInt16();
+                break;
+            case Mqtt5Properties::ResponseInformation:
+                result.response_information = readBytesToString();
+                break;
+            case Mqtt5Properties::ServerReference:
+                result.server_reference = readBytesToString();
+                break;
+            case Mqtt5Properties::AuthenticationMethod:
+                result.authMethod = readBytesToString();
+                break;
             case Mqtt5Properties::AuthenticationData:
                 result.authData = readBytesToString();
                 break;
             default:
-                break;
+                throw ProtocolError("Invalid connack property.", ReasonCodes::ProtocolError);
             }
         }
     }
@@ -747,10 +801,10 @@ void MqttPacket::handleConnect()
 
     ConnectData connectData = parseConnectData();
 
-    if (this->protocolVersion == ProtocolVersion::None || connectData.bridge)
+    sender->setBridge(connectData.bridge);
+
+    if (this->protocolVersion == ProtocolVersion::None)
     {
-        if (connectData.bridge)
-            logger->logf(LOG_ERR, "Bridge protocol not supported: %s", sender->repr().c_str());
         if (this->protocolVersion == ProtocolVersion::None)
             logger->logf(LOG_ERR, "Rejecting because of invalid protocol version: %s", sender->repr().c_str());
 
@@ -890,6 +944,91 @@ void MqttPacket::handleConnect()
     {
         threadData->continuationOfAuthentication(sender, authResult, connectData.authenticationMethod, authReturnData);
     }
+}
+
+void MqttPacket::handleConnAck()
+{
+    if (!sender->isOutgoingConnection())
+        return;
+
+    if (sender->hasConnectPacketSeen())
+        throw ProtocolError("Client already sent a CONNACK.", ReasonCodes::ProtocolError);
+
+    const Settings *settings = ThreadGlobals::getSettings();
+
+    const ConnAckData data = parseConnAckData();
+
+    if (data.reasonCode != ReasonCodes::Success)
+    {
+        throw std::runtime_error(formatString("Client '%s' connection failed. Reason code: %d", sender->repr().c_str(), data.reasonCode));
+    }
+
+    if (!settings->allowUnsafeClientidChars && containsDangerousCharacters(data.assigned_client_id))
+    {
+        const std::string error = formatString("Assigned clientID '%s' has + or # in the id and 'allow_unsafe_clientid_chars' is false.", data.assigned_client_id.c_str());
+        throw ProtocolError(error, ReasonCodes::ImplementationSpecificError);
+    }
+
+    sender->setAuthenticated(true);
+
+    std::shared_ptr<BridgeState> bridgeConfig = sender->getBridgeConfig();
+
+    // Should be impossible.
+    if (!bridgeConfig)
+        return;
+
+    bridgeConfig->resetReconnectCounter();
+
+    logger->logf(LOG_NOTICE, "Bridge '%s' connection established. Subscribing to topics.", sender->repr().c_str());
+
+    std::shared_ptr<SubscriptionStore> store = MainApp::getMainApp()->getSubscriptionStore();
+    std::shared_ptr<Session> session = bridgeConfig->session.lock();
+
+    // Should be impossible.
+    if (!session)
+        return;
+
+    const uint16_t keepalive = data.keep_alive ? data.keep_alive : bridgeConfig->keepalive;
+
+    const uint16_t effectiveMaxOutgoingTopicAliases = std::min<uint16_t>(data.max_outgoing_topic_aliases, bridgeConfig->maxOutgoingTopicAliases);
+
+    sender->setClientProperties(true, keepalive, data.max_outgoing_packet_size, effectiveMaxOutgoingTopicAliases);
+    session->setSessionProperties(data.client_receive_max, bridgeConfig->localSessionExpiryInterval, bridgeConfig->localCleanStart, bridgeConfig->protocolVersion);
+
+    ThreadGlobals::getThreadData()->queueClientNextKeepAliveCheckLocked(sender, true);
+
+    // This resubscribes also when there is already a session with subscriptions remotely, but that is required when you change QoS levels, for instance. It
+    // will not unsubscribe, so it will add to the existing subscriptions.
+    // Note that this will also get you retained messages again.
+    for(BridgeTopicPath &sub : bridgeConfig->subscribes)
+    {
+        const uint8_t real_qos = std::min<uint8_t>(data.max_qos, sub.qos);
+
+        logger->log(LOG_DEBUG) << "Bridge '" << sender->repr() << "' subscribing remotely to '" << sub.topic << "', QoS="
+                               << static_cast<int>(real_qos) << ".";
+
+        Subscribe s(this->getProtocolVersion(), session->getNextPacketIdLocked(), sub.topic, real_qos);
+        s.noLocal = true;
+        s.retainAsPublished = true;
+        MqttPacket subPacket(s);
+        sender->writeMqttPacketAndBlameThisClient(subPacket);
+    }
+
+    // It doesn't matter if we do this every time on connack; a client can only be subscribed once per pattern.
+    // Note that this will also send all locally retained messages. I think that's the best approach: the state of retained
+    // messages need to be synced; they may have been removed remotely while disconnected, for instance.
+    for(BridgeTopicPath &pub : bridgeConfig->publishes)
+    {
+        logger->log(LOG_DEBUG) << "Bridge '" << sender->repr() << "' subscribing locally to '" << pub.topic << "', QoS="
+                               << static_cast<int>(pub.qos) << ".";
+
+        const std::vector<std::string> subtopics = splitTopic(pub.topic);
+        store->addSubscription(sender, subtopics, pub.qos, true, true);
+    }
+
+    ThreadGlobals::getThreadData()->publishBridgeState(bridgeConfig, true);
+
+    session->sendAllPendingQosData();
 }
 
 AuthPacketData MqttPacket::parseAuthData()
@@ -1121,8 +1260,9 @@ void MqttPacket::handleSubscribe()
         const SubscriptionOptionsByte options(qos_byte);
 
         uint8_t qos = options.getQos();
-        const bool noLocal = options.getNoLocal();
-        const bool retainedAsPublished = options.getRetainAsPublished();
+
+        const bool noLocal = sender->isBridge() || options.getNoLocal();
+        const bool retainedAsPublished = sender->isBridge() || options.getRetainAsPublished();
 
         std::vector<std::string> subtopics = splitTopic(topic);
 
@@ -1171,6 +1311,32 @@ void MqttPacket::handleSubscribe()
     {
         logger->logf(LOG_SUBSCRIBE, "Client '%s' subscribed to '%s' QoS %d", sender->repr().c_str(), tup.topic.c_str(), tup.qos);
         MainApp::getMainApp()->getSubscriptionStore()->addSubscription(sender, tup.subtopics, tup.qos, tup.noLocal, tup.retainAsPublished, tup.shareName);
+    }
+}
+
+void MqttPacket::handleSubAck()
+{
+    if (!sender->isOutgoingConnection())
+        return;
+
+    const SubAckData data = parseSubAckData();
+
+    std::shared_ptr<BridgeState> bridgeConfig = sender->getBridgeConfig();
+
+    // Should be impossible.
+    if (!bridgeConfig)
+        return;
+
+    std::shared_ptr<Session> session = bridgeConfig->session.lock();
+
+    // Should be impossible.
+    if (!session)
+        return;
+
+    for(uint16_t id : data.subAckCodes)
+    {
+        (void)id;
+        session->increaseFlowControlQuotaLocked();
     }
 }
 
@@ -1294,6 +1460,7 @@ void MqttPacket::parsePublishData()
 
                 const uint16_t alias_id = readTwoBytesToUInt16();
                 this->hasTopicAlias = true;
+                this->publishData.topicAlias = alias_id;
 
                 if (publishData.topic.empty())
                 {
@@ -1357,7 +1524,8 @@ void MqttPacket::handlePublish()
 
 #ifndef NDEBUG
     const bool duplicate = !!(first_byte & 0b00001000);
-    logger->logf(LOG_DEBUG, "Publish received, topic '%s'. QoS=%d. Retain=%d, dup=%d", publishData.topic.c_str(), publishData.qos, publishData.retain, duplicate);
+    logger->log(LOG_DEBUG) << "Publish received. Size: " << bites.size() << ". Topic: '" << publishData.topic << "'. QoS=" << publishData.qos
+                           << ". Retain=" << publishData.retain << ". Dup=" << duplicate << ". Alias=" << publishData.topicAlias << ".";
 #endif
 
     ThreadGlobals::getThreadData()->receivedMessageCounter.inc();

@@ -8,8 +8,32 @@ it under the terms of The Open Software License 3.0 (OSL-3.0).
 See LICENSE for license details.
 */
 
+#include <unordered_set>
+
+#include "exceptions.h"
 #include "settings.h"
 #include "utils.h"
+
+void Settings::checkUniqueBridgeNames() const
+{
+    std::unordered_set<std::string> prefixes;
+
+    for (auto &bridge : bridges)
+    {
+        if (!bridge)
+            continue;
+
+        const std::string &prefix = bridge->clientidPrefix;
+
+        if (prefixes.find(bridge->clientidPrefix) != prefixes.end())
+        {
+            std::string err = formatString("Value '%s' is not unique. All bridge prefixes must be unique.", prefix.c_str());
+            throw ConfigFileException(err);
+        }
+
+        prefixes.insert(prefix);
+    }
+}
 
 AuthOptCompatWrap &Settings::getAuthOptsCompat()
 {
@@ -39,6 +63,15 @@ std::string Settings::getSessionsDBFile() const
     return path;
 }
 
+std::string Settings::getBridgeNamesDBFile() const
+{
+    if (storageDir.empty())
+        return "";
+
+    std::string path = formatString("%s/%s", storageDir.c_str(), "bridgenames.db");
+    return path;
+}
+
 /**
  * @brief because 0 means 'forever', we have to translate this.
  * @return
@@ -61,4 +94,11 @@ bool Settings::matchAddrWithSetRealIpFrom(const sockaddr_in6 *addr) const
 bool Settings::matchAddrWithSetRealIpFrom(const sockaddr_in *addr) const
 {
     return matchAddrWithSetRealIpFrom(reinterpret_cast<const struct sockaddr*>(addr));
+}
+
+std::list<std::shared_ptr<BridgeConfig>> Settings::stealBridges()
+{
+    std::list<std::shared_ptr<BridgeConfig>> result = this->bridges;
+    this->bridges.clear();
+    return result;
 }

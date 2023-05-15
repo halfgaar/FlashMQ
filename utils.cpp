@@ -13,7 +13,6 @@ See LICENSE for license details.
 #include "utils.h"
 
 #include <sys/time.h>
-#include <sys/random.h>
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
@@ -558,6 +557,26 @@ void testSsl(const std::string &fullchain, const std::string &privkey)
     }
 }
 
+void testSslVerifyLocations(const std::string &caFile, const std::string &caDir)
+{
+    if (!caFile.empty() && getFileSize(caFile) <= 0)
+        throw ConfigFileException(formatString("SSL 'ca_file' file '%s' is empty or invalid", caFile.c_str()));
+
+    SslCtxManager sslCtx(TLS_client_method());
+
+    const char *ca_file = caFile.empty() ? nullptr : caFile.c_str();
+    const char *ca_dir = caDir.empty() ? nullptr : caDir.c_str();
+
+    if (ca_file == nullptr && ca_dir == nullptr)
+        return;
+
+    if (SSL_CTX_load_verify_locations(sslCtx.get(), ca_file, ca_dir) != 1)
+    {
+        ERR_print_errors_cb(logSslError, NULL);
+        throw std::runtime_error("Loading ca_file/ca_dir failed.");
+    }
+}
+
 std::string formatString(const std::string str, ...)
 {
     constexpr const int bufsize = 512;
@@ -778,6 +797,8 @@ std::string timestampWithMillis()
 
     return oss.str();
 }
+
+
 
 
 

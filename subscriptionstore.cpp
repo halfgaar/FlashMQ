@@ -252,6 +252,18 @@ void SubscriptionStore::removeSubscription(std::shared_ptr<Client> &client, cons
 
 }
 
+std::shared_ptr<Session> SubscriptionStore::getBridgeSession(std::shared_ptr<Client> &client)
+{
+    RWLockGuard lock_guard(&sessionsAndSubscriptionsRwlock);
+    lock_guard.wrlock();
+
+    std::shared_ptr<Session> session = std::make_shared<Session>();
+    session->assignActiveConnection(client);
+    client->assignSession(session);
+    sessionsById[client->getClientId()] = session;
+    return session;
+}
+
 /**
  * @brief SubscriptionStore::registerClientAndKickExistingOne registers a client with previously set parameters for the session.
  * @param client

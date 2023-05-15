@@ -52,15 +52,16 @@ class Session
     bool destroyOnDisconnect = false;
     std::shared_ptr<WillPublish> willPublish;
     bool removalQueued = false;
+    bool bridge = false;
     std::chrono::time_point<std::chrono::steady_clock> removalQueuedAt;
     Logger *logger = Logger::getInstance();
 
-    void increaseFlowControlQuota();
-    void increaseFlowControlQuota(int n);
     void clearExpiredMessagesFromQueue();
 
+    void increaseFlowControlQuota();
+    void increaseFlowControlQuota(int n);
     bool requiresQoSQueueing() const;
-    void increasePacketId();
+    uint16_t getNextPacketId();
 
     Session(const Session &other) = delete;
 public:
@@ -79,13 +80,16 @@ public:
     void clearWill();
     std::shared_ptr<WillPublish> &getWill();
     void setWill(WillPublish &&pub);
+    bool getBridge() const { return bridge; }
+    void setBridge(bool val);
 
     void addIncomingQoS2MessageId(uint16_t packet_id);
     bool incomingQoS2MessageIdInTransit(uint16_t packet_id);
     bool removeIncomingQoS2MessageId(u_int16_t packet_id);
-
     void addOutgoingQoS2MessageId(uint16_t packet_id);
     void removeOutgoingQoS2MessageId(u_int16_t packet_id);
+    void increaseFlowControlQuotaLocked();
+    uint16_t getNextPacketIdLocked();
 
     bool getDestroyOnDisconnect() const;
 

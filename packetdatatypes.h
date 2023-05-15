@@ -54,9 +54,23 @@ struct ConnAckData
     // Flags
     bool sessionPresent = false;
 
+    uint32_t session_expire = 0;
+    uint16_t client_receive_max;
+    uint8_t max_qos = 2;
+    uint32_t max_outgoing_packet_size;
+    uint16_t max_outgoing_topic_aliases = 0; // Default MUST BE 0, meaning we won't initiate aliases unless the other side says we can.
+    std::string assigned_client_id;
+    uint16_t keep_alive = 0;
+    std::string response_information;
+    std::string server_reference;
+    bool shared_subscriptions_available = true;
+
     ReasonCodes reasonCode = ReasonCodes::ImplementationSpecificError; // default something that is never a parse result;
 
+    std::string authMethod;
     std::string authData;
+
+    ConnAckData();
 };
 
 struct AuthPacketData

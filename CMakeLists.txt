@@ -74,6 +74,8 @@ add_executable(flashmq
     pluginloader.h
     queuedtasks.h
     acksender.h
+    bridgeconfig.h
+    dnsresolver.h
 
 
     mainapp.cpp
@@ -125,10 +127,13 @@ add_executable(flashmq
     pluginloader.cpp
     queuedtasks.cpp
     acksender.cpp
+    bridgeconfig.cpp
+    dnsresolver.cpp
+    bridgeinfodb.h bridgeinfodb.cpp
 
     )
 
-target_link_libraries(flashmq pthread dl ssl crypto resolv)
+target_link_libraries(flashmq pthread dl ssl crypto resolv anl)
 
 execute_process(COMMAND ../.get-os-codename-and-stamp.sh OUTPUT_VARIABLE OS_CODENAME)
 

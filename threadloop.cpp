@@ -122,6 +122,22 @@ void do_thread_work(ThreadData *threadData)
                         client->setDisconnectReason("HAProxy health check");
                     }
                 }
+                if (client->isOutgoingConnection() && !client->getOutgoingConnectionEstablished())
+                {
+                    int error = 0;
+                    socklen_t optlen = sizeof(int);
+                    int rc = getsockopt(fd, SOL_SOCKET, SO_ERROR, &error, &optlen);
+
+                    if (rc == 0 && error == 0)
+                    {
+                        client->setBridgeConnected();
+                    }
+
+                    if (error > 0 && error != EINPROGRESS)
+                        throw std::runtime_error(strerror(error));
+
+                    continue;
+                }
                 if (cur_ev.events & (EPOLLERR | EPOLLHUP))
                 {
                     client->setDisconnectReason("epoll says socket is in ERR or HUP state.");
@@ -130,7 +146,7 @@ void do_thread_work(ThreadData *threadData)
                 }
                 if (client->isSsl() && !client->isSslAccepted())
                 {
-                    client->startOrContinueSslAccept();
+                    client->startOrContinueSslHandshake();
                     continue;
                 }
                 if ((cur_ev.events & EPOLLIN) || ((cur_ev.events & EPOLLOUT) && client->getSslReadWantsWrite()))

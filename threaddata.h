@@ -29,6 +29,7 @@ See LICENSE for license details.
 #include "derivablecounter.h"
 #include "queuedtasks.h"
 #include "settings.h"
+#include "bridgeconfig.h"
 
 typedef void (*thread_f)(ThreadData *);
 
@@ -54,6 +55,7 @@ public:
 class ThreadData
 {
     std::unordered_map<int, std::shared_ptr<Client>> clients_by_fd;
+    std::vector<std::shared_ptr<BridgeState>> bridges;
     std::mutex clients_by_fd_mutex;
     Logger *logger;
 
@@ -82,7 +84,9 @@ class ThreadData
     void queueClientNextKeepAliveCheck(std::shared_ptr<Client> &client, bool keepRechecking);
     void continueAsyncAuths();
     void clientDisconnectEvent(const std::string &clientid);
-    void clientDisconnectActions(bool authenticated, const std::string &clientid, std::shared_ptr<WillPublish> &willPublish, std::shared_ptr<Session> &session);
+    void clientDisconnectActions(bool authenticated, const std::string &clientid, std::shared_ptr<WillPublish> &willPublish, std::shared_ptr<Session> &session,
+                                 std::weak_ptr<BridgeState> &bridgeState);
+    void bridgeReconnect();
 
     void removeQueuedClients();
 
@@ -113,6 +117,7 @@ public:
     void start(thread_f f);
 
     void giveClient(std::shared_ptr<Client> &&client);
+    void giveBridge(std::shared_ptr<BridgeState> &bridgeConfig);
     std::shared_ptr<Client> getClient(int fd);
     void removeClientQueued(const std::shared_ptr<Client> &client);
     void removeClientQueued(int fd);
@@ -132,7 +137,10 @@ public:
     void queueClientNextKeepAliveCheckLocked(std::shared_ptr<Client> &client, bool keepRechecking);
     void continuationOfAuthentication(std::shared_ptr<Client> &client, AuthResult authResult, const std::string &authMethod, const std::string &returnData);
     void queueContinuationOfAuthentication(const std::shared_ptr<Client> &client, AuthResult authResult, const std::string &authMethod, const std::string &returnData);
-    void queueClientDisconnectActions(bool authenticated, const std::string &clientid, std::shared_ptr<WillPublish> &&willPublish, std::shared_ptr<Session> &&session);
+    void queueClientDisconnectActions(bool authenticated, const std::string &clientid, std::shared_ptr<WillPublish> &&willPublish, std::shared_ptr<Session> &&session,
+                                      std::weak_ptr<BridgeState> &&bridgeState);
+    void queueBridgeReconnect();
+    void publishBridgeState(std::shared_ptr<BridgeState> bridge, bool connected);
 
     int getNrOfClients() const;
 

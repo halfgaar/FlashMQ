@@ -199,6 +199,12 @@ private slots:
     void testNoLocalPublishToItself();
 
     void testTopicMatchingInSubscriptionTree();
+
+    void testDnsResolver();
+    void testDnsResolverDontCancel();
+    void testDnsResolverSecondQuery();
+    void testDnsResolverInvalid();
+    void testGetResultWhenThereIsNone();
 };
 
 

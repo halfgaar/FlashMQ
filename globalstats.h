@@ -12,17 +12,25 @@ See LICENSE for license details.
 #define GLOBALSTATS_H
 
 #include <stdint.h>
+#include <unordered_map>
+
 #include "derivablecounter.h"
 
 class GlobalStats
 {
     static GlobalStats *instance;
 
+    std::mutex extras_mutex;
+    std::unordered_map<std::string, std::string> extras;
+
     GlobalStats();
 public:
     static GlobalStats *getInstance();
 
     DerivableCounter socketConnects;
+
+    void setExtra(const std::string &topic, const std::string &payload);
+    const std::unordered_map<std::string, std::string> &getExtras() const;
 };
 
 #endif // GLOBALSTATS_H

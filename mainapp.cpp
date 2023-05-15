@@ -28,6 +28,8 @@ See LICENSE for license details.
 #include "threadglobals.h"
 #include "globalstats.h"
 #include "utils.h"
+#include "bridgeconfig.h"
+#include "bridgeinfodb.h"
 
 MainApp *MainApp::instance = nullptr;
 std::mutex MainApp::saveStateMutex;
@@ -39,7 +41,7 @@ MainApp::MainApp(const std::string &configFilePath) :
     taskEventFd = eventfd(0, EFD_NONBLOCK);
 
     confFileParser = std::make_unique<ConfigFileParser>(configFilePath);
-    loadConfig();
+    loadConfig(false);
 
     this->num_threads = get_nprocs();
     if (settings.threadCount > 0)
@@ -278,7 +280,9 @@ void MainApp::saveStateInThread()
     if (saveStateThread.joinable())
         saveStateThread.join();
 
-    auto f = std::bind(&MainApp::saveState, this->settings);
+    std::list<BridgeInfoForSerializing> bridgeInfos = BridgeInfoForSerializing::getBridgeInfosForSerializing(this->bridges);
+
+    auto f = std::bind(&MainApp::saveState, this->settings, bridgeInfos);
     saveStateThread = std::thread(f);
 
     pthread_t native = saveStateThread.native_handle();
@@ -325,12 +329,43 @@ void MainApp::queueRetainedMessageExpiration()
     }
 }
 
+void MainApp::createBridge(std::shared_ptr<ThreadData> &thread, const std::shared_ptr<BridgeConfig> &bridgeConfig)
+{
+    std::shared_ptr<BridgeState> bridgeState = std::make_shared<BridgeState>(*bridgeConfig);
+
+    bridgeState->threadData = thread;
+    thread->giveBridge(bridgeState);
+}
+
+void MainApp::queueBridgeReconnectAllThreads(bool alsoQueueNexts)
+{
+    try
+    {
+        for (std::shared_ptr<ThreadData> &thread : threads)
+        {
+            thread->queueBridgeReconnect();
+        }
+    }
+    catch (std::exception &ex)
+    {
+        Logger *logger = Logger::getInstance();
+        logger->logf(LOG_ERR, ex.what());
+    }
+
+    if (alsoQueueNexts)
+    {
+        auto fReconnectBridges = std::bind(&MainApp::queueBridgeReconnectAllThreads, this, false);
+        timer.addCallback(fReconnectBridges, 5000, "Reconnect bridges.");
+    }
+}
+
 /**
  * @brief MainApp::saveState saves sessions and such to files. It's run in the main thread, but also dedicated threads. For that,
  * reason, it's a static method to reduce the risk of accidental use of data without locks.
  * @param settings A local settings, copied from a std::bind copy when running in a thread, because of thread safety.
+ * @param bridgeInfos is a list of objects already prepared from the original bridge configs, to avoid concurrent access.
  */
-void MainApp::saveState(const Settings &settings)
+void MainApp::saveState(const Settings &settings, const std::list<BridgeInfoForSerializing> &bridgeInfos)
 {
     std::lock_guard<std::mutex> lg(saveStateMutex);
 
@@ -351,6 +386,8 @@ void MainApp::saveState(const Settings &settings)
             const std::string sessionsDBPath = settings.getSessionsDBFile();
             subscriptionStore->saveSessionsAndSubscriptions(sessionsDBPath);
 
+            MainApp::saveBridgeInfo(settings.getBridgeNamesDBFile(), bridgeInfos);
+
             logger->logf(LOG_INFO, "Saving states done");
         }
     }
@@ -358,6 +395,56 @@ void MainApp::saveState(const Settings &settings)
     {
         logger->logf(LOG_ERR, "Error saving state: %s", ex.what());
     }
+}
+
+void MainApp::saveBridgeInfo(const std::string &filePath, const std::list<BridgeInfoForSerializing> &bridgeInfos)
+{
+    Logger *logger = Logger::getInstance();
+    logger->logf(LOG_INFO, "Saving bridge info in '%s'", filePath.c_str());
+    BridgeInfoDb bridgeInfoDb(filePath);
+    bridgeInfoDb.openWrite();
+    bridgeInfoDb.saveInfo(bridgeInfos);
+}
+
+void MainApp::loadBridgeInfo()
+{
+    this->bridges = settings.stealBridges();
+
+    if (settings.storageDir.empty())
+        return;
+
+    const std::string filePath = settings.getBridgeNamesDBFile();
+
+    try
+    {
+        logger->logf(LOG_INFO, "Loading '%s'", filePath.c_str());
+
+        BridgeInfoDb dbfile(filePath);
+        dbfile.openRead();
+        std::list<BridgeInfoForSerializing> bridgeInfos = dbfile.readInfo();
+
+        for(const BridgeInfoForSerializing &info : bridgeInfos)
+        {
+            for(std::shared_ptr<BridgeConfig> &bridgeConfig : this->bridges)
+            {
+                if (!bridgeConfig->useSavedClientId)
+                    continue;
+
+                if (bridgeConfig->clientidPrefix == info.prefix)
+                {
+                    logger->log(LOG_INFO) << "Assigning stored bridge clientid '" << info.clientId << "' to bridge '" << info.prefix << "'.";
+                    bridgeConfig->setClientId(info.prefix, info.clientId);
+                    break;
+                }
+            }
+        }
+    }
+    catch (PersistenceFileCantBeOpened &ex)
+    {
+        logger->logf(LOG_WARNING, "File '%s' is not there (yet)", filePath.c_str());
+    }
+
+
 }
 
 void MainApp::initMainApp(int argc, char *argv[])
@@ -617,6 +704,16 @@ void MainApp::start()
 
     uint next_thread_index = 0;
 
+    {
+        for(std::shared_ptr<BridgeConfig> &bridge : this->bridges)
+        {
+            std::shared_ptr<ThreadData> &thread = threads[next_thread_index++ % threads.size()];
+            createBridge(thread, bridge);
+        }
+
+        queueBridgeReconnectAllThreads(true);
+    }
+
     struct epoll_event events[MAX_EVENTS];
     memset(&events, 0, sizeof (struct epoll_event)*MAX_EVENTS);
 
@@ -761,7 +858,8 @@ void MainApp::start()
 
     pluginLoader.mainDeinit(settings.getFlashmqpluginOpts());
 
-    saveState(this->settings);
+    std::list<BridgeInfoForSerializing> bridgeInfos = BridgeInfoForSerializing::getBridgeInfosForSerializing(this->bridges);
+    saveState(this->settings, bridgeInfos);
 
     if (saveStateThread.joinable())
         saveStateThread.join();
@@ -795,9 +893,11 @@ void MainApp::setlimits()
 /**
  * @brief MainApp::loadConfig is loaded on app start where you want it to crash, loaded from within try/catch on reload, to allow the program to continue.
  */
-void MainApp::loadConfig()
+void MainApp::loadConfig(bool reload)
 {
     Logger *logger = Logger::getInstance();
+
+    logger->log(LOG_NOTICE) << std::boolalpha << "Loading config. Reload: " << reload << ".";
 
     // Atomic loading, first test.
     confFileParser->loadFile(true);
@@ -830,6 +930,23 @@ void MainApp::loadConfig()
         }
     }
 
+    // Like listeners, we are not reloading bridges, because it's hard to figure out what to do. This does mean we need to
+    // validate the config of existing ones, because they may have their certificate paths changed.
+    if (this->bridges.empty())
+    {
+        if (!reload)
+            loadBridgeInfo();
+    }
+    else
+    {
+        // Note that this checks the certificate paths of how the briges came from the config file, not the actual bridges. But, at least
+        // for now, they must be the same, because bridges aren't changed after they are created.
+        for (auto &bridge : this->bridges)
+        {
+            bridge->isValid();
+        }
+    }
+
     logger->setLogPath(settings.logPath);
     logger->queueReOpen();
     logger->setFlags(settings.logDebug, settings.logSubscriptions, settings.quiet);
@@ -851,11 +968,10 @@ void MainApp::reloadConfig()
 {
     doConfigReload = false;
     Logger *logger = Logger::getInstance();
-    logger->logf(LOG_NOTICE, "Reloading config");
 
     try
     {
-        loadConfig();
+        loadConfig(true);
     }
     catch (std::exception &ex)
     {

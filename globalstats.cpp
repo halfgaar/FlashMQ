@@ -25,3 +25,15 @@ GlobalStats *GlobalStats::getInstance()
     return GlobalStats::instance;
 }
 
+void GlobalStats::setExtra(const std::string &topic, const std::string &payload)
+{
+    std::lock_guard<std::mutex> locker(extras_mutex);
+
+    extras[topic] = payload;
+}
+
+const std::unordered_map<std::string, std::string> &GlobalStats::getExtras() const
+{
+    return this->extras;
+}
+

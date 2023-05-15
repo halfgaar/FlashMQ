@@ -117,15 +117,20 @@ class IoWrapper
     ssize_t readOrSslRead(int fd, void *buf, size_t nbytes, IoWrapResult *error);
     ssize_t writeOrSslWrite(int fd, const void *buf, size_t nbytes, IoWrapResult *error);
     ssize_t writeAsMuchOfBufAsWebsocketFrame(const void *buf, const size_t nbytes, WebsocketOpcode opcode = WebsocketOpcode::Binary);
+
+    void startOrContinueSslConnect();
+    void startOrContinueSslAccept();
+
 public:
     IoWrapper(SSL *ssl, bool websocket, const size_t initialBufferSize, Client *parent);
     ~IoWrapper();
 
-    void startOrContinueSslAccept();
+    void startOrContinueSslHandshake();
     bool getSslReadWantsWrite() const;
     bool getSslWriteWantsRead() const;
     bool isSslAccepted() const;
     bool isSsl() const;
+    void setSslVerify(int mode, const std::string &hostname);
     bool hasPendingWrite() const;
     bool isWebsocket() const;
     WebsocketState getWebsocketState() const;

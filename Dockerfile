@@ -31,6 +31,7 @@ COPY --from=build /lib/x86_64-linux-gnu/libc.so.6 /lib/x86_64-linux-gnu/libc.so.
 COPY --from=build /lib64/ld-linux-x86-64.so.2 /lib64/ld-linux-x86-64.so.2
 COPY --from=build /lib/x86_64-linux-gnu/libm.so.6 /lib/x86_64-linux-gnu/libm.so.6
 COPY --from=build /lib/x86_64-linux-gnu/libresolv.so.2 /lib/x86_64-linux-gnu/libresolv.so.2
+COPY --from=build /lib/x86_64-linux-gnu/libanl.so.1 /lib/x86_64-linux-gnu/libanl.so.1
 
 # copy in the FlashMQ binary itself
 COPY --from=build /usr/src/app/FlashMQBuildRelease/flashmq /bin/flashmq

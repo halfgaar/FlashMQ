@@ -23,6 +23,8 @@ See LICENSE for license details.
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <sys/random.h>
+#include <stdexcept>
 
 #include "cirbuf.h"
 #include "bindaddr.h"
@@ -52,6 +54,7 @@ bool isValidUtf8(const std::string &s, bool alsoCheckInvalidPublishChars = false
 
 bool strContains(const std::string &s, const std::string &needle);
 
+bool isValidShareName(const std::string &s);
 bool isValidPublishPath(const std::string &s);
 bool isValidSubscribePath(const std::string &s);
 bool containsDangerousCharacters(const std::string &s);
@@ -78,6 +81,7 @@ std::string generateBadHttpRequestReponse(const std::string &msg);
 std::string generateWebsocketAnswer(const std::string &acceptString, const std::string &subprotocol);
 
 void testSsl(const std::string &fullchain, const std::string &privkey);
+void testSslVerifyLocations(const std::string &caFile, const std::string &caDir);
 
 std::string formatString(const std::string str, ...);
 
@@ -130,6 +134,17 @@ int maskAllSignalsCurrentThread();
 void parseSubscriptionShare(std::vector<std::string> &subtopics, std::string &shareName);
 
 std::string timestampWithMillis();
+
+template<class T>
+T get_random_int()
+{
+    std::vector<T> buf(1);
+    // We use urandom, so we don't have check for blocking / interrupted conditions.
+    if (getrandom(buf.data(), sizeof(T), 0) < 0)
+        throw std::runtime_error(strerror(errno));
+    T val = buf.at(0);
+    return val;
+}
 
 
 #endif // UTILS_H

@@ -91,7 +91,7 @@ Client::~Client()
     std::shared_ptr<ThreadData> td = this->threadData.lock();
 
     if (td)
-        td->queueClientDisconnectActions(authenticated, this->getClientId(), std::move(willPublish), std::move(session));
+        td->queueClientDisconnectActions(authenticated, this->getClientId(), std::move(willPublish), std::move(session), std::move(bridgeState));
 
     assert(!session);
     assert(!willPublish);
@@ -142,9 +142,41 @@ ProtocolVersion Client::getProtocolVersion() const
     return protocolVersion;
 }
 
-void Client::startOrContinueSslAccept()
+void Client::connectToBridgeTarget(FMQSockaddr_in6 addr)
 {
-    ioWrapper.startOrContinueSslAccept();
+    this->lastActivity = std::chrono::steady_clock::now();
+
+    std::shared_ptr<BridgeState> bridge = this->bridgeState.lock();
+
+    if(!bridge)
+        return;
+
+    this->outgoingConnection = true;
+
+    addr.setPort(bridge->port);
+    int rc = connect(fd, addr.getSockaddr(), addr.getSize());
+
+    if (rc < 0)
+    {
+        if (errno != EINPROGRESS)
+           logger->logf(LOG_ERR, "Client connect error: %s", strerror(errno));
+        return;
+    }
+
+    if (rc == 0)
+    {
+        setBridgeConnected();
+    }
+}
+
+void Client::startOrContinueSslHandshake()
+{
+    const bool acceptedBefore = isSslAccepted();
+
+    ioWrapper.startOrContinueSslHandshake();
+
+    if (this->outgoingConnection && !acceptedBefore && isSslAccepted())
+        writeLoginPacket();
 }
 
 // Causes future activity on the client to cause a disconnect.
@@ -216,6 +248,20 @@ void Client::writeText(const std::string &text)
 
     writebuf.ensureFreeSpace(text.size());
     writebuf.write(text.c_str(), text.length());
+
+    setReadyForWriting(true);
+}
+
+void Client::writePing()
+{
+    std::lock_guard<std::mutex> locker(writeBufMutex);
+
+    writebuf.ensureFreeSpace(2);
+
+    writebuf.headPtr()[0] = 0b11000000;
+    writebuf.advanceHead(1);
+    writebuf.headPtr()[0] = 0;
+    writebuf.advanceHead(1);
 
     setReadyForWriting(true);
 }
@@ -325,6 +371,37 @@ void Client::writePingResp()
     setReadyForWriting(true);
 }
 
+void Client::writeLoginPacket()
+{
+    std::shared_ptr<BridgeConfig> config = this->bridgeState.lock();
+
+    if (!config)
+        throw std::runtime_error("No bridge config in bridge?");
+
+    Connect connectInfo(protocolVersion, clientid);
+    connectInfo.username = config->remote_username;
+    connectInfo.password = config->remote_password;
+    connectInfo.clean_start = config->remoteCleanStart;
+    connectInfo.keepalive = config->keepalive;
+    connectInfo.bridgeProtocolBit = config->bridgeProtocolBit;
+
+    if (config->remoteSessionExpiryInterval)
+    {
+        connectInfo.constructPropertyBuilder();
+        connectInfo.propertyBuilder->writeSessionExpiry(config->remoteSessionExpiryInterval);
+    }
+
+    // We tell the other side they can send us topics with aliases, if set.
+    if (this->maxIncomingTopicAliasValue)
+    {
+        connectInfo.constructPropertyBuilder();
+        connectInfo.propertyBuilder->writeMaxTopicAliases(this->maxIncomingTopicAliasValue);
+    }
+
+    MqttPacket pack(connectInfo);
+    writeMqttPacket(pack);
+}
+
 bool Client::writeBufIntoFd()
 {
     std::unique_lock<std::mutex> lock(writeBufMutex, std::try_to_lock);
@@ -363,8 +440,10 @@ const sockaddr *Client::getAddr() const
 
 std::string Client::repr()
 {
-    std::string s = formatString("[ClientID='%s', username='%s', fd=%d, keepalive=%ds, transport='%s', address='%s', prot=%s, clean=%d]",
-                                 clientid.c_str(), username.c_str(), fd, keepalive, this->transportStr.c_str(), this->address.c_str(),
+    const std::string bridge = isBridge() ? "Bridge " : "";
+
+    std::string s = formatString("[%sClientID='%s', username='%s', fd=%d, keepalive=%ds, transport='%s', address='%s', prot=%s, clean=%d]",
+                                 bridge.c_str(), clientid.c_str(), username.c_str(), fd, keepalive, this->transportStr.c_str(), this->address.c_str(),
                                  protocolVersionString(protocolVersion).c_str(), this->clean_start);
     return s;
 }
@@ -591,6 +670,74 @@ std::shared_ptr<ThreadData> Client::lockThreadData()
     return this->threadData.lock();
 }
 
+void Client::setBridgeConfig(std::shared_ptr<BridgeState> bridgeConfig)
+{
+    this->bridgeState = bridgeConfig;
+    this->outgoingConnection = true;
+    setBridge(true);
+
+    if (bridgeConfig)
+    {
+        this->protocolVersion = bridgeConfig->protocolVersion;
+        this->address = bridgeConfig->address;
+        this->clean_start = bridgeConfig->localCleanStart;
+        this->clientid = bridgeConfig->getClientid();
+        this->username = bridgeConfig->local_username;
+        this->keepalive = bridgeConfig->keepalive;
+
+        // Not setting maxOutgoingTopicAliasValue, because that must remain 0 until the other side says (in the connack) we can uses aliases.
+        this->maxIncomingTopicAliasValue = bridgeConfig->maxIncomingTopicAliases;
+
+        if (bridgeConfig->tlsMode > BridgeTLSMode::None)
+        {
+            const int mode = bridgeConfig->tlsMode == BridgeTLSMode::On ? SSL_VERIFY_PEER : SSL_VERIFY_NONE;
+            ioWrapper.setSslVerify(mode, bridgeConfig->address);
+        }
+    }
+}
+
+bool Client::isOutgoingConnection() const
+{
+    return this->outgoingConnection;
+}
+
+std::shared_ptr<BridgeState> Client::getBridgeConfig()
+{
+    return this->bridgeState.lock();
+}
+
+void Client::setBridgeConnected()
+{
+    this->outgoingConnectionEstablished = true;
+
+    std::shared_ptr<BridgeState> bridge = this->bridgeState.lock();
+
+    if (bridge)
+    {
+        bridge->dnsResults.clear();
+    }
+
+    if (isSsl())
+        this->startOrContinueSslHandshake();
+    else
+        this->writeLoginPacket();
+}
+
+bool Client::getOutgoingConnectionEstablished() const
+{
+    return this->outgoingConnectionEstablished;
+}
+
+void Client::setBridge(bool val)
+{
+    this->bridge = val;
+
+    if (!session)
+        return;
+
+    session->setBridge(val);
+}
+
 #ifndef NDEBUG
 /**
  * @brief IoWrapper::setFakeUpgraded().
@@ -728,6 +875,17 @@ void Client::setClientProperties(ProtocolVersion protocolVersion, const std::str
     this->maxOutgoingTopicAliasValue = maxOutgoingTopicAliasValue;
 }
 
+void Client::setClientProperties(bool connectPacketSeen, uint16_t keepalive, uint32_t maxOutgoingPacketSize, uint16_t maxOutgoingTopicAliasValue)
+{
+    logger->log(LOG_DEBUG) << "Client '" << repr() << "' properties set: keep_alive=" << keepalive << ", max_outgoing_packet_size=" << maxOutgoingPacketSize
+                           << ", max_outgoing_topic_aliases=" << maxOutgoingTopicAliasValue << ".";
+
+    this->connectPacketSeen = connectPacketSeen;
+    this->keepalive = keepalive;
+    this->maxOutgoingPacketSize = maxOutgoingPacketSize;
+    this->maxOutgoingTopicAliasValue = maxOutgoingTopicAliasValue;
+}
+
 void Client::setWill(WillPublish &&willPublish)
 {
     this->willPublish = std::make_shared<WillPublish>(std::move(willPublish));
@@ -753,19 +911,23 @@ void Client::setDisconnectReason(const std::string &reason)
 }
 
 /**
- * @brief Client::getSecondsTillKillTime gets the amount of seconds from now at which this client should be killed when it was quiet.
+ * @brief Client::getSecondsTillKeepAliveAction gets the amount of seconds from now at which this client should be killed when
+ * it was quiet, or in case of outgoing client, when a new ping is required.
  * @return
  *
  * "If the Keep Alive value is non-zero and the Server does not receive an MQTT Control Packet from the Client within one and a
  * half times the Keep Alive time period, it MUST close the Network Connection to the Client as if the network had failed [MQTT-3.1.2-22].
  */
-std::chrono::seconds Client::getSecondsTillKillTime() const
+std::chrono::seconds Client::getSecondsTillKeepAliveAction() const
 {
     if (!this->authenticated)
         return std::chrono::seconds(30);
 
     if (this->keepalive == 0)
         return std::chrono::seconds(0);
+
+    if (isOutgoingConnection())
+        return std::chrono::seconds(this->keepalive);
 
     const uint32_t timeOfSilenceMeansKill = this->keepalive + (this->keepalive / 2) + 2;
     std::chrono::time_point<std::chrono::steady_clock> killTime = this->lastActivity + std::chrono::seconds(timeOfSilenceMeansKill);

@@ -16,6 +16,7 @@ See LICENSE for license details.
 #include <fstream>
 
 #include "utils.h"
+#include "dnsresolver.h"
 
 MainTests::MainTests()
 {

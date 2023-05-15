@@ -21,3 +21,12 @@ ConnectData::ConnectData()
     session_expire = settings->getExpireSessionAfterSeconds();
     max_outgoing_packet_size = settings->maxPacketSize;
 }
+
+ConnAckData::ConnAckData()
+{
+    const Settings *settings = ThreadGlobals::getSettings();
+
+    client_receive_max = settings->maxQosMsgPendingPerClient;
+    session_expire = settings->getExpireSessionAfterSeconds();
+    max_outgoing_packet_size = settings->maxPacketSize;
+}

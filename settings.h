@@ -18,6 +18,7 @@ See LICENSE for license details.
 #include "mosquittoauthoptcompatwrap.h"
 #include "listener.h"
 #include "network.h"
+#include "bridgeconfig.h"
 
 #define ABSOLUTE_MAX_PACKET_SIZE 268435455
 
@@ -41,6 +42,10 @@ class Settings
 
     AuthOptCompatWrap authOptCompatWrap;
     std::unordered_map<std::string, std::string> flashmqpluginOpts;
+
+    std::list<std::shared_ptr<BridgeConfig>> bridges;
+
+    void checkUniqueBridgeNames() const;
 
 public:
     // Actual config options with their defaults.
@@ -87,12 +92,15 @@ public:
 
     std::string getRetainedMessagesDBFile() const;
     std::string getSessionsDBFile() const;
+    std::string getBridgeNamesDBFile() const;
 
     uint32_t getExpireSessionAfterSeconds() const;
 
     bool matchAddrWithSetRealIpFrom(const struct sockaddr *addr) const;
     bool matchAddrWithSetRealIpFrom(const struct sockaddr_in6 *addr) const;
     bool matchAddrWithSetRealIpFrom(const struct sockaddr_in *addr) const;
+
+    std::list<std::shared_ptr<BridgeConfig>> stealBridges();
 };
 
 #endif // SETTINGS_H

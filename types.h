@@ -308,9 +308,11 @@ struct Connect
 {
     const ProtocolVersion protocolVersion;
     bool clean_start = true;
+    bool bridgeProtocolBit = false;
     std::string clientid;
     std::string username;
     std::string password;
+    uint16_t keepalive = 60;
     std::shared_ptr<WillPublish> will;
     std::shared_ptr<Mqtt5PropertyBuilder> propertyBuilder;
 
