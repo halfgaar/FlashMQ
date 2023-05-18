@@ -287,9 +287,8 @@ void splitTopic(const std::string &topic, std::vector<std::string> &output)
 void splitToVector(const std::string &input, std::vector<std::string> &output, const char sep, size_t max, bool keep_empty_parts)
 {
     output.clear();
-    const auto subtopic_count = std::count(input.begin(), input.end(), sep) + 1;
+    output.reserve(16);
 
-    output.reserve(subtopic_count);
     size_t start = 0;
     size_t end;
 
