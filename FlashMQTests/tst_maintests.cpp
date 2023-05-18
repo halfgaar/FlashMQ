@@ -499,6 +499,9 @@ void MainTests::test_sse_split()
     topics.push_back("//1234567890abcdef/1234567890abcdef/");
     topics.push_back("/");
     topics.push_back("");
+    topics.push_back("//");
+    topics.push_back("////");
+    topics.push_back("/////////////////");
 
     for (const std::string &t : topics)
     {

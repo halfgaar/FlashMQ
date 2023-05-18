@@ -6,7 +6,6 @@
 #include <cassert>
 
 SimdUtils::SimdUtils() :
-    subtopicParseMem(TOPIC_MEMORY_LENGTH),
     topicCopy(TOPIC_MEMORY_LENGTH)
 {
 
@@ -17,34 +16,52 @@ SimdUtils::SimdUtils() :
  * @param topic
  * @param output is cleared and emplaced in.
  * @return
+ *
+ * The SSE instructions are placed so that the CPU pipeline can continue with other things without having to wait for the
+ * result (because _mm_loadu_si128 and _mm_cmpestri have a latency of 6 and 18, respectively).
+ *
+ * Unfortunately, the string construction is the slowest. Without the emplace, 15 million topics take
+ * about 1000 ms. Without, 180 ms. (On a 11th Gen Intel(R) Core(TM) i5-1155G7 @ 2.50GHz).
  */
 std::vector<std::string> *SimdUtils::splitTopic(const std::string &topic, std::vector<std::string> &output)
 {
+    const char *src_mem = topic.data();
+    __m128i loaded = _mm_loadu_si128((__m128i*)src_mem);
+
     output.clear();
+    output.reserve(16);
 
-    const int s = topic.size();
-    std::memcpy(topicCopy.data(), topic.c_str(), s+1);
-    std::memset(&topicCopy.data()[s], 0, 16);
-    int n = 0;
-    int carryi = 0;
-    while (n <= s)
+    const int slen = topic.size();
+
+    int start = 0;
+    int pos = 0;
+    int sub_len = 0;
+    while (pos <= slen) // The 'equals' part looks weird, but it's necessary for strings ending in the separator.
     {
-        const char *i = &topicCopy.data()[n];
-        __m128i loaded = _mm_loadu_si128((__m128i*)i);
-
-        int len_left = s - n;
+        int len_left = slen - pos;
         assert(len_left >= 0);
         int index = _mm_cmpestri(slashes, 1, loaded, len_left, 0);
-        std::memcpy(&subtopicParseMem[carryi], i, index);
-        carryi += std::min<int>(index, len_left);
+        sub_len += std::min<int>(index, len_left);
 
-        n += index;
+        pos += index;
 
-        if (index < 16 || n >= s)
+        if (index < 16 || pos >= slen)
         {
-            output.emplace_back(subtopicParseMem.data(), carryi);
-            carryi = 0;
-            n++;
+            pos++; // skip over the seperator
+            if (pos < slen)
+            {
+                loaded = _mm_loadu_si128((__m128i*)(src_mem + pos));
+            }
+            assert(start <= slen);
+            assert(start + sub_len <= slen);
+            output.emplace_back(src_mem + start, sub_len); // Takes the bulk of the time, about 80%.
+            sub_len = 0;
+            start = pos;
+        }
+        else
+        {
+            assert(pos < slen);
+            loaded = _mm_loadu_si128((__m128i*)(src_mem + pos));
         }
     }
 
