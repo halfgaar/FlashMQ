@@ -33,8 +33,10 @@ mosquitto_auth_opt::mosquitto_auth_opt(mosquitto_auth_opt &&other)
 
 mosquitto_auth_opt::mosquitto_auth_opt(const mosquitto_auth_opt &other)
 {
-    this->key = strdup(other.key);
-    this->value = strdup(other.value);
+    if (other.key)
+        this->key = strdup(other.key);
+    if (other.value)
+        this->value = strdup(other.value);
 }
 
 mosquitto_auth_opt::~mosquitto_auth_opt()
