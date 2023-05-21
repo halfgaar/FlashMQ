@@ -161,6 +161,8 @@ std::list<ScopedSocket> MainApp::createListenSocket(const std::shared_ptr<Listen
     if (listener->port <= 0)
         return result;
 
+    bool error = false;
+
     for (ListenerProtocol p : std::list<ListenerProtocol>({ ListenerProtocol::IPv4, ListenerProtocol::IPv6}))
     {
         std::string pname = p == ListenerProtocol::IPv4 ? "IPv4" : "IPv6";
@@ -207,9 +209,12 @@ std::list<ScopedSocket> MainApp::createListenSocket(const std::shared_ptr<Listen
         {
             logger->logf(LOG_ERR, "Creating %s %s listener on [%s]:%d failed: %s", pname.c_str(), listener->getProtocolName().c_str(),
                          listener->getBindAddress(p).c_str(), listener->port, ex.what());
-            return std::list<ScopedSocket>();
+            error = true;
         }
     }
+
+    if (error)
+        return std::list<ScopedSocket>();
 
     return result;
 }
@@ -465,9 +470,17 @@ void MainApp::start()
     std::map<int, std::shared_ptr<Listener>> listenerMap; // For finding listeners by fd.
     std::list<ScopedSocket> activeListenSockets; // For RAII/ownership
 
+    bool listenerCreateError = false;
+
     for(std::shared_ptr<Listener> &listener : this->listeners)
     {
         std::list<ScopedSocket> scopedSockets = createListenSocket(listener);
+
+        if (scopedSockets.empty())
+        {
+            listenerCreateError = true;
+            continue;
+        }
 
         for (ScopedSocket &scopedSocket : scopedSockets)
         {
@@ -475,6 +488,11 @@ void MainApp::start()
                 listenerMap[scopedSocket.socket] = listener;
             activeListenSockets.push_back(std::move(scopedSocket));
         }
+    }
+
+    if (listenerCreateError)
+    {
+        throw std::runtime_error("Some listeners failed.");
     }
 
 #ifdef NDEBUG
