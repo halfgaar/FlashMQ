@@ -188,8 +188,10 @@ void Logger::writeLog()
 {
     maskAllSignalsCurrentThread();
 
+    int graceCounter = 0;
+
     LogLine line;
-    while(running)
+    while(running || (!lines.empty() && graceCounter++ < 1000 ))
     {
         sem_wait(&linesPending);
 

@@ -85,10 +85,11 @@ int register_signal_handers()
 
 int main(int argc, char *argv[])
 {
+    Logger *logger = nullptr;
     try
     {
+        logger = Logger::getInstance();
         MainApp::initMainApp(argc, argv);
-        Logger *logger = Logger::getInstance();
         mainApp = MainApp::getMainApp();
         check<std::runtime_error>(register_signal_handers());
 
@@ -106,12 +107,18 @@ int main(int argc, char *argv[])
     }
     catch (ConfigFileException &ex)
     {
+        if (logger)
+            logger->quit();
+
         // Not using the logger here, because we may have had all sorts of init errors while setting it up.
         std::cerr << ex.what() << std::endl;
         return 99;
     }
     catch (std::exception &ex)
     {
+        if (logger)
+            logger->quit();
+
         // Not using the logger here, because we may have had all sorts of init errors while setting it up.
         std::cerr << ex.what() << std::endl;
         return 1;
