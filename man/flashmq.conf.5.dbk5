@@ -190,6 +190,26 @@
           </para>
         </listitem>
       </varlistentry>
+      <varlistentry xml:id="client_initial_buffer_size">
+        <term><option>client_initial_buffer_size</option> <replaceable>bytes</replaceable></term>
+        <listitem>
+          <para>
+            The buffers for reading and writing, also for websockets when relevant, start out with a particular size and double when they need to grow. If you know your clients send bulks of a particular size, it helps to set this to match, to avoid constant memory reallocation. The default value is set conservatively, for scenario's with millions of clients.
+          </para>
+          <para>
+            After buffers have grown, they are eventually reset to their original size when possible.
+          </para>
+          <para>
+            Also see <option>client_max_write_buffer_size</option> and <option>max_packet_size</option>.
+          </para>
+          <para>
+            Value must be a power of two.
+          </para>
+          <para>
+            Default value: <literal>1024</literal>
+          </para>
+        </listitem>
+      </varlistentry>
       <varlistentry xml:id="mosquitto_password_file">
         <term><option>mosquitto_password_file</option> <replaceable>/foo/bar/mosquitto_password_file</replaceable></term>
         <listitem>

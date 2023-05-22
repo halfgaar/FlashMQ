@@ -245,6 +245,26 @@
         </dd>
       
       
+        <dt id="client_initial_buffer_size">client_initial_buffer_size <code class="replaceable">bytes</code><a class="hash-anchor" href="#client_initial_buffer_size">#</a></dt>
+        <dd>
+          <p>
+            The buffers for reading and writing, also for websockets when relevant, start out with a particular size and double when they need to grow. If you know your clients send bulks of a particular size, it helps to set this to match, to avoid constant memory reallocation. The default value is set conservatively, for scenario's with millions of clients.
+          </p>
+          <p>
+            After buffers have grown, they are eventually reset to their original size when possible.
+          </p>
+          <p>
+            Also see client_max_write_buffer_size and max_packet_size.
+          </p>
+          <p>
+            Value must be a power of two.
+          </p>
+          <p>
+            Default value: <code class="literal">1024</code>
+          </p>
+        </dd>
+      
+      
         <dt id="mosquitto_password_file">mosquitto_password_file <code class="replaceable">/foo/bar/mosquitto_password_file</code><a class="hash-anchor" href="#mosquitto_password_file">#</a></dt>
         <dd>
           <p>
