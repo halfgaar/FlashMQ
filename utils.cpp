@@ -363,16 +363,12 @@ std::string getSecureRandomString(const ssize_t len)
         throw std::runtime_error("Error requesting random data");
     }
 
-    const std::string possibleCharacters("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrtsuvwxyz1234567890");
-    const int possibleCharactersCount = possibleCharacters.length();
+    static constexpr std::string_view possibleCharacters{"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrtsuvwxyz1234567890"};
+    static constexpr size_t possibleCharactersCount = possibleCharacters.size();
 
-    std::string randomString;
-    for(const uint64_t c : buf)
-    {
-        unsigned int index = c % possibleCharactersCount;
-        char nextChar = possibleCharacters.at(index);
-        randomString.push_back(nextChar);
-    }
+    std::string randomString(buf.size(), '\0');
+    std::transform(buf.begin(), buf.end(), randomString.begin(),
+                   [&](uint64_t v){ return possibleCharacters[v % possibleCharactersCount];});
     return randomString;
 }
 
