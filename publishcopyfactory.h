@@ -40,7 +40,7 @@ public:
     std::shared_ptr<Client> getSender();
     const std::vector<std::pair<std::string, std::string>> *getUserProperties() const;
     void setSharedSubscriptionHashKey(size_t hash);
-    size_t getSharedSubscriptionHashKey() const;
+    size_t getSharedSubscriptionHashKey() const { return sharedSubscriptionHashKey; }
 
 };
 

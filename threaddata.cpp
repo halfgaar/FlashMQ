@@ -677,9 +677,9 @@ void ThreadData::doKeepAliveCheck()
 
                 slotsProcessed++;
 
-                std::vector<KeepAliveCheck> &checks = pos->second;
+                std::vector<KeepAliveCheck> const &checks = pos->second;
 
-                for (KeepAliveCheck &k : checks)
+                for (KeepAliveCheck const &k : checks)
                 {
                     std::shared_ptr<Client> client = k.client.lock();
                     if (client)

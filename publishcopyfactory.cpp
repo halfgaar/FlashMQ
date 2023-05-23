@@ -163,7 +163,3 @@ void PublishCopyFactory::setSharedSubscriptionHashKey(size_t hash)
     this->sharedSubscriptionHashKey = hash;
 }
 
-size_t PublishCopyFactory::getSharedSubscriptionHashKey() const
-{
-    return this->sharedSubscriptionHashKey;
-}
