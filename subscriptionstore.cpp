@@ -611,8 +611,8 @@ void SubscriptionStore::giveClientRetainedMessagesRecursively(std::vector<std::s
                 Publish publish = rm.publish;
                 if (auth.aclCheck(publish, publish.payload) == AuthResult::success)
                 {
-                   packetList.push_front(std::move(publish));
-                   count++;
+                    packetList.push_front(std::move(publish));
+                    count++;
                 }
             }
         }
