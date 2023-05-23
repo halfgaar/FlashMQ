@@ -222,7 +222,7 @@ public:
     void constructPropertyBuilder();
     bool hasUserProperties() const;
     bool hasExpired() const;
-    const std::chrono::seconds getAge() const;
+    std::chrono::seconds getAge() const;
     std::chrono::time_point<std::chrono::steady_clock> expiresAt() const;
     std::vector<std::pair<std::string, std::string>> *getUserProperties();
 
@@ -230,7 +230,7 @@ public:
     void setExpireAfterToCeiling(uint32_t s);
     bool getHasExpireInfo() const;
     std::chrono::seconds getExpiresAfter() const;
-    const std::chrono::time_point<std::chrono::steady_clock> getCreatedAt() const;
+    std::chrono::time_point<std::chrono::steady_clock> getCreatedAt() const;
 };
 
 /**

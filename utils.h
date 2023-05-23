@@ -51,7 +51,7 @@ template<typename T> int check(int rc)
 }
 
 std::list<std::string> split(const std::string &input, const char sep, size_t max = std::numeric_limits<int>::max(), bool keep_empty_parts = true);
-const std::vector<std::string> splitToVector(const std::string &input, const char sep, size_t max = std::numeric_limits<int>::max(), bool keep_empty_parts = true);
+std::vector<std::string> splitToVector(const std::string &input, const char sep, size_t max = std::numeric_limits<int>::max(), bool keep_empty_parts = true);
 void splitToVector(const std::string &input, std::vector<std::string> &output, const char sep, size_t max = std::numeric_limits<int>::max(), bool keep_empty_parts = true);
 void splitTopic(const std::string &topic, std::vector<std::string> &output);
 
@@ -126,9 +126,9 @@ template<typename ex> void checkWritableDir(const std::string &path)
     }
 }
 
-const std::string websocketCloseCodeToString(uint16_t code);
+std::string websocketCloseCodeToString(uint16_t code);
 
-const std::string protocolVersionString(ProtocolVersion p);
+std::string protocolVersionString(ProtocolVersion p);
 
 uint32_t ageFromTimePoint(const std::chrono::time_point<std::chrono::steady_clock> &point);
 std::chrono::time_point<std::chrono::steady_clock> timepointFromAge(const uint32_t age);

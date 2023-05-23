@@ -304,7 +304,7 @@ void splitToVector(const std::string &input, std::vector<std::string> &output, c
         output.push_back(input.substr(start, npos));
 }
 
-const std::vector<std::string> splitToVector(const std::string &input, const char sep, size_t max, bool keep_empty_parts)
+std::vector<std::string> splitToVector(const std::string &input, const char sep, size_t max, bool keep_empty_parts)
 {
     std::vector<std::string> result;
     splitToVector(input, result, sep, max, keep_empty_parts);
@@ -712,7 +712,7 @@ std::string sockaddrToString(const sockaddr *addr)
     return "[unknown address]";
 }
 
-const std::string websocketCloseCodeToString(uint16_t code)
+std::string websocketCloseCodeToString(uint16_t code)
 {
     switch (code) {
     case 1000:
@@ -724,7 +724,7 @@ const std::string websocketCloseCodeToString(uint16_t code)
     }
 }
 
-const std::string protocolVersionString(ProtocolVersion p)
+std::string protocolVersionString(ProtocolVersion p)
 {
     switch (p)
     {
