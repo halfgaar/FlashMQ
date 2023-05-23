@@ -278,9 +278,9 @@ Publish &Publish::operator=(const Publish &other)
 const std::vector<std::string> &Publish::getSubtopics()
 {
     if (subtopics.empty())
-        splitTopic(this->topic, this->subtopics);
+        subtopics = splitTopic(this->topic);
 
-    return this->subtopics;
+    return subtopics;
 }
 
 WillPublish::WillPublish(const Publish &other) :

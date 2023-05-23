@@ -551,7 +551,7 @@ void MainApp::start()
             websocketsubscriber->setAuthenticated(true);
             websocketsubscriber->setFakeUpgraded();
             subscriptionStore->registerClientAndKickExistingOne(websocketsubscriber);
-            splitTopic("#", subtopics);
+            subtopics = splitTopic("#");
             subscriptionStore->addSubscription(websocketsubscriber, subtopics, 0, empty);
 
             subscriptionStore->registerClientAndKickExistingOne(subscriber);

@@ -44,17 +44,17 @@ thread_local SimdUtils simdUtils;
 std::list<std::string> split(const std::string &input, const char sep, size_t max, bool keep_empty_parts)
 {
     std::list<std::string> list;
-    size_t start = 0;
-    size_t end;
+    std::string::const_iterator start = input.begin();
+    const std::string::const_iterator end = input.end();
+    std::string::const_iterator sep_pos;
 
-    while (list.size() < max && (end = input.find(sep, start)) != std::string::npos)
-    {
-        if (start != end || keep_empty_parts)
-            list.push_back(input.substr(start, end - start));
-        start = end + 1; // increase by length of seperator.
+    while (list.size() < max && (sep_pos = std::find(start, end, sep)) != end) {
+        if (start != sep_pos || keep_empty_parts)
+            list.emplace_back(start, sep_pos);
+        start = sep_pos + 1; // increase by length of separator
     }
-    if (start != input.size() || keep_empty_parts)
-        list.push_back(input.substr(start, std::string::npos));
+    if (start != end || keep_empty_parts)
+        list.emplace_back(start, end);
     return list;
 }
 
@@ -68,15 +68,12 @@ bool topicsMatch(const std::string &subscribeTopic, const std::string &publishTo
     if (!subscribeTopic.empty() && !publishTopic.empty() && publishTopic[0] == '$' && subscribeTopic[0] != '$')
         return false;
 
-    subscribeParts.clear();
-    publishParts.clear();
-
 #ifdef __SSE4_2__
-    simdUtils.splitTopic(subscribeTopic, subscribeParts);
-    simdUtils.splitTopic(publishTopic, publishParts);
+    subscribeParts = simdUtils.splitTopic(subscribeTopic);
+    publishParts = simdUtils.splitTopic(publishTopic);
 #else
-    splitToVector(subscribeTopic, subscribeParts, '/');
-    splitToVector(publishTopic, publishParts, '/');
+    subscribeParts = splitToVector(subscribeTopic, '/');
+    publishParts = splitToVector(publishTopic, '/');
 #endif
 
     auto subscribe_itr = subscribeParts.begin();
@@ -275,41 +272,42 @@ bool containsDangerousCharacters(const std::string &s)
     return false;
 }
 
-void splitTopic(const std::string &topic, std::vector<std::string> &output)
+std::vector<std::string> splitTopic(const std::string &topic)
 {
 #ifdef __SSE4_2__
-    simdUtils.splitTopic(topic, output);
+    return simdUtils.splitTopic(topic);
 #else
-    splitToVector(topic, output, '/');
+    std::vector<std::string> output;
+    output.reserve(16);
+    std::string::const_iterator start = topic.begin();
+    std::string::const_iterator sep_pos;
+
+    do {
+        sep_pos = std::find(start, topic.end(), '/');
+        output.emplace_back(start, sep_pos);
+        start = sep_pos + 1;
+    } while (sep_pos != topic.end());
+
+    return output;
 #endif
-}
-
-void splitToVector(const std::string &input, std::vector<std::string> &output, const char sep, size_t max, bool keep_empty_parts)
-{
-    output.clear();
-    const auto subtopic_count = std::count(input.begin(), input.end(), sep) + 1;
-
-    output.reserve(subtopic_count);
-    size_t start = 0;
-    size_t end;
-
-    const auto npos = std::string::npos;
-
-    while (output.size() < max && (end = input.find(sep, start)) != npos)
-    {
-        if (start != end || keep_empty_parts)
-            output.push_back(input.substr(start, end - start));
-        start = end + 1; // increase by length of seperator.
-    }
-    if (start != input.size() || keep_empty_parts)
-        output.push_back(input.substr(start, npos));
 }
 
 std::vector<std::string> splitToVector(const std::string &input, const char sep, size_t max, bool keep_empty_parts)
 {
-    std::vector<std::string> result;
-    splitToVector(input, result, sep, max, keep_empty_parts);
-    return result;
+    std::vector<std::string> output;
+    output.reserve(16);
+    std::string::const_iterator start = input.begin();
+    std::string::const_iterator sep_pos;
+
+    while (output.size() < max && (sep_pos = std::find(start, input.end(), sep)) != input.end()) {
+        if (start != sep_pos || keep_empty_parts)
+            output.emplace_back(start, sep_pos);
+        start = sep_pos + 1; // increase by length of separator
+    }
+    if (start != input.end() || keep_empty_parts)
+        output.emplace_back(start, input.end());
+
+    return output;
 }
 
 void ltrim(std::string &s)

@@ -1079,11 +1079,10 @@ void MqttPacket::handleSubscribe()
         const uint8_t subscriptionOptions = readUint8();
         uint8_t qos = subscriptionOptions & 0x03;
 
-        std::vector<std::string> subtopics;
-        splitTopic(topic, subtopics);
+        std::vector<std::string> subtopics = splitTopic(topic);
 
         if (authentication.alterSubscribe(sender->getClientId(), topic, subtopics, qos, getUserProperties()))
-            splitTopic(topic, subtopics);
+            subtopics = splitTopic(topic);
 
         if (topic.empty())
             throw ProtocolError("Subscribe topic is empty.", ReasonCodes::MalformedPacket);

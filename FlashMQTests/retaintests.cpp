@@ -451,16 +451,14 @@ void MainTests::test_retained_tree_purging()
                 toDeleteCount++;
             }
 
-            std::vector<std::string> subtopics;
-            splitTopic(topic, subtopics);
+            std::vector<std::string> subtopics = splitTopic(topic);
             store->setRetainedMessage(pub, subtopics);
         }
     }
 
     {
         Publish pubStray("retain0/bla5", "willnotexpire", 0);
-        std::vector<std::string> subtopics;
-        splitTopic(pubStray.topic, subtopics);
+        std::vector<std::string> subtopics = splitTopic(pubStray.topic);
         store->setRetainedMessage(pubStray, subtopics);
     }
 

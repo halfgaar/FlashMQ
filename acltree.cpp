@@ -126,7 +126,7 @@ AclTree::AclTree()
  */
 void AclTree::addTopic(const std::string &pattern, AclGrant aclGrant, AclTopicType type, const std::string &username)
 {
-    const std::vector<std::string> subtopics = splitToVector(pattern, '/');
+    const std::vector<std::string> subtopics = splitTopic(pattern);
 
     AclNode *curEnd = &rootAnonymous;
 

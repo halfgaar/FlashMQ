@@ -202,8 +202,7 @@ void SubscriptionStore::addSubscription(std::shared_ptr<Client> &client, const s
 
 void SubscriptionStore::removeSubscription(std::shared_ptr<Client> &client, const std::string &topic)
 {
-    std::vector<std::string> subtopics;
-    splitTopic(topic, subtopics);
+    std::vector<std::string> subtopics = splitTopic(topic);
 
     std::string shareName;
     parseSubscriptionShare(subtopics, shareName);
@@ -1243,8 +1242,6 @@ void SubscriptionStore::loadSessionsAndSubscriptions(const std::string &filePath
             queueWillMessage(session->getWill(), session);
         }
 
-        std::vector<std::string> subtopics;
-
         for (auto &pair : loadedData.subscriptions)
         {
             const std::string &topic = pair.first;
@@ -1252,8 +1249,7 @@ void SubscriptionStore::loadSessionsAndSubscriptions(const std::string &filePath
 
             for (const SubscriptionForSerializing &sub : subs)
             {
-                splitTopic(topic, subtopics);
-                SubscriptionNode *subscriptionNode = getDeepestNode(subtopics);
+                SubscriptionNode *subscriptionNode = getDeepestNode(splitTopic(topic));
 
                 auto session_it = sessionsByIdConst.find(sub.clientId);
                 if (session_it != sessionsByIdConst.end())

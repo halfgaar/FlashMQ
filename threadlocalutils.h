@@ -4,6 +4,7 @@
 #ifdef __SSE4_2__
 
 #include <vector>
+#include <array>
 #include <string>
 #include <immintrin.h>
 
@@ -13,8 +14,7 @@
 
 class SimdUtils
 {
-    std::vector<char> subtopicParseMem;
-    std::vector<char> topicCopy;
+    alignas(64) std::array<char, TOPIC_MEMORY_LENGTH> topicCopy;
     __m128i slashes = _mm_set1_epi8('/');
     __m128i lowerBound = _mm_set1_epi8(0x20);
     __m128i lastAsciiChar = _mm_set1_epi8(0x7E);
@@ -23,9 +23,9 @@ class SimdUtils
     __m128i plus = _mm_set1_epi8('+');
 
 public:
-    SimdUtils();
+    SimdUtils() = default;
 
-    std::vector<std::string> *splitTopic(const std::string &topic, std::vector<std::string> &output);
+    std::vector<std::string> splitTopic(const std::string &topic);
     bool isValidUtf8(const std::string &s, bool alsoCheckInvalidPublishChars = false);
 };
 

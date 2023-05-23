@@ -483,7 +483,6 @@ void MainTests::test_acl_patterns_clientid()
 void MainTests::test_sse_split()
 {
     SimdUtils data;
-    std::vector<std::string> output;
 
     std::list<std::string> topics;
     topics.push_back("one/two/threeabcasdfasdf/koe");
@@ -502,7 +501,7 @@ void MainTests::test_sse_split()
 
     for (const std::string &t : topics)
     {
-        data.splitTopic(t, output);
+        std::vector<std::string> output = data.splitTopic(t);
         QCOMPARE(output, splitToVector(t, '/'));
     }
 }
@@ -981,20 +980,20 @@ void MainTests::testSavingSessions()
 
         const std::string topic1 = "one/two/three";
         std::vector<std::string> subtopics;
-        splitTopic(topic1, subtopics);
+        subtopics = splitTopic(topic1);
         store->addSubscription(c1, subtopics, 0);
 
         const std::string topic2 = "four/five/six";
-        splitTopic(topic2, subtopics);
+        subtopics = splitTopic(topic2);
         store->addSubscription(c2, subtopics, 0);
         store->addSubscription(c1, subtopics, 0);
 
         const std::string topic3 = "";
-        splitTopic(topic3, subtopics);
+        subtopics = splitTopic(topic3);
         store->addSubscription(c2, subtopics, 0);
 
         const std::string topic4 = "#";
-        splitTopic(topic4, subtopics);
+        subtopics = splitTopic(topic4);
         store->addSubscription(c2, subtopics, 0);
 
         Publish publish("a/b/c", "Hello Barry", 1);
