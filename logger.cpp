@@ -25,9 +25,6 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 #include "exceptions.h"
 #include "utils.h"
 
-Logger *Logger::instance = nullptr;
-std::string Logger::logPath = "";
-
 LogLine::LogLine(std::string &&line, bool alsoToStdOut) :
     line(line),
     alsoToStdOut(alsoToStdOut)
@@ -72,6 +69,9 @@ Logger::Logger()
 
 Logger::~Logger()
 {
+    if (running)
+        quit();
+
     if (file)
     {
         fclose(file);
@@ -108,9 +108,8 @@ std::string_view Logger::getLogLevelString(int level) const
 
 Logger *Logger::getInstance()
 {
-    if (instance == nullptr)
-        instance = new Logger();
-    return instance;
+    static Logger instance;
+    return &instance;
 }
 
 void Logger::logf(int level, const char *str, ...)
@@ -154,7 +153,7 @@ void Logger::noLongerLogToStd()
 
 void Logger::setLogPath(const std::string &path)
 {
-    Logger::logPath = path;
+    this->logPath = path;
 }
 
 void Logger::setFlags(bool logDebug, bool logSubscriptions, bool quiet)
@@ -181,7 +180,8 @@ void Logger::quit()
 {
     running = false;
     sem_post(&linesPending);
-    writerThread.join();
+    if (writerThread.joinable())
+        writerThread.join();
 }
 
 void Logger::writeLog()

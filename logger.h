@@ -48,8 +48,7 @@ public:
 
 class Logger
 {
-    static Logger *instance;
-    static std::string logPath;
+    std::string logPath;
     int curLogLevel = LOG_ERR | LOG_WARNING | LOG_NOTICE | LOG_INFO | LOG_SUBSCRIBE | LOG_UNSUBSCRIBE ;
     std::mutex logMutex;
     std::queue<LogLine> lines;
