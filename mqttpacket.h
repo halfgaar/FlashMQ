@@ -78,6 +78,7 @@ class MqttPacket
     void writeProperties(const std::shared_ptr<Mqtt5PropertyBuilder> &properties);
     void writeVariableByteInt(const VariableByteInt &v);
     void writeString(const std::string &s);
+    void writeString(std::string_view s);
     uint16_t readTwoBytesToUInt16();
     uint32_t readFourBytesToUint32();
     size_t remainingAfterPos();

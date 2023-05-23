@@ -311,7 +311,7 @@ struct Connect
 
     Connect(ProtocolVersion protocolVersion, const std::string &clientid);
     size_t getLengthWithoutFixedHeader() const;
-    std::string getMagicString() const;
+    std::string_view getMagicString() const;
     void constructPropertyBuilder();
 };
 

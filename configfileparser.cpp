@@ -99,7 +99,7 @@ void ConfigFileParser::checkFileOrItsDirWritable(const std::string &filepath) co
         }
         return;
     }
-    std::string dirname = dirnameOf(filepath);
+    std::string dirname(dirnameOf(filepath));
 
     if (access(dirname.c_str(), W_OK) != 0)
     {

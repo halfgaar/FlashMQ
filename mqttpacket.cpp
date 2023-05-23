@@ -265,7 +265,7 @@ MqttPacket::MqttPacket(const Connect &connect) :
 
     first_byte = static_cast<char>(packetType) << 4;
 
-    const std::string magicString = connect.getMagicString();
+    const std::string_view magicString = connect.getMagicString();
     writeString(magicString);
 
     writeByte(static_cast<char>(protocolVersion));
@@ -1763,6 +1763,12 @@ void MqttPacket::writeString(const std::string &s)
 {
     writeUint16(s.length());
     writeBytes(s.c_str(), s.length());
+}
+
+void MqttPacket::writeString(std::string_view s)
+{
+    writeUint16(s.length());
+    writeBytes(s.data(), s.length());
 }
 
 uint16_t MqttPacket::readTwoBytesToUInt16()

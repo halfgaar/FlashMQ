@@ -81,7 +81,7 @@ Logger::~Logger()
     sem_close(&linesPending);
 }
 
-std::string Logger::getLogLevelString(int level) const
+std::string_view Logger::getLogLevelString(int level) const
 {
     switch (level)
     {

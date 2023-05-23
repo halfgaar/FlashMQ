@@ -91,7 +91,7 @@ void testSsl(const std::string &fullchain, const std::string &privkey);
 
 std::string formatString(const std::string str, ...);
 
-std::string dirnameOf(const std::string& fname);
+std::string_view dirnameOf(std::string_view fname);
 
 BindAddr getBindAddr(int family, const std::string &bindAddress, int port);
 

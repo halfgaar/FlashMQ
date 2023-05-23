@@ -62,7 +62,7 @@ class Logger
 
     Logger();
     ~Logger();
-    std::string getLogLevelString(int level) const;
+    std::string_view getLogLevelString(int level) const;
     void reOpen();
     void writeLog();
 

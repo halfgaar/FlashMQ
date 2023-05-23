@@ -447,7 +447,7 @@ size_t Connect::getLengthWithoutFixedHeader() const
     return result;
 }
 
-std::string Connect::getMagicString() const
+std::string_view Connect::getMagicString() const
 {
     if (protocolVersion <= ProtocolVersion::Mqtt31)
         return "MQIsdp";
