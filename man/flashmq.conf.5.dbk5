@@ -416,7 +416,7 @@
               The header <replaceable>X-Forwarded-For</replaceable> is not used, because that's designed to contain a list of addresses, if applicable.
           </para>
           <para>
-            As a side note about using a proxy on your listener; you can only have an absolute max of 65535 connections between two IP addresses (and the practical limit is lower), so if you need more, you'll have to use multiple IP addresses.
+            As a side note about using a proxy on your listener; you can only have an absolute max of 65535 connections to an IP+port combination (and the practical limit is lower). If you need more, you have to set up multiple listeners. This can be multiple IP addresses, or simply multiple ports.
           </para>
         </listitem>
       </varlistentry>
@@ -556,6 +556,9 @@
           </para>
           <para>
             Note that HAProxy's server health checks only started using the 'local' specifier as of version 2.4. This means earlier version will pretend to be a client and break the connection, causing log spam.
+          </para>
+          <para>
+            As a side note about using a proxy on your listener; you can only have an absolute max of 65535 connections to an IP+port combination (and the practical limit is lower). If you need more, you have to set up multiple listeners. This can be multiple IP addresses, or simply multiple ports.
           </para>
           <para>
             See <link xlink:href="http://www.haproxy.org/">haproxy.org</link>.

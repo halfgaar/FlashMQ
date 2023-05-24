@@ -5,7 +5,7 @@
 \\$2 \(la\\$1\(ra\\$3
 ..
 .if \n(.g .mso www.tmac
-.TH flashmq.conf 5 "22 May 2023" "" ""
+.TH flashmq.conf 5 "25 May 2023" "" ""
 .SH NAME
 flashmq.conf \- FlashMQ configuration file format
 .SH SYNOPSIS
@@ -205,7 +205,7 @@ You can repeat the option to allow for multiple addresses. Valid notations are \
 
 The header \fIX-Forwarded-For\fR is not used, because that's designed to contain a list of addresses, if applicable.
 
-As a side note about using a proxy on your listener; you can only have an absolute max of 65535 connections between two IP addresses (and the practical limit is lower), so if you need more, you'll have to use multiple IP addresses.
+As a side note about using a proxy on your listener; you can only have an absolute max of 65535 connections to an IP+port combination (and the practical limit is lower). If you need more, you have to set up multiple listeners. This can be multiple IP addresses, or simply multiple ports.
 .TP 
 \*(T<\fBshared_subscription_targeting\fR\*(T> \fIround_robin/sender_hash\fR 
 When having multiple subscribers on a shared subscription (like '$share/myshare/jane/doe'), select how the messages should be distributed over the subscribers.
@@ -269,6 +269,8 @@ Specifying a private key makes the listener SSL, and also requires the \*(T<\fBf
 Setting the listener to haproxy makes it expect the PROXY protocol and set client source address to the original client. Make sure this listener is private / firewalled, otherwise anybody can set a different source address.
 
 Note that HAProxy's server health checks only started using the 'local' specifier as of version 2.4. This means earlier version will pretend to be a client and break the connection, causing log spam.
+
+As a side note about using a proxy on your listener; you can only have an absolute max of 65535 connections to an IP+port combination (and the practical limit is lower). If you need more, you have to set up multiple listeners. This can be multiple IP addresses, or simply multiple ports.
 
 See 
 .URL http://www.haproxy.org/ haproxy.org
