@@ -13,6 +13,7 @@
 
 class SimdUtils
 {
+    std::vector<char> subtopicParseMem;
     std::vector<char> topicCopy;
     __m128i slashes = _mm_set1_epi8('/');
     __m128i lowerBound = _mm_set1_epi8(0x20);
