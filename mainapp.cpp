@@ -1,18 +1,11 @@
 /*
 This file is part of FlashMQ (https://www.flashmq.org)
-Copyright (C) 2021 Wiebe Cazemier
+Copyright (C) 2021-2023 Wiebe Cazemier
 
 FlashMQ is free software: you can redistribute it and/or modify
-it under the terms of the GNU Affero General Public License as
-published by the Free Software Foundation, version 3.
+it under the terms of The Open Software License 3.0 (OSL-3.0).
 
-FlashMQ is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Affero General Public License for more details.
-
-You should have received a copy of the GNU Affero General Public
-License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
+See LICENSE for license details.
 */
 
 #include "mainapp.h"
@@ -148,10 +141,10 @@ void MainApp::showLicense()
 #endif
 
     printf("FlashMQ Version %s %s\n", FLASHMQ_VERSION, sse.c_str());
-    puts("Copyright (C) 2021,2022 Wiebe Cazemier.");
-    puts("License AGPLv3: GNU AGPL version 3. <https://www.gnu.org/licenses/agpl-3.0.html>.");
+    puts("Copyright (C) 2021-2023 Wiebe Cazemier.");
+    puts("License OSL3: Open Software License 3.0 <https://opensource.org/license/osl-3-0-php/>.");
     puts("");
-    puts("Author: Wiebe Cazemier <wiebe@halfgaar.net>");
+    puts("Author: Wiebe Cazemier <wiebe@flashmq.org>");
 }
 
 std::list<ScopedSocket> MainApp::createListenSocket(const std::shared_ptr<Listener> &listener)

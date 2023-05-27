@@ -4,8 +4,7 @@
  *
  * This interface definition is public domain and you are encouraged
  * to copy it to your plugin project, for portability. Including
- * this file in your project does not make it a 'derived work', does not require
- * your code to have a compatibile license nor requires you to open source it.
+ * this file in your project does not make it a 'derivative work'.
  *
  * Compile like: gcc -fPIC -shared plugin.cpp -o plugin.so
  *
