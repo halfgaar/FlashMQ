@@ -68,6 +68,7 @@
         }
         code {
           font-family: monospace;
+          font-weight: bold;
         }
         pre.monospaced, pre.cmdsynopsis {
           background-color: #ddd;
@@ -76,7 +77,7 @@
         }
       </style></head><body><article id="flashmq.conf"><header><h1>flashmq.conf<code class="manvolnum"> (5)</code></h1><h2 class="refpurpose">FlashMQ configuration file format</h2></header><section class="refsynopsisdiv" id="synopsis"><header><h2>Synopsis</h2></header>
     <p>
-      The <code class="filename">flashmq.conf</code> file is the configuration used for configuring the FlashMQ MQTT broker. It doesn't necessarily have to be called <code class="filename">flashmq.conf</code>; the <code class="command">flashmq</code> daemon program sports a --config-file parameter.
+      The <code class="filename">flashmq.conf</code> file is the configuration used for configuring the FlashMQ MQTT broker. It doesn't necessarily have to be called <code class="filename">flashmq.conf</code>; the <code class="command">flashmq</code> daemon program sports a <code class="option">--config-file</code> parameter.
     </p>
   </section><section class="refsect1" id="file-format">
     <header><h2>File format<a class="hash-anchor" href="#file-format">#</a></h2></header>
@@ -84,13 +85,13 @@
       To set a parameter, its name must appear on a single line, followed by whitespace, followed by the parameter value.
     </p>
     <p>
-      parameter-name <code class="replaceable">parameter-value</code>
+      <code class="option">parameter-name</code> <code class="replaceable">parameter-value</code>
     </p>
     <p>
       When setting boolean values, <code class="literal">yes/no</code>, <code class="literal">true/false</code> and <code class="literal">on/off</code> can all be used.
     </p>
     <p>
-      To configure the listeners, use listen blocks, defined by { and }. See EXAMPLE LISTENERS for details.
+      To configure the listeners, use <code class="option">listen</code> blocks, defined by { and }. See EXAMPLE LISTENERS for details.
     </p>
     <p>
       Lines beginning with the hash character (“<code class="literal">#</code>”) and empty lines are ignored. Thus, a line can be commented out by prepending a “<code class="literal">#</code>” to it.
@@ -99,7 +100,7 @@
     <header><h2>Global parameters<a class="hash-anchor" href="#global-parameters">#</a></h2></header>
     <dl>
       
-        <dt id="plugin">plugin <code class="replaceable">/path/to/plugin.so</code><a class="hash-anchor" href="#plugin">#</a></dt>
+        <dt id="plugin"><code class="option">plugin</code> <code class="replaceable">/path/to/plugin.so</code><a class="hash-anchor" href="#plugin">#</a></dt>
         <dd>
           <p>
             FlashMQ supports an ELF shared object (<code class="filename">.so</code> file) plugin interface to add functionality, authorization and authentication, because it’s hard to provide a declarative mechanism that works for everybody. See <code class="filename">flashmq_plugin.h</code> for the API and its documentation. It’s written in C++ for ease of passing FlashMQ internals without conversion to C, but you can basically just use a C++ compiler and program like it was C; the C++ constructs are simple.
@@ -108,13 +109,13 @@
             FlashMQ will auto-detect which plugin interface you’re trying to load (Mosquitto version 2 or FlashMQ native). Keep in mind that each thread initializes the plugin, inline with multi-core programming (minimize shared data and interaction between threads). You could use static variables with thread synchronization if you really want to. And of course, any Mosquitto plugin that uses global and/or static variables instead of initializing memory in its <code class="function">init()</code> method, will not be thread-safe and won’t work.
           </p>
           <p>
-            You can only have one plugin active, but you can combine it with <a href="#mosquitto_password_file">mosquitto_password_file</a> and <a href="#mosquitto_acl_file">mosquitto_acl_file</a>. The password and ACL file take precedence, and on a ‘deny’, will not ask the plugin.
+            You can only have one plugin active, but you can combine it with <a href="#mosquitto_password_file"><code class="option">mosquitto_password_file</code></a> and <a href="#mosquitto_acl_file"><code class="option">mosquitto_acl_file</code></a>. The password and ACL file take precedence, and on a ‘deny’, will not ask the plugin.
           </p>
         </dd>
       
 
       
-        <dt id="plugin_opt_">plugin_opt_* <code class="replaceable">value</code><a class="hash-anchor" href="#plugin_opt_">#</a></dt>
+        <dt id="plugin_opt_"><code class="option">plugin_opt_*</code> <code class="replaceable">value</code><a class="hash-anchor" href="#plugin_opt_">#</a></dt>
         <dd>
           <p>
             Options passed to the plugin <code class="function">init()</code> function.
@@ -123,7 +124,7 @@
       
 
       
-        <dt id="plugin_serialize_init">plugin_serialize_init <code class="replaceable">true/false</code><a class="hash-anchor" href="#plugin_serialize_init">#</a></dt>
+        <dt id="plugin_serialize_init"><code class="option">plugin_serialize_init</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#plugin_serialize_init">#</a></dt>
         <dd>
           <p>
             There could be circumstances where the plugin code is mostly thread-safe, but not on initialization. Libmysqlclient for instance, needs a one-time initialization. To add to the confusion, Qt hides that away.
@@ -137,10 +138,10 @@
         </dd>
       
       
-        <dt id="plugin_serialize_auth_checks">plugin_serialize_auth_checks <code class="replaceable">true/false</code><a class="hash-anchor" href="#plugin_serialize_auth_checks">#</a></dt>
+        <dt id="plugin_serialize_auth_checks"><code class="option">plugin_serialize_auth_checks</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#plugin_serialize_auth_checks">#</a></dt>
         <dd>
           <p>
-            Like plugin_serialize_init, but then for all login and ACL checks.
+            Like <code class="option">plugin_serialize_init</code>, but then for all login and ACL checks.
           </p>
           <p>
             This option may be dropped at some point, because it negates much of the multi-core design. One may as well run with only one thread then.
@@ -151,7 +152,7 @@
         </dd>
       
       
-        <dt id="plugin_timer_period">plugin_timer_period <code class="replaceable">seconds</code><a class="hash-anchor" href="#plugin_timer_period">#</a></dt>
+        <dt id="plugin_timer_period"><code class="option">plugin_timer_period</code> <code class="replaceable">seconds</code><a class="hash-anchor" href="#plugin_timer_period">#</a></dt>
         <dd>
           <p>
             The FlashMQ auth plugin interface has a function that is called periodically this amount of seconds. This can be used to refresh state, commit data, etc.
@@ -165,7 +166,7 @@
         </dd>
       
       
-        <dt id="log_file">log_file <code class="replaceable">/path/to/flashmq.log</code><a class="hash-anchor" href="#log_file">#</a></dt>
+        <dt id="log_file"><code class="option">log_file</code> <code class="replaceable">/path/to/flashmq.log</code><a class="hash-anchor" href="#log_file">#</a></dt>
         <dd>
           <p>
             This configuration parameter sets the path to FlashMQ's log file. If you omit the, the output will go to stdout.
@@ -176,7 +177,7 @@
         </dd>
       
       
-        <dt id="log_debug">log_debug <code class="replaceable">true/false</code><a class="hash-anchor" href="#log_debug">#</a></dt>
+        <dt id="log_debug"><code class="option">log_debug</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#log_debug">#</a></dt>
         <dd>
           <p>
             Debug logging obviously creates a lot of log noise, so should only be done to diagnose problems.
@@ -187,7 +188,7 @@
         </dd>
       
       
-        <dt id="log_subscriptions">log_subscriptions <code class="replaceable">true/false</code><a class="hash-anchor" href="#log_subscriptions">#</a></dt>
+        <dt id="log_subscriptions"><code class="option">log_subscriptions</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#log_subscriptions">#</a></dt>
         <dd>
           <p>
             Default value: <code class="literal">false</code>
@@ -195,7 +196,7 @@
         </dd>
       
       
-        <dt id="allow_unsafe_clientid_chars">allow_unsafe_clientid_chars <code class="replaceable">true/false</code><a class="hash-anchor" href="#allow_unsafe_clientid_chars">#</a></dt>
+        <dt id="allow_unsafe_clientid_chars"><code class="option">allow_unsafe_clientid_chars</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#allow_unsafe_clientid_chars">#</a></dt>
         <dd>
           <p>
             If you have topics with client IDs in it, people can possibly manipulate your ACL checking by saying their client ID is 'John+foobar'. Audit your security before you allow this.
@@ -206,7 +207,7 @@
         </dd>
       
       
-        <dt id="allow_unsafe_username_chars">allow_unsafe_username_chars <code class="replaceable">true/false</code><a class="hash-anchor" href="#allow_unsafe_username_chars">#</a></dt>
+        <dt id="allow_unsafe_username_chars"><code class="option">allow_unsafe_username_chars</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#allow_unsafe_username_chars">#</a></dt>
         <dd>
           <p>
             If you have topics with usernames in it, people can possibly manipulate your ACL checking by saying their username is 'John+foobar'. Audit your security before you allow this.
@@ -217,13 +218,13 @@
         </dd>
       
       
-        <dt id="max_packet_size">max_packet_size <code class="replaceable">bytes</code><a class="hash-anchor" href="#max_packet_size">#</a></dt>
+        <dt id="max_packet_size"><code class="option">max_packet_size</code> <code class="replaceable">bytes</code><a class="hash-anchor" href="#max_packet_size">#</a></dt>
         <dd>
           <p>
             MQTT packets have a maximum size of about 256 MB. This memory will (temporarily) be allocated upon arrival of such packets, so there may be cause to set it lower.
           </p>
           <p>
-            This option works in conjunction with client_max_write_buffer_size to limit memory use.
+            This option works in conjunction with <code class="option">client_max_write_buffer_size</code> to limit memory use.
           </p>
           <p>
             Default value: <code class="literal">268435461</code>
@@ -231,13 +232,13 @@
         </dd>
       
       
-        <dt id="client_max_write_buffer_size">client_max_write_buffer_size <code class="replaceable">bytes</code><a class="hash-anchor" href="#client_max_write_buffer_size">#</a></dt>
+        <dt id="client_max_write_buffer_size"><code class="option">client_max_write_buffer_size</code> <code class="replaceable">bytes</code><a class="hash-anchor" href="#client_max_write_buffer_size">#</a></dt>
         <dd>
           <p>
-            The client's write buffer is where packets are stored before the event loop has the chance to flush them out. Any time a client's connection is bad and bytes can't be flushed, this buffer fills. So, there's good reason to limit this to something sensible. A good indication is your average packet size (or better yet, a configured max_packet_size) multiplied by the amount of packets you want to be able to buffer.
+            The client's write buffer is where packets are stored before the event loop has the chance to flush them out. Any time a client's connection is bad and bytes can't be flushed, this buffer fills. So, there's good reason to limit this to something sensible. A good indication is your average packet size (or better yet, a configured <code class="option">max_packet_size</code>) multiplied by the amount of packets you want to be able to buffer.
           </p>
           <p>
-            Note that it's an approximate value and not a hard limit. Buffer sizes only grow by powers of two, and buffers are always allowed to grow to make place for ping packets. Additionally, upon arrival of large packets (up to max_packet_size bytes), room will be made up to twice their size. So, you may also want to reduce max_packet_size from the default.
+            Note that it's an approximate value and not a hard limit. Buffer sizes only grow by powers of two, and buffers are always allowed to grow to make place for ping packets. Additionally, upon arrival of large packets (up to <code class="option">max_packet_size</code> bytes), room will be made up to twice their size. So, you may also want to reduce <code class="option">max_packet_size</code> from the default.
           </p>
           <p>
             Default value is <code class="literal">1048576</code> (1 MB)
@@ -245,7 +246,7 @@
         </dd>
       
       
-        <dt id="client_initial_buffer_size">client_initial_buffer_size <code class="replaceable">bytes</code><a class="hash-anchor" href="#client_initial_buffer_size">#</a></dt>
+        <dt id="client_initial_buffer_size"><code class="option">client_initial_buffer_size</code> <code class="replaceable">bytes</code><a class="hash-anchor" href="#client_initial_buffer_size">#</a></dt>
         <dd>
           <p>
             The buffers for reading and writing, also for websockets when relevant, start out with a particular size and double when they need to grow. If you know your clients send bulks of a particular size, it helps to set this to match, to avoid constant memory reallocation. The default value is set conservatively, for scenario's with millions of clients.
@@ -254,7 +255,7 @@
             After buffers have grown, they are eventually reset to their original size when possible.
           </p>
           <p>
-            Also see client_max_write_buffer_size and max_packet_size.
+            Also see <code class="option">client_max_write_buffer_size</code> and <code class="option">max_packet_size</code>.
           </p>
           <p>
             Value must be a power of two.
@@ -265,7 +266,7 @@
         </dd>
       
       
-        <dt id="mosquitto_password_file">mosquitto_password_file <code class="replaceable">/foo/bar/mosquitto_password_file</code><a class="hash-anchor" href="#mosquitto_password_file">#</a></dt>
+        <dt id="mosquitto_password_file"><code class="option">mosquitto_password_file</code> <code class="replaceable">/foo/bar/mosquitto_password_file</code><a class="hash-anchor" href="#mosquitto_password_file">#</a></dt>
         <dd>
           <p>
             File with usernames and hashed+salted passwords as generated by Mosquitto's <code class="command">mosquitto_passwd</code>.
@@ -276,7 +277,7 @@
         </dd>
       
       
-        <dt id="mosquitto_acl_file">mosquitto_acl_file <code class="replaceable">/foo/bar/mosquitto_acl_file</code><a class="hash-anchor" href="#mosquitto_acl_file">#</a></dt>
+        <dt id="mosquitto_acl_file"><code class="option">mosquitto_acl_file</code> <code class="replaceable">/foo/bar/mosquitto_acl_file</code><a class="hash-anchor" href="#mosquitto_acl_file">#</a></dt>
         <dd>
           <p>
             ACL (access control lists) for users, anonymous users and patterns expandable with %u (username) and %c (clientid). Format is Mosquitto's acl_file.
@@ -284,7 +285,7 @@
         </dd>
       
       
-        <dt id="allow_anonymous">allow_anonymous <code class="replaceable">true/false</code><a class="hash-anchor" href="#allow_anonymous">#</a></dt>
+        <dt id="allow_anonymous"><code class="option">allow_anonymous</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#allow_anonymous">#</a></dt>
         <dd>
           <p>
             Default value: <code class="literal">false</code>
@@ -292,10 +293,10 @@
         </dd>
       
       
-        <dt id="rlimit_nofile">rlimit_nofile <code class="replaceable">number</code><a class="hash-anchor" href="#rlimit_nofile">#</a></dt>
+        <dt id="rlimit_nofile"><code class="option">rlimit_nofile</code> <code class="replaceable">number</code><a class="hash-anchor" href="#rlimit_nofile">#</a></dt>
         <dd>
           <p>
-            The general Linux default of <code class="literal">1024</code> can be overridden. Note: <code class="systemitem daemon">systemd</code> blocks you from setting it, so it needs to be set on the unit. The default systemd unit file sets LimitNOFILE=infinity. You may also need to set sysctl -w fs.file-max=10000000
+            The general Linux default of <code class="literal">1024</code> can be overridden. Note: <code class="systemitem daemon">systemd</code> blocks you from setting it, so it needs to be set on the unit. The default systemd unit file sets <code class="option">LimitNOFILE=infinity</code>. You may also need to set <code class="option">sysctl -w fs.file-max=10000000</code>
           </p>
           <p>
             Default value: <code class="literal">1000000</code>
@@ -303,7 +304,7 @@
         </dd>
       
       
-        <dt id="expire_sessions_after_seconds">expire_sessions_after_seconds <code class="replaceable">seconds</code><a class="hash-anchor" href="#expire_sessions_after_seconds">#</a></dt>
+        <dt id="expire_sessions_after_seconds"><code class="option">expire_sessions_after_seconds</code> <code class="replaceable">seconds</code><a class="hash-anchor" href="#expire_sessions_after_seconds">#</a></dt>
         <dd>
           <p>
             Expire sessions after this time. Setting to 0 disables it and is (MQTT3) standard-compliant. But, existing sessions cause load on the server (because they cost memory and are still subscribers), so keeping sessions after any client that connects with a random ID doesn't make sense.
@@ -314,7 +315,7 @@
         </dd>
       
       
-        <dt id="quiet">quiet <code class="replaceable">true/false</code><a class="hash-anchor" href="#quiet">#</a></dt>
+        <dt id="quiet"><code class="option">quiet</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#quiet">#</a></dt>
         <dd>
           <p>
             Don't log LOG_INFO and LOG_NOTICE. This is useful when you have a lot of foot traffic, because otherwise the log gets filled with connect/disconnect notices.
@@ -325,7 +326,7 @@
         </dd>
       
       
-        <dt id="storage_dir">storage_dir <code class="replaceable">/path/to/dir</code><a class="hash-anchor" href="#storage_dir">#</a></dt>
+        <dt id="storage_dir"><code class="option">storage_dir</code> <code class="replaceable">/path/to/dir</code><a class="hash-anchor" href="#storage_dir">#</a></dt>
         <dd>
           <p>
             Location to store sessions, subscriptions and retained messages.
@@ -334,14 +335,14 @@
         </dd>
       
       
-        <dt id="max_qos_msg_pending_per_client">max_qos_msg_pending_per_client</dt>
-        <dt id="max_qos_bytes_pending_per_client">max_qos_bytes_pending_per_client<a class="hash-anchor" href="#max_qos_bytes_pending_per_client">#</a></dt>
+        <dt id="max_qos_msg_pending_per_client"><code class="option">max_qos_msg_pending_per_client</code></dt>
+        <dt id="max_qos_bytes_pending_per_client"><code class="option">max_qos_bytes_pending_per_client</code><a class="hash-anchor" href="#max_qos_bytes_pending_per_client">#</a></dt>
         <dd>
           <p>
             There is a limit to how many QoS packets can be stored in a session, so you can define a maximum amount of messages and bytes. If any of these is exceeded, the packet is dropped.
           </p>
           <p>
-            These are essentially superfluous for MQTT &gt;= 3.1.1 clients with cleansession=true (MQTT 3) / session expirty = 0 (MQTT 5). Because queues would get destroyed upon client disconnect, there is no point in actually queuing them. In those cases, it just allows 65536 'in flight' packets.
+            These are essentially superfluous for MQTT &gt;= 3.1.1 clients with <code class="option">cleansession=true</code> (MQTT 3) / <code class="option">session expirty = 0</code> (MQTT 5). Because queues would get destroyed upon client disconnect, there is no point in actually queuing them. In those cases, it just allows 65536 'in flight' packets.
           </p>
           <p>
             Defaults:
@@ -357,7 +358,7 @@
         </dd>
       
       
-        <dt id="max_incoming_topic_alias_value">max_incoming_topic_alias_value <code class="replaceable">number</code><a class="hash-anchor" href="#max_incoming_topic_alias_value">#</a></dt>
+        <dt id="max_incoming_topic_alias_value"><code class="option">max_incoming_topic_alias_value</code> <code class="replaceable">number</code><a class="hash-anchor" href="#max_incoming_topic_alias_value">#</a></dt>
         <dd>
           <p>
             Is communicated towards MQTT5 clients. It is then up to them to decide to set them or not.
@@ -371,10 +372,10 @@
         </dd>
       
       
-        <dt id="max_outgoing_topic_alias_value">max_outgoing_topic_alias_value <code class="replaceable">number</code><a class="hash-anchor" href="#max_outgoing_topic_alias_value">#</a></dt>
+        <dt id="max_outgoing_topic_alias_value"><code class="option">max_outgoing_topic_alias_value</code> <code class="replaceable">number</code><a class="hash-anchor" href="#max_outgoing_topic_alias_value">#</a></dt>
         <dd>
           <p>
-            FlashMQ will make this many aliases per MQTT5 client, if they ask for aliases (with the connect property TopicAliasMaximum).
+            FlashMQ will make this many aliases per MQTT5 client, if they ask for aliases (with the connect property <code class="option">TopicAliasMaximum</code>).
           </p>
           <p>
             Default value: <code class="literal">65535</code>
@@ -383,7 +384,7 @@
       
 
       
-        <dt id="thread_count">thread_count <code class="replaceable">number</code><a class="hash-anchor" href="#thread_count">#</a></dt>
+        <dt id="thread_count"><code class="option">thread_count</code> <code class="replaceable">number</code><a class="hash-anchor" href="#thread_count">#</a></dt>
         <dd>
           <p>
             If you want to have a different amount of worker threads then CPUs, you can set this value. Typically you don't need to set this.
@@ -395,7 +396,7 @@
       
 
       
-        <dt id="wills_enabled">wills_enabled <code class="replaceable">true/false</code><a class="hash-anchor" href="#wills_enabled">#</a></dt>
+        <dt id="wills_enabled"><code class="option">wills_enabled</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#wills_enabled">#</a></dt>
         <dd>
           <p>
             When disabled, the server will not set last will and testament specified by connecting clients.
@@ -407,7 +408,7 @@
       
 
       
-        <dt id="retained_messages_mode">retained_messages_mode <code class="replaceable">enabled/downgrade/drop/disconnect_with_error</code><a class="hash-anchor" href="#retained_messages_mode">#</a></dt>
+        <dt id="retained_messages_mode"><code class="option">retained_messages_mode</code> <code class="replaceable">enabled/downgrade/drop/disconnect_with_error</code><a class="hash-anchor" href="#retained_messages_mode">#</a></dt>
         <dd>
           <p>
             Retained messages can be a strain on the server you may not need. You can set various ways of dealing with them:
@@ -431,7 +432,7 @@
       
 
       
-        <dt id="expire_retained_messages_after_seconds">expire_retained_messages_after_seconds <code class="replaceable">seconds</code><a class="hash-anchor" href="#expire_retained_messages_after_seconds">#</a></dt>
+        <dt id="expire_retained_messages_after_seconds"><code class="option">expire_retained_messages_after_seconds</code> <code class="replaceable">seconds</code><a class="hash-anchor" href="#expire_retained_messages_after_seconds">#</a></dt>
         <dd>
           <p>
             Use this to limit the life time of retained messages. Without this, the amount of retained messages may never decrease.
@@ -443,7 +444,7 @@
       
 
       
-        <dt id="expire_retained_messages_time_budget_ms">expire_retained_messages_time_budget_ms <code class="replaceable">milliseconds</code><a class="hash-anchor" href="#expire_retained_messages_time_budget_ms">#</a></dt>
+        <dt id="expire_retained_messages_time_budget_ms"><code class="option">expire_retained_messages_time_budget_ms</code> <code class="replaceable">milliseconds</code><a class="hash-anchor" href="#expire_retained_messages_time_budget_ms">#</a></dt>
         <dd>
           <p>
             When purging the retained messages tree, spend a maximum of this many milliseconds on it. The purge requires a write lock, so you don't want to hold up everything too long.
@@ -458,10 +459,10 @@
       
 
       
-        <dt id="websocket_set_real_ip_from">websocket_set_real_ip_from <code class="replaceable">inet4_address/inet6_address</code><a class="hash-anchor" href="#websocket_set_real_ip_from">#</a></dt>
+        <dt id="websocket_set_real_ip_from"><code class="option">websocket_set_real_ip_from</code> <code class="replaceable">inet4_address/inet6_address</code><a class="hash-anchor" href="#websocket_set_real_ip_from">#</a></dt>
         <dd>
           <p>
-              HTTP proxies in front of the websocket listeners can set the <code class="replaceable">X-Real-IP</code> header to identify the original connecting client. With websocket_set_real_ip_from you can mark IP networks as trusted. By default, clients are not trusted, to avoid spoofing.
+              HTTP proxies in front of the websocket listeners can set the <code class="replaceable">X-Real-IP</code> header to identify the original connecting client. With <code class="option">websocket_set_real_ip_from</code> you can mark IP networks as trusted. By default, clients are not trusted, to avoid spoofing.
           </p>
           <p>
               You can repeat the option to allow for multiple addresses. Valid notations are <code class="replaceable">1.2.3.4</code>, <code class="replaceable">1.2.3.4/16</code>, <code class="replaceable">1.2.0.0/16</code>, <code class="replaceable">2a01:1337::1</code>, <code class="replaceable">2a01:1337::1/64</code>, etc.
@@ -476,7 +477,7 @@
       
 
       
-        <dt id="shared_subscription_targeting">shared_subscription_targeting <code class="replaceable">round_robin/sender_hash</code><a class="hash-anchor" href="#shared_subscription_targeting">#</a></dt>
+        <dt id="shared_subscription_targeting"><code class="option">shared_subscription_targeting</code> <code class="replaceable">round_robin/sender_hash</code><a class="hash-anchor" href="#shared_subscription_targeting">#</a></dt>
         <dd>
           <p>
             When having multiple subscribers on a shared subscription (like '$share/myshare/jane/doe'), select how the messages should be distributed over the subscribers.
@@ -501,10 +502,10 @@
     </p>
     <dl>
       
-        <dt id="port">port<a class="hash-anchor" href="#port">#</a></dt>
+        <dt id="port"><code class="option">port</code><a class="hash-anchor" href="#port">#</a></dt>
         <dd>
           <p>
-            The default port depends on the protocol parameter and whether or not fullchain and privkey parameters are supplied:
+            The default port depends on the <code class="option">protocol</code> parameter and whether or not <code class="option">fullchain</code> and <code class="option">privkey</code> parameters are supplied:
           </p>
           
             
@@ -531,7 +532,7 @@
         </dd>
       
       
-        <dt id="protocol">protocol<a class="hash-anchor" href="#protocol">#</a></dt>
+        <dt id="protocol"><code class="option">protocol</code><a class="hash-anchor" href="#protocol">#</a></dt>
         <dd>
           <p>
             Valid values:
@@ -547,7 +548,7 @@
         </dd>
       
       
-        <dt id="inet_protocol">inet_protocol<a class="hash-anchor" href="#inet_protocol">#</a></dt>
+        <dt id="inet_protocol"><code class="option">inet_protocol</code><a class="hash-anchor" href="#inet_protocol">#</a></dt>
         <dd>
           <p>
             Valid values:
@@ -569,7 +570,7 @@
         </dd>
       
       
-        <dt id="inet4_bind_address">inet4_bind_address <code class="replaceable">inet4address</code><a class="hash-anchor" href="#inet4_bind_address">#</a></dt>
+        <dt id="inet4_bind_address"><code class="option">inet4_bind_address</code> <code class="replaceable">inet4address</code><a class="hash-anchor" href="#inet4_bind_address">#</a></dt>
         <dd>
           <p>
             Default: 0.0.0.0
@@ -577,7 +578,7 @@
         </dd>
       
       
-        <dt id="inet6_bind_address">inet6_bind_address <code class="replaceable">inet6address</code><a class="hash-anchor" href="#inet6_bind_address">#</a></dt>
+        <dt id="inet6_bind_address"><code class="option">inet6_bind_address</code> <code class="replaceable">inet6address</code><a class="hash-anchor" href="#inet6_bind_address">#</a></dt>
         <dd>
           <p>
             Default: ::0
@@ -585,23 +586,23 @@
         </dd>
       
       
-        <dt id="fullchain">fullchain <code class="replaceable">/foobar/server.crt</code><a class="hash-anchor" href="#fullchain">#</a></dt>
+        <dt id="fullchain"><code class="option">fullchain</code> <code class="replaceable">/foobar/server.crt</code><a class="hash-anchor" href="#fullchain">#</a></dt>
         <dd>
           <p>
-            Specifying a chain makes the listener SSL, and also requires the privkey to be set.
+            Specifying a chain makes the listener SSL, and also requires the <code class="option">privkey</code> to be set.
           </p>
         </dd>
       
       
-        <dt id="privkey">privkey <code class="replaceable">/foobar/server.key</code><a class="hash-anchor" href="#privkey">#</a></dt>
+        <dt id="privkey"><code class="option">privkey</code> <code class="replaceable">/foobar/server.key</code><a class="hash-anchor" href="#privkey">#</a></dt>
         <dd>
           <p>
-            Specifying a private key makes the listener SSL, and also requires the fullchain to be set.
+            Specifying a private key makes the listener SSL, and also requires the <code class="option">fullchain</code> to be set.
           </p>
         </dd>
       
       
-        <dt id="haproxy">haproxy <code class="replaceable">true/false</code><a class="hash-anchor" href="#haproxy">#</a></dt>
+        <dt id="haproxy"><code class="option">haproxy</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#haproxy">#</a></dt>
         <dd>
           <p>
             Setting the listener to haproxy makes it expect the PROXY protocol and set client source address to the original client. Make sure this listener is private / firewalled, otherwise anybody can set a different source address.

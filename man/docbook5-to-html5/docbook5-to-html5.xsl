@@ -142,6 +142,7 @@
         }
         code {
           font-family: monospace;
+          font-weight: bold;
         }
         pre.monospaced, pre.cmdsynopsis {
           background-color: #ddd;
@@ -362,7 +363,7 @@
     </strong>
   </xsl:template>
 
-  <xsl:template match="dbk:filename | dbk:command | dbk:literal | dbk:systemitem | dbk:property | dbk:function | dbk:userinput | dbk:code | dbk:replaceable" name="monospace">
+  <xsl:template match="dbk:filename | dbk:command | dbk:literal | dbk:systemitem | dbk:property | dbk:function | dbk:userinput | dbk:code | dbk:replaceable | dbk:option" name="monospace">
     <code>
       <xsl:attribute name="class">
         <xsl:value-of select="local-name(.)"/>
