@@ -271,10 +271,11 @@ void Logger::logf(int level, const char *str, va_list valist)
 
 int logSslError(const char *str, size_t len, void *u)
 {
-    (void) len;
     (void) u;
 
+    std::string msg(str, len);
+
     Logger *logger = Logger::getInstance();
-    logger->logf(LOG_ERR, str);
+    logger->logf(LOG_ERR, msg.c_str());
     return 0;
 }
