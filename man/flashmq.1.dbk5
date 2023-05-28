@@ -56,6 +56,22 @@
   </refsect1>
 
   <refsect1>
+    <title>Signals</title>
+    <variablelist>
+      <listitem>
+        <para>
+          SIGHUP: reload config file and reopen log files. Changing listener configuration on reload is currently not supported.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          SIGUSR1: reopen log files.
+        </para>
+      </listitem>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
     <title>Author</title>
     <para>
         Wiebe Cazemier <email>contact@flashmq.org</email>.

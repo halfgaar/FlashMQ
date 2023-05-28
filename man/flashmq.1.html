@@ -85,6 +85,20 @@
         FlashMQ is a MQTT 3.1, 3.1.1 and 5 broker designed to be light-weight and handle millions of clients and/or messages.
     </p>
   </section><section class="refsect1">
+    <header><h2>Signals</h2></header>
+    <dl>
+      
+        <p>
+          SIGHUP: reload config file and reopen log files. Changing listener configuration on reload is currently not supported.
+        </p>
+      
+      
+        <p>
+          SIGUSR1: reopen log files.
+        </p>
+      
+    </dl>
+  </section><section class="refsect1">
     <header><h2>Author</h2></header>
     <p>
         Wiebe Cazemier <a href="mailto:contact@flashmq.org">contact@flashmq.org</a>.

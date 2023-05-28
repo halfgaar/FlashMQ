@@ -5,7 +5,7 @@
 \\$2 \(la\\$1\(ra\\$3
 ..
 .if \n(.g .mso www.tmac
-.TH flashmq 1 "3 February 2023" "" ""
+.TH flashmq 1 "28 May 2023" "" ""
 .SH NAME
 flashmq \- A fast light-weight scalable MQTT server
 .SH SYNOPSIS
@@ -26,6 +26,10 @@ flashmq \- A fast light-weight scalable MQTT server
 'hy
 .SH DESCRIPTION
 FlashMQ is a MQTT 3.1, 3.1.1 and 5 broker designed to be light-weight and handle millions of clients and/or messages.
+.SH SIGNALS
+SIGHUP: reload config file and reopen log files. Changing listener configuration on reload is currently not supported.
+.PP
+SIGUSR1: reopen log files.
 .SH AUTHOR
 Wiebe Cazemier <\*(T<contact@flashmq.org\*(T>>.
 .SH "SEE ALSO"
