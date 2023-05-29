@@ -85,6 +85,11 @@ int register_signal_handers()
 
 int main(int argc, char *argv[])
 {
+#ifndef OPENSSL_THREADS
+    std::cerr << "Error: FlashMQ was compiled with an OpenSSL without thread support." << std::endl;
+    exit(66);
+#endif
+
     Logger *logger = nullptr;
     try
     {
