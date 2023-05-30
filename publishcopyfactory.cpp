@@ -1,4 +1,5 @@
 #include <cassert>
+#include <stdexcept>
 
 #include "publishcopyfactory.h"
 #include "mqttpacket.h"

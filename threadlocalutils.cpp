@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cstring>
 #include <cassert>
+#include <cstdint>
 #include <stdexcept>
 
 std::vector<std::string> SimdUtils::splitTopic(const std::string &topic)

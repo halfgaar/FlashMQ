@@ -16,6 +16,7 @@ License along with FlashMQ. If not, see <https://www.gnu.org/licenses/>.
 */
 
 #include "timer.h"
+#include <stdexcept>
 #include <sys/eventfd.h>
 #include <sys/epoll.h>
 #include <unistd.h>
