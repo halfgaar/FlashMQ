@@ -882,8 +882,6 @@ void SubscriptionStore::removeExpiredSessionsClients()
     {
         std::lock_guard<std::mutex> locker(this->queuedSessionRemovalsMutex);
 
-        queuedRemovalsLeft = queuedSessionRemovals.size();
-
         auto it = queuedSessionRemovals.begin();
         while (it != queuedSessionRemovals.end())
         {
@@ -896,7 +894,7 @@ void SubscriptionStore::removeExpiredSessionsClients()
 
             std::vector<std::weak_ptr<Session>> &sessionsFromSlot = it->second;
 
-            for (std::weak_ptr<Session> ses : sessionsFromSlot)
+            for (std::weak_ptr<Session> &ses : sessionsFromSlot)
             {
                 std::shared_ptr<Session> lockedSession = ses.lock();
 
