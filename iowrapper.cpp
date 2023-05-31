@@ -684,7 +684,10 @@ ssize_t IoWrapper::writeAsMuchOfBufAsWebsocketFrame(const void *buf, const size_
     const Settings *settings = ThreadGlobals::getSettings();
 
     websocketWriteRemainder.ensureFreeSpace(nbytes + WEBSOCKET_MAX_SENDING_HEADER_SIZE, settings->clientMaxWriteBufferSize);
-    const ssize_t nBytesReal = std::min<size_t>(nbytes, websocketWriteRemainder.freeSpace() - WEBSOCKET_MAX_SENDING_HEADER_SIZE);
+
+    const uint32_t bytesFree = websocketWriteRemainder.freeSpace();
+    const size_t bodyBytesAvailable = bytesFree < WEBSOCKET_MAX_SENDING_HEADER_SIZE ? 0 : bytesFree - WEBSOCKET_MAX_SENDING_HEADER_SIZE;
+    const ssize_t nBytesReal = std::min<size_t>(nbytes, bodyBytesAvailable);
 
     // We normally wrap each write in a frame, but if a previous one didn't fit in the system's write buffers, we're still working on it.
     if (websocketWriteRemainder.freeSpace() > WEBSOCKET_MAX_SENDING_HEADER_SIZE)
