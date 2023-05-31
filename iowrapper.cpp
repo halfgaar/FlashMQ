@@ -434,12 +434,28 @@ ssize_t IoWrapper::readWebsocketAndOrSsl(int fd, void *buf, size_t nbytes, IoWra
             if (n < 0)
                 break; // signal/error handling is done by the caller, so we just stop.
 
-            if (websocketState == WebsocketState::NotUpgraded && websocketPendingBytes.freeSpace() == 0)
+            // Make sure we either always have enough space for a next loop iteration, or stop reading the fd.
+            if (websocketPendingBytes.freeSpace() == 0)
             {
-                if (websocketPendingBytes.getSize() * 2 <= 8192)
-                    websocketPendingBytes.doubleSize();
+                if (websocketState == WebsocketState::NotUpgraded)
+                {
+                    if (websocketPendingBytes.getSize() * 2 <= 8192)
+                        websocketPendingBytes.doubleSize();
+                    else
+                        throw ProtocolError("Trying to exceed websocket buffer. Probably not valid websocket traffic.");
+                }
                 else
-                    throw ProtocolError("Trying to exceed websocket buffer. Probably not valid websocket traffic.");
+                {
+                    const Settings *settings = ThreadGlobals::getSettings();
+                    if (websocketPendingBytes.getSize() * 2 <= settings->clientMaxWriteBufferSize)
+                    {
+                        websocketPendingBytes.doubleSize();
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
             }
         }
 
@@ -447,7 +463,7 @@ ssize_t IoWrapper::readWebsocketAndOrSsl(int fd, void *buf, size_t nbytes, IoWra
 
         // When some or all the data has been read, we can continue.
         if (!(*error == IoWrapResult::Wouldblock || *error == IoWrapResult::Success) && !hasWebsocketPendingBytes)
-            return n;
+            return n; // TODO: I guess because of the error condition check this is never > 0? It needs a bit of clarification.
 
         if (hasWebsocketPendingBytes)
         {
