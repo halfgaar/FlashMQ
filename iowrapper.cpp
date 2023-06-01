@@ -638,17 +638,26 @@ ssize_t IoWrapper::websocketBytesToReadBuffer(void *buf, const size_t nbytes, Io
             // A ping MAY have user data, which needs to be ponged back. Pings contain no MQTT data, so nbytesRead is
             // not touched, nor are we writing to the client's MQTT buffer.
 
+            const Settings *settings = ThreadGlobals::getSettings();
+
+            if (incompleteWebsocketRead.frame_bytes_left > settings->clientMaxWriteBufferSize)
+                throw std::runtime_error("The option 'client_max_write_buffer_size' is lower than the ping frame we're are supposed to pong back. Abusing client?");
+
             if (incompleteWebsocketRead.frame_bytes_left <= websocketPendingBytes.usedBytes())
             {
-                logger->logf(LOG_INFO, "Ponging websocket");
+                logger->logf(LOG_DEBUG, "Ponging websocket");
+
+                const size_t bufLen = std::min<size_t>(incompleteWebsocketRead.frame_bytes_left, websocketPendingBytes.usedBytes());
 
                 // Constructing a new temporary buffer because I need the reponse in one frame for writeAsMuchOfBufAsWebsocketFrame().
-                std::vector<char> response(incompleteWebsocketRead.frame_bytes_left);
+                std::vector<char> response(bufLen);
                 websocketPendingBytes.read(response.data(), response.size());
 
-                websocketWriteRemainder.ensureFreeSpace(response.size());
+                websocketWriteRemainder.ensureFreeSpace(response.size() + WEBSOCKET_MAX_SENDING_HEADER_SIZE);
                 writeAsMuchOfBufAsWebsocketFrame(response.data(), response.size(), WebsocketOpcode::Pong);
                 parentClient->setReadyForWriting(true);
+
+                incompleteWebsocketRead.frame_bytes_left -= bufLen;
             }
         }
         else if (incompleteWebsocketRead.opcode == WebsocketOpcode::Close)
