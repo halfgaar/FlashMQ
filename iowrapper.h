@@ -41,7 +41,8 @@ enum class IoWrapResult
     Interrupted = 1,
     Wouldblock = 2,
     Disconnected = 3,
-    Error = 4
+    Error = 4,
+    WantRead = 5
 };
 
 enum class WebsocketOpcode

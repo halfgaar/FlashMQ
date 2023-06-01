@@ -198,7 +198,8 @@ bool Client::readFdIntoBuffer()
         // Make sure we either always have enough space for a next call of this method, or stop reading the fd.
         if (readbuf.freeSpace() == 0)
         {
-            if (readbuf.getSize() * 2 < this->maxIncomingPacketSize)
+            // We always grow for another iteration when there are still decoded websocket bytes, because epoll doesn't tell us that buffer has data.
+            if (readbuf.getSize() * 2 < this->maxIncomingPacketSize || error == IoWrapResult::WantRead)
             {
                 readbuf.doubleSize();
             }

@@ -431,8 +431,12 @@ ssize_t IoWrapper::readWebsocketAndOrSsl(int fd, void *buf, size_t nbytes, IoWra
         {
             if (n > 0)
                 websocketPendingBytes.advanceHead(n);
-            if (n < 0)
-                break; // signal/error handling is done by the caller, so we just stop.
+            else if (n < 0)
+            {
+                if (*error == IoWrapResult::Interrupted)
+                    return n;
+                break; // On other errors, like 'would block' it depends on our 'pending bytes' what we will tell the caller.
+            }
 
             // Make sure we either always have enough space for a next loop iteration, or stop reading the fd.
             if (websocketPendingBytes.freeSpace() == 0)
@@ -520,10 +524,10 @@ ssize_t IoWrapper::readWebsocketAndOrSsl(int fd, void *buf, size_t nbytes, IoWra
             {
                 n = websocketBytesToReadBuffer(buf, nbytes, error);
 
-                if (n > 0)
-                    *error = IoWrapResult::Success;
-                else if (n == 0 && *error != IoWrapResult::Disconnected)
-                    *error = IoWrapResult::Wouldblock;
+                if (*error != IoWrapResult::Disconnected)
+                {
+                    *error = websocketPendingBytes.usedBytes() == 0 ? IoWrapResult::Wouldblock : IoWrapResult::WantRead;
+                }
             }
         }
 
@@ -543,13 +547,14 @@ ssize_t IoWrapper::websocketBytesToReadBuffer(void *buf, const size_t nbytes, Io
     const ssize_t targetBufMaxSize = nbytes;
     ssize_t nbytesRead = 0;
 
-    while (websocketPendingBytes.usedBytes() >= WEBSOCKET_MIN_HEADER_BYTES_NEEDED
-           && incompleteWebsocketRead.frame_bytes_left <= websocketPendingBytes.usedBytes()
-           && nbytesRead < targetBufMaxSize)
+    while (websocketPendingBytes.usedBytes() > 0 && nbytesRead < targetBufMaxSize)
     {
         // This block decodes the header.
         if (!incompleteWebsocketRead.sillWorkingOnFrame())
         {
+            if (websocketPendingBytes.usedBytes() < WEBSOCKET_MIN_HEADER_BYTES_NEEDED)
+                break;
+
             const uint8_t byte1 = websocketPendingBytes.peakAhead(0);
             const uint8_t byte2 = websocketPendingBytes.peakAhead(1);
             bool masked = !!(byte2 & 0b10000000);
