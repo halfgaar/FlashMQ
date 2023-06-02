@@ -460,8 +460,12 @@ MainApp *MainApp::getMainApp()
 
 void MainApp::start()
 {
+    bool fuzzMode = false;
 #ifndef NDEBUG
-    if (fuzzFilePath.empty())
+    if (!fuzzFilePath.empty())
+        fuzzMode = true;
+
+    if (!fuzzMode)
     {
         oneInstanceLock.lock();
     }
@@ -472,27 +476,31 @@ void MainApp::start()
 
     bool listenerCreateError = false;
 
-    for(std::shared_ptr<Listener> &listener : this->listeners)
+    // At this point, we don't fuzz through the listeners, so we can skip it. Saves CPU and bind failures.
+    if (!fuzzMode)
     {
-        std::list<ScopedSocket> scopedSockets = createListenSocket(listener);
-
-        if (scopedSockets.empty())
+        for(std::shared_ptr<Listener> &listener : this->listeners)
         {
-            listenerCreateError = true;
-            continue;
+            std::list<ScopedSocket> scopedSockets = createListenSocket(listener);
+
+            if (scopedSockets.empty())
+            {
+                listenerCreateError = true;
+                continue;
+            }
+
+            for (ScopedSocket &scopedSocket : scopedSockets)
+            {
+                if (scopedSocket.socket > 0)
+                    listenerMap[scopedSocket.socket] = listener;
+                activeListenSockets.push_back(std::move(scopedSocket));
+            }
         }
 
-        for (ScopedSocket &scopedSocket : scopedSockets)
+        if (listenerCreateError)
         {
-            if (scopedSocket.socket > 0)
-                listenerMap[scopedSocket.socket] = listener;
-            activeListenSockets.push_back(std::move(scopedSocket));
+            throw std::runtime_error("Some listeners failed.");
         }
-    }
-
-    if (listenerCreateError)
-    {
-        throw std::runtime_error("Some listeners failed.");
     }
 
 #ifdef NDEBUG
@@ -507,7 +515,7 @@ void MainApp::start()
 
 #ifndef NDEBUG
     // I fuzzed using afl-fuzz. You need to compile it with their compiler.
-    if (!fuzzFilePath.empty())
+    if (fuzzMode)
     {
         // No threads for execution stability/determinism.
         num_threads = 0;
@@ -523,6 +531,7 @@ void MainApp::start()
         int fdnull2 = open("/dev/null", O_RDWR);
         assert(fdnull2 > 0);
 
+        // TODO: matching for filename patterns doesn't work, because AFL fuzz changes the name.
         const std::string fuzzFilePathLower = str_tolower(fuzzFilePath);
         bool fuzzWebsockets = strContains(fuzzFilePathLower, "web");
 
