@@ -79,7 +79,9 @@ Client::Client(int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, bool we
 
     transportStr = formatString("TCP%s%s%s", haproxy_s.c_str(), websocket_s.c_str(), ssl_s.c_str());
 
-    logger->logf(LOG_NOTICE, "Accepting connection from: %s", repr_endpoint().c_str());
+    // Avoid giving this log line for dummy clients.
+    if (addr)
+        logger->logf(LOG_NOTICE, "Accepting connection from: %s", repr_endpoint().c_str());
 }
 
 Client::~Client()
