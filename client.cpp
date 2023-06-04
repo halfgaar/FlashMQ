@@ -198,8 +198,12 @@ bool Client::readFdIntoBuffer()
         // Make sure we either always have enough space for a next call of this method, or stop reading the fd.
         if (readbuf.freeSpace() == 0)
         {
+            const Settings *settings = ThreadGlobals::getSettings();
+            // I guess I should have just made a 'max buffer size' option, and not distinguish between read/write?
+            const uint32_t maxBufferSize = std::max<uint32_t>(this->maxIncomingPacketSize, settings->clientMaxWriteBufferSize);
+
             // We always grow for another iteration when there are still decoded websocket bytes, because epoll doesn't tell us that buffer has data.
-            if (readbuf.getSize() * 2 < this->maxIncomingPacketSize || error == IoWrapResult::WantRead)
+            if (readbuf.getSize() * 2 <= maxBufferSize || error == IoWrapResult::WantRead)
             {
                 readbuf.doubleSize();
             }
