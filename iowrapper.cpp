@@ -416,8 +416,18 @@ ssize_t IoWrapper::writeOrSslWrite(int fd, const void *buf, size_t nbytes, IoWra
     return n;
 }
 
-// Use a small intermediate buffer to write (partial) websocket frames to our normal read buffer. MQTT is already a frames protocol, so we don't
-// care about websocket frames being incomplete.
+/**
+ * @brief Read the fd into buf. For websockets, reads the fd into an intermediate buffer and decodes the result to buf. MQTT is already a frames
+ * protocol, so we don't care about websocket frames being incomplete.
+ * @param fd
+ * @param buf
+ * @param nbytes
+ * @param error May still be set when bytes are written.
+ * @return number of bytes read, despite also possibly having an error. This is possible when there was still buffered data when you called it.
+ *
+ * Because of its buffered nature, it can legitimately return a number of bytes read AND set an error. So, the
+ * interface is somewhat different from normal 'read()' syscalls.
+ */
 ssize_t IoWrapper::readWebsocketAndOrSsl(int fd, void *buf, size_t nbytes, IoWrapResult *error)
 {
     if (!websocket)
@@ -760,13 +770,23 @@ ssize_t IoWrapper::writeAsMuchOfBufAsWebsocketFrame(const void *buf, const size_
     return nBytesReal;
 }
 
-/*
- *  Mqtt docs: "A single WebSocket data frame can contain multiple or partial MQTT Control Packets. The receiver
- *  MUST NOT assume that MQTT Control Packets are aligned on WebSocket frame boundaries [MQTT-6.0.0-2]." We
- *  make use of that here, and wrap each write in a frame.
+/**
+ * @brief write the buffer to the fd, potentially as websocket frame.
+ * @param fd
+ * @param buf
+ * @param nbytes
+ * @param error May still be set when bytes are written.
+ * @return number of bytes written, despite also possibly having an error.
  *
- *  It's can legitimately return a number of bytes written AND error with 'would block'. So, no need to do that
- *  repeating of the write thing that SSL_write() has.
+ * Because of its buffered nature (for websockets), it can legitimately return a number of bytes written AND set an
+ * error. So, the interface is somewhat different from normal 'write()' syscalls.
+ *
+ * This also means there is no need to do that repeating of the write thing that SSL_write() has when there is
+ * still buffered data. Just obey the 'wouldblock' error.
+ *
+ * Mqtt docs: "A single WebSocket data frame can contain multiple or partial MQTT Control Packets. The receiver
+ * MUST NOT assume that MQTT Control Packets are aligned on WebSocket frame boundaries [MQTT-6.0.0-2]." We
+ * make use of that here, and wrap each write in a frame.
  */
 ssize_t IoWrapper::writeWebsocketAndOrSsl(int fd, const void *buf, size_t nbytes, IoWrapResult *error)
 {
@@ -779,12 +799,11 @@ ssize_t IoWrapper::writeWebsocketAndOrSsl(int fd, const void *buf, size_t nbytes
     }
     else
     {
-        ssize_t nBytesReal = writeAsMuchOfBufAsWebsocketFrame(buf, nbytes);
+        const ssize_t nBytesReal = writeAsMuchOfBufAsWebsocketFrame(buf, nbytes);
 
-        ssize_t n = 0;
         while (websocketWriteRemainder.usedBytes() > 0)
         {
-            n = writeOrSslWrite(fd, websocketWriteRemainder.tailPtr(), websocketWriteRemainder.maxReadSize(), error);
+            const ssize_t n = writeOrSslWrite(fd, websocketWriteRemainder.tailPtr(), websocketWriteRemainder.maxReadSize(), error);
 
             if (n > 0)
                 websocketWriteRemainder.advanceTail(n);
@@ -792,10 +811,7 @@ ssize_t IoWrapper::writeWebsocketAndOrSsl(int fd, const void *buf, size_t nbytes
                 break;
         }
 
-        if (n > 0)
-            return nBytesReal;
-
-        return n;
+        return nBytesReal;
     }
 }
 
