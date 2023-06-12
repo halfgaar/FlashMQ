@@ -379,8 +379,12 @@ bool Session::getDestroyOnDisconnect() const
 
 void Session::setSessionProperties(uint16_t clientReceiveMax, uint32_t sessionExpiryInterval, bool clean_start, ProtocolVersion protocol_version)
 {
+    std::unique_lock<std::mutex> locker(qosQueueMutex);
+
+    // Flow control is not part of the session state, so/but/and because we call this function every time a client connects, we reset it properly.
     this->flowControlQuota = clientReceiveMax;
     this->flowControlCealing = clientReceiveMax;
+
     this->sessionExpiryInterval = sessionExpiryInterval;
 
     if (protocol_version <= ProtocolVersion::Mqtt311 && clean_start)
