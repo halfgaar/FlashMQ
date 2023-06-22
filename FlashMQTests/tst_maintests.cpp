@@ -1000,7 +1000,7 @@ void MainTests::testSavingSessions()
         c1.reset();
         MqttPacket publishPacket(ProtocolVersion::Mqtt5, publish);
         PublishCopyFactory fac(&publishPacket);
-        c1ses->writePacket(fac, 1);
+        c1ses->writePacket(fac, 1, false);
 
         store->saveSessionsAndSubscriptions("/tmp/flashmqtests_sessions.db");
 
@@ -1113,7 +1113,7 @@ void MainTests::testParsePacketHelper(const std::string &topic, uint8_t from_qos
         MqttPacket parsedPacketOne = std::move(parsedPackets.front());
         parsedPacketOne.parsePublishData();
         if (retain) // A normal handled packet always has retain=0, so I force setting it here.
-            parsedPacketOne.setRetain();
+            parsedPacketOne.setRetain(true);
 
         QCOMPARE(stagingPacketOne.getTopic(), parsedPacketOne.getTopic());
         QCOMPARE(stagingPacketOne.getPayloadCopy(), parsedPacketOne.getPayloadCopy());

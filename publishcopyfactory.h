@@ -32,6 +32,7 @@ class PublishCopyFactory
     Publish *publish = nullptr;
     std::unique_ptr<MqttPacket> oneShotPacket;
     const uint8_t orgQos;
+    const bool orgRetain = false;
     std::unordered_map<uint8_t, std::unique_ptr<MqttPacket>> constructedPacketCache;
     size_t sharedSubscriptionHashKey;
 public:
@@ -42,11 +43,12 @@ public:
 
     MqttPacket *getOptimumPacket(const uint8_t max_qos, const ProtocolVersion protocolVersion, uint16_t topic_alias, bool skip_topic);
     uint8_t getEffectiveQos(uint8_t max_qos) const;
+    bool getEffectiveRetain(bool retainAsPublished) const;
     const std::string &getTopic() const;
     const std::vector<std::string> &getSubtopics();
     std::string_view getPayload() const;
     bool getRetain() const;
-    Publish getNewPublish(uint8_t new_max_qos) const;
+    Publish getNewPublish(uint8_t new_max_qos, bool retainAsPublished) const;
     std::shared_ptr<Client> getSender();
     const std::vector<std::pair<std::string, std::string>> *getUserProperties() const;
     void setSharedSubscriptionHashKey(size_t hash);

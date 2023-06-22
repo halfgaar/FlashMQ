@@ -1348,10 +1348,8 @@ void MqttPacket::handlePublish()
             if (!publishData.retain || settings->retainedMessagesMode <= RetainedMessagesMode::Downgrade)
             {
                 // Set dup flag to 0, because that must not be propagated [MQTT-3.3.1-3].
-                // Existing subscribers don't get retain=1. [MQTT-3.3.1-9]
-                bites[0] &= 0b11110110;
+                bites[0] &= 0b11110111;
                 first_byte = bites[0];
-                publishData.retain = false;
 
                 PublishCopyFactory factory(this);
 
@@ -1852,19 +1850,10 @@ bool MqttPacket::getRetain() const
     return (first_byte & 0b00000001);
 }
 
-/**
- * @brief MqttPacket::setRetain set the retain bit in the first byte. I think I only need this in tests, because existing subscribers don't get retain=1,
- * so handlePublish() clears it. But I needed it to be set in testing.
- *
- * Publishing of the retained messages goes through the MqttPacket(Publish) constructor, hence this setRetain() isn't necessary for that.
- */
-void MqttPacket::setRetain()
+void MqttPacket::setRetain(bool val)
 {
-#ifndef TESTING
-    assert(false);
-#endif
-
-    first_byte |= 0b00000001;
+    first_byte &= 0b11111110;
+    first_byte |= static_cast<uint8_t>(val);
 
     if (fixed_header_length > 0)
     {

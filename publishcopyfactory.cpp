@@ -16,14 +16,16 @@ See LICENSE for license details.
 
 PublishCopyFactory::PublishCopyFactory(MqttPacket *packet) :
     packet(packet),
-    orgQos(packet->getQos())
+    orgQos(packet->getQos()),
+    orgRetain(packet->getRetain())
 {
 
 }
 
 PublishCopyFactory::PublishCopyFactory(Publish *publish) :
     publish(publish),
-    orgQos(publish->qos)
+    orgQos(publish->qos),
+    orgRetain(publish->retain)
 {
 
 }
@@ -79,6 +81,11 @@ uint8_t PublishCopyFactory::getEffectiveQos(uint8_t max_qos) const
     return effectiveQos;
 }
 
+bool PublishCopyFactory::getEffectiveRetain(bool retainAsPublished) const
+{
+    return orgRetain && retainAsPublished;
+}
+
 const std::string &PublishCopyFactory::getTopic() const
 {
     if (packet)
@@ -125,7 +132,7 @@ bool PublishCopyFactory::getRetain() const
  * It being a public function, the idea is that it's only needed for creating publish objects for storing QoS messages for off-line
  * clients. For on-line clients, you're always making a packet (with getOptimumPacket()).
  */
-Publish PublishCopyFactory::getNewPublish(uint8_t new_max_qos) const
+Publish PublishCopyFactory::getNewPublish(uint8_t new_max_qos, bool retainAsPublished) const
 {
     // (At time of writing) we only need to construct new publishes for QoS (because we're storing QoS publishes for offline clients). If
     // you're doing it elsewhere, it's a bug.
@@ -140,6 +147,7 @@ Publish PublishCopyFactory::getNewPublish(uint8_t new_max_qos) const
 
         Publish p(packet->getPublishData());
         p.qos = actualQos;
+        p.retain = getEffectiveRetain(retainAsPublished);
         return p;
     }
 
@@ -147,6 +155,7 @@ Publish PublishCopyFactory::getNewPublish(uint8_t new_max_qos) const
 
     Publish p(*publish);
     p.qos = actualQos;
+    p.retain = getEffectiveRetain(retainAsPublished);
     return p;
 }
 

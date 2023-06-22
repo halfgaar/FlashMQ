@@ -574,7 +574,7 @@ void SubscriptionStore::queuePacketAtSubscribers(PublishCopyFactory &copyFactory
 
     for(const ReceivingSubscriber &x : subscriberSessions)
     {
-        x.session->writePacket(copyFactory, x.qos);
+        x.session->writePacket(copyFactory, x.qos, false); // TODO: replace 'false' with subscription option.
     }
 }
 
@@ -674,7 +674,7 @@ void SubscriptionStore::giveClientRetainedMessages(const std::shared_ptr<Session
     for(Publish &publish : packetList)
     {
         PublishCopyFactory copyFactory(&publish);
-        ses->writePacket(copyFactory, max_qos);
+        ses->writePacket(copyFactory, max_qos, true);
     }
 }
 

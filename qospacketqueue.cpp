@@ -126,12 +126,12 @@ void QoSPublishQueue::addToHeadOfLinkedList(std::shared_ptr<QueuedPublish> &qp)
         this->tail = qp;
 }
 
-void QoSPublishQueue::queuePublish(PublishCopyFactory &copyFactory, uint16_t id, uint8_t new_max_qos)
+void QoSPublishQueue::queuePublish(PublishCopyFactory &copyFactory, uint16_t id, uint8_t new_max_qos, bool retainAsPublished)
 {
     assert(new_max_qos > 0);
     assert(id > 0);
 
-    Publish pub = copyFactory.getNewPublish(new_max_qos);
+    Publish pub = copyFactory.getNewPublish(new_max_qos, retainAsPublished);
     std::shared_ptr<QueuedPublish> qp = std::make_shared<QueuedPublish>(std::move(pub), id);
     addToHeadOfLinkedList(qp);
     qosQueueBytes += qp->getApproximateMemoryFootprint();

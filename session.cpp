@@ -139,7 +139,7 @@ void Session::assignActiveConnection(std::shared_ptr<Client> &client)
  * @param retain. Keep MQTT-3.3.1-9 in mind: existing subscribers don't get retain=1 on packets.
  * @param count. Reference value is updated. It's for statistics.
  */
-void Session::writePacket(PublishCopyFactory &copyFactory, const uint8_t max_qos)
+void Session::writePacket(PublishCopyFactory &copyFactory, const uint8_t max_qos, bool retainAsPublished)
 {
     assert(max_qos <= 2);
 
@@ -157,7 +157,7 @@ void Session::writePacket(PublishCopyFactory &copyFactory, const uint8_t max_qos
         {
             if (c)
             {
-                c->writeMqttPacketAndBlameThisClient(copyFactory, effectiveQos, 0);
+                c->writeMqttPacketAndBlameThisClient(copyFactory, effectiveQos, 0, retainAsPublished);
             }
         }
         else if (effectiveQos > 0)
@@ -186,11 +186,11 @@ void Session::writePacket(PublishCopyFactory &copyFactory, const uint8_t max_qos
             flowControlQuota--;
 
             if (requiresQoSQueueing())
-                qosPacketQueue.queuePublish(copyFactory, nextPacketId, effectiveQos);
+                qosPacketQueue.queuePublish(copyFactory, nextPacketId, effectiveQos, retainAsPublished);
 
             if (c)
             {
-                c->writeMqttPacketAndBlameThisClient(copyFactory, effectiveQos, nextPacketId);
+                c->writeMqttPacketAndBlameThisClient(copyFactory, effectiveQos, nextPacketId, retainAsPublished);
             }
         }
     }

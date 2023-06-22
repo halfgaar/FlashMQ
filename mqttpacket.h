@@ -154,7 +154,7 @@ public:
     std::string getPayloadCopy() const;
     std::string_view getPayloadView() const;
     bool getRetain() const;
-    void setRetain();
+    void setRetain(bool val);
     const Publish &getPublishData();
     bool containsClientSpecificProperties() const;
     bool isAlteredByPlugin() const;
