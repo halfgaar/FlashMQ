@@ -36,8 +36,8 @@ class ConfigFileParser
     Settings settings;
 
     bool testKeyValidity(const std::string &key, const std::string &matchKey, const std::set<std::string> &validKeys) const;
-    void checkFileExistsAndReadable(const std::string &key, const std::string &pathToCheck, ssize_t max_size = std::numeric_limits<ssize_t>::max()) const;
-    void checkFileOrItsDirWritable(const std::string &filepath) const;
+    void static checkFileExistsAndReadable(const std::string &key, const std::string &pathToCheck, ssize_t max_size = std::numeric_limits<ssize_t>::max());
+    void static checkFileOrItsDirWritable(const std::string &filepath);
 public:
     ConfigFileParser(const std::string &path);
     void loadFile(bool test);

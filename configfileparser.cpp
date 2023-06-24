@@ -56,7 +56,7 @@ bool ConfigFileParser::testKeyValidity(const std::string &key, const std::string
     return key == matchKey;
 }
 
-void ConfigFileParser::checkFileExistsAndReadable(const std::string &key, const std::string &pathToCheck, ssize_t max_size) const
+void ConfigFileParser::checkFileExistsAndReadable(const std::string &key, const std::string &pathToCheck, ssize_t max_size)
 {
     if (access(pathToCheck.c_str(), R_OK) != 0)
     {
@@ -67,7 +67,7 @@ void ConfigFileParser::checkFileExistsAndReadable(const std::string &key, const 
 
     struct stat statbuf;
     memset(&statbuf, 0, sizeof(struct stat));
-    if (stat(path.c_str(), &statbuf) < 0)
+    if (stat(pathToCheck.c_str(), &statbuf) < 0)
         throw ConfigFileException(formatString("Reading stat of '%s' failed.", pathToCheck.c_str()));
 
     if (!S_ISREG(statbuf.st_mode))
@@ -81,7 +81,7 @@ void ConfigFileParser::checkFileExistsAndReadable(const std::string &key, const 
     }
 }
 
-void ConfigFileParser::checkFileOrItsDirWritable(const std::string &filepath) const
+void ConfigFileParser::checkFileOrItsDirWritable(const std::string &filepath)
 {
     if (access(filepath.c_str(), F_OK) == 0)
     {
