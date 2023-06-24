@@ -815,6 +815,13 @@ void MainApp::loadConfig()
     // loading them to a local var which is never updated.
     if (listeners.empty())
         listeners = settings.listeners;
+    else
+    {
+        for (std::shared_ptr<Listener> &listener : this->listeners)
+        {
+            listener->isValid();
+        }
+    }
 
     logger->setLogPath(settings.logPath);
     logger->queueReOpen();
