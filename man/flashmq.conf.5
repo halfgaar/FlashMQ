@@ -5,7 +5,7 @@
 \\$2 \(la\\$1\(ra\\$3
 ..
 .if \n(.g .mso www.tmac
-.TH flashmq.conf 5 "25 May 2023" "" ""
+.TH flashmq.conf 5 "24 June 2023" "" ""
 .SH NAME
 flashmq.conf \- FlashMQ configuration file format
 .SH SYNOPSIS
@@ -138,8 +138,6 @@ Not specifying this will turn off persistence.
 .TP 
 \*(T<\fBmax_qos_msg_pending_per_client\fR\*(T> , \*(T<\fBmax_qos_bytes_pending_per_client\fR\*(T> 
 There is a limit to how many QoS packets can be stored in a session, so you can define a maximum amount of messages and bytes. If any of these is exceeded, the packet is dropped.
-
-These are essentially superfluous for MQTT >= 3.1.1 clients with \*(T<\fBcleansession=true\fR\*(T> (MQTT 3) / \*(T<\fBsession expirty = 0\fR\*(T> (MQTT 5). Because queues would get destroyed upon client disconnect, there is no point in actually queuing them. In those cases, it just allows 65536 'in flight' packets.
 
 Defaults:
 .RS 

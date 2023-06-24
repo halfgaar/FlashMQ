@@ -342,9 +342,6 @@
             There is a limit to how many QoS packets can be stored in a session, so you can define a maximum amount of messages and bytes. If any of these is exceeded, the packet is dropped.
           </p>
           <p>
-            These are essentially superfluous for MQTT &gt;= 3.1.1 clients with <code class="option">cleansession=true</code> (MQTT 3) / <code class="option">session expirty = 0</code> (MQTT 5). Because queues would get destroyed upon client disconnect, there is no point in actually queuing them. In those cases, it just allows 65536 'in flight' packets.
-          </p>
-          <p>
             Defaults:
           </p>
           

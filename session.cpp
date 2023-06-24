@@ -176,7 +176,8 @@ void Session::writePacket(PublishCopyFactory &copyFactory, const uint8_t max_qos
                 if (QoSLogPrintedAtId != nextPacketId)
                 {
                     logger->logf(LOG_WARNING, "Dropping QoS message(s) for client '%s', because it hasn't seen enough PUBACK/PUBCOMP/PUBRECs to release places "
-                                              "or it exceeded 'max_qos_bytes_pending_per_client'.", client_id.c_str());
+                                              "or it exceeded the queue size. You could increase 'max_qos_msg_pending_per_client' "
+                                              "or 'max_qos_bytes_pending_per_client' (but this is also subject the client's 'receive max').", client_id.c_str());
                     QoSLogPrintedAtId = nextPacketId;
                 }
                 return;
