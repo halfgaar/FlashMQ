@@ -178,13 +178,14 @@ void FlashMQTestClient::connectClient(ProtocolVersion protocolVersion, bool clea
     this->client->setAuthenticated(true);
 }
 
-void FlashMQTestClient::subscribe(const std::string topic, uint8_t qos)
+void FlashMQTestClient::subscribe(const std::string topic, uint8_t qos, bool noLocal)
 {
     clearReceivedLists();
 
     const uint16_t packet_id = 66;
 
     Subscribe sub(client->getProtocolVersion(), packet_id, topic, qos);
+    sub.noLocal = noLocal;
     MqttPacket subPack(sub);
     client->writeMqttPacketAndBlameThisClient(subPack);
 

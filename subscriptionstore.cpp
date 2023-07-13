@@ -50,11 +50,12 @@ const std::string &SubscriptionNode::getSubtopic() const
     return subtopic;
 }
 
-void SubscriptionNode::addSubscriber(const std::shared_ptr<Session> &subscriber, uint8_t qos, const std::string &shareName)
+void SubscriptionNode::addSubscriber(const std::shared_ptr<Session> &subscriber, uint8_t qos, bool noLocal, const std::string &shareName)
 {
     Subscription sub;
     sub.session = subscriber;
     sub.qos = qos;
+    sub.noLocal = noLocal;
 
     const std::string &client_id = subscriber->getClientId();
 
@@ -163,13 +164,13 @@ SubscriptionNode *SubscriptionStore::getDeepestNode(const std::vector<std::strin
     return deepestNode;
 }
 
-void SubscriptionStore::addSubscription(std::shared_ptr<Client> &client, const std::vector<std::string> &subtopics, uint8_t qos)
+void SubscriptionStore::addSubscription(std::shared_ptr<Client> &client, const std::vector<std::string> &subtopics, uint8_t qos, bool noLocal)
 {
     const std::string empty;
-    addSubscription(client, subtopics, qos, empty);
+    addSubscription(client, subtopics, qos, noLocal, empty);
 }
 
-void SubscriptionStore::addSubscription(std::shared_ptr<Client> &client, const std::vector<std::string> &subtopics, uint8_t qos,
+void SubscriptionStore::addSubscription(std::shared_ptr<Client> &client, const std::vector<std::string> &subtopics, uint8_t qos, bool noLocal,
                                         const std::string &shareName)
 {
     RWLockGuard lock_guard(&sessionsAndSubscriptionsRwlock);
@@ -183,7 +184,7 @@ void SubscriptionStore::addSubscription(std::shared_ptr<Client> &client, const s
         if (session_it != sessionsByIdConst.end())
         {
             const std::shared_ptr<Session> &ses = session_it->second;
-            deepestNode->addSubscriber(ses, qos, shareName);
+            deepestNode->addSubscriber(ses, qos, noLocal, shareName);
             subscriptionCount++;
             lock_guard.unlock();
 
@@ -384,7 +385,7 @@ void SubscriptionStore::sendQueuedWillMessages()
                     if (auth.aclCheck(*p, p->payload) == AuthResult::success)
                     {
                         PublishCopyFactory factory(p.get());
-                        queuePacketAtSubscribers(factory);
+                        queuePacketAtSubscribers(factory, p->client_id);
 
                         if (p->retain)
                             setRetainedMessage(*p, p->getSubtopics());
@@ -421,8 +422,13 @@ void SubscriptionStore::queueWillMessage(const std::shared_ptr<WillPublish> &wil
     {
         if (settings->willsEnabled && auth.aclCheck(*willMessage, willMessage->payload) == AuthResult::success)
         {
+            std::string senderClientId;
+
+            if (session)
+                senderClientId = session->getClientId();
+
             PublishCopyFactory factory(willMessage.get());
-            queuePacketAtSubscribers(factory);
+            queuePacketAtSubscribers(factory, senderClientId);
 
             if (willMessage->retain)
                 setRetainedMessage(*willMessage.get(), (*willMessage).getSubtopics());
@@ -445,7 +451,8 @@ void SubscriptionStore::queueWillMessage(const std::shared_ptr<WillPublish> &wil
     this->pendingWillMessages[secondsSinceEpoch].push_back(queuedWill);
 }
 
-void SubscriptionStore::publishNonRecursively(SubscriptionNode *this_node, std::forward_list<ReceivingSubscriber> &targetSessions, size_t distributionHash)
+void SubscriptionStore::publishNonRecursively(SubscriptionNode *this_node, std::forward_list<ReceivingSubscriber> &targetSessions, size_t distributionHash,
+                                              const std::string &senderClientId)
 {
     {
         const std::unordered_map<std::string, Subscription> &subscribers = this_node->getSubscribers();
@@ -457,6 +464,11 @@ void SubscriptionStore::publishNonRecursively(SubscriptionNode *this_node, std::
             const std::shared_ptr<Session> session = sub.session.lock();
             if (session) // Shared pointer expires when session has been cleaned by 'clean session' connect.
             {
+                const std::string &receiverClientId = session->getClientId();
+
+                if (sub.noLocal && receiverClientId == senderClientId)
+                    continue;
+
                 ReceivingSubscriber x(session, sub.qos);
                 targetSessions.emplace_front(session, sub.qos);
             }
@@ -507,12 +519,13 @@ void SubscriptionStore::publishNonRecursively(SubscriptionNode *this_node, std::
  * look at objdump --disassemble --demangle to see how many calls (not jumps) to itself are made and compare.
  */
 void SubscriptionStore::publishRecursively(std::vector<std::string>::const_iterator cur_subtopic_it, std::vector<std::string>::const_iterator end,
-                                           SubscriptionNode *this_node, std::forward_list<ReceivingSubscriber> &targetSessions, size_t distributionHash)
+                                           SubscriptionNode *this_node, std::forward_list<ReceivingSubscriber> &targetSessions, size_t distributionHash,
+                                           const std::string &senderClientId)
 {
     if (cur_subtopic_it == end) // This is the end of the topic path, so look for subscribers here.
     {
         if (this_node)
-            publishNonRecursively(this_node, targetSessions, distributionHash);
+            publishNonRecursively(this_node, targetSessions, distributionHash, senderClientId);
         return;
     }
 
@@ -529,22 +542,22 @@ void SubscriptionStore::publishRecursively(std::vector<std::string>::const_itera
 
     if (this_node->childrenPound)
     {
-        publishNonRecursively(this_node->childrenPound.get(), targetSessions, distributionHash);
+        publishNonRecursively(this_node->childrenPound.get(), targetSessions, distributionHash, senderClientId);
     }
 
     const auto &sub_node = this_node->children.find(cur_subtop);
     if (sub_node != this_node->children.end())
     {
-        publishRecursively(next_subtopic, end, sub_node->second.get(), targetSessions, distributionHash);
+        publishRecursively(next_subtopic, end, sub_node->second.get(), targetSessions, distributionHash, senderClientId);
     }
 
     if (this_node->childrenPlus)
     {
-        publishRecursively(next_subtopic, end, this_node->childrenPlus.get(), targetSessions, distributionHash);
+        publishRecursively(next_subtopic, end, this_node->childrenPlus.get(), targetSessions, distributionHash, senderClientId);
     }
 }
 
-void SubscriptionStore::queuePacketAtSubscribers(PublishCopyFactory &copyFactory, bool dollar)
+void SubscriptionStore::queuePacketAtSubscribers(PublishCopyFactory &copyFactory, const std::string &senderClientId, bool dollar)
 {
     /*
      * Sometimes people publish or set as will topics with dollar. Node-to-Node communication for bridges for instance.
@@ -569,7 +582,7 @@ void SubscriptionStore::queuePacketAtSubscribers(PublishCopyFactory &copyFactory
         const std::vector<std::string> &subtopics = copyFactory.getSubtopics();
         RWLockGuard lock_guard(&sessionsAndSubscriptionsRwlock);
         lock_guard.rdlock();
-        publishRecursively(subtopics.begin(), subtopics.end(), startNode, subscriberSessions, copyFactory.getSharedSubscriptionHashKey());
+        publishRecursively(subtopics.begin(), subtopics.end(), startNode, subscriberSessions, copyFactory.getSharedSubscriptionHashKey(), senderClientId);
     }
 
     for(const ReceivingSubscriber &x : subscriberSessions)
@@ -1028,7 +1041,7 @@ void SubscriptionStore::getSubscriptions(SubscriptionNode *this_node, const std:
         std::shared_ptr<Session> ses = node.session.lock();
         if (ses)
         {
-            SubscriptionForSerializing sub(ses->getClientId(), node.qos);
+            SubscriptionForSerializing sub(ses->getClientId(), node.qos, node.noLocal);
             outputList[composedTopic].push_back(sub);
         }
     }
@@ -1246,7 +1259,7 @@ void SubscriptionStore::loadSessionsAndSubscriptions(const std::string &filePath
                 if (session_it != sessionsByIdConst.end())
                 {
                     const std::shared_ptr<Session> &ses = session_it->second;
-                    subscriptionNode->addSubscriber(ses, sub.qos, sub.shareName);
+                    subscriptionNode->addSubscriber(ses, sub.qos, sub.noLocal, sub.shareName);
                 }
 
             }

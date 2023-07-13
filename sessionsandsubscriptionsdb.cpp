@@ -18,26 +18,43 @@ See LICENSE for license details.
 
 #include <cassert>
 
-SubscriptionForSerializing::SubscriptionForSerializing(const std::string &clientId, uint8_t qos) :
-    clientId(clientId),
-    qos(qos)
-{
-
-}
-
-SubscriptionForSerializing::SubscriptionForSerializing(const std::string &clientId, uint8_t qos, const std::string &shareName) :
+SubscriptionForSerializing::SubscriptionForSerializing(const std::string &clientId, uint8_t qos, bool noLocal) :
     clientId(clientId),
     qos(qos),
-    shareName(shareName)
+    noLocal(noLocal)
 {
 
 }
 
-SubscriptionForSerializing::SubscriptionForSerializing(const std::string &&clientId, uint8_t qos) :
+SubscriptionForSerializing::SubscriptionForSerializing(const std::string &clientId, uint8_t qos, bool noLocal, const std::string &shareName) :
     clientId(clientId),
-    qos(qos)
+    qos(qos),
+    shareName(shareName),
+    noLocal(noLocal)
 {
 
+}
+
+SubscriptionForSerializing::SubscriptionForSerializing(const std::string &&clientId, uint8_t qos, bool noLocal) :
+    clientId(clientId),
+    qos(qos),
+    noLocal(noLocal)
+{
+
+}
+
+SubscriptionForSerializing::SubscriptionForSerializing(const std::string &&clientId, SubscriptionOptionsByte options, const std::string &shareName) :
+    clientId(std::move(clientId)),
+    qos(options.getQos()),
+    shareName(shareName),
+    noLocal(options.getNoLocal())
+{
+
+}
+
+SubscriptionOptionsByte SubscriptionForSerializing::getSubscriptionOptions() const
+{
+    return SubscriptionOptionsByte(qos, noLocal);
 }
 
 SessionsAndSubscriptionsDB::SessionsAndSubscriptionsDB(const std::string &filePath) : PersistenceFile(filePath)
@@ -47,7 +64,7 @@ SessionsAndSubscriptionsDB::SessionsAndSubscriptionsDB(const std::string &filePa
 
 void SessionsAndSubscriptionsDB::openWrite()
 {
-    PersistenceFile::openWrite(MAGIC_STRING_SESSION_FILE_V4);
+    PersistenceFile::openWrite(MAGIC_STRING_SESSION_FILE_V5);
 }
 
 void SessionsAndSubscriptionsDB::openRead()
@@ -62,11 +79,13 @@ void SessionsAndSubscriptionsDB::openRead()
         readVersion = ReadVersion::v3;
     else if (detectedVersionString == MAGIC_STRING_SESSION_FILE_V4)
         readVersion = ReadVersion::v4;
+    else if (detectedVersionString == MAGIC_STRING_SESSION_FILE_V5)
+        readVersion = ReadVersion::v5;
     else
         throw std::runtime_error("Unknown file version.");
 }
 
-SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV3V4()
+SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV3V4V5()
 {
     const Settings &settings = *ThreadGlobals::getSettings();
 
@@ -223,11 +242,11 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV3V4()
                     sharename = readString(eofFound);
 
                 std::string clientId = readString(eofFound);
-                uint8_t qos = readUint8(eofFound);
+                const SubscriptionOptionsByte subscriptionOptions(readUint8(eofFound));
 
-                logger->logf(LOG_DEBUG, "Saving session '%s' subscription to '%s' QoS %d.", clientId.c_str(), topic.c_str(), qos);
+                logger->logf(LOG_DEBUG, "Saving session '%s' subscription to '%s' QoS %d.", clientId.c_str(), topic.c_str(), subscriptionOptions.getQos());
 
-                SubscriptionForSerializing sub(std::move(clientId), qos, sharename);
+                SubscriptionForSerializing sub(std::move(clientId), subscriptionOptions, sharename);
                 result.subscriptions[topic].push_back(std::move(sub));
             }
 
@@ -389,7 +408,7 @@ void SessionsAndSubscriptionsDB::saveData(const std::vector<std::shared_ptr<Sess
 
             writeString(subscription.shareName);
             writeString(subscription.clientId);
-            writeUint8(subscription.qos);
+            writeUint8(subscription.getSubscriptionOptions().b);
         }
     }
 
@@ -407,8 +426,9 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readData()
         logger->logf(LOG_WARNING, "File '%s' is version 1, an internal development version that was never finalized. Not reading.", getFilePath().c_str());
     if (readVersion == ReadVersion::v2)
         logger->logf(LOG_WARNING, "File '%s' is version 2, an internal development version that was never finalized. Not reading.", getFilePath().c_str());
-    if (readVersion >= ReadVersion::v3 || readVersion == ReadVersion::v4)
-        return readDataV3V4();
+    if (readVersion >= ReadVersion::v3 || readVersion == ReadVersion::v4 || readVersion == ReadVersion::v5)
+        return readDataV3V4V5();
 
     return defaultResult;
 }
+

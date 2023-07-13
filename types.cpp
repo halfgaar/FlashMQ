@@ -16,6 +16,30 @@ See LICENSE for license details.
 
 #include "utils.h"
 
+SubscriptionOptionsByte::SubscriptionOptionsByte(uint8_t byte) :
+    b(byte)
+{
+
+}
+
+SubscriptionOptionsByte::SubscriptionOptionsByte(uint8_t qos, bool noLocal) :
+    b(qos | (static_cast<uint8_t>(noLocal) << 2))
+{
+
+}
+
+bool SubscriptionOptionsByte::getNoLocal() const
+{
+    uint8_t bit = b & 0x04;
+    return static_cast<bool>(bit);
+}
+
+uint8_t SubscriptionOptionsByte::getQos() const
+{
+    uint8_t qos = b & 0x03;
+    return static_cast<uint8_t>(qos);
+}
+
 ConnAck::ConnAck(const ProtocolVersion protVersion, ReasonCodes return_code, bool session_present) :
     protocol_version(protVersion),
     session_present(session_present)

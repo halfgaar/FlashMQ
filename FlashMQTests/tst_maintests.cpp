@@ -974,20 +974,20 @@ void MainTests::testSavingSessions()
         const std::string topic1 = "one/two/three";
         std::vector<std::string> subtopics;
         subtopics = splitTopic(topic1);
-        store->addSubscription(c1, subtopics, 0);
+        store->addSubscription(c1, subtopics, 0, true);
 
         const std::string topic2 = "four/five/six";
         subtopics = splitTopic(topic2);
-        store->addSubscription(c2, subtopics, 0);
-        store->addSubscription(c1, subtopics, 0);
+        store->addSubscription(c2, subtopics, 0, false);
+        store->addSubscription(c1, subtopics, 0, false);
 
         const std::string topic3 = "";
         subtopics = splitTopic(topic3);
-        store->addSubscription(c2, subtopics, 0);
+        store->addSubscription(c2, subtopics, 0, false);
 
         const std::string topic4 = "#";
         subtopics = splitTopic(topic4);
-        store->addSubscription(c2, subtopics, 0);
+        store->addSubscription(c2, subtopics, 0, false);
 
         Publish publish("a/b/c", "Hello Barry", 1);
         publish.client_id = "ClientIdFromFakePublisher";
@@ -1034,6 +1034,8 @@ void MainTests::testSavingSessions()
         MYCASTCOMPARE(store1Subscriptions.size(), 4);
         MYCASTCOMPARE(store2Subscriptions.size(), 4);
 
+        int noLocalCount = 0;
+
         for(auto &pair : store1Subscriptions)
         {
             std::list<SubscriptionForSerializing> &subscList1 = pair.second;
@@ -1050,12 +1052,18 @@ void MainTests::testSavingSessions()
                 SubscriptionForSerializing &two = *subs2It;
                 QCOMPARE(one.clientId, two.clientId);
                 QCOMPARE(one.qos, two.qos);
+                QCOMPARE(one.noLocal, two.noLocal);
+
+                if (two.noLocal)
+                    noLocalCount++;
 
                 subs1It++;
                 subs2It++;
             }
 
         }
+
+        QVERIFY(noLocalCount > 0);
 
         std::shared_ptr<Session> loadedSes = store2->sessionsById["c1"];
         QueuedPublish &queuedPublishLoaded = *loadedSes->qosPacketQueue.next();
@@ -2166,7 +2174,7 @@ void MainTests::testPublishToItself()
     client.start();
     client.connectClient(ProtocolVersion::Mqtt5);
 
-    client.subscribe("mytopic", 1);
+    client.subscribe("mytopic", 1, false);
 
     try
     {
@@ -2187,8 +2195,28 @@ void MainTests::testPublishToItself()
     }
 
     MYCASTCOMPARE(client.receivedPublishes.size(), 1);
+}
 
+void MainTests::testNoLocalPublishToItself()
+{
+    FlashMQTestClient client;
+    client.start();
+    client.connectClient(ProtocolVersion::Mqtt5);
 
+    client.subscribe("mytopic", 1, true);
+
+    try
+    {
+        client.publish("mytopic", "mypayload", 1);
+    }
+    catch (std::exception &ex)
+    {
+        QVERIFY2(false, ex.what());
+    }
+
+    usleep(1000000);
+
+    MYCASTCOMPARE(client.receivedPublishes.size(), 0);
 }
 
 int main(int argc, char *argv[])

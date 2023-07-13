@@ -326,7 +326,7 @@ void ThreadData::publishStat(const std::string &topic, uint64_t n)
     Publish p(topic, payload, 0);
     PublishCopyFactory factory(&p);
     std::shared_ptr<SubscriptionStore> subscriptionStore = MainApp::getMainApp()->getSubscriptionStore();
-    subscriptionStore->queuePacketAtSubscribers(factory, true);
+    subscriptionStore->queuePacketAtSubscribers(factory, "", true);
     subscriptionStore->setRetainedMessage(p, factory.getSubtopics());
 }
 

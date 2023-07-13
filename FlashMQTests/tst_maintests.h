@@ -192,6 +192,7 @@ private slots:
     void testAsyncCurl();
 
     void testPublishToItself();
+    void testNoLocalPublishToItself();
 };
 
 

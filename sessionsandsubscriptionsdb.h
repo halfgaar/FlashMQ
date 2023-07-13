@@ -16,11 +16,13 @@ See LICENSE for license details.
 
 #include "forward_declarations.h"
 #include "persistencefile.h"
+#include "types.h"
 
 #define MAGIC_STRING_SESSION_FILE_V1 "FlashMQRetainedDBv1" // That this is called 'retained' was a bug...
 #define MAGIC_STRING_SESSION_FILE_V2 "FlashMQSessionDBv2"
 #define MAGIC_STRING_SESSION_FILE_V3 "FlashMQSessionDBv3"
 #define MAGIC_STRING_SESSION_FILE_V4 "FlashMQSessionDBv4"
+#define MAGIC_STRING_SESSION_FILE_V5 "FlashMQSessionDBv5"
 #define RESERVED_SPACE_SESSIONS_DB_V2 32
 
 /**
@@ -31,10 +33,15 @@ struct SubscriptionForSerializing
     const std::string clientId;
     const uint8_t qos = 0;
     const std::string shareName;
+    const bool noLocal = false;
 
-    SubscriptionForSerializing(const std::string &clientId, uint8_t qos);
-    SubscriptionForSerializing(const std::string &clientId, uint8_t qos, const std::string &shareName);
-    SubscriptionForSerializing(const std::string &&clientId, uint8_t qos);
+    SubscriptionForSerializing(const std::string &clientId, uint8_t qos, bool noLocal);
+    SubscriptionForSerializing(const std::string &clientId, uint8_t qos, bool noLocal, const std::string &shareName);
+    SubscriptionForSerializing(const std::string &&clientId, uint8_t qos, bool noLocal);
+
+    SubscriptionForSerializing(const std::string &&clientId, SubscriptionOptionsByte options, const std::string &shareName);
+
+    SubscriptionOptionsByte getSubscriptionOptions() const;
 };
 
 struct SessionsAndSubscriptionsResult
@@ -52,12 +59,13 @@ class SessionsAndSubscriptionsDB : public PersistenceFile
         v1,
         v2,
         v3,
-        v4
+        v4,
+        v5
     };
 
     ReadVersion readVersion = ReadVersion::unknown;
 
-    SessionsAndSubscriptionsResult readDataV3V4();
+    SessionsAndSubscriptionsResult readDataV3V4V5();
     void writeRowHeader();
 public:
     SessionsAndSubscriptionsDB(const std::string &filePath);

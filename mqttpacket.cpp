@@ -324,7 +324,16 @@ MqttPacket::MqttPacket(const Subscribe &subscribe) :
     }
 
     writeString(subscribe.topic);
-    writeByte(subscribe.qos);
+
+    if (subscribe.protocolVersion < ProtocolVersion::Mqtt5)
+    {
+        writeByte(subscribe.qos);
+    }
+    else
+    {
+        SubscriptionOptionsByte options(subscribe.qos, subscribe.noLocal);
+        writeByte(options.b);
+    }
 
     calculateRemainingLength();
 }
@@ -1069,8 +1078,17 @@ void MqttPacket::handleSubscribe()
     {
         std::string topic = readBytesToString(true);
 
-        const uint8_t subscriptionOptions = readUint8();
-        uint8_t qos = subscriptionOptions & 0x03;
+        const uint8_t qos_byte = readUint8();
+
+        if (this->protocolVersion < ProtocolVersion::Mqtt5 && qos_byte > 2)
+        {
+            throw ProtocolError("QoS value in subscribe is higher than 2", ReasonCodes::MalformedPacket);
+        }
+
+        const SubscriptionOptionsByte options(qos_byte);
+
+        uint8_t qos = options.getQos();
+        const bool noLocal = options.getNoLocal();
 
         std::vector<std::string> subtopics = splitTopic(topic);
 
@@ -1091,7 +1109,7 @@ void MqttPacket::handleSubscribe()
 
         if (authentication.aclCheck(sender->getClientId(), sender->getUsername(), topic, subtopics, std::string_view(), AclAccess::subscribe, qos, false, getUserProperties()) == AuthResult::success)
         {
-            deferredSubscribes.emplace_front(topic, subtopics, qos, shareName);
+            deferredSubscribes.emplace_front(topic, subtopics, qos, noLocal, shareName);
             subs_reponse_codes.push_back(static_cast<ReasonCodes>(qos));
         }
         else
@@ -1118,7 +1136,7 @@ void MqttPacket::handleSubscribe()
     for(const SubscriptionTuple &tup : deferredSubscribes)
     {
         logger->logf(LOG_SUBSCRIBE, "Client '%s' subscribed to '%s' QoS %d", sender->repr().c_str(), tup.topic.c_str(), tup.qos);
-        MainApp::getMainApp()->getSubscriptionStore()->addSubscription(sender, tup.subtopics, tup.qos, tup.shareName);
+        MainApp::getMainApp()->getSubscriptionStore()->addSubscription(sender, tup.subtopics, tup.qos, tup.noLocal, tup.shareName);
     }
 }
 
@@ -1360,7 +1378,7 @@ void MqttPacket::handlePublish()
                 }
 
                 ackSender.sendNow();
-                MainApp::getMainApp()->getSubscriptionStore()->queuePacketAtSubscribers(factory);
+                MainApp::getMainApp()->getSubscriptionStore()->queuePacketAtSubscribers(factory, sender->getClientId());
             }
         }
         else
@@ -1917,10 +1935,11 @@ void MqttPacket::readIntoBuf(CirBuf &buf) const
     buf.write(bites.data(), bites.size());
 }
 
-SubscriptionTuple::SubscriptionTuple(const std::string &topic, const std::vector<std::string> &subtopics, uint8_t qos, const std::string &shareName) :
+SubscriptionTuple::SubscriptionTuple(const std::string &topic, const std::vector<std::string> &subtopics, uint8_t qos, bool noLocal, const std::string &shareName) :
     topic(topic),
     subtopics(subtopics),
     qos(qos),
+    noLocal(noLocal),
     shareName(shareName)
 {
 
