@@ -34,10 +34,11 @@ struct SubscriptionForSerializing
     const uint8_t qos = 0;
     const std::string shareName;
     const bool noLocal = false;
+    const bool retainAsPublished = false;
 
-    SubscriptionForSerializing(const std::string &clientId, uint8_t qos, bool noLocal);
-    SubscriptionForSerializing(const std::string &clientId, uint8_t qos, bool noLocal, const std::string &shareName);
-    SubscriptionForSerializing(const std::string &&clientId, uint8_t qos, bool noLocal);
+    SubscriptionForSerializing(const std::string &clientId, uint8_t qos, bool noLocal, bool retainAsPublished);
+    SubscriptionForSerializing(const std::string &clientId, uint8_t qos, bool noLocal, bool retainAsPublished, const std::string &shareName);
+    SubscriptionForSerializing(const std::string &&clientId, uint8_t qos, bool noLocal, bool retainAsPublished);
 
     SubscriptionForSerializing(const std::string &&clientId, SubscriptionOptionsByte options, const std::string &shareName);
 

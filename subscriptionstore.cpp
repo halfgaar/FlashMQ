@@ -22,9 +22,10 @@ See LICENSE for license details.
 #include "exceptions.h"
 #include "threaddata.h"
 
-ReceivingSubscriber::ReceivingSubscriber(const std::shared_ptr<Session> &ses, uint8_t qos) :
+ReceivingSubscriber::ReceivingSubscriber(const std::shared_ptr<Session> &ses, uint8_t qos, bool retainAsPublished) :
     session(ses),
-    qos(qos)
+    qos(qos),
+    retainAsPublished(retainAsPublished)
 {
 
 }
@@ -50,12 +51,13 @@ const std::string &SubscriptionNode::getSubtopic() const
     return subtopic;
 }
 
-void SubscriptionNode::addSubscriber(const std::shared_ptr<Session> &subscriber, uint8_t qos, bool noLocal, const std::string &shareName)
+void SubscriptionNode::addSubscriber(const std::shared_ptr<Session> &subscriber, uint8_t qos, bool noLocal, bool retainAsPublished, const std::string &shareName)
 {
     Subscription sub;
     sub.session = subscriber;
     sub.qos = qos;
     sub.noLocal = noLocal;
+    sub.retainAsPublished = retainAsPublished;
 
     const std::string &client_id = subscriber->getClientId();
 
@@ -164,13 +166,13 @@ SubscriptionNode *SubscriptionStore::getDeepestNode(const std::vector<std::strin
     return deepestNode;
 }
 
-void SubscriptionStore::addSubscription(std::shared_ptr<Client> &client, const std::vector<std::string> &subtopics, uint8_t qos, bool noLocal)
+void SubscriptionStore::addSubscription(std::shared_ptr<Client> &client, const std::vector<std::string> &subtopics, uint8_t qos, bool noLocal, bool retainAsPublished)
 {
-    const std::string empty;
-    addSubscription(client, subtopics, qos, noLocal, empty);
+    const static std::string empty;
+    addSubscription(client, subtopics, qos, noLocal, retainAsPublished, empty);
 }
 
-void SubscriptionStore::addSubscription(std::shared_ptr<Client> &client, const std::vector<std::string> &subtopics, uint8_t qos, bool noLocal,
+void SubscriptionStore::addSubscription(std::shared_ptr<Client> &client, const std::vector<std::string> &subtopics, uint8_t qos, bool noLocal, bool retainAsPublished,
                                         const std::string &shareName)
 {
     RWLockGuard lock_guard(&sessionsAndSubscriptionsRwlock);
@@ -184,7 +186,7 @@ void SubscriptionStore::addSubscription(std::shared_ptr<Client> &client, const s
         if (session_it != sessionsByIdConst.end())
         {
             const std::shared_ptr<Session> &ses = session_it->second;
-            deepestNode->addSubscriber(ses, qos, noLocal, shareName);
+            deepestNode->addSubscriber(ses, qos, noLocal, retainAsPublished, shareName);
             subscriptionCount++;
             lock_guard.unlock();
 
@@ -469,7 +471,7 @@ void SubscriptionStore::publishNonRecursively(SubscriptionNode *this_node, std::
                 if (sub.noLocal && receiverClientId == senderClientId)
                     continue;
 
-                targetSessions.emplace_front(session, sub.qos);
+                targetSessions.emplace_front(session, sub.qos, sub.retainAsPublished);
             }
         }
     }
@@ -498,7 +500,7 @@ void SubscriptionStore::publishNonRecursively(SubscriptionNode *this_node, std::
                 const std::shared_ptr<Session> session = sub->session.lock();
                 if (session) // Shared pointer expires when session has been cleaned by 'clean session' connect.
                 {
-                    targetSessions.emplace_front(session, sub->qos);
+                    targetSessions.emplace_front(session, sub->qos, sub->retainAsPublished);
                 }
             }
         }
@@ -585,7 +587,7 @@ void SubscriptionStore::queuePacketAtSubscribers(PublishCopyFactory &copyFactory
 
     for(const ReceivingSubscriber &x : subscriberSessions)
     {
-        x.session->writePacket(copyFactory, x.qos, false); // TODO: replace 'false' with subscription option.
+        x.session->writePacket(copyFactory, x.qos, x.retainAsPublished);
     }
 }
 
@@ -1039,7 +1041,7 @@ void SubscriptionStore::getSubscriptions(SubscriptionNode *this_node, const std:
         std::shared_ptr<Session> ses = node.session.lock();
         if (ses)
         {
-            SubscriptionForSerializing sub(ses->getClientId(), node.qos, node.noLocal);
+            SubscriptionForSerializing sub(ses->getClientId(), node.qos, node.noLocal, node.retainAsPublished);
             outputList[composedTopic].push_back(sub);
         }
     }
@@ -1257,7 +1259,7 @@ void SubscriptionStore::loadSessionsAndSubscriptions(const std::string &filePath
                 if (session_it != sessionsByIdConst.end())
                 {
                     const std::shared_ptr<Session> &ses = session_it->second;
-                    subscriptionNode->addSubscriber(ses, sub.qos, sub.noLocal, sub.shareName);
+                    subscriptionNode->addSubscriber(ses, sub.qos, sub.noLocal, sub.retainAsPublished, sub.shareName);
                 }
 
             }

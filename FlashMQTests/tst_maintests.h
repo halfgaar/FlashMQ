@@ -79,6 +79,8 @@ private slots:
     void test_retained_global_expire();
     void test_retained_per_message_expire();
     void test_retained_tree_purging();
+    void testRetainAsPublished();
+    void testRetainAsPublishedNegative();
 
     void test_various_packet_sizes();
 

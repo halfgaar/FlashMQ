@@ -32,9 +32,10 @@ struct ReceivingSubscriber
 {
     const std::shared_ptr<Session> session;
     const uint8_t qos;
+    const bool retainAsPublished;
 
 public:
-    ReceivingSubscriber(const std::shared_ptr<Session> &ses, uint8_t qos);
+    ReceivingSubscriber(const std::shared_ptr<Session> &ses, uint8_t qos, bool retainAsPublished);
 };
 
 class SubscriptionNode
@@ -51,7 +52,7 @@ public:
     const std::unordered_map<std::string, Subscription> &getSubscribers() const;
     std::unordered_map<std::string, SharedSubscribers> &getSharedSubscribers();
     const std::string &getSubtopic() const;
-    void addSubscriber(const std::shared_ptr<Session> &subscriber, uint8_t qos, bool noLocal, const std::string &shareName);
+    void addSubscriber(const std::shared_ptr<Session> &subscriber, uint8_t qos, bool noLocal, bool retainAsPublished, const std::string &shareName);
     void removeSubscriber(const std::shared_ptr<Session> &subscriber, const std::string &shareName);
     std::unordered_map<std::string, std::unique_ptr<SubscriptionNode>> children;
     std::unique_ptr<SubscriptionNode> childrenPlus;
@@ -134,8 +135,8 @@ class SubscriptionStore
 public:
     SubscriptionStore();
 
-    void addSubscription(std::shared_ptr<Client> &client, const std::vector<std::string> &subtopics, uint8_t qos, bool noLocal);
-    void addSubscription(std::shared_ptr<Client> &client, const std::vector<std::string> &subtopics, uint8_t qos, bool noLocal, const std::string &shareName);
+    void addSubscription(std::shared_ptr<Client> &client, const std::vector<std::string> &subtopics, uint8_t qos, bool noLocal, bool retainAsPublished);
+    void addSubscription(std::shared_ptr<Client> &client, const std::vector<std::string> &subtopics, uint8_t qos, bool noLocal, bool retainAsPublished, const std::string &shareName);
     void removeSubscription(std::shared_ptr<Client> &client, const std::string &topic);
     void registerClientAndKickExistingOne(std::shared_ptr<Client> &client);
     void registerClientAndKickExistingOne(std::shared_ptr<Client> &client, bool clean_start, uint16_t clientReceiveMax, uint32_t sessionExpiryInterval);

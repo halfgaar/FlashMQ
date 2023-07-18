@@ -331,7 +331,7 @@ MqttPacket::MqttPacket(const Subscribe &subscribe) :
     }
     else
     {
-        SubscriptionOptionsByte options(subscribe.qos, subscribe.noLocal);
+        SubscriptionOptionsByte options(subscribe.qos, subscribe.noLocal, subscribe.retainAsPublished);
         writeByte(options.b);
     }
 
@@ -1089,6 +1089,7 @@ void MqttPacket::handleSubscribe()
 
         uint8_t qos = options.getQos();
         const bool noLocal = options.getNoLocal();
+        const bool retainedAsPublished = options.getRetainAsPublished();
 
         std::vector<std::string> subtopics = splitTopic(topic);
 
@@ -1109,7 +1110,7 @@ void MqttPacket::handleSubscribe()
 
         if (authentication.aclCheck(sender->getClientId(), sender->getUsername(), topic, subtopics, std::string_view(), AclAccess::subscribe, qos, false, getUserProperties()) == AuthResult::success)
         {
-            deferredSubscribes.emplace_front(topic, subtopics, qos, noLocal, shareName);
+            deferredSubscribes.emplace_front(topic, subtopics, qos, noLocal, retainedAsPublished, shareName);
             subs_reponse_codes.push_back(static_cast<ReasonCodes>(qos));
         }
         else
@@ -1136,7 +1137,7 @@ void MqttPacket::handleSubscribe()
     for(const SubscriptionTuple &tup : deferredSubscribes)
     {
         logger->logf(LOG_SUBSCRIBE, "Client '%s' subscribed to '%s' QoS %d", sender->repr().c_str(), tup.topic.c_str(), tup.qos);
-        MainApp::getMainApp()->getSubscriptionStore()->addSubscription(sender, tup.subtopics, tup.qos, tup.noLocal, tup.shareName);
+        MainApp::getMainApp()->getSubscriptionStore()->addSubscription(sender, tup.subtopics, tup.qos, tup.noLocal, tup.retainAsPublished, tup.shareName);
     }
 }
 
@@ -1935,11 +1936,12 @@ void MqttPacket::readIntoBuf(CirBuf &buf) const
     buf.write(bites.data(), bites.size());
 }
 
-SubscriptionTuple::SubscriptionTuple(const std::string &topic, const std::vector<std::string> &subtopics, uint8_t qos, bool noLocal, const std::string &shareName) :
+SubscriptionTuple::SubscriptionTuple(const std::string &topic, const std::vector<std::string> &subtopics, uint8_t qos, bool noLocal, bool retainAsPublished, const std::string &shareName) :
     topic(topic),
     subtopics(subtopics),
     qos(qos),
     noLocal(noLocal),
+    retainAsPublished(retainAsPublished),
     shareName(shareName)
 {
 

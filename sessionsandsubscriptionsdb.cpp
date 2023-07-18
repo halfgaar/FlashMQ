@@ -18,27 +18,30 @@ See LICENSE for license details.
 
 #include <cassert>
 
-SubscriptionForSerializing::SubscriptionForSerializing(const std::string &clientId, uint8_t qos, bool noLocal) :
+SubscriptionForSerializing::SubscriptionForSerializing(const std::string &clientId, uint8_t qos, bool noLocal, bool retainAsPublished) :
     clientId(clientId),
     qos(qos),
-    noLocal(noLocal)
+    noLocal(noLocal),
+    retainAsPublished(retainAsPublished)
 {
 
 }
 
-SubscriptionForSerializing::SubscriptionForSerializing(const std::string &clientId, uint8_t qos, bool noLocal, const std::string &shareName) :
+SubscriptionForSerializing::SubscriptionForSerializing(const std::string &clientId, uint8_t qos, bool noLocal, bool retainAsPublished, const std::string &shareName) :
     clientId(clientId),
     qos(qos),
     shareName(shareName),
-    noLocal(noLocal)
+    noLocal(noLocal),
+    retainAsPublished(retainAsPublished)
 {
 
 }
 
-SubscriptionForSerializing::SubscriptionForSerializing(const std::string &&clientId, uint8_t qos, bool noLocal) :
+SubscriptionForSerializing::SubscriptionForSerializing(const std::string &&clientId, uint8_t qos, bool noLocal, bool retainAsPublished) :
     clientId(clientId),
     qos(qos),
-    noLocal(noLocal)
+    noLocal(noLocal),
+    retainAsPublished(retainAsPublished)
 {
 
 }
@@ -47,14 +50,15 @@ SubscriptionForSerializing::SubscriptionForSerializing(const std::string &&clien
     clientId(std::move(clientId)),
     qos(options.getQos()),
     shareName(shareName),
-    noLocal(options.getNoLocal())
+    noLocal(options.getNoLocal()),
+    retainAsPublished(options.getRetainAsPublished())
 {
 
 }
 
 SubscriptionOptionsByte SubscriptionForSerializing::getSubscriptionOptions() const
 {
-    return SubscriptionOptionsByte(qos, noLocal);
+    return SubscriptionOptionsByte(qos, noLocal, retainAsPublished);
 }
 
 SessionsAndSubscriptionsDB::SessionsAndSubscriptionsDB(const std::string &filePath) : PersistenceFile(filePath)

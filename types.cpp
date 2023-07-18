@@ -22,8 +22,8 @@ SubscriptionOptionsByte::SubscriptionOptionsByte(uint8_t byte) :
 
 }
 
-SubscriptionOptionsByte::SubscriptionOptionsByte(uint8_t qos, bool noLocal) :
-    b(qos | (static_cast<uint8_t>(noLocal) << 2))
+SubscriptionOptionsByte::SubscriptionOptionsByte(uint8_t qos, bool noLocal, bool retainAsPublished) :
+    b(qos | (static_cast<uint8_t>(noLocal) << 2) | (static_cast<uint8_t>(retainAsPublished) << 3))
 {
 
 }
@@ -31,6 +31,12 @@ SubscriptionOptionsByte::SubscriptionOptionsByte(uint8_t qos, bool noLocal) :
 bool SubscriptionOptionsByte::getNoLocal() const
 {
     uint8_t bit = b & 0x04;
+    return static_cast<bool>(bit);
+}
+
+bool SubscriptionOptionsByte::getRetainAsPublished() const
+{
+    uint8_t bit = b & 0x08;
     return static_cast<bool>(bit);
 }
 

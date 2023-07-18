@@ -178,7 +178,7 @@ void FlashMQTestClient::connectClient(ProtocolVersion protocolVersion, bool clea
     this->client->setAuthenticated(true);
 }
 
-void FlashMQTestClient::subscribe(const std::string topic, uint8_t qos, bool noLocal)
+void FlashMQTestClient::subscribe(const std::string topic, uint8_t qos, bool noLocal, bool retainAsPublished)
 {
     clearReceivedLists();
 
@@ -186,6 +186,7 @@ void FlashMQTestClient::subscribe(const std::string topic, uint8_t qos, bool noL
 
     Subscribe sub(client->getProtocolVersion(), packet_id, topic, qos);
     sub.noLocal = noLocal;
+    sub.retainAsPublished = retainAsPublished;
     MqttPacket subPack(sub);
     client->writeMqttPacketAndBlameThisClient(subPack);
 

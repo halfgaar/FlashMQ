@@ -19,6 +19,7 @@ struct Subscription
     std::weak_ptr<Session> session; // Weak pointer expires when session has been cleaned by 'clean session' connect or when it was remove because it expired
     uint8_t qos;
     bool noLocal = false;
+    bool retainAsPublished = false;
     bool operator==(const Subscription &rhs) const;
     void reset();
 };

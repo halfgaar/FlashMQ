@@ -481,3 +481,73 @@ void MainTests::test_retained_tree_purging()
 
     MYCASTCOMPARE(store->getRetainedMessageCount(), beforeCount - toDeleteCount);
 }
+
+void MainTests::testRetainAsPublished()
+{
+    FlashMQTestClient client;
+    client.start();
+    client.connectClient(ProtocolVersion::Mqtt5);
+
+    client.subscribe("mytopic", 1, false, true);
+
+    try
+    {
+        Publish pub("mytopic", "mypayload", 1);
+        pub.retain = true;
+        client.publish(pub);
+    }
+    catch (std::exception &ex)
+    {
+        QVERIFY2(false, ex.what());
+    }
+
+    try
+    {
+        client.waitForMessageCount(1);
+    }
+    catch (std::exception &ex)
+    {
+        QVERIFY2(false, ex.what());
+    }
+
+    MYCASTCOMPARE(client.receivedPublishes.size(), 1);
+
+    const MqttPacket &first = client.receivedPublishes.front();
+
+    QVERIFY(first.getRetain());
+}
+
+void MainTests::testRetainAsPublishedNegative()
+{
+    FlashMQTestClient client;
+    client.start();
+    client.connectClient(ProtocolVersion::Mqtt5);
+
+    client.subscribe("mytopic", 1, false, false);
+
+    try
+    {
+        Publish pub("mytopic", "mypayload", 1);
+        pub.retain = true;
+        client.publish(pub);
+    }
+    catch (std::exception &ex)
+    {
+        QVERIFY2(false, ex.what());
+    }
+
+    try
+    {
+        client.waitForMessageCount(1);
+    }
+    catch (std::exception &ex)
+    {
+        QVERIFY2(false, ex.what());
+    }
+
+    MYCASTCOMPARE(client.receivedPublishes.size(), 1);
+
+    const MqttPacket &first = client.receivedPublishes.front();
+
+    QVERIFY(!first.getRetain());
+}

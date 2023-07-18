@@ -974,20 +974,20 @@ void MainTests::testSavingSessions()
         const std::string topic1 = "one/two/three";
         std::vector<std::string> subtopics;
         subtopics = splitTopic(topic1);
-        store->addSubscription(c1, subtopics, 0, true);
+        store->addSubscription(c1, subtopics, 0, true, false);
 
         const std::string topic2 = "four/five/six";
         subtopics = splitTopic(topic2);
-        store->addSubscription(c2, subtopics, 0, false);
-        store->addSubscription(c1, subtopics, 0, false);
+        store->addSubscription(c2, subtopics, 0, false, true);
+        store->addSubscription(c1, subtopics, 0, false, false);
 
         const std::string topic3 = "";
         subtopics = splitTopic(topic3);
-        store->addSubscription(c2, subtopics, 0, false);
+        store->addSubscription(c2, subtopics, 0, false, false);
 
         const std::string topic4 = "#";
         subtopics = splitTopic(topic4);
-        store->addSubscription(c2, subtopics, 0, false);
+        store->addSubscription(c2, subtopics, 0, false, false);
 
         Publish publish("a/b/c", "Hello Barry", 1);
         publish.client_id = "ClientIdFromFakePublisher";
@@ -1035,6 +1035,7 @@ void MainTests::testSavingSessions()
         MYCASTCOMPARE(store2Subscriptions.size(), 4);
 
         int noLocalCount = 0;
+        int retainAsPublishedCount = 0;
 
         for(auto &pair : store1Subscriptions)
         {
@@ -1053,9 +1054,13 @@ void MainTests::testSavingSessions()
                 QCOMPARE(one.clientId, two.clientId);
                 QCOMPARE(one.qos, two.qos);
                 QCOMPARE(one.noLocal, two.noLocal);
+                QCOMPARE(one.retainAsPublished, two.retainAsPublished);
 
                 if (two.noLocal)
                     noLocalCount++;
+
+                if (two.retainAsPublished)
+                    retainAsPublishedCount++;
 
                 subs1It++;
                 subs2It++;
@@ -1064,6 +1069,7 @@ void MainTests::testSavingSessions()
         }
 
         QVERIFY(noLocalCount > 0);
+        QVERIFY(retainAsPublishedCount == 1);
 
         std::shared_ptr<Session> loadedSes = store2->sessionsById["c1"];
         QueuedPublish &queuedPublishLoaded = *loadedSes->qosPacketQueue.next();

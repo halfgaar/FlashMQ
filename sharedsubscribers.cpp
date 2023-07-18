@@ -133,7 +133,7 @@ void SharedSubscribers::getForSerializing(const std::string &topic, std::unorder
         std::shared_ptr<Session> ses = member.session.lock();
         if (ses)
         {
-            SubscriptionForSerializing sub(ses->getClientId(), member.qos, member.noLocal, this->shareName);
+            SubscriptionForSerializing sub(ses->getClientId(), member.qos, member.noLocal, member.retainAsPublished, this->shareName);
             outputList[topic].push_back(sub);
         }
     }

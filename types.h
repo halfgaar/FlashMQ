@@ -149,9 +149,10 @@ struct SubscriptionOptionsByte
     const uint8_t b = 0;
 
     SubscriptionOptionsByte(uint8_t byte);
-    SubscriptionOptionsByte(uint8_t qos, bool noLocal);
+    SubscriptionOptionsByte(uint8_t qos, bool noLocal, bool retainAsPublished);
 
     bool getNoLocal() const;
+    bool getRetainAsPublished() const;
     uint8_t getQos() const;
 };
 
@@ -331,6 +332,7 @@ struct Subscribe
     std::string topic;
     uint8_t qos;
     bool noLocal = false;
+    bool retainAsPublished = false;
     std::shared_ptr<Mqtt5PropertyBuilder> propertyBuilder;
 
     Subscribe(const ProtocolVersion protocolVersion, uint16_t packetId, const std::string &topic, uint8_t qos);
