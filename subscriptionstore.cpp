@@ -469,7 +469,6 @@ void SubscriptionStore::publishNonRecursively(SubscriptionNode *this_node, std::
                 if (sub.noLocal && receiverClientId == senderClientId)
                     continue;
 
-                ReceivingSubscriber x(session, sub.qos);
                 targetSessions.emplace_front(session, sub.qos);
             }
         }
@@ -499,7 +498,6 @@ void SubscriptionStore::publishNonRecursively(SubscriptionNode *this_node, std::
                 const std::shared_ptr<Session> session = sub->session.lock();
                 if (session) // Shared pointer expires when session has been cleaned by 'clean session' connect.
                 {
-                    ReceivingSubscriber x(session, sub->qos);
                     targetSessions.emplace_front(session, sub->qos);
                 }
             }
