@@ -140,7 +140,15 @@ void Timer::process()
 
         CallbackEntry &c = callbacks.front();
         c.updateExectedAt();
-        c.f();
+
+        try
+        {
+            c.f();
+        }
+        catch (std::exception &ex)
+        {
+            logger->logf(LOG_ERR, "Error in timer task: %s", ex.what());
+        }
 
         sortAndSetSleeptimeTillNext();
     }

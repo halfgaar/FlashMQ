@@ -84,7 +84,15 @@ void do_thread_work(ThreadData *threadData)
 
                 for(auto &f : copiedTasks)
                 {
-                    f();
+                    try
+                    {
+                        f();
+                    }
+                    catch (std::exception &ex)
+                    {
+                        Logger *logger = Logger::getInstance();
+                        logger->logf(LOG_ERR, "Error in queued task: %s", ex.what());
+                    }
                 }
 
                 continue;
