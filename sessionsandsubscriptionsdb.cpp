@@ -38,7 +38,7 @@ SubscriptionForSerializing::SubscriptionForSerializing(const std::string &client
 }
 
 SubscriptionForSerializing::SubscriptionForSerializing(const std::string &&clientId, uint8_t qos, bool noLocal, bool retainAsPublished) :
-    clientId(clientId),
+    clientId(std::move(clientId)),
     qos(qos),
     noLocal(noLocal),
     retainAsPublished(retainAsPublished)
