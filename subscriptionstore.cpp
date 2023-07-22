@@ -372,7 +372,7 @@ void SubscriptionStore::sendQueuedWillMessages()
 
         for(QueuedWill &will : willsOfSlot)
         {
-            std::shared_ptr<Publish> p = will.getWill().lock();
+            std::shared_ptr<WillPublish> p = will.getWill().lock();
 
             // If sessions get a new will, or the will is cleared from a new connecting client, this entry
             // will be null and we can ignore it.
