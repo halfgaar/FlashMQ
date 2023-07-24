@@ -2225,6 +2225,68 @@ void MainTests::testNoLocalPublishToItself()
     MYCASTCOMPARE(client.receivedPublishes.size(), 0);
 }
 
+void MainTests::testTopicMatchingInSubscriptionTreeHelper(const std::string &subscribe_topic, const std::string &publish_topic, int match_count)
+{
+    if (!isValidSubscribePath(subscribe_topic))
+        throw std::runtime_error("invalid test: subscribe topic invalid");
+
+    SubscriptionStore store;
+
+    const std::vector<std::string> subscribe_subtopics = splitTopic(subscribe_topic);
+    const std::vector<std::string> publish_subtopics = splitTopic(publish_topic);
+
+    std::shared_ptr<ThreadData> td;
+    const Settings *settings = ThreadGlobals::getSettings();
+    std::shared_ptr<Client> client = std::make_shared<Client>(0, td, nullptr, false, false, nullptr, *settings, false);
+    client->setClientProperties(ProtocolVersion::Mqtt5, "mytestclient", "myusername", true, 60);
+    store.registerClientAndKickExistingOne(client);
+
+    store.addSubscription(client, subscribe_subtopics, 0, false, false);
+
+    SubscriptionNode *root = &store.root;
+    std::forward_list<ReceivingSubscriber> receivers;
+    store.publishRecursively(publish_subtopics.begin(), publish_subtopics.end(), root, receivers, 0, "fakeclientid");
+
+    QVERIFY2(std::distance(receivers.begin(), receivers.end()) == match_count, publish_topic.c_str());
+}
+
+void MainTests::testTopicMatchingInSubscriptionTree()
+{
+    testTopicMatchingInSubscriptionTreeHelper("match/this/topic/#", "match/this/topic/wer");
+    testTopicMatchingInSubscriptionTreeHelper("match/this/topic/#", "match/this/topic/wer/zxcvzxcv");
+
+    testTopicMatchingInSubscriptionTreeHelper("match/+/topic/#", "match/this/topic/wer/zxcvzxcv");
+    testTopicMatchingInSubscriptionTreeHelper("match/+/topic/+", "match/wer/topic/bbb");
+
+    testTopicMatchingInSubscriptionTreeHelper("match/+/topic/+", "match/wer/topic/bbb/eee", 0);
+    testTopicMatchingInSubscriptionTreeHelper("match/+/topic/+/wer/#", "match/uwoeirv.m/topic/bbb/eee", 0);
+
+    testTopicMatchingInSubscriptionTreeHelper("#", "match/wer/topic/bbb/eee");
+    testTopicMatchingInSubscriptionTreeHelper("+/+/topic/+", "zcccvcv/wer/topic/haha");
+    testTopicMatchingInSubscriptionTreeHelper("a/b/c/d/#", "a/b/c/d/e");
+    testTopicMatchingInSubscriptionTreeHelper("a/b/c/d/#", "a/b/c/d/e/f");
+    testTopicMatchingInSubscriptionTreeHelper("a/b/c/d/#", "a/b/c/", 0);
+    testTopicMatchingInSubscriptionTreeHelper("a/b/c/d/#", "a/b/c", 0);
+
+    testTopicMatchingInSubscriptionTreeHelper("a/b/c/d/#", "a/b/c/d");
+
+    // Taken from testTopicsMatch(), but that test will be removed.
+    testTopicMatchingInSubscriptionTreeHelper("#", "");
+    testTopicMatchingInSubscriptionTreeHelper("#", "asdf/b/sdf");
+    testTopicMatchingInSubscriptionTreeHelper("#", "+/b/sdf");
+    testTopicMatchingInSubscriptionTreeHelper("#", "/one/two/asdf");
+    testTopicMatchingInSubscriptionTreeHelper("#", "/one/two/asdf/");
+    testTopicMatchingInSubscriptionTreeHelper("+/+/+/+/+", "/one/two/asdf/");
+    testTopicMatchingInSubscriptionTreeHelper("+/+/#", "/one/two/asdf/");
+    testTopicMatchingInSubscriptionTreeHelper("+/+/#", "/1234567890abcdef/two/asdf/");
+    testTopicMatchingInSubscriptionTreeHelper("+/+/#", "/1234567890abcdefg/two/asdf/");
+    testTopicMatchingInSubscriptionTreeHelper("+/+/#", "/1234567890abcde/two/asdf/");
+    testTopicMatchingInSubscriptionTreeHelper("+/+/#", "1234567890abcde//two/asdf/");
+    testTopicMatchingInSubscriptionTreeHelper("+/santa", "/one/two/asdf/", 0);
+    testTopicMatchingInSubscriptionTreeHelper("+/+/+/+/", "/one/two/asdf/a", 0);
+    testTopicMatchingInSubscriptionTreeHelper("+/one/+/+/", "/one/two/asdf/a", 0);
+}
+
 int main(int argc, char *argv[])
 {
     QCoreApplication app(argc, argv);

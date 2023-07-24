@@ -47,6 +47,7 @@ class MainTests : public QObject
     std::shared_ptr<ThreadData> dummyThreadData;
 
     void testParsePacketHelper(const std::string &topic, uint8_t from_qos, bool retain);
+    void testTopicMatchingInSubscriptionTreeHelper(const std::string &subscribe_topic, const std::string &publish_topic, int match_count=1);
 
 public:
     MainTests();
@@ -195,6 +196,8 @@ private slots:
 
     void testPublishToItself();
     void testNoLocalPublishToItself();
+
+    void testTopicMatchingInSubscriptionTree();
 };
 
 

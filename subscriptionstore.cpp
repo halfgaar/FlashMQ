@@ -525,7 +525,15 @@ void SubscriptionStore::publishRecursively(std::vector<std::string>::const_itera
     if (cur_subtopic_it == end) // This is the end of the topic path, so look for subscribers here.
     {
         if (this_node)
+        {
             publishNonRecursively(this_node, targetSessions, distributionHash, senderClientId);
+
+            // Subscribing to 'one/two/three/#' also gives you 'one/two/three'.
+            if (this_node->childrenPound)
+            {
+                publishNonRecursively(this_node->childrenPound.get(), targetSessions, distributionHash, senderClientId);
+            }
+        }
         return;
     }
 
