@@ -1170,7 +1170,7 @@ void SubscriptionStore::saveRetainedMessages(const std::string &filePath)
         getRetainedMessages(&retainedMessagesRoot, result);
     }
 
-    logger->logf(LOG_DEBUG, "Collected %ld retained messages to save.", result.size());
+    logger->logf(LOG_DEBUG, "Collected %zu retained messages to save.", result.size());
 
     // Then do the IO without locking the threads.
     RetainedMessagesDB db(filePath);
@@ -1225,7 +1225,7 @@ void SubscriptionStore::saveSessionsAndSubscriptions(const std::string &filePath
     const std::chrono::time_point<std::chrono::steady_clock> doneCopying = std::chrono::steady_clock::now();
 
     const std::chrono::milliseconds copyDuration = std::chrono::duration_cast<std::chrono::milliseconds>(doneCopying - start);
-    logger->logf(LOG_DEBUG, "Collected %ld sessions and %ld subscriptions to save in %ld ms.", sessionPointers.size(), subscriptionCopies.size(), copyDuration.count());
+    logger->logf(LOG_DEBUG, "Collected %zu sessions and %zu subscriptions to save in %ld ms.", sessionPointers.size(), subscriptionCopies.size(), copyDuration.count());
 
     SessionsAndSubscriptionsDB db(filePath);
     db.openWrite();
@@ -1234,7 +1234,7 @@ void SubscriptionStore::saveSessionsAndSubscriptions(const std::string &filePath
     const std::chrono::time_point<std::chrono::steady_clock> doneSaving = std::chrono::steady_clock::now();
 
     const std::chrono::milliseconds saveDuration = std::chrono::duration_cast<std::chrono::milliseconds>(doneSaving - doneCopying);
-    logger->logf(LOG_INFO, "Saved %ld sessions and %ld subscriptions to '%s' in %ld ms.",
+    logger->logf(LOG_INFO, "Saved %zu sessions and %zu subscriptions to '%s' in %ld ms.",
                  sessionPointers.size(), subscriptionCopies.size(), filePath.c_str(), saveDuration.count());
 }
 

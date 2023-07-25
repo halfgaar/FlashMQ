@@ -77,7 +77,7 @@ void ConfigFileParser::checkFileExistsAndReadable(const std::string &key, const 
 
     if (statbuf.st_size > max_size)
     {
-        throw ConfigFileException(formatString("Error for '%s': '%s' is bigger than %ld bytes.", key.c_str(), pathToCheck.c_str(), max_size));
+        throw ConfigFileException(formatString("Error for '%s': '%s' is bigger than %zd bytes.", key.c_str(), pathToCheck.c_str(), max_size));
     }
 }
 

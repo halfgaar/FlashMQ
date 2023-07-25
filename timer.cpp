@@ -13,6 +13,7 @@ See LICENSE for license details.
 #include <sys/eventfd.h>
 #include <sys/epoll.h>
 #include <unistd.h>
+#include <inttypes.h>
 
 #include "utils.h"
 
@@ -74,7 +75,7 @@ void Timer::stop()
 
 void Timer::addCallback(std::function<void ()> f, uint64_t interval_ms, const std::string &name)
 {
-    logger->logf(LOG_DEBUG, "Adding event '%s' to the timer with an interval of %ld ms.", name.c_str(), interval_ms);
+    logger->logf(LOG_DEBUG, "Adding event '%s' to the timer with an interval of %" PRIu64 " ms.", name.c_str(), interval_ms);
 
     std::lock_guard<std::mutex> locker(this->callbacksMutex);
 

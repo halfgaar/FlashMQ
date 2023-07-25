@@ -16,6 +16,7 @@ See LICENSE for license details.
 #include <stdexcept>
 #include <stdio.h>
 #include <cstring>
+#include <inttypes.h>
 
 #include "retainedmessagesdb.h"
 #include "utils.h"
@@ -63,7 +64,7 @@ void RetainedMessagesDB::saveData(const std::vector<RetainedMessage> &messages)
     CirBuf cirbuf(1024);
 
     const int64_t now_epoch = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-    logger->logf(LOG_DEBUG, "Saving current time stamp %ld in retained messages DB.", now_epoch);
+    logger->logf(LOG_DEBUG, "Saving current time stamp %" PRId64 " in retained messages DB.", now_epoch);
     writeInt64(now_epoch);
 
     writeUint32(messages.size());
