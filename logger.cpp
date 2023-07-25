@@ -249,7 +249,7 @@ void Logger::logf(int level, const char *str, va_list valist)
 
     va_list valist2;
     va_copy(valist2, valist);
-    vsnprintf(buf, buf_size, logfmtstring, valist);
+    vsnprintf(buf, buf_size, logfmtstring, valist2);
     size_t len = std::min<size_t>(buf_size, strlen(buf));
     LogLine line(buf, len, alsoLogToStd);
     va_end(valist2);
