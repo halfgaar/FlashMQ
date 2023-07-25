@@ -551,3 +551,86 @@ void MainTests::testRetainAsPublishedNegative()
 
     QVERIFY(!first.getRetain());
 }
+
+/**
+ * @brief MainTests::testRetainedParentOfWildcard tests whether subscribing to 'one/two/three/four/#' gives you 'one/two/three/four'.
+ */
+void MainTests::testRetainedParentOfWildcard()
+{
+    FlashMQTestClient sender;
+    FlashMQTestClient receiver;
+
+    sender.start();
+    receiver.start();
+
+    const std::string payload = "We are testing testRetainedParentOfWildcard";
+    const std::string publish_topic = "one/two/three/four";
+
+    sender.connectClient(ProtocolVersion::Mqtt5);
+
+    Publish pub1(publish_topic, payload, 0);
+    pub1.retain = true;
+    sender.publish(pub1);
+
+    receiver.connectClient(ProtocolVersion::Mqtt5);
+    receiver.subscribe("dummy", 0);
+    receiver.subscribe("one/two/three/four/#", 0);
+
+    try
+    {
+        receiver.waitForMessageCount(1);
+    }
+    catch (std::exception &ex)
+    {
+        QVERIFY2(false, "Exception happened. Likely waited for retained messages, but none received.");
+    }
+
+    MYCASTCOMPARE(receiver.receivedPublishes.size(), 1);
+
+    MqttPacket &msg = receiver.receivedPublishes.front();
+    QCOMPARE(msg.getPayloadCopy(), payload);
+    QCOMPARE(msg.getTopic(), publish_topic);
+    QVERIFY(msg.getRetain());
+}
+
+void MainTests::testRetainedWildcard()
+{
+    FlashMQTestClient sender;
+    FlashMQTestClient receiver;
+
+    sender.start();
+    receiver.start();
+
+    const std::string payload = "We are testing testRetainedWildcard";
+    const std::string publish_topic = "one/two/three/four";
+
+    sender.connectClient(ProtocolVersion::Mqtt5);
+
+    Publish pub1(publish_topic, payload, 0);
+    pub1.retain = true;
+    sender.publish(pub1);
+
+    Publish pub2("publish/into/nothing", payload, 0);
+    pub2.retain = true;
+    sender.publish(pub2);
+
+    receiver.connectClient(ProtocolVersion::Mqtt5);
+    receiver.subscribe("dummy", 0);
+    receiver.subscribe("one/two/three/#", 0);
+
+    try
+    {
+        receiver.waitForMessageCount(1);
+    }
+    catch (std::exception &ex)
+    {
+        QVERIFY2(false, "Exception happened. Likely waited for retained messages, but none received.");
+    }
+
+    MYCASTCOMPARE(receiver.receivedPublishes.size(), 1);
+
+    MqttPacket &msg = receiver.receivedPublishes.front();
+    QCOMPARE(msg.getPayloadCopy(), payload);
+    QCOMPARE(msg.getTopic(), publish_topic);
+    QVERIFY(msg.getRetain());
+}

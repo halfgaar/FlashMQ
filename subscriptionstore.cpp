@@ -647,17 +647,21 @@ void SubscriptionStore::giveClientRetainedMessagesRecursively(std::vector<std::s
     const std::string &cur_subtop = *cur_subtopic_it;
     const auto next_subtopic = ++cur_subtopic_it;
 
-    bool poundFound = cur_subtop == "#";
-    if (poundFound || cur_subtop == "+")
+    if (cur_subtop == "#")
     {
-        for (auto &pair : this_node->children)
+        // We start at this node, so that a subscription on 'one/two/three/#' gives you 'one/two/three' too.
+        giveClientRetainedMessagesRecursively(next_subtopic, end, this_node, true, packetList, count);
+    }
+    else if (cur_subtop == "+")
+    {
+        for (std::pair<const std::string, std::unique_ptr<RetainedMessageNode>> &pair : this_node->children)
         {
             if (count > countLimit)
                 break;
 
             std::unique_ptr<RetainedMessageNode> &child = pair.second;
             if (child) // I don't think it can ever be unset, but I'd rather avoid a crash.
-                giveClientRetainedMessagesRecursively(next_subtopic, end, child.get(), poundFound, packetList, count);
+                giveClientRetainedMessagesRecursively(next_subtopic, end, child.get(), false, packetList, count);
         }
     }
     else if (count <= countLimit)

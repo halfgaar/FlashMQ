@@ -82,6 +82,8 @@ private slots:
     void test_retained_tree_purging();
     void testRetainAsPublished();
     void testRetainAsPublishedNegative();
+    void testRetainedParentOfWildcard();
+    void testRetainedWildcard();
 
     void test_various_packet_sizes();
 
