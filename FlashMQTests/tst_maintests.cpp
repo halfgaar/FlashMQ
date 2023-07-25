@@ -801,33 +801,6 @@ void MainTests::testPacketInt16Parse()
     }
 }
 
-void MainTests::testTopicsMatch()
-{
-    QVERIFY(topicsMatch("#", ""));
-    QVERIFY(topicsMatch("#", "asdf/b/sdf"));
-    QVERIFY(topicsMatch("#", "+/b/sdf"));
-    QVERIFY(topicsMatch("#", "/one/two/asdf"));
-    QVERIFY(topicsMatch("#", "/one/two/asdf/"));
-    QVERIFY(topicsMatch("+/+/+/+/+", "/one/two/asdf/"));
-    QVERIFY(topicsMatch("+/+/#", "/one/two/asdf/"));
-    QVERIFY(topicsMatch("+/+/#", "/1234567890abcdef/two/asdf/"));
-    QVERIFY(topicsMatch("+/+/#", "/1234567890abcdefg/two/asdf/"));
-    QVERIFY(topicsMatch("+/+/#", "/1234567890abcde/two/asdf/"));
-    QVERIFY(topicsMatch("+/+/#", "1234567890abcde//two/asdf/"));
-
-    QVERIFY(!topicsMatch("+/santa", "/one/two/asdf/"));
-    QVERIFY(!topicsMatch("+/+/+/+/", "/one/two/asdf/a"));
-    QVERIFY(!topicsMatch("+/one/+/+/", "/one/two/asdf/a"));
-
-    QVERIFY(topicsMatch("$SYS/cow", "$SYS/cow"));
-    QVERIFY(topicsMatch("$SYS/cow/+", "$SYS/cow/bla"));
-    QVERIFY(topicsMatch("$SYS/#", "$SYS/broker/clients/connected"));
-
-    QVERIFY(!topicsMatch("$SYS/cow/+", "$SYS/cow/bla/foobar"));
-    QVERIFY(!topicsMatch("#", "$SYS/cow"));
-
-}
-
 void MainTests::testRetainedMessageDB()
 {
     try

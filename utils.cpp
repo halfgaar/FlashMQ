@@ -51,45 +51,6 @@ std::list<std::string> split(const std::string &input, const char sep, size_t ma
     return list;
 }
 
-thread_local std::vector<std::string> subscribeParts;
-thread_local std::vector<std::string> publishParts;
-bool topicsMatch(const std::string &subscribeTopic, const std::string &publishTopic)
-{
-    if (subscribeTopic.find("+") == std::string::npos && subscribeTopic.find("#") == std::string::npos)
-        return subscribeTopic == publishTopic;
-
-    if (!subscribeTopic.empty() && !publishTopic.empty() && publishTopic[0] == '$' && subscribeTopic[0] != '$')
-        return false;
-
-#ifdef __SSE4_2__
-    subscribeParts = simdUtils.splitTopic(subscribeTopic);
-    publishParts = simdUtils.splitTopic(publishTopic);
-#else
-    subscribeParts = splitToVector(subscribeTopic, '/');
-    publishParts = splitToVector(publishTopic, '/');
-#endif
-
-    auto subscribe_itr = subscribeParts.begin();
-    auto publish_itr = publishParts.begin();
-
-    bool result = true;
-    while (subscribe_itr != subscribeParts.end() && publish_itr != publishParts.end())
-    {
-        const std::string &subscribe_subtopic = *subscribe_itr++;
-        const std::string &publish_subtopic = *publish_itr++;
-
-        if (subscribe_subtopic == "+")
-            continue;
-        if (subscribe_subtopic == "#")
-            return true;
-        if (subscribe_subtopic != publish_subtopic)
-            return false;
-    }
-
-    result = subscribe_itr == subscribeParts.end() && publish_itr == publishParts.end();
-    return result;
-}
-
 bool isValidUtf8Generic(const std::string &s, bool alsoCheckInvalidPublishChars)
 {
     int multibyte_remain = 0;

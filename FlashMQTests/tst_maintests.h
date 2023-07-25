@@ -101,8 +101,6 @@ private slots:
 
     void testPacketInt16Parse();
 
-    void testTopicsMatch();
-
     void testRetainedMessageDB();
     void testRetainedMessageDBNotPresent();
     void testRetainedMessageDBEmptyList();

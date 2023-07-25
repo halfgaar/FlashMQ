@@ -47,8 +47,6 @@ std::list<std::string> split(const std::string &input, const char sep, size_t ma
 std::vector<std::string> splitToVector(const std::string &input, const char sep, size_t max = std::numeric_limits<int>::max(), bool keep_empty_parts = true);
 std::vector<std::string> splitTopic(const std::string &topic);
 
-bool topicsMatch(const std::string &subscribeTopic, const std::string &publishTopic);
-
 bool isValidUtf8Generic(const std::string &s, bool alsoCheckInvalidPublishChars = false);
 bool isValidUtf8(const std::string &s, bool alsoCheckInvalidPublishChars = false);
 
