@@ -451,6 +451,18 @@
         </listitem>
       </varlistentry>
 
+      <varlistentry xml:id="include_dir">
+        <term><option>include_dir</option> <replaceable>/path/to/dir</replaceable></term>
+        <listitem>
+          <para>
+            Load *.conf files from the specified directory, to merge with the main configuration file.
+          </para>
+          <para>
+            An error is generated when the directory is not there. This is to protect against running incorrect configurations by accident, when the dir has been renamed, for example.
+          </para>
+        </listitem>
+      </varlistentry>
+
     </variablelist>
   </refsect1>
 

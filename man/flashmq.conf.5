@@ -220,6 +220,11 @@ When having multiple subscribers on a shared subscription (like '$share/myshare/
 \fIsender_hash\fR. Selects a receiver deterministically based on the hash of the client ID of the sender. The selected subscriber will depend on how many subscribers there are, so if some disconnect, the distribution will change. Moreover, the selection may also change when FlashMQ cleans up empty spaces in the list of shared subscribers.
 
 Default: \fIround_robin\fR
+.TP 
+\*(T<\fBinclude_dir\fR\*(T> \fI/path/to/dir\fR 
+Load *.conf files from the specified directory, to merge with the main configuration file.
+
+An error is generated when the directory is not there. This is to protect against running incorrect configurations by accident, when the dir has been renamed, for example.
 .SH "LISTEN PARAMETERS"
 Listen parameters can only be used within \*(T<listen { }\*(T> blocks.
 .TP 

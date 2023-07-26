@@ -76,6 +76,7 @@ add_executable(flashmq
     acksender.h
     bridgeconfig.h
     dnsresolver.h
+    globber.h
 
 
     mainapp.cpp
@@ -130,6 +131,7 @@ add_executable(flashmq
     bridgeconfig.cpp
     dnsresolver.cpp
     bridgeinfodb.h bridgeinfodb.cpp
+    globber.cpp
 
     )
 

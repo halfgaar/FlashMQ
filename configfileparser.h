@@ -18,6 +18,7 @@ See LICENSE for license details.
 #include <memory>
 #include <list>
 #include <limits>
+#include <regex>
 
 #include "settings.h"
 
@@ -35,6 +36,10 @@ class ConfigFileParser
     std::set<std::string> validListenKeys;
     std::set<std::string> validBridgeKeys;
 
+    const std::regex key_value_regex = std::regex("^([a-zA-Z0-9_\\-]+) +([a-zA-Z0-9_\\-/.:#+]+) *([a-zA-Z0-9_\\-/.:#+]+)?$");
+    const std::regex block_regex_start = std::regex("^([a-zA-Z0-9_\\-]+) *\\{$");
+    const std::regex block_regex_end = std::regex("^\\}$");
+
     Settings settings;
 
     bool testKeyValidity(const std::string &key, const std::string &matchKey, const std::set<std::string> &validKeys) const;
@@ -45,6 +50,7 @@ class ConfigFileParser
 public:
     ConfigFileParser(const std::string &path);
     void loadFile(bool test);
+    std::list<std::string> readFileRecursively(const std::string &path) const;
 
     const Settings &getSettings();
 };

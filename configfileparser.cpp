@@ -16,12 +16,14 @@ See LICENSE for license details.
 #include <fstream>
 #include <regex>
 #include <sys/stat.h>
+#include <filesystem>
 
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 
 #include "exceptions.h"
 #include "utils.h"
+#include "globber.h"
 
 
 /**
@@ -148,6 +150,7 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validKeys.insert("max_outgoing_topic_alias_value");
     validKeys.insert("client_max_write_buffer_size");
     validKeys.insert("retained_messages_delivery_limit");
+    validKeys.insert("include_dir");
 
     validListenKeys.insert("port");
     validListenKeys.insert("protocol");
@@ -182,10 +185,12 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validBridgeKeys.insert("max_incoming_topic_aliases");
 }
 
-void ConfigFileParser::loadFile(bool test)
+std::list<std::string> ConfigFileParser::readFileRecursively(const std::string &path) const
 {
+    std::list<std::string> lines;
+
     if (path.empty())
-        return;
+        return lines;
 
     checkFileExistsAndReadable("application config file", path, 1024*1024*10);
 
@@ -198,18 +203,64 @@ void ConfigFileParser::loadFile(bool test)
         throw ConfigFileException(oss.str());
     }
 
-    std::list<std::string> lines;
+    for(std::string line; getline(infile, line ); )
+    {
+        lines.push_back(line);
 
-    const std::regex key_value_regex("^([a-zA-Z0-9_\\-]+) +([a-zA-Z0-9_\\-/.:#+]+) *([a-zA-Z0-9_\\-/.:#+]+)?$");
-    const std::regex block_regex_start("^([a-zA-Z0-9_\\-]+) *\\{$");
-    const std::regex block_regex_end("^\\}$");
+        if (strContains(line, "include_dir"))
+        {
+            std::smatch matches;
+
+            if (std::regex_match(line, matches, key_value_regex))
+            {
+                const std::string key = matches[1].str();
+                const std::string value = matches[2].str();
+
+                if (key == "include_dir")
+                {
+                    Logger *logger = Logger::getInstance();
+
+                    if (!std::filesystem::is_directory(value))
+                    {
+                        std::ostringstream oss; oss << "Include_dir '" << value << "' is not there or is not a directory";
+                        throw ConfigFileException(oss.str());
+                    }
+
+                    Globber globber;
+                    std::vector<std::string> files = globber.getGlob(value + "/*.conf");
+
+                    if (files.empty())
+                    {
+                        logger->logf(LOG_WARNING, "Including '%s' yielded 0 files.", value.c_str());
+                    }
+
+                    for(const std::string &path_from_glob : files)
+                    {
+                        std::list<std::string> newLines = readFileRecursively(path_from_glob);
+                        lines.insert(lines.cend(), newLines.begin(), newLines.end());
+                    }
+                }
+            }
+        }
+    }
+
+    return lines;
+}
+
+void ConfigFileParser::loadFile(bool test)
+{
+    if (path.empty())
+        return;
+
+    const std::list<std::string> unprocessed_lines = readFileRecursively(path);
+    std::list<std::string> lines;
 
     bool inBlock = false;
     std::ostringstream oss;
     int linenr = 0;
 
     // First parse the file and keep the valid lines.
-    for(std::string line; getline(infile, line ); )
+    for (std::string line : unprocessed_lines)
     {
         trim(line);
         linenr++;
