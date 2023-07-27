@@ -1045,15 +1045,15 @@ void MainTests::testSavingSessions()
         QVERIFY(retainAsPublishedCount == 1);
 
         std::shared_ptr<Session> loadedSes = store2->sessionsById["c1"];
-        QueuedPublish &queuedPublishLoaded = *loadedSes->qosPacketQueue.next();
+        std::shared_ptr<QueuedPublish> queuedPublishLoaded = loadedSes->qosPacketQueue.popNext();
 
-        QCOMPARE(queuedPublishLoaded.getPublish().topic, "a/b/c");
-        QCOMPARE(queuedPublishLoaded.getPublish().payload, "Hello Barry");
-        QCOMPARE(queuedPublishLoaded.getPublish().qos, 1);
-        QCOMPARE(queuedPublishLoaded.getPublish().client_id, "ClientIdFromFakePublisher");
-        QCOMPARE(queuedPublishLoaded.getPublish().username, "UsernameFromFakePublisher");
-        QCOMPARE(queuedPublishLoaded.getPublish().expiresAfter.count(), 9);
-        QCOMPARE(queuedPublishLoaded.getPublish().getAge().count(), 1);
+        QCOMPARE(queuedPublishLoaded->getPublish().topic, "a/b/c");
+        QCOMPARE(queuedPublishLoaded->getPublish().payload, "Hello Barry");
+        QCOMPARE(queuedPublishLoaded->getPublish().qos, 1);
+        QCOMPARE(queuedPublishLoaded->getPublish().client_id, "ClientIdFromFakePublisher");
+        QCOMPARE(queuedPublishLoaded->getPublish().username, "UsernameFromFakePublisher");
+        QCOMPARE(queuedPublishLoaded->getPublish().expiresAfter.count(), 9);
+        QCOMPARE(queuedPublishLoaded->getPublish().getAge().count(), 1);
     }
     catch (std::exception &ex)
     {
@@ -1878,11 +1878,11 @@ void MainTests::testQoSPublishQueue()
         Publish p1("one", "onepayload", 1);
         q.queuePublish(std::move(p1), id++);
 
-        qp = q.next();
+        qp = q.popNext();
         QVERIFY(qp);
         QCOMPARE(qp->getPublish().topic, "one");
         QCOMPARE(qp->getPublish().payload, "onepayload");
-        qp = q.next();
+        qp = q.popNext();
         QVERIFY(!qp);
     }
 
@@ -1892,11 +1892,11 @@ void MainTests::testQoSPublishQueue()
         q.queuePublish(std::move(p1), id++);
         q.queuePublish(std::move(p2), id++);
 
-        qp = q.next();
+        qp = q.popNext();
         QCOMPARE(qp->getPublish().topic, "two");
-        qp = q.next();
+        qp = q.popNext();
         QCOMPARE(qp->getPublish().topic, "three");
-        qp = q.next();
+        qp = q.popNext();
         QVERIFY(!qp);
     }
 
@@ -1908,13 +1908,13 @@ void MainTests::testQoSPublishQueue()
         q.queuePublish(std::move(p2), id++);
         q.queuePublish(std::move(p3), id++);
 
-        qp = q.next();
+        qp = q.popNext();
         QCOMPARE(qp->getPublish().topic, "four");
-        qp = q.next();
+        qp = q.popNext();
         QCOMPARE(qp->getPublish().topic, "five");
-        qp = q.next();
+        qp = q.popNext();
         QCOMPARE(qp->getPublish().topic, "six");
-        qp = q.next();
+        qp = q.popNext();
         QVERIFY(!qp);
     }
 
@@ -1935,13 +1935,13 @@ void MainTests::testQoSPublishQueue()
         Publish p4("tool2eW7", "wer", 1);
         q.queuePublish(std::move(p4), id++);
 
-        qp = q.next();
+        qp = q.popNext();
         QCOMPARE(qp->getPublish().topic, "seven");
-        qp = q.next();
+        qp = q.popNext();
         QCOMPARE(qp->getPublish().topic, "nine");
-        qp = q.next();
+        qp = q.popNext();
         QCOMPARE(qp->getPublish().topic, "tool2eW7");
-        qp = q.next();
+        qp = q.popNext();
         QVERIFY(!qp);
     }
 
@@ -1962,13 +1962,13 @@ void MainTests::testQoSPublishQueue()
         Publish p4("iew2Bie1", "wer", 1);
         q.queuePublish(std::move(p4), id++);
 
-        qp = q.next();
+        qp = q.popNext();
         QCOMPARE(qp->getPublish().topic, "eleven");
-        qp = q.next();
+        qp = q.popNext();
         QCOMPARE(qp->getPublish().topic, "twelve");
-        qp = q.next();
+        qp = q.popNext();
         QCOMPARE(qp->getPublish().topic, "iew2Bie1");
-        qp = q.next();
+        qp = q.popNext();
         QVERIFY(!qp);
     }
 
@@ -1989,13 +1989,13 @@ void MainTests::testQoSPublishQueue()
         Publish p4("16", "wer", 1);
         q.queuePublish(std::move(p4), id++);
 
-        qp = q.next();
+        qp = q.popNext();
         QCOMPARE(qp->getPublish().topic, "13");
-        qp = q.next();
+        qp = q.popNext();
         QCOMPARE(qp->getPublish().topic, "14");
-        qp = q.next();
+        qp = q.popNext();
         QCOMPARE(qp->getPublish().topic, "16");
-        qp = q.next();
+        qp = q.popNext();
         QVERIFY(!qp);
     }
 }

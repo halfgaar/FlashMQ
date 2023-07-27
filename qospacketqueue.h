@@ -60,7 +60,8 @@ public:
     void queuePublish(PublishCopyFactory &copyFactory, uint16_t id, uint8_t new_max_qos, bool retainAsPublished);
     void queuePublish(Publish &&pub, uint16_t id);
     int clearExpiredMessages();
-    std::shared_ptr<QueuedPublish> next();
+    std::shared_ptr<QueuedPublish> getTail() const;
+    std::shared_ptr<QueuedPublish> popNext();
 
 };
 

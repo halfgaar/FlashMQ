@@ -309,7 +309,7 @@ void SessionsAndSubscriptionsDB::saveData(const std::vector<std::shared_ptr<Sess
         writeUint32(qosPacketsExpected);
 
         std::shared_ptr<QueuedPublish> qp;
-        while ((qp = ses->qosPacketQueue.next()))
+        while ((qp = ses->qosPacketQueue.popNext()))
         {
             QueuedPublish &p = *qp;
 

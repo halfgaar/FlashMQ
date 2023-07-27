@@ -97,11 +97,18 @@ void QoSPublishQueue::eraseFromMapAndRelinkList(std::unordered_map<uint16_t, std
     this->queue.erase(pos);
 }
 
-std::shared_ptr<QueuedPublish> QoSPublishQueue::next()
+std::shared_ptr<QueuedPublish> QoSPublishQueue::getTail() const
+{
+    return tail;
+}
+
+std::shared_ptr<QueuedPublish> QoSPublishQueue::popNext()
 {
     std::shared_ptr<QueuedPublish> result = this->tail;
-    if (this->tail)
-        this->tail = this->tail->next;
+
+    if (result)
+        erase(result->getPacketId());
+
     return result;
 }
 
