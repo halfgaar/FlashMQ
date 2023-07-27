@@ -290,102 +290,108 @@ void SessionsAndSubscriptionsDB::saveData(const std::vector<std::shared_ptr<Sess
 
     CirBuf cirbuf(1024);
 
-    for (const std::shared_ptr<Session> &_ses : sessionsToSave)
+    for (std::shared_ptr<Session> &ses : sessionsToSave)
     {
-        // Takes care of locking, and working on the snapshot/copy prevents doing disk IO under lock.
-        std::unique_ptr<Session> ses = _ses->getCopy();
-
-        logger->logf(LOG_DEBUG, "Saving session '%s'.", ses->getClientId().c_str());
-
-        writeRowHeader();
-
-        writeCheck(reserved, 1, RESERVED_SPACE_SESSIONS_DB_V2, f);
-
-        writeString(ses->username);
-        writeString(ses->client_id);
-
-        const size_t qosPacketsExpected = ses->qosPacketQueue.size();
-        size_t qosPacketsCounted = 0;
-        writeUint32(qosPacketsExpected);
-
-        std::shared_ptr<QueuedPublish> qp;
-        while ((qp = ses->qosPacketQueue.popNext()))
         {
-            QueuedPublish &p = *qp;
+            std::lock_guard<std::mutex> sessionLocker(ses->qosQueueMutex);
 
-            qosPacketsCounted++;
+            logger->logf(LOG_DEBUG, "Saving session '%s'.", ses->getClientId().c_str());
 
-            Publish &pub = p.getPublish();
+            writeRowHeader();
 
-            assert(!pub.skipTopic);
-            assert(pub.topicAlias == 0);
+            writeCheck(reserved, 1, RESERVED_SPACE_SESSIONS_DB_V2, f);
 
-            logger->logf(LOG_DEBUG, "Saving QoS %d message for topic '%s'.", pub.qos, pub.topic.c_str());
+            writeString(ses->username);
+            writeString(ses->client_id);
 
-            MqttPacket pack(ProtocolVersion::Mqtt5, pub);
-            pack.setPacketId(p.getPacketId());
-            const uint32_t packSize = pack.getSizeIncludingNonPresentHeader();
-            cirbuf.reset();
-            cirbuf.ensureFreeSpace(packSize + 32);
-            pack.readIntoBuf(cirbuf);
+            const size_t qosPacketsExpected = ses->qosPacketQueue.size();
+            size_t qosPacketsCounted = 0;
+            writeUint32(qosPacketsExpected);
 
-            const uint32_t pubAge = ageFromTimePoint(pub.getCreatedAt());
+            std::shared_ptr<QueuedPublish> qp = ses->qosPacketQueue.getTail();
+            while (qp)
+            {
+                QueuedPublish &p = *qp;
 
-            writeUint16(pack.getFixedHeaderLength());
-            writeUint16(p.getPacketId());
-            writeUint32(pubAge);
-            writeUint32(packSize);
-            writeString(pub.client_id);
-            writeString(pub.username);
-            writeCheck(cirbuf.tailPtr(), 1, cirbuf.usedBytes(), f);
+                qosPacketsCounted++;
+
+                Publish &pub = p.getPublish();
+
+                assert(!pub.skipTopic);
+                assert(pub.topicAlias == 0);
+
+                logger->logf(LOG_DEBUG, "Saving QoS %d message for topic '%s'.", pub.qos, pub.topic.c_str());
+
+                MqttPacket pack(ProtocolVersion::Mqtt5, pub);
+                pack.setPacketId(p.getPacketId());
+                const uint32_t packSize = pack.getSizeIncludingNonPresentHeader();
+                cirbuf.reset();
+                cirbuf.ensureFreeSpace(packSize + 32);
+                pack.readIntoBuf(cirbuf);
+
+                const uint32_t pubAge = ageFromTimePoint(pub.getCreatedAt());
+
+                writeUint16(pack.getFixedHeaderLength());
+                writeUint16(p.getPacketId());
+                writeUint32(pubAge);
+                writeUint32(packSize);
+                writeString(pub.client_id);
+                writeString(pub.username);
+                writeCheck(cirbuf.tailPtr(), 1, cirbuf.usedBytes(), f);
+
+                qp = qp->next;
+            }
+
+            assert(qosPacketsExpected == qosPacketsCounted);
+
+            writeUint32(ses->incomingQoS2MessageIds.size());
+            for (uint16_t id : ses->incomingQoS2MessageIds)
+            {
+                logger->logf(LOG_DEBUG, "Writing incomming QoS2 message id %d.", id);
+                writeUint16(id);
+            }
+
+            writeUint32(ses->outgoingQoS2MessageIds.size());
+            for (uint16_t id : ses->outgoingQoS2MessageIds)
+            {
+                logger->logf(LOG_DEBUG, "Writing outgoing QoS2 message id %d.", id);
+                writeUint16(id);
+            }
+
+            logger->logf(LOG_DEBUG, "Writing next packetid %d.", ses->nextPacketId);
+            writeUint16(ses->nextPacketId);
+
+            writeUint32(ses->getCurrentSessionExpiryInterval());
+
+            const bool hasWillThatShouldSurviveRestart = ses->getWill().operator bool() && ses->getWill()->will_delay > 0;
+            writeUint16(static_cast<uint16_t>(hasWillThatShouldSurviveRestart));
+
+            if (hasWillThatShouldSurviveRestart)
+            {
+                WillPublish &will = *ses->getWill().get();
+                MqttPacket willpacket(ProtocolVersion::Mqtt5, will);
+
+                // Dummy, to please the parser on reading.
+                if (will.qos > 0)
+                    willpacket.setPacketId(666);
+
+                const uint32_t packSize = willpacket.getSizeIncludingNonPresentHeader();
+                cirbuf.reset();
+                cirbuf.ensureFreeSpace(packSize + 32);
+                willpacket.readIntoBuf(cirbuf);
+
+                writeUint16(willpacket.getFixedHeaderLength());
+                writeUint32(will.will_delay);
+                writeUint32(will.getQueuedAtAge());
+                writeUint32(packSize);
+                writeString(will.client_id);
+                writeString(will.username);
+                writeCheck(cirbuf.tailPtr(), 1, cirbuf.usedBytes(), f);
+            }
         }
 
-        assert(qosPacketsExpected == qosPacketsCounted);
-
-        writeUint32(ses->incomingQoS2MessageIds.size());
-        for (uint16_t id : ses->incomingQoS2MessageIds)
-        {
-            logger->logf(LOG_DEBUG, "Writing incomming QoS2 message id %d.", id);
-            writeUint16(id);
-        }
-
-        writeUint32(ses->outgoingQoS2MessageIds.size());
-        for (uint16_t id : ses->outgoingQoS2MessageIds)
-        {
-            logger->logf(LOG_DEBUG, "Writing outgoing QoS2 message id %d.", id);
-            writeUint16(id);
-        }
-
-        logger->logf(LOG_DEBUG, "Writing next packetid %d.", ses->nextPacketId);
-        writeUint16(ses->nextPacketId);
-
-        writeUint32(ses->getCurrentSessionExpiryInterval());
-
-        const bool hasWillThatShouldSurviveRestart = ses->getWill().operator bool() && ses->getWill()->will_delay > 0;
-        writeUint16(static_cast<uint16_t>(hasWillThatShouldSurviveRestart));
-
-        if (hasWillThatShouldSurviveRestart)
-        {
-            WillPublish &will = *ses->getWill().get();
-            MqttPacket willpacket(ProtocolVersion::Mqtt5, will);
-
-            // Dummy, to please the parser on reading.
-            if (will.qos > 0)
-                willpacket.setPacketId(666);
-
-            const uint32_t packSize = willpacket.getSizeIncludingNonPresentHeader();
-            cirbuf.reset();
-            cirbuf.ensureFreeSpace(packSize + 32);
-            willpacket.readIntoBuf(cirbuf);
-
-            writeUint16(willpacket.getFixedHeaderLength());
-            writeUint32(will.will_delay);
-            writeUint32(will.getQueuedAtAge());
-            writeUint32(packSize);
-            writeString(will.client_id);
-            writeString(will.username);
-            writeCheck(cirbuf.tailPtr(), 1, cirbuf.usedBytes(), f);
-        }
+        // Keep flushing outside of session lock, to reduce the amount of flushing while holding that lock.
+        fflush(f);
     }
 
     writeUint32(subscriptions.size());

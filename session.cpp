@@ -69,44 +69,9 @@ void Session::increasePacketId()
     nextPacketId = std::max<uint16_t>(nextPacketId, 1);
 }
 
-/**
- * @brief Session::Session copy constructor. Was created for session storing, and is explicitely kept private, to avoid making accidental copies.
- * @param other
- *
- * Because it was created for session storing, the fields we're copying are the fields being stored.
- */
-Session::Session(const Session &other)
-{
-    // Only the QoS data is modified by worker threads (vs (locked) timed events), so it could change during copying, because
-    // it gets called from a separate thread.
-    std::unique_lock<std::mutex> locker(qosQueueMutex);
-
-    this->username = other.username;
-    this->client_id = other.client_id;
-    this->incomingQoS2MessageIds = other.incomingQoS2MessageIds;
-    this->outgoingQoS2MessageIds = other.outgoingQoS2MessageIds;
-    this->nextPacketId = other.nextPacketId;
-    this->sessionExpiryInterval = other.sessionExpiryInterval;
-    this->willPublish = other.willPublish;
-    this->removalQueued = other.removalQueued;
-    this->removalQueuedAt = other.removalQueuedAt;
-
-
-    // TODO: perhaps this copy constructor is nonsense now.
-
-    // TODO: see git history for a change here. We now copy the whole queued publish. Do we want to address that?
-    this->qosPacketQueue = other.qosPacketQueue;
-}
-
 Session::~Session()
 {
 
-}
-
-std::unique_ptr<Session> Session::getCopy() const
-{
-    std::unique_ptr<Session> s(new Session(*this));
-    return s;
 }
 
 /**

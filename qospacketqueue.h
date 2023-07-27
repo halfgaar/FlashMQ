@@ -54,6 +54,11 @@ class QoSPublishQueue
     void addToHeadOfLinkedList(std::shared_ptr<QueuedPublish> &qp);
 
 public:
+    QoSPublishQueue() = default;
+
+    // We make this uncopyable because of the linked list QueuedPublish objects, making a deep-copy difficult.
+    QoSPublishQueue(const QoSPublishQueue &other) = delete;
+
     bool erase(const uint16_t packet_id);
     size_t size() const;
     size_t getByteSize() const;

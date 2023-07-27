@@ -62,14 +62,12 @@ class Session
     bool requiresQoSQueueing() const;
     void increasePacketId();
 
-    Session(const Session &other);
+    Session(const Session &other) = delete;
 public:
     Session();
 
     Session(Session &&other) = delete;
     ~Session();
-
-    std::unique_ptr<Session> getCopy() const;
 
     const std::string &getClientId() const { return client_id; }
     std::shared_ptr<Client> makeSharedClient() const;
