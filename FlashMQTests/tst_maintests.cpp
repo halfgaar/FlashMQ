@@ -481,6 +481,30 @@ void MainTests::test_acl_patterns_clientid()
     QCOMPARE(aclTree.findPermission(splitToVector("d/clientid_one/f/A/B", '/'), AclGrant::Read, "foo", "clientid_one"), AuthResult::success);
 }
 
+/**
+ * @brief MainTests::test_loading_acl_file was created because assertions in it failed when publishing $SYS topics were passed through the ACL
+ * layer. That's why it seemingly doesn't do anything.
+ */
+void MainTests::test_loading_acl_file()
+{
+    ConfFileTemp aclFile;
+    aclFile.writeLine("topic readwrite one/two");
+    aclFile.closeFile();
+
+    ConfFileTemp confFile;
+    confFile.writeLine("mosquitto_acl_file " + aclFile.getFilePath());
+    confFile.closeFile();
+
+    std::vector<std::string> args {"--config-file", confFile.getFilePath()};
+
+    cleanup();
+    init(args);
+
+    usleep(1000000);
+
+    QVERIFY(true);
+}
+
 #ifndef FMQ_NO_SSE
 void MainTests::test_sse_split()
 {

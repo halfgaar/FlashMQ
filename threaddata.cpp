@@ -478,9 +478,7 @@ void ThreadData::publishStatsOnDollarTopic(std::vector<std::shared_ptr<ThreadDat
     for (auto &pair : globalStats->getExtras())
     {
         Publish p(pair.first, pair.second, 0);
-        PublishCopyFactory factory(&p);
-        std::shared_ptr<SubscriptionStore> subscriptionStore = MainApp::getMainApp()->getSubscriptionStore();
-        subscriptionStore->queuePacketAtSubscribers(factory, "", true);
+        publishWithAcl(p);
     }
 }
 
@@ -488,10 +486,7 @@ void ThreadData::publishStat(const std::string &topic, uint64_t n)
 {
     const std::string payload = std::to_string(n);
     Publish p(topic, payload, 0);
-    PublishCopyFactory factory(&p);
-    std::shared_ptr<SubscriptionStore> subscriptionStore = MainApp::getMainApp()->getSubscriptionStore();
-    subscriptionStore->queuePacketAtSubscribers(factory, "", true);
-    subscriptionStore->setRetainedMessage(p, factory.getSubtopics());
+    publishWithAcl(p, true);
 }
 
 void ThreadData::publishBridgeState(std::shared_ptr<BridgeState> bridge, bool connected)
@@ -509,10 +504,19 @@ void ThreadData::publishBridgeState(std::shared_ptr<BridgeState> bridge, bool co
     globalStats->setExtra(topic, payload);
 
     Publish p(topic, payload, 0);
-    PublishCopyFactory factory(&p);
+    publishWithAcl(p, true);
+}
+
+void ThreadData::publishWithAcl(Publish &pub, bool setRetain)
+{
+    authentication.aclCheck(pub, pub.payload, AclAccess::write);
+
+    PublishCopyFactory factory(&pub);
     std::shared_ptr<SubscriptionStore> subscriptionStore = MainApp::getMainApp()->getSubscriptionStore();
     subscriptionStore->queuePacketAtSubscribers(factory, "", true);
-    subscriptionStore->setRetainedMessage(p, factory.getSubtopics());
+
+    if (setRetain)
+        subscriptionStore->setRetainedMessage(pub, factory.getSubtopics());
 }
 
 /**

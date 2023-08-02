@@ -236,7 +236,9 @@ void AclTree::findPermissionRecursive(std::vector<std::string>::const_iterator c
 AuthResult AclTree::findPermission(const std::vector<std::string> &subtopicsPublish, AclGrant access, const std::string &username, const std::string &clientid)
 {
     assert(access == AclGrant::Read || access == AclGrant::Write);
-    assert(!clientid.empty());
+
+    // Empty clientid is when FlashMQ itself publishes, and that is fine for 'write'. on 'read', it should still never happen.
+    assert(!(clientid.empty() && access == AclGrant::Read ));
 
     collectedPermissions.clear();
 

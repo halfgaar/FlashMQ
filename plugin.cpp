@@ -268,15 +268,20 @@ void Authentication::securityCleanup(bool reloading)
  * @brief Authentication::aclCheck performs a write ACL check on the incoming publish.
  * @param publishData
  * @return
+ *
+ * Internal publishes write (publish) access is always allowed (it makes little sense that a plugin would have to explicitly allow
+ * those), but they are passed through the plugin, so you can inspect them. The read access can still be rejected by a plugin.
  */
 AuthResult Authentication::aclCheck(Publish &publishData, std::string_view payload, AclAccess access)
 {
-    // Anonymous publishes come from FlashMQ internally, like SYS topics. We need to allow them.
-    if (publishData.client_id.empty())
-        return AuthResult::success;
+    AuthResult result = aclCheck(publishData.client_id, publishData.username, publishData.topic, publishData.getSubtopics(), payload, access, publishData.qos,
+                                 publishData.retain, publishData.getUserProperties());
 
-    return aclCheck(publishData.client_id, publishData.username, publishData.topic, publishData.getSubtopics(), payload, access, publishData.qos,
-                    publishData.retain, publishData.getUserProperties());
+    // Anonymous publishes come from FlashMQ internally, like SYS topics. We need to allow them.
+    if (access == AclAccess::write && publishData.client_id.empty())
+        result = AuthResult::success;
+
+    return result;
 }
 
 AuthResult Authentication::aclCheck(const std::string &clientid, const std::string &username, const std::string &topic, const std::vector<std::string> &subtopics,

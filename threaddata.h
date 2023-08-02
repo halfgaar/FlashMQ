@@ -89,6 +89,7 @@ class ThreadData
     void bridgeReconnect();
 
     void removeQueuedClients();
+    void publishWithAcl(Publish &pub, bool setRetain=false);
 
 public:
     Settings settingsLocalCopy; // Is updated on reload, within the thread loop.

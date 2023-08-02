@@ -92,6 +92,7 @@ private slots:
     void test_acl_tree2();
     void test_acl_patterns_username();
     void test_acl_patterns_clientid();
+    void test_loading_acl_file();
 
     void test_validUtf8Generic();
 #ifndef FMQ_NO_SSE
