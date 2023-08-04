@@ -634,6 +634,281 @@ listen {
   </refsect1>
 
   <refsect1>
+    <title>Bridge configuration</title>
+    <para>
+       Bridges can be defined inside <literal>bridge { }</literal> blocks. A bridge is essentially just an outgoing connection to another server with loop-detection and retain flag relaying. It is not a form of clustering. Also note that one bridge is one connection, and because FlashMQ's threading model is that clients are serviced by one selected thread only, a bridge has the potential to saturate a thread, if it's heavily loaded. You could work around that by defining multiple bridges to the same server, for various topic paths. A future version of FlashMQ will likely improve upon this.
+    </para>
+
+    <variablelist>
+      <varlistentry xml:id="bridge__address">
+        <term><option>address</option> <replaceable>address</replaceable></term>
+        <listitem>
+          <para>
+              The DNS name, IPv4 or IPv6 address of the server you want to connect to.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry xml:id="bridge__port">
+        <term><option>port</option> <replaceable>number</replaceable></term>
+        <listitem>
+          <para>
+            The default port depends on the <option>tls</option> option, either 1883 or 8883.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry xml:id="bridge__inet_protocol">
+        <term><option>inet_protocol</option> <replaceable>ip4_ip6/ip4/ip6</replaceable></term>
+        <listitem>
+          <para>
+            Default: <literal>ip4_ip6</literal>
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry xml:id="bridge__tls">
+        <term><option>tls</option> <replaceable>off/on/unverified</replaceable></term>
+        <listitem>
+          <para>
+            Set TLS mode. The value <option>unverified</option> means the x509 chain is not verified.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry xml:id="bridge__ca_file">
+        <term><option>ca_file</option> <replaceable>path</replaceable></term>
+        <listitem>
+          <para>
+            File to be used for x509 certificate chain validation.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry xml:id="bridge__ca_dir">
+        <term><option>ca_dir</option> <replaceable>path</replaceable></term>
+        <listitem>
+          <para>
+            Directory containing certificates for x509 certificate chain validation.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry xml:id="bridge__protocol_version">
+        <term><option>protocol_version</option> <replaceable>mqtt3.1/mqtt3.1.1/mqtt5</replaceable></term>
+        <listitem>
+          <para>
+            Default: <literal>mqtt3.1.1</literal>
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry xml:id="bridge__bridge_protocol_bit">
+        <term><option>bridge_protocol_bit</option> <replaceable>true/false</replaceable></term>
+        <listitem>
+          <para>
+            An unofficial standard is to set the most significant bit of the protocol version byte to 1 to signal the connection is a bridge. This allows the other side to alter its behavior slightly. However, this is not always supported, so you can disable this if you get disconnected for reporting an invalid protocol version.
+          </para>
+          <para>
+            This setting has no effect when using MQTT5, because the behavior it influences is done with subscription options.
+          </para>
+          <para>
+            Default: <literal>true</literal>
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry xml:id="bridge__keepalive">
+        <term><option>keepalive</option> <replaceable>seconds</replaceable></term>
+        <listitem>
+          <para>
+            The time between sending ping packets to the other side.
+          </para>
+          <para>
+            Default: <literal>60</literal>
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry xml:id="bridge__clientid_prefix">
+        <term><option>clientid_prefix</option> <replaceable>prefix</replaceable></term>
+        <listitem>
+          <para>
+            The prefix of the randomly generated client ID. Client IDs cannot be explicitely set for security reasons. See <link xlink:href="https://www.flashmq.org/2022/11/26/understanding-clean-session-and-clean-start/">Understanding clean session and clean start</link>.
+          </para>
+          <para>
+            Default: <literal>fmqbridge</literal>
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry xml:id="bridge__publish">
+        <term><option>publish</option> <replaceable>filter</replaceable></term>
+        <listitem>
+          <para>
+              Messages matching this filter will be published to the other side. Examples: <literal>#</literal> or <literal>sport/tennis/#</literal>. This option can be repeated several times.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry xml:id="bridge__subscribe">
+        <term><option>subscribe</option> <replaceable>filter</replaceable></term>
+        <listitem>
+          <para>
+              Subscriptions for this filter is placed at the other side. Examples: <literal>#</literal> or <literal>sport/tennis/#</literal>. This option can be repeated several times.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry xml:id="bridge__local_username">
+        <term><option>local_username</option> <replaceable>username</replaceable></term>
+        <listitem>
+          <para>
+            Username as seen by the local FlashMQ's plugin or ACL checks. This is not always necessary.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry xml:id="bridge__remote_username">
+        <term><option>remote_username</option> <replaceable>username</replaceable></term>
+        <listitem>
+          <para>
+            Username sent to the remote connection.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry xml:id="bridge__remote_password">
+        <term><option>remote_password</option> <replaceable>password</replaceable></term>
+        <listitem>
+          <para>
+            Password sent to the remote connection.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry xml:id="bridge__remote_clean_start">
+        <term><option>remote_clean_start</option> <replaceable>true/false</replaceable></term>
+        <listitem>
+          <para>
+            In MQTT3, this means 'clean session', meaning the remote server removes any existing session with the same ID on (re)connect, and destroys it immediately on disconnect. If you want reuseable sessions that survive disconnects, set this to false. If you also want to pick up remote sessions on FlashMQ restart, set <option>use_saved_clientid</option> to true.
+          </para>
+          <para>
+            In MQTT5, this option only influences reconnection behavior. It essentially has no effect on the first connect, because the client ID is random and will always be new (except when you set <option>use_saved_clientid</option>). But when set to true, any reconnects, which do use the already generated client ID, will destroy the session and in-flight messages will be lost.
+          </para>
+          <para>
+            Also see <link xlink:href="https://www.flashmq.org/2022/11/26/understanding-clean-session-and-clean-start/">understanding clean session and clean start</link>.
+          </para>
+          <para>
+            Default value: <literal>true</literal>
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry xml:id="bridge__local_clean_start">
+        <term><option>local_clean_start</option> <replaceable>true/false</replaceable></term>
+        <listitem>
+          <para>
+              In MQTT3 mode, this means 'clean session' and means the session is removed upon disconnect. If you want to reuse sessions on reconnect, set this to false. Any new start of FlashMQ will give you a new client ID so will always be a fresh session, except if you set <option>use_saved_clientid</option>.
+          </para>
+          <para>
+            In MQTT5 mode, this has no effect. If you want the session to be removed immediately on disconnect, use <option>local_session_expiry_interval</option> to 0.
+          </para>
+          <para>
+            Also see <link xlink:href="https://www.flashmq.org/2022/11/26/understanding-clean-session-and-clean-start/">understanding clean session and clean start</link>.
+          </para>
+          <para>
+            Default value: <literal>true</literal>
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry xml:id="bridge__remote_session_expiry_interval">
+        <term><option>remote_session_expiry_interval</option> <replaceable>seconds</replaceable></term>
+        <listitem>
+          <para>
+            Is only used in MQTT5 mode and determines the amount of seconds after which the session can be removed from the remote server.
+          </para>
+          <para>
+            Default value: <literal>0</literal>
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry xml:id="bridge__local_session_expiry_interval">
+        <term><option>local_session_expiry_interval</option> <replaceable>seconds</replaceable></term>
+        <listitem>
+          <para>
+              Determines when a local session without an active client will be removed, in both MQTT3 and MQTT5 mode. Note that in MQTT3 mode, the session is removed on disconnect when <option>local_clean_start</option> is true.
+          </para>
+          <para>
+            Default value: <literal>0</literal>
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry xml:id="bridge__use_saved_clientid">
+        <term><option>use_saved_clientid</option> <replaceable>true/false</replaceable></term>
+        <listitem>
+          <para>
+              When you want your bridges to resume local and remote sessions after restart, set this to true and set <option>remote_clean_start</option>, <option>local_clean_start</option>, <option>remote_session_expiry_interval</option> and <option>local_session_expiry_interval</option> accordingly. It only has effect when you have set a <option>storage_dir</option>.
+          </para>
+          <para>
+              It is important to fully understand the clean session / clean start behavior and the role the client ID plays in that. The primary goal of sessions is to survive link disconnects. Configuring a fixed client ID and use that each time an MQTT client starts, is often an anti-pattern, because most clients like actual IoT devices start fresh upon restart and don't store their sessions (with in-flight packets, etc) to disk. FlashMQ does store it on disk however, so it can be used legitamately. However, you can run into unexpected situations. For instance, you will get your existing subscriptions from the session too. So, if you remove a <option>subscribe</option> line from your bridge configuration and restart, it will actually have no effect, because the server on the other side still has that subscription in the session.
+          </para>
+          <para>
+            See <link xlink:href="https://www.flashmq.org/2022/11/26/understanding-clean-session-and-clean-start/">understanding clean session and clean start</link> for details.
+          </para>
+          <para>
+            Default value: <literal>false</literal>
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry xml:id="bridge__max_outgoing_topic_aliases">
+        <term><option>max_outgoing_topic_aliases</option> <replaceable>amount</replaceable></term>
+        <listitem>
+          <para>
+            If you want FlashMQ to initiate topic aliases for this bridge, set this to a non-zero value. Note that it's floored to the value the remote side gives in the CONNACK packet, so it only works if the other side permits it.
+          </para>
+          <para>
+              Default: <literal>0</literal>
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry xml:id="bridge__max_incoming_topic_aliases">
+        <term><option>max_incoming_topic_aliases</option> <replaceable>amount</replaceable></term>
+        <listitem>
+          <para>
+            If you want to accept topic aliases for this bridge, set this to a non-zero value. The value is set in the CONNECT packet to inform the remote side of the wish. It's not guaranteed that the other side will actually make aliases.
+          </para>
+          <para>
+              Default: <literal>0</literal>
+          </para>
+        </listitem>
+      </varlistentry>
+
+    </variablelist>
+  </refsect1>
+
+  <refsect1 xml:id="example_bridge">
+    <title>Example bridge</title>
+
+    <literallayout class="monospaced"><![CDATA[bridge {
+    address demo.flashmq.org
+    publish send/this
+    subscribe receive/this
+    local_username my_local_user
+    remote_username my_remote_user
+    remote_password my_remote_pass
+    bridge_protocol_bit false
+    tls on
+    ca_file /path/to/ca.crt
+}]]></literallayout>
+  </refsect1>
+
+  <refsect1>
     <title>Author</title>
     <para>
         Wiebe Cazemier <email>contact@flashmq.org</email>.
