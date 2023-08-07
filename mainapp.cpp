@@ -30,6 +30,7 @@ See LICENSE for license details.
 #include "utils.h"
 
 MainApp *MainApp::instance = nullptr;
+std::mutex MainApp::saveStateMutex;
 
 MainApp::MainApp(const std::string &configFilePath) :
     subscriptionStore(std::make_shared<SubscriptionStore>())
@@ -277,7 +278,7 @@ void MainApp::saveStateInThread()
     if (saveStateThread.joinable())
         saveStateThread.join();
 
-    auto f = std::bind(&MainApp::saveState, this, this->settings);
+    auto f = std::bind(&MainApp::saveState, this->settings);
     saveStateThread = std::thread(f);
 
     pthread_t native = saveStateThread.native_handle();
@@ -325,17 +326,22 @@ void MainApp::queueRetainedMessageExpiration()
 }
 
 /**
- * @brief MainApp::saveState
- * @param settings A local settings, copied from a std::bind copy, because of read safety.
+ * @brief MainApp::saveState saves sessions and such to files. It's run in the main thread, but also dedicated threads. For that,
+ * reason, it's a static method to reduce the risk of accidental use of data without locks.
+ * @param settings A local settings, copied from a std::bind copy when running in a thread, because of thread safety.
  */
 void MainApp::saveState(const Settings &settings)
 {
     std::lock_guard<std::mutex> lg(saveStateMutex);
 
+    Logger *logger = Logger::getInstance();
+
     try
     {
         if (!settings.storageDir.empty())
         {
+            std::shared_ptr<SubscriptionStore> subscriptionStore = MainApp::getMainApp()->getSubscriptionStore();
+
             const std::string retainedDBPath = settings.getRetainedMessagesDBFile();
             if (settings.retainedMessagesMode == RetainedMessagesMode::Enabled)
                 subscriptionStore->saveRetainedMessages(retainedDBPath);

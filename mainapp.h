@@ -62,7 +62,7 @@ class MainApp
     Logger *logger = Logger::getInstance();
 
     std::thread saveStateThread;
-    std::mutex saveStateMutex;
+    static std::mutex saveStateMutex;
 
     void setlimits();
     void loadConfig();
@@ -77,7 +77,7 @@ class MainApp
     void queuepluginPeriodicEventAllThreads();
     void setFuzzFile(const std::string &fuzzFilePath);
     void queuePublishStatsOnDollarTopic();
-    void saveState(const Settings &settings);
+    static void saveState(const Settings &settings);
     void saveStateInThread();
     void queueSendQueuedWills();
     void waitForWillsQueued();
