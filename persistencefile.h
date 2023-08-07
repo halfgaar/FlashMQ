@@ -80,7 +80,7 @@ protected:
 
 public:
     PersistenceFile(const std::string &filePath);
-    ~PersistenceFile();
+    virtual ~PersistenceFile();
 
     void openWrite(const std::string &versionString);
     void openRead();

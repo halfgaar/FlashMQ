@@ -32,7 +32,7 @@ See LICENSE for license details.
  * Each message has a row header, which is 8 bytes. See writeRowHeader().
  *
  */
-class RetainedMessagesDB : public PersistenceFile
+class RetainedMessagesDB : private PersistenceFile
 {
     enum class ReadVersion
     {
@@ -57,6 +57,7 @@ public:
 
     void openWrite();
     void openRead();
+    void closeFile();
 
     void saveData(const std::vector<RetainedMessage> &messages);
     std::list<RetainedMessage> readData();

@@ -52,6 +52,11 @@ void RetainedMessagesDB::openRead()
         throw std::runtime_error("Unknown file version.");
 }
 
+void RetainedMessagesDB::closeFile()
+{
+    PersistenceFile::closeFile();
+}
+
 /**
  * @brief RetainedMessagesDB::saveData doesn't explicitely name a file version (v1, etc), because we always write the current definition.
  * @param messages

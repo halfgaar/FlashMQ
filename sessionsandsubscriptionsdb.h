@@ -52,7 +52,7 @@ struct SessionsAndSubscriptionsResult
 };
 
 
-class SessionsAndSubscriptionsDB : public PersistenceFile
+class SessionsAndSubscriptionsDB : private PersistenceFile
 {
     enum class ReadVersion
     {
