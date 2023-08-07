@@ -539,7 +539,7 @@ void testSsl(const std::string &fullchain, const std::string &privkey)
         throw ConfigFileException(formatString("SSL 'privkey' file '%s' is empty or invalid", privkey.c_str()));
 
     SslCtxManager sslCtx;
-    if (SSL_CTX_use_certificate_file(sslCtx.get(), fullchain.c_str(), SSL_FILETYPE_PEM) != 1)
+    if (SSL_CTX_use_certificate_chain_file(sslCtx.get(), fullchain.c_str()) != 1)
     {
         ERR_print_errors_cb(logSslError, NULL);
         throw ConfigFileException("Error loading full chain " + fullchain);

@@ -88,7 +88,7 @@ void Listener::loadCertAndKeyFromConfig()
         SSL_CTX_set_mode(sslctx->get(), SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
     }
 
-    if (SSL_CTX_use_certificate_file(sslctx->get(), sslFullchain.c_str(), SSL_FILETYPE_PEM) != 1)
+    if (SSL_CTX_use_certificate_chain_file(sslctx->get(), sslFullchain.c_str()) != 1)
         throw std::runtime_error("Loading cert failed. This was after test loading the certificate, so is very unexpected.");
     if (SSL_CTX_use_PrivateKey_file(sslctx->get(), sslPrivkey.c_str(), SSL_FILETYPE_PEM) != 1)
         throw std::runtime_error("Loading key failed. This was after test loading the certificate, so is very unexpected.");
