@@ -353,8 +353,8 @@ void Session::setSessionProperties(uint16_t clientReceiveMax, uint32_t sessionEx
 
     this->sessionExpiryInterval = sessionExpiryInterval;
 
-    if (protocol_version <= ProtocolVersion::Mqtt311 && clean_start)
-        destroyOnDisconnect = true;
+    if (protocol_version <= ProtocolVersion::Mqtt311)
+        destroyOnDisconnect = clean_start;
     else
         destroyOnDisconnect = sessionExpiryInterval == 0;
 }
