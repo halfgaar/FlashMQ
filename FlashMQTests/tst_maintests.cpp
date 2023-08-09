@@ -2203,6 +2203,9 @@ void MainTests::testTopicMatchingInSubscriptionTreeHelper(const std::string &sub
     if (!isValidSubscribePath(subscribe_topic))
         throw std::runtime_error("invalid test: subscribe topic invalid");
 
+    if (!isValidPublishPath(publish_topic))
+        throw std::runtime_error("Invalid test: invalid publish topic: " + publish_topic);
+
     SubscriptionStore store;
 
     const std::vector<std::string> subscribe_subtopics = splitTopic(subscribe_topic);
@@ -2237,6 +2240,10 @@ void MainTests::testTopicMatchingInSubscriptionTree()
     testTopicMatchingInSubscriptionTreeHelper("#", "match/wer/topic/bbb/eee");
     testTopicMatchingInSubscriptionTreeHelper("+/+/topic/+", "zcccvcv/wer/topic/haha");
     testTopicMatchingInSubscriptionTreeHelper("a/b/c/d/#", "a/b/c/d/e");
+    testTopicMatchingInSubscriptionTreeHelper("a/#", "a");
+    testTopicMatchingInSubscriptionTreeHelper("a/#", "a/b");
+    testTopicMatchingInSubscriptionTreeHelper("/#", "/b");
+    testTopicMatchingInSubscriptionTreeHelper("/#", "/b/wer");
     testTopicMatchingInSubscriptionTreeHelper("a/b/c/d/#", "a/b/c/d/e/f");
     testTopicMatchingInSubscriptionTreeHelper("a/b/c/d/#", "a/b/c/", 0);
     testTopicMatchingInSubscriptionTreeHelper("a/b/c/d/#", "a/b/c", 0);
@@ -2244,9 +2251,7 @@ void MainTests::testTopicMatchingInSubscriptionTree()
     testTopicMatchingInSubscriptionTreeHelper("a/b/c/d/#", "a/b/c/d");
 
     // Taken from testTopicsMatch(), but that test will be removed.
-    testTopicMatchingInSubscriptionTreeHelper("#", "");
     testTopicMatchingInSubscriptionTreeHelper("#", "asdf/b/sdf");
-    testTopicMatchingInSubscriptionTreeHelper("#", "+/b/sdf");
     testTopicMatchingInSubscriptionTreeHelper("#", "/one/two/asdf");
     testTopicMatchingInSubscriptionTreeHelper("#", "/one/two/asdf/");
     testTopicMatchingInSubscriptionTreeHelper("+/+/+/+/+", "/one/two/asdf/");
