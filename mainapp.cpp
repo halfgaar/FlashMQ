@@ -667,7 +667,7 @@ void MainApp::start()
 
                     std::shared_ptr<Client> client = std::make_shared<Client>(fd, thread_data, clientSSL, listener->websocket, listener->isHaProxy(), addr, settings);
 
-                    thread_data->giveClient(client);
+                    thread_data->giveClient(std::move(client));
 
                     globalStats->socketConnects.inc();
                 }

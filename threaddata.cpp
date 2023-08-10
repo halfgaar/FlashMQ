@@ -425,16 +425,16 @@ void ThreadData::removeQueuedClients()
     }
 }
 
-void ThreadData::giveClient(std::shared_ptr<Client> client)
+void ThreadData::giveClient(std::shared_ptr<Client> &&client)
 {
     const int fd = client->getFd();
 
+    queueClientNextKeepAliveCheckLocked(client, false);
+
     {
         std::lock_guard<std::mutex> locker(clients_by_fd_mutex);
-        clients_by_fd[fd] = client;
+        clients_by_fd[fd] = std::move(client); // We must give up ownership here, to avoid calling the client destructor in the main thread.
     }
-
-    queueClientNextKeepAliveCheckLocked(client, false);
 
     struct epoll_event ev;
     memset(&ev, 0, sizeof (struct epoll_event));

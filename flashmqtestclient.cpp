@@ -126,7 +126,12 @@ void FlashMQTestClient::connectClient(ProtocolVersion protocolVersion, bool clea
     this->client = std::make_shared<Client>(sockfd, testServerWorkerThreadData, nullptr, false, false, reinterpret_cast<struct sockaddr*>(&servaddr), settings);
     this->client->setClientProperties(protocolVersion, clientid, "user", false, 60);
 
-    testServerWorkerThreadData->giveClient(this->client);
+    {
+        // Hack to make it work with the rvalue argument. Because our test client retains ownership of 'client', we can get away
+        // with this. See git what caused this change.
+        std::shared_ptr<Client> dummyToMoveFrom = this->client;
+        testServerWorkerThreadData->giveClient(std::move(dummyToMoveFrom));
+    }
 
     // This gets called in the test client's worker thread, but the STL container's minimal thread safety should be enough: only list manipulation is
     // mutexed, elements within are not.

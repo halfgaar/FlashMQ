@@ -111,7 +111,7 @@ public:
 
     void start(thread_f f);
 
-    void giveClient(std::shared_ptr<Client> client);
+    void giveClient(std::shared_ptr<Client> &&client);
     std::shared_ptr<Client> getClient(int fd);
     void removeClientQueued(const std::shared_ptr<Client> &client);
     void removeClientQueued(int fd);
