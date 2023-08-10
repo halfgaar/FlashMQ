@@ -597,6 +597,8 @@ void Authentication::loadMosquittoPasswordFile()
 
         for(std::string line; getline(infile, line ); )
         {
+            trim(line);
+
             if (line.empty())
                 continue;
 
