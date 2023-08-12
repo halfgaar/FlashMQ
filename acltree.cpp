@@ -177,6 +177,13 @@ void AclTree::findPermissionRecursive(std::vector<std::string>::const_iterator c
     {
         const std::vector<AclGrant> &grants = this_node->getGrants();
         collectedPermissions.insert(collectedPermissions.end(), grants.begin(), grants.end());
+
+        if (this_node->hasPoundGrants())
+        {
+            const std::vector<AclGrant> &grantsPound = this_node->getGrantsPound();
+            collectedPermissions.insert(collectedPermissions.end(), grantsPound.begin(), grantsPound.end());
+        }
+
         return;
     }
 

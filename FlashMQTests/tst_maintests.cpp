@@ -346,6 +346,7 @@ void MainTests::test_acl_tree()
     aclTree.addTopic("fish/turtle/dog/%u/bla/#", AclGrant::ReadWrite, AclTopicType::Strings, "john");
     aclTree.addTopic("fish/turtle/dog/%u/bla/#", AclGrant::ReadWrite, AclTopicType::Strings, "AAA");
 
+    QCOMPARE(aclTree.findPermission(splitToVector("one/two", '/'), AclGrant::Read, "", "clientid"), AuthResult::success);
     QCOMPARE(aclTree.findPermission(splitToVector("one/two/four", '/'), AclGrant::Read, "", "clientid"), AuthResult::success);
     QCOMPARE(aclTree.findPermission(splitToVector("one/two/four/five/six", '/'), AclGrant::Read, "", "clientid"), AuthResult::success);
     QCOMPARE(aclTree.findPermission(splitToVector("one/two/four/five/six", '/'), AclGrant::Write, "", "clientid"), AuthResult::success);
@@ -387,6 +388,7 @@ void MainTests::test_acl_tree2()
     aclTree.addTopic("cat/blocked/dog/bla/bla/#", AclGrant::Deny, AclTopicType::Strings);
 
     // Test all these with a user, which should be denied.
+    QCOMPARE(aclTree.findPermission(splitToVector("one/two", '/'), AclGrant::Read, "a", "clientid"), AuthResult::acl_denied);
     QCOMPARE(aclTree.findPermission(splitToVector("one/two/four", '/'), AclGrant::Read, "a", "clientid"), AuthResult::acl_denied);
     QCOMPARE(aclTree.findPermission(splitToVector("one/two/four/five/six", '/'), AclGrant::Read, "a", "clientid"), AuthResult::acl_denied);
     QCOMPARE(aclTree.findPermission(splitToVector("one/two/four/five/six", '/'), AclGrant::Write, "a", "clientid"), AuthResult::acl_denied);
@@ -416,6 +418,7 @@ void MainTests::test_acl_patterns_username()
     aclTree.addTopic("d/%u/f/#", AclGrant::Read, AclTopicType::Patterns);
     aclTree.addTopic("one/Jheronimus/three", AclGrant::Deny, AclTopicType::Strings);
     aclTree.addTopic("one/santaclause/three", AclGrant::Deny, AclTopicType::Strings, "santaclause");
+    aclTree.addTopic("%u/#", AclGrant::ReadWrite, AclTopicType::Patterns);
 
     // Succeeds, because the anonymous deny should have no effect on the authenticated ACL check, so it checks the pattern based.
     QCOMPARE(aclTree.findPermission(splitToVector("one/Jheronimus/three", '/'), AclGrant::Read, "Jheronimus", "clientid"), AuthResult::success);
@@ -433,7 +436,7 @@ void MainTests::test_acl_patterns_username()
     QCOMPARE(aclTree.findPermission(splitToVector("a/NotJheronimus/c", '/'), AclGrant::Read, "Jheronimus", "clientid"), AuthResult::acl_denied);
     QCOMPARE(aclTree.findPermission(splitToVector("a/Jheronimus/c", '/'), AclGrant::Write, "Jheronimus", "clientid"), AuthResult::acl_denied);
 
-    QCOMPARE(aclTree.findPermission(splitToVector("d/Jheronimus/f", '/'), AclGrant::Read, "Jheronimus", "clientid"), AuthResult::acl_denied);
+    QCOMPARE(aclTree.findPermission(splitToVector("d/Jheronimus/f", '/'), AclGrant::Read, "Jheronimus", "clientid"), AuthResult::success);
     QCOMPARE(aclTree.findPermission(splitToVector("d/Jheronimus/f/A", '/'), AclGrant::Read, "Jheronimus", "clientid"), AuthResult::success);
     QCOMPARE(aclTree.findPermission(splitToVector("d/Jheronimus/f/A/B", '/'), AclGrant::Read, "Jheronimus", "clientid"), AuthResult::success);
 
@@ -446,9 +449,14 @@ void MainTests::test_acl_patterns_username()
     QCOMPARE(aclTree.findPermission(splitToVector("a/NotRembrandt/c", '/'), AclGrant::Read, "Rembrandt", "clientid"), AuthResult::acl_denied);
     QCOMPARE(aclTree.findPermission(splitToVector("a/Rembrandt/c", '/'), AclGrant::Write, "Rembrandt", "clientid"), AuthResult::acl_denied);
 
-    QCOMPARE(aclTree.findPermission(splitToVector("d/Rembrandt/f", '/'), AclGrant::Read, "Rembrandt", "clientid"), AuthResult::acl_denied);
+    QCOMPARE(aclTree.findPermission(splitToVector("d/Rembrandt/f", '/'), AclGrant::Read, "Rembrandt", "clientid"), AuthResult::success);
     QCOMPARE(aclTree.findPermission(splitToVector("d/Rembrandt/f/A", '/'), AclGrant::Read, "Rembrandt", "clientid"), AuthResult::success);
     QCOMPARE(aclTree.findPermission(splitToVector("d/Rembrandt/f/A/B", '/'), AclGrant::Read, "Rembrandt", "clientid"), AuthResult::success);
+
+    QCOMPARE(aclTree.findPermission(splitToVector("Rembrandt", '/'), AclGrant::Read, "Rembrandt", "clientid"), AuthResult::success);
+    QCOMPARE(aclTree.findPermission(splitToVector("Rembrandt", '/'), AclGrant::Write, "Rembrandt", "clientid"), AuthResult::success);
+    QCOMPARE(aclTree.findPermission(splitToVector("Rembrandt/wer", '/'), AclGrant::Read, "Rembrandt", "clientid"), AuthResult::success);
+    QCOMPARE(aclTree.findPermission(splitToVector("Rembrandt/eee", '/'), AclGrant::Write, "Rembrandt", "clientid"), AuthResult::success);
 
 }
 
@@ -467,7 +475,7 @@ void MainTests::test_acl_patterns_clientid()
     QCOMPARE(aclTree.findPermission(splitToVector("a/not_clientidone/c", '/'), AclGrant::Read, "foo", "clientid_one"), AuthResult::acl_denied);
     QCOMPARE(aclTree.findPermission(splitToVector("a/clientid_one/c", '/'), AclGrant::Write, "foo", "clientid_one"), AuthResult::acl_denied);
 
-    QCOMPARE(aclTree.findPermission(splitToVector("d/clientid_one/f", '/'), AclGrant::Read, "foo", "clientid_one"), AuthResult::acl_denied);
+    QCOMPARE(aclTree.findPermission(splitToVector("d/clientid_one/f", '/'), AclGrant::Read, "foo", "clientid_one"), AuthResult::success);
     QCOMPARE(aclTree.findPermission(splitToVector("d/clientid_one/f/A", '/'), AclGrant::Read, "foo", "clientid_one"), AuthResult::success);
     QCOMPARE(aclTree.findPermission(splitToVector("d/clientid_one/f/A/B", '/'), AclGrant::Read, "foo", "clientid_one"), AuthResult::success);
 }
