@@ -82,6 +82,7 @@ class ThreadData
     void queueClientNextKeepAliveCheck(std::shared_ptr<Client> &client, bool keepRechecking);
     void continueAsyncAuths();
     void clientDisconnectEvent(const std::string &clientid);
+    void clientDisconnectActions(bool authenticated, const std::string &clientid, std::shared_ptr<WillPublish> &willPublish, std::shared_ptr<Session> &session);
 
     void removeQueuedClients();
 
@@ -131,7 +132,7 @@ public:
     void queueClientNextKeepAliveCheckLocked(std::shared_ptr<Client> &client, bool keepRechecking);
     void continuationOfAuthentication(std::shared_ptr<Client> &client, AuthResult authResult, const std::string &authMethod, const std::string &returnData);
     void queueContinuationOfAuthentication(const std::shared_ptr<Client> &client, AuthResult authResult, const std::string &authMethod, const std::string &returnData);
-    void queueClientDisconnectEvent(const std::string &clientid);
+    void queueClientDisconnectActions(bool authenticated, const std::string &clientid, std::shared_ptr<WillPublish> &&willPublish, std::shared_ptr<Session> &&session);
 
     int getNrOfClients() const;
 

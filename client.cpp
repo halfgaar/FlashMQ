@@ -89,30 +89,18 @@ Client::~Client()
     logger->logf(LOG_NOTICE, "Removing client '%s'. Reason(s): %s", repr().c_str(), disconnectReason.c_str());
 
     std::shared_ptr<ThreadData> td = this->threadData.lock();
-    if (td && authenticated)
-        td->queueClientDisconnectEvent(this->getClientId());
 
-    std::shared_ptr<SubscriptionStore> store = MainApp::getMainApp()->getSubscriptionStore();
+    if (td)
+        td->queueClientDisconnectActions(authenticated, this->getClientId(), std::move(willPublish), std::move(session));
 
-    if (willPublish)
-    {
-        store->queueWillMessage(willPublish, session);
-    }
+    assert(!session);
+    assert(!willPublish);
 
     if (fd > 0) // this check is essentially for testing, when working with a dummy fd.
     {
         if (epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, fd, NULL) != 0)
             logger->logf(LOG_ERR, "Removing fd %d of client '%s' from epoll produced error: %s", fd, repr().c_str(), strerror(errno));
         close(fd);
-    }
-
-    if (session && session->getDestroyOnDisconnect())
-    {
-        store->removeSession(session);
-    }
-    else
-    {
-        store->queueSessionRemoval(session);
     }
 }
 

@@ -261,11 +261,37 @@ void ThreadData::queueContinuationOfAuthentication(const std::shared_ptr<Client>
     }
 }
 
-void ThreadData::queueClientDisconnectEvent(const std::string &clientid)
+void ThreadData::clientDisconnectActions(bool authenticated, const std::string &clientid, std::shared_ptr<WillPublish> &willPublish, std::shared_ptr<Session> &session)
 {
-    auto f = std::bind(&ThreadData::clientDisconnectEvent, this, clientid);
+    std::shared_ptr<SubscriptionStore> store = MainApp::getMainApp()->getSubscriptionStore();
+
+    assert(store);
+
+    if (willPublish)
+    {
+        store->queueWillMessage(willPublish, session);
+    }
+
+    if (session && session->getDestroyOnDisconnect())
+    {
+        store->removeSession(session);
+    }
+    else
+    {
+        store->queueSessionRemoval(session);
+    }
+
+    if (authenticated)
+        clientDisconnectEvent(clientid);
+}
+
+void ThreadData::queueClientDisconnectActions(bool authenticated, const std::string &clientid, std::shared_ptr<WillPublish> &&willPublish, std::shared_ptr<Session> &&session)
+{
+    auto f = std::bind(&ThreadData::clientDisconnectActions, this, authenticated, clientid, std::move(willPublish), std::move(session));
+    assert(!willPublish);
+    assert(!session);
     std::lock_guard<std::mutex> lockertaskQueue(taskQueueMutex);
-    taskQueue.push_back(f);
+    taskQueue.push_back(std::move(f));
 
     wakeUpThread();
 }
