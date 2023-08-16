@@ -89,12 +89,12 @@
     <dl>
       
         <p>
-          SIGHUP: reload config file and reopen log files. Changing listener configuration on reload is currently not supported.
+          SIGHUP: reload config file and reopen log files. Changing listener configuration on reload is currently not supported, except that the x509 certificates are reloaded.
         </p>
       
       
         <p>
-          SIGUSR1: reopen log files.
+          SIGUSR1: reopen log files. Use this in log rotation.
         </p>
       
     </dl>

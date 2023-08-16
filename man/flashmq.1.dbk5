@@ -60,12 +60,12 @@
     <variablelist>
       <listitem>
         <para>
-          SIGHUP: reload config file and reopen log files. Changing listener configuration on reload is currently not supported.
+          SIGHUP: reload config file and reopen log files. Changing listener configuration on reload is currently not supported, except that the x509 certificates are reloaded.
         </para>
       </listitem>
       <listitem>
         <para>
-          SIGUSR1: reopen log files.
+          SIGUSR1: reopen log files. Use this in log rotation.
         </para>
       </listitem>
     </variablelist>
