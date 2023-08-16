@@ -126,6 +126,9 @@ void Mqtt5PropertyBuilder::writeResponseTopic(const std::string &str)
 
 void Mqtt5PropertyBuilder::writeUserProperty(std::string &&key, std::string &&value)
 {
+    if (this->userPropertyCount++ > 50)
+        throw ProtocolError("Trying to set more than 50 user properties. Likely a bad actor.", ReasonCodes::ImplementationSpecificError);
+
     write2Str(Mqtt5Properties::UserProperty, key, value);
 
     if (!this->userProperties)

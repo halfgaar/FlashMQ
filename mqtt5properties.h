@@ -23,6 +23,8 @@ class Mqtt5PropertyBuilder
     std::shared_ptr<std::vector<std::pair<std::string, std::string>>> userProperties;
     VariableByteInt length;
 
+    int userPropertyCount = 0;
+
     void writeUint32(Mqtt5Properties prop, const uint32_t x, std::vector<char> &target) const;
     void writeUint16(Mqtt5Properties prop, const uint16_t x);
     void writeUint16(Mqtt5Properties prop, const uint16_t x, std::vector<char> &target) const;
