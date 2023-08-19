@@ -9,7 +9,6 @@ See LICENSE for license details.
 */
 
 #include "logger.h"
-#include <ctime>
 #include <sstream>
 #include <iomanip>
 #include <string.h>
@@ -232,12 +231,12 @@ void Logger::logf(int level, const char *str, va_list valist)
     if ((level & curLogLevel) == 0)
         return;
 
-    time_t time = std::time(nullptr);
-    struct tm tm = *std::localtime(&time);
     std::ostringstream oss;
 
+    const std::string stamp = timestampWithMillis();
+
     std::string str_(str);
-    oss << "[" << std::put_time(&tm, "%Y-%m-%d %H:%M:%S") << "] [" << getLogLevelString(level) << "] " << str_;
+    oss << "[" << stamp << "] [" << getLogLevelString(level) << "] " << str_;
     oss.flush();
     const std::string s = oss.str();
     const char *logfmtstring = s.c_str();

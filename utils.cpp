@@ -18,6 +18,8 @@ See LICENSE for license details.
 #include <cstdio>
 #include <cstring>
 #include <signal.h>
+#include <iomanip>
+#include <time.h>
 
 #include <openssl/ssl.h>
 #include <openssl/err.h>
@@ -754,6 +756,27 @@ void parseSubscriptionShare(std::vector<std::string> &subtopics, std::string &sh
     }
 
     shareName = _shareName;
+}
+
+std::string timestampWithMillis()
+{
+    const auto now = std::chrono::system_clock::now();
+    const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 1000;
+    const time_t timer = std::chrono::system_clock::to_time_t(now);
+
+    struct tm my_tm;
+    memset(&my_tm, 0, sizeof(struct tm));
+    struct tm *my_tm_result = localtime_r(&timer, &my_tm);
+
+    if (!my_tm_result)
+        return std::string("localtime-failed");
+
+    std::ostringstream oss;
+
+    oss << std::put_time(my_tm_result, "%Y-%m-%d %H:%M:%S");
+    oss << '.' << std::setfill('0') << std::setw(3) << ms.count();
+
+    return oss.str();
 }
 
 
