@@ -456,6 +456,21 @@
       
 
       
+        <dt id="retained_messages_delivery_limit"><code class="option">retained_messages_delivery_limit</code> <code class="replaceable">number</code><a class="hash-anchor" href="#retained_messages_delivery_limit">#</a></dt>
+        <dd>
+          <p>
+            When clients place a subscription, they will get the retained messages matching that subscription. However, if you have millions, clients subscribing to '#' will cause a heavy load. Use this setting to limit to what you need/expect. 
+          </p>
+          <p>
+            Note that clients will also have (buffer) limits, so even if you set this high, clients may drop messages as well.
+          </p>
+          <p>
+            Default value: <code class="filename">2048</code>
+          </p>
+        </dd>
+      
+
+      
         <dt id="websocket_set_real_ip_from"><code class="option">websocket_set_real_ip_from</code> <code class="replaceable">inet4_address/inet6_address</code><a class="hash-anchor" href="#websocket_set_real_ip_from">#</a></dt>
         <dd>
           <p>

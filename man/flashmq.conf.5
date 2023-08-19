@@ -5,7 +5,7 @@
 \\$2 \(la\\$1\(ra\\$3
 ..
 .if \n(.g .mso www.tmac
-.TH flashmq.conf 5 "24 June 2023" "" ""
+.TH flashmq.conf 5 "19 August 2023" "" ""
 .SH NAME
 flashmq.conf \- FlashMQ configuration file format
 .SH SYNOPSIS
@@ -195,6 +195,13 @@ When purging the retained messages tree, spend a maximum of this many millisecon
 Currently, the purge frequency is 3949193 milliseconds, but this is subject to change.
 
 Default value: \*(T<\fI200\fR\*(T>
+.TP 
+\*(T<\fBretained_messages_delivery_limit\fR\*(T> \fInumber\fR 
+When clients place a subscription, they will get the retained messages matching that subscription. However, if you have millions, clients subscribing to '#' will cause a heavy load. Use this setting to limit to what you need/expect. 
+
+Note that clients will also have (buffer) limits, so even if you set this high, clients may drop messages as well.
+
+Default value: \*(T<\fI2048\fR\*(T>
 .TP 
 \*(T<\fBwebsocket_set_real_ip_from\fR\*(T> \fIinet4_address/inet6_address\fR 
 HTTP proxies in front of the websocket listeners can set the \fIX-Real-IP\fR header to identify the original connecting client. With \*(T<\fBwebsocket_set_real_ip_from\fR\*(T> you can mark IP networks as trusted. By default, clients are not trusted, to avoid spoofing.

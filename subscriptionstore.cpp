@@ -601,11 +601,8 @@ void SubscriptionStore::queuePacketAtSubscribers(PublishCopyFactory &copyFactory
 
 void SubscriptionStore::giveClientRetainedMessagesRecursively(std::vector<std::string>::const_iterator cur_subtopic_it,
                                                               std::vector<std::string>::const_iterator end, RetainedMessageNode *this_node,
-                                                              bool poundMode, std::forward_list<Publish> &packetList, int &count)
+                                                              bool poundMode, std::forward_list<Publish> &packetList, int &count, const int limit)
 {
-    // We have to draw the line somewhere. At least mosquitto_sub doesn't seem to go beyond about 1500 anyway, so taking this arbitrary limit.
-    constexpr const int countLimit = 2048;
-
     if (cur_subtopic_it == end)
     {
         Authentication &auth = *ThreadGlobals::getAuth();
@@ -633,11 +630,11 @@ void SubscriptionStore::giveClientRetainedMessagesRecursively(std::vector<std::s
         {
             for (auto &pair : this_node->children)
             {
-                if (count > countLimit)
+                if (count >= limit)
                     break;
 
                 std::unique_ptr<RetainedMessageNode> &child = pair.second;
-                giveClientRetainedMessagesRecursively(cur_subtopic_it, end, child.get(), poundMode, packetList, count);
+                giveClientRetainedMessagesRecursively(cur_subtopic_it, end, child.get(), poundMode, packetList, count, limit);
             }
         }
 
@@ -650,27 +647,27 @@ void SubscriptionStore::giveClientRetainedMessagesRecursively(std::vector<std::s
     if (cur_subtop == "#")
     {
         // We start at this node, so that a subscription on 'one/two/three/#' gives you 'one/two/three' too.
-        giveClientRetainedMessagesRecursively(next_subtopic, end, this_node, true, packetList, count);
+        giveClientRetainedMessagesRecursively(next_subtopic, end, this_node, true, packetList, count, limit);
     }
     else if (cur_subtop == "+")
     {
         for (std::pair<const std::string, std::unique_ptr<RetainedMessageNode>> &pair : this_node->children)
         {
-            if (count > countLimit)
+            if (count >= limit)
                 break;
 
             std::unique_ptr<RetainedMessageNode> &child = pair.second;
             if (child) // I don't think it can ever be unset, but I'd rather avoid a crash.
-                giveClientRetainedMessagesRecursively(next_subtopic, end, child.get(), false, packetList, count);
+                giveClientRetainedMessagesRecursively(next_subtopic, end, child.get(), false, packetList, count, limit);
         }
     }
-    else if (count <= countLimit)
+    else if (count < limit)
     {
         RetainedMessageNode *children = this_node->getChildren(cur_subtop);
 
         if (children)
         {
-            giveClientRetainedMessagesRecursively(next_subtopic, end, children, false, packetList, count);
+            giveClientRetainedMessagesRecursively(next_subtopic, end, children, false, packetList, count, limit);
         }
     }
 }
@@ -689,11 +686,20 @@ void SubscriptionStore::giveClientRetainedMessages(const std::shared_ptr<Session
 
     std::forward_list<Publish> packetList;
 
+    const int limit = settings->retainedMessagesDeliveryLimit;
+    bool limitReached = false;
+
     {
         RWLockGuard locker(&retainedMessagesRwlock);
         locker.rdlock();
         int count = 0;
-        giveClientRetainedMessagesRecursively(subscribeSubtopics.begin(), subscribeSubtopics.end(), startNode, false, packetList, count);
+        giveClientRetainedMessagesRecursively(subscribeSubtopics.begin(), subscribeSubtopics.end(), startNode, false, packetList, count, limit);
+        limitReached = count >= limit;
+    }
+
+    if (limitReached)
+    {
+        logger->logf(LOG_DEBUG, "Reached limit of 'retained_messages_delivery_limit' when delivering retained messages.");
     }
 
     for(Publish &publish : packetList)

@@ -134,6 +134,7 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validKeys.insert("max_incoming_topic_alias_value");
     validKeys.insert("max_outgoing_topic_alias_value");
     validKeys.insert("client_max_write_buffer_size");
+    validKeys.insert("retained_messages_delivery_limit");
 
     validListenKeys.insert("port");
     validListenKeys.insert("protocol");
@@ -569,6 +570,16 @@ void ConfigFileParser::loadFile(bool test)
                         throw ConfigFileException(formatString("Value '%s' for '%s' is too low. It must be at least %d.", value.c_str(), key.c_str(), minVal));
 
                     tmpSettings.clientMaxWriteBufferSize = newVal;
+                }
+
+                if (testKeyValidity(key, "retained_messages_delivery_limit", validKeys))
+                {
+                    const uint32_t newVal = std::stoul(value);
+
+                    if (newVal == 0)
+                        throw ConfigFileException("Set retained_messages_delivery_limit higher than 0, or use 'retained_messages_mode'.");
+
+                    tmpSettings.retainedMessagesDeliveryLimit = newVal;
                 }
             }
         }
