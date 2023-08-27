@@ -112,6 +112,21 @@ void Logger::logf(int level, const char *str, ...)
     va_end(valist);
 }
 
+/**
+ * @brief Logger::log
+ * @param level
+ * @return a StreamToLog, that you're not suppose to name. When you don't, its destructor will log the stream.
+ *
+ * Allows logging like: logger->log(LOG_NOTICE) << "blabla: " << 1 << ".". The advantage is safety (printf crashes), and not forgetting printf arguments.
+ *
+ * Beware though: C++ streams chars as characters. When you have an uint8_t or int8_t that's also a char, and those need to be cast to int first. A good
+ * solution needs to be devised.
+ */
+StreamToLog Logger::log(int level)
+{
+    return StreamToLog(level);
+}
+
 void Logger::queueReOpen()
 {
     reload = true;
@@ -270,4 +285,17 @@ int logSslError(const char *str, size_t len, void *u)
     Logger *logger = Logger::getInstance();
     logger->logf(LOG_ERR, msg.c_str());
     return 0;
+}
+
+StreamToLog::StreamToLog(int level) :
+    level(level)
+{
+
+}
+
+StreamToLog::~StreamToLog()
+{
+    const std::string s = str();
+    Logger *logger = Logger::getInstance();
+    logger->logf(this->level, s.c_str());
 }

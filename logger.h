@@ -16,11 +16,23 @@ See LICENSE for license details.
 #include <mutex>
 #include <queue>
 #include <thread>
+#include <sstream>
 #include "semaphore.h"
 
 #include "flashmq_plugin.h"
 
 int logSslError(const char *str, size_t len, void *u);
+
+/**
+ * @brief Use as a temporary, so don't give a name. This makes the stream gets logged immediately.
+ */
+class StreamToLog : public std::ostringstream
+{
+    int level = LOG_NOTICE;
+public:
+    StreamToLog(int level);
+    ~StreamToLog();
+};
 
 class LogLine
 {
@@ -62,6 +74,7 @@ public:
     static Logger *getInstance();
     void logf(int level, const char *str, va_list args);
     void logf(int level, const char *str, ...);
+    StreamToLog log(int level);
 
     void queueReOpen();
     void noLongerLogToStd();
