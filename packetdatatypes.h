@@ -64,6 +64,7 @@ struct ConnAckData
     std::string response_information;
     std::string server_reference;
     bool shared_subscriptions_available = true;
+    bool retained_available = true;
 
     ReasonCodes reasonCode = ReasonCodes::ImplementationSpecificError; // default something that is never a parse result;
 

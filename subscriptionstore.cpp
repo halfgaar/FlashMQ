@@ -693,6 +693,15 @@ void SubscriptionStore::giveClientRetainedMessages(const std::shared_ptr<Session
     if (settings->retainedMessagesMode != RetainedMessagesMode::Enabled)
         return;
 
+    // The specs aren't clear whether retained messages should be dropped, or just have their retain flag stripped. I chose the former,
+    // otherwise clients have no way of knowing if a message was retained or not.
+    {
+        const std::shared_ptr<Client> client = ses->makeSharedClient();
+
+        if (client && !client->isRetainedAvailable())
+            return;
+    }
+
     RetainedMessageNode *startNode = &retainedMessagesRoot;
     if (!subscribeSubtopics.empty() && !subscribeSubtopics[0].empty() > 0 && subscribeSubtopics[0][0] == '$')
         startNode = &retainedMessagesRootDollar;

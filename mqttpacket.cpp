@@ -731,7 +731,7 @@ ConnAckData MqttPacket::parseConnAckData()
                 result.max_qos = std::min<uint8_t>(readUint8(), result.max_qos);
                 break;
             case Mqtt5Properties::RetainAvailable:
-                readByte();
+                result.retained_available = static_cast<bool>(readByte());
                 break;
             case Mqtt5Properties::MaximumPacketSize:
                 result.max_outgoing_packet_size = std::min<uint32_t>(readFourBytesToUint32(), result.max_outgoing_packet_size);
@@ -992,7 +992,7 @@ void MqttPacket::handleConnAck()
 
     const uint16_t effectiveMaxOutgoingTopicAliases = std::min<uint16_t>(data.max_outgoing_topic_aliases, bridgeConfig->maxOutgoingTopicAliases);
 
-    sender->setClientProperties(true, keepalive, data.max_outgoing_packet_size, effectiveMaxOutgoingTopicAliases);
+    sender->setClientProperties(true, keepalive, data.max_outgoing_packet_size, effectiveMaxOutgoingTopicAliases, data.retained_available);
     session->setSessionProperties(data.client_receive_max, bridgeConfig->localSessionExpiryInterval, bridgeConfig->localCleanStart, bridgeConfig->protocolVersion);
 
     ThreadGlobals::getThreadData()->queueClientNextKeepAliveCheckLocked(sender, true);

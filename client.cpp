@@ -875,7 +875,7 @@ void Client::setClientProperties(ProtocolVersion protocolVersion, const std::str
     this->maxOutgoingTopicAliasValue = maxOutgoingTopicAliasValue;
 }
 
-void Client::setClientProperties(bool connectPacketSeen, uint16_t keepalive, uint32_t maxOutgoingPacketSize, uint16_t maxOutgoingTopicAliasValue)
+void Client::setClientProperties(bool connectPacketSeen, uint16_t keepalive, uint32_t maxOutgoingPacketSize, uint16_t maxOutgoingTopicAliasValue, bool supportsRetained)
 {
     logger->log(LOG_DEBUG) << "Client '" << repr() << "' properties set: keep_alive=" << keepalive << ", max_outgoing_packet_size=" << maxOutgoingPacketSize
                            << ", max_outgoing_topic_aliases=" << maxOutgoingTopicAliasValue << ".";
@@ -884,6 +884,7 @@ void Client::setClientProperties(bool connectPacketSeen, uint16_t keepalive, uin
     this->keepalive = keepalive;
     this->maxOutgoingPacketSize = maxOutgoingPacketSize;
     this->maxOutgoingTopicAliasValue = maxOutgoingTopicAliasValue;
+    this->supportsRetained = supportsRetained;
 }
 
 void Client::setWill(WillPublish &&willPublish)

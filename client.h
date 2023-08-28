@@ -77,6 +77,7 @@ class Client
     bool outgoingConnection = false;
     bool outgoingConnectionEstablished = false;
     bool bridge = false;
+    bool supportsRetained = true; // Interestingly, only SERVERS can tell CLIENTS they don't support it (in CONNACK). The CONNECT packet has no field for it.
     std::string disconnectReason;
     std::chrono::time_point<std::chrono::steady_clock> lastActivity;
 
@@ -136,7 +137,7 @@ public:
     void setClientProperties(ProtocolVersion protocolVersion, const std::string &clientId, const std::string username, bool connectPacketSeen, uint16_t keepalive);
     void setClientProperties(ProtocolVersion protocolVersion, const std::string &clientId, const std::string username, bool connectPacketSeen, uint16_t keepalive,
                              uint32_t maxOutgoingPacketSize, uint16_t maxOutgoingTopicAliasValue);
-    void setClientProperties(bool connectPacketSeen, uint16_t keepalive, uint32_t maxOutgoingPacketSize, uint16_t maxOutgoingTopicAliasValue);
+    void setClientProperties(bool connectPacketSeen, uint16_t keepalive, uint32_t maxOutgoingPacketSize, uint16_t maxOutgoingTopicAliasValue, bool supportsRetained);
     void setWill(const std::string &topic, const std::string &payload, bool retain, uint8_t qos);
     void setWill(WillPublish &&willPublish);
     void clearWill();
@@ -203,6 +204,7 @@ public:
     bool getOutgoingConnectionEstablished() const;
     bool isBridge() const { return bridge; }
     void setBridge(bool val);
+    bool isRetainedAvailable() const {return supportsRetained; };
 
 #ifdef TESTING
     std::function<void(MqttPacket &packet)> onPacketReceived;

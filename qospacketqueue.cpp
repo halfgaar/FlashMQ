@@ -133,6 +133,13 @@ void QoSPublishQueue::addToHeadOfLinkedList(std::shared_ptr<QueuedPublish> &qp)
         this->tail = qp;
 }
 
+/**
+ * @brief QoSPublishQueue::queuePublish
+ *
+ * Note that it may seem a bit weird to queue messages with retain flags, because retained messages can only happen on
+ * subscribe, which an offline client can't do. However, MQTT5 introduces 'retained as published', so it becomes valid. Bridge
+ * mode uses this as well.
+ */
 void QoSPublishQueue::queuePublish(PublishCopyFactory &copyFactory, uint16_t id, uint8_t new_max_qos, bool retainAsPublished)
 {
     assert(new_max_qos > 0);

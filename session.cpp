@@ -117,9 +117,14 @@ void Session::writePacket(PublishCopyFactory &copyFactory, const uint8_t max_qos
 {
     assert(max_qos <= 2);
 
+    std::shared_ptr<Client> c = makeSharedClient();
+
     const uint8_t effectiveQos = copyFactory.getEffectiveQos(max_qos);
     retainAsPublished = retainAsPublished || bridge;
-    const bool effectiveRetain = copyFactory.getEffectiveRetain(retainAsPublished);
+    bool effectiveRetain = copyFactory.getEffectiveRetain(retainAsPublished);
+
+    if (c && !c->isRetainedAvailable())
+        effectiveRetain = false;
 
     const Settings *settings = ThreadGlobals::getSettings();
 
@@ -128,7 +133,6 @@ void Session::writePacket(PublishCopyFactory &copyFactory, const uint8_t max_qos
     Authentication &auth = *_auth;
     if (auth.aclCheck(client_id, username, copyFactory.getTopic(), copyFactory.getSubtopics(), copyFactory.getPayload(), AclAccess::read, effectiveQos, effectiveRetain, copyFactory.getUserProperties()) == AuthResult::success)
     {
-        std::shared_ptr<Client> c = makeSharedClient();
         if (effectiveQos == 0)
         {
             if (c)
@@ -248,6 +252,8 @@ void Session::sendAllPendingQosData()
 
             MqttPacket p(c->getProtocolVersion(), pub);
             p.setPacketId(queuedPublish.getPacketId());
+            if (!c->isRetainedAvailable())
+                p.setRetain(false);
             //p.setDuplicate(); // TODO: this is wrong. Until we have a retransmission system, no packets can have the DUP bit set.
 
             c->writeMqttPacketAndBlameThisClient(p);
