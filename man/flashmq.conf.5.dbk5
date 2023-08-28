@@ -847,6 +847,21 @@ listen {
         </listitem>
       </varlistentry>
 
+      <varlistentry xml:id="bridge__remote_retain_available">
+        <term><option>remote_retain_available</option> <replaceable>true/false</replaceable></term>
+        <listitem>
+          <para>
+              MQTT5 allows a server to tell a client it doesn't support retained messages, or has it disabled. When using MQTT3, use this option to achieve the same.
+          </para>
+          <para>
+              Messages will not be relayed with 'retained as published' and the retained messages that are normally sent on matching subscription, are not sent.
+          </para>
+          <para>
+            Default value: <literal>true</literal>
+          </para>
+        </listitem>
+      </varlistentry>
+
       <varlistentry xml:id="bridge__use_saved_clientid">
         <term><option>use_saved_clientid</option> <replaceable>true/false</replaceable></term>
         <listitem>

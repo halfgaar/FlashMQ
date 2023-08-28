@@ -5,7 +5,7 @@
 \\$2 \(la\\$1\(ra\\$3
 ..
 .if \n(.g .mso www.tmac
-.TH flashmq.conf 5 "22 August 2023" "" ""
+.TH flashmq.conf 5 "8 September 2023" "" ""
 .SH NAME
 flashmq.conf \- FlashMQ configuration file format
 .SH SYNOPSIS
@@ -413,6 +413,13 @@ Default value: \*(T<0\*(T>
 Determines when a local session without an active client will be removed, in both MQTT3 and MQTT5 mode. Note that in MQTT3 mode, the session is removed on disconnect when \*(T<\fBlocal_clean_start\fR\*(T> is true.
 
 Default value: \*(T<0\*(T>
+.TP 
+\*(T<\fBremote_retain_available\fR\*(T> \fItrue/false\fR 
+MQTT5 allows a server to tell a client it doesn't support retained messages, or has it disabled. When using MQTT3, use this option to achieve the same.
+
+Messages will not be relayed with 'retained as published' and the retained messages that are normally sent on matching subscription, are not sent.
+
+Default value: \*(T<true\*(T>
 .TP 
 \*(T<\fBuse_saved_clientid\fR\*(T> \fItrue/false\fR 
 When you want your bridges to resume local and remote sessions after restart, set this to true and set \*(T<\fBremote_clean_start\fR\*(T>, \*(T<\fBlocal_clean_start\fR\*(T>, \*(T<\fBremote_session_expiry_interval\fR\*(T> and \*(T<\fBlocal_session_expiry_interval\fR\*(T> accordingly. It only has effect when you have set a \*(T<\fBstorage_dir\fR\*(T>.
