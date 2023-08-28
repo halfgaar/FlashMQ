@@ -166,6 +166,7 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validBridgeKeys.insert("remote_password");
     validBridgeKeys.insert("remote_clean_start");
     validBridgeKeys.insert("remote_session_expiry_interval");
+    validBridgeKeys.insert("remote_retain_available");
     validBridgeKeys.insert("local_clean_start");
     validBridgeKeys.insert("local_session_expiry_interval");
     validBridgeKeys.insert("subscribe");
@@ -608,6 +609,10 @@ void ConfigFileParser::loadFile(bool test)
                 if (testKeyValidity(key, "use_saved_clientid", validBridgeKeys))
                 {
                     curBridge->useSavedClientId = stringTruthiness(value);
+                }
+                if (testKeyValidity(key, "remote_retain_available", validBridgeKeys))
+                {
+                    curBridge->remoteRetainAvailable = stringTruthiness(value);
                 }
 
                 continue;

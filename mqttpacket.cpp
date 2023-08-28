@@ -992,7 +992,9 @@ void MqttPacket::handleConnAck()
 
     const uint16_t effectiveMaxOutgoingTopicAliases = std::min<uint16_t>(data.max_outgoing_topic_aliases, bridgeConfig->maxOutgoingTopicAliases);
 
-    sender->setClientProperties(true, keepalive, data.max_outgoing_packet_size, effectiveMaxOutgoingTopicAliases, data.retained_available);
+    const bool realRetainedAvailable = data.retained_available && bridgeConfig->remoteRetainAvailable;
+
+    sender->setClientProperties(true, keepalive, data.max_outgoing_packet_size, effectiveMaxOutgoingTopicAliases, realRetainedAvailable);
     session->setSessionProperties(data.client_receive_max, bridgeConfig->localSessionExpiryInterval, bridgeConfig->localCleanStart, bridgeConfig->protocolVersion);
 
     ThreadGlobals::getThreadData()->queueClientNextKeepAliveCheckLocked(sender, true);
