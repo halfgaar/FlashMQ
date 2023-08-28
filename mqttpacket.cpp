@@ -569,11 +569,24 @@ ConnectData MqttPacket::parseConnectData()
 
     result.client_id = readBytesToString();
 
-    result.willpublish.qos = result.will_qos;
-    result.willpublish.retain = result.will_retain;
-
     if (result.will_flag)
     {
+        result.willpublish.qos = result.will_qos;
+        result.willpublish.retain = result.will_retain;
+
+        if (result.will_retain)
+        {
+            if (settings.retainedMessagesMode == RetainedMessagesMode::DisconnectWithError)
+                throw ProtocolError("Option 'retained_messages_mode' set to 'disconnect_with_error' and received a will with retain.", ReasonCodes::RetainNotSupported);
+            else if (settings.retainedMessagesMode == RetainedMessagesMode::Downgrade)
+            {
+                result.willpublish.retain = false;
+                result.will_retain = false;
+            }
+            else if (settings.retainedMessagesMode == RetainedMessagesMode::Drop)
+                result.will_flag = false; // This will make us not pick up later, and we still parse the bytes from the packet.
+        }
+
         result.willpublish.client_id = result.client_id;
 
         if (protocolVersion == ProtocolVersion::Mqtt5)

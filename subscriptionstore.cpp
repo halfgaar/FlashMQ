@@ -713,6 +713,11 @@ void SubscriptionStore::setRetainedMessage(const Publish &publish, const std::ve
 {
     assert(!subtopics.empty());
 
+    const Settings *settings = ThreadGlobals::getSettings();
+
+    if (settings->retainedMessagesMode != RetainedMessagesMode::Enabled)
+        return;
+
     RetainedMessageNode *deepestNode = &retainedMessagesRoot;
     if (!subtopics.empty() && !subtopics[0].empty() > 0 && subtopics[0][0] == '$')
         deepestNode = &retainedMessagesRootDollar;
