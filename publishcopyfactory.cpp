@@ -118,10 +118,8 @@ std::string_view PublishCopyFactory::getPayload() const
 
 bool PublishCopyFactory::getRetain() const
 {
-    if (packet)
-        return packet->getRetain();
-    assert(publish);
-    return publish->retain;
+    // Keeping this here as reminder that it should not be implemented.
+    assert(false);
 }
 
 /**

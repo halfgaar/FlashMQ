@@ -147,7 +147,7 @@ public:
     void writeText(const std::string &text);
     void writePingResp();
     void writeMqttPacket(const MqttPacket &packet);
-    void writeMqttPacketAndBlameThisClient(PublishCopyFactory &copyFactory, uint8_t max_qos, uint16_t packet_id, bool retainAsPublished);
+    void writeMqttPacketAndBlameThisClient(PublishCopyFactory &copyFactory, uint8_t max_qos, uint16_t packet_id, bool retain);
     void writeMqttPacketAndBlameThisClient(const MqttPacket &packet);
     bool writeBufIntoFd();
     bool isBeingDisconnected() const { return disconnectWhenBytesWritten; }

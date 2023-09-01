@@ -109,20 +109,21 @@ void Session::writePacket(PublishCopyFactory &copyFactory, const uint8_t max_qos
     assert(max_qos <= 2);
 
     const uint8_t effectiveQos = copyFactory.getEffectiveQos(max_qos);
+    const bool effectiveRetain = copyFactory.getEffectiveRetain(retainAsPublished);
 
     const Settings *settings = ThreadGlobals::getSettings();
 
     Authentication *_auth = ThreadGlobals::getAuth();
     assert(_auth);
     Authentication &auth = *_auth;
-    if (auth.aclCheck(client_id, username, copyFactory.getTopic(), copyFactory.getSubtopics(), copyFactory.getPayload(), AclAccess::read, effectiveQos, copyFactory.getRetain(), copyFactory.getUserProperties()) == AuthResult::success)
+    if (auth.aclCheck(client_id, username, copyFactory.getTopic(), copyFactory.getSubtopics(), copyFactory.getPayload(), AclAccess::read, effectiveQos, effectiveRetain, copyFactory.getUserProperties()) == AuthResult::success)
     {
         std::shared_ptr<Client> c = makeSharedClient();
         if (effectiveQos == 0)
         {
             if (c)
             {
-                c->writeMqttPacketAndBlameThisClient(copyFactory, effectiveQos, 0, retainAsPublished);
+                c->writeMqttPacketAndBlameThisClient(copyFactory, effectiveQos, 0, effectiveRetain);
             }
         }
         else if (effectiveQos > 0)
@@ -152,11 +153,11 @@ void Session::writePacket(PublishCopyFactory &copyFactory, const uint8_t max_qos
             flowControlQuota--;
 
             if (requiresQoSQueueing())
-                qosPacketQueue.queuePublish(copyFactory, nextPacketId, effectiveQos, retainAsPublished);
+                qosPacketQueue.queuePublish(copyFactory, nextPacketId, effectiveQos, effectiveRetain);
 
             if (c)
             {
-                c->writeMqttPacketAndBlameThisClient(copyFactory, effectiveQos, nextPacketId, retainAsPublished);
+                c->writeMqttPacketAndBlameThisClient(copyFactory, effectiveQos, nextPacketId, effectiveRetain);
             }
         }
     }

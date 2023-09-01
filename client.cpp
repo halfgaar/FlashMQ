@@ -261,7 +261,7 @@ void Client::writeMqttPacket(const MqttPacket &packet)
     setReadyForWriting(true);
 }
 
-void Client::writeMqttPacketAndBlameThisClient(PublishCopyFactory &copyFactory, uint8_t max_qos, uint16_t packet_id, bool retainAsPublished)
+void Client::writeMqttPacketAndBlameThisClient(PublishCopyFactory &copyFactory, uint8_t max_qos, uint16_t packet_id, bool retain)
 {
     uint16_t topic_alias = 0;
     bool skip_topic = false;
@@ -290,7 +290,7 @@ void Client::writeMqttPacketAndBlameThisClient(PublishCopyFactory &copyFactory, 
         p->setQos(copyFactory.getEffectiveQos(max_qos));
     }
 
-    p->setRetain(copyFactory.getEffectiveRetain(retainAsPublished));
+    p->setRetain(retain);
 
     writeMqttPacketAndBlameThisClient(*p);
 }
