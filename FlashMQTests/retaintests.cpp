@@ -488,7 +488,17 @@ void MainTests::testRetainAsPublished()
     client.start();
     client.connectClient(ProtocolVersion::Mqtt5);
 
+    FlashMQTestClient client2;
+    client2.start();
+    client2.connectClient(ProtocolVersion::Mqtt5);
+
+    FlashMQTestClient client3;
+    client3.start();
+    client3.connectClient(ProtocolVersion::Mqtt5);
+
+    client2.subscribe("mytopic", 1, false, false);
     client.subscribe("mytopic", 1, false, true);
+    client3.subscribe("mytopic", 1, false, false);
 
     try
     {
