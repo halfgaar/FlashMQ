@@ -120,6 +120,7 @@ bool PublishCopyFactory::getRetain() const
 {
     // Keeping this here as reminder that it should not be implemented.
     assert(false);
+    return false;
 }
 
 /**
