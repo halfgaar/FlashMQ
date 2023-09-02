@@ -191,6 +191,12 @@ AuthResult flashmq_plugin_acl_check(void *thread_data, const AclAccess access, c
     (void)retain;
     (void)userProperties;
 
+    if (clientid == "test_user_without_retain_as_published_CswU21YA" && access == AclAccess::read)
+        assert(!retain);
+
+    if (clientid == "test_user_with_retain_as_published_v8sIeCvI" && access == AclAccess::read)
+        assert(retain);
+
     assert(access == AclAccess::subscribe || !payload.empty());
 
     if (access == AclAccess::register_will && topic == "will/disallowed")

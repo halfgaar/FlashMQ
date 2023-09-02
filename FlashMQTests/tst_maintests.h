@@ -84,6 +84,7 @@ private slots:
     void testRetainAsPublishedNegative();
     void testRetainedParentOfWildcard();
     void testRetainedWildcard();
+    void testRetainedAclReadCheck();
 
     void test_various_packet_sizes();
 

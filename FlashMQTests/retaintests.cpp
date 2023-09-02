@@ -644,3 +644,58 @@ void MainTests::testRetainedWildcard()
     QCOMPARE(msg.getTopic(), publish_topic);
     QVERIFY(msg.getRetain());
 }
+
+/**
+ * @brief MainTests::testRetainedAclReadCheck tests the manipulation of the retain bit in the original incoming packet.
+ *
+ * This has to do with the optimization in CopyFactory, that under certain conditions, the original packet's vector is
+ * just used to write to the client.
+ */
+void MainTests::testRetainedAclReadCheck()
+{
+    ConfFileTemp confFile;
+    confFile.writeLine("plugin plugins/libtest_plugin.so.0.0.1");
+    confFile.closeFile();
+
+    std::vector<std::string> args {"--config-file", confFile.getFilePath()};
+
+    cleanup();
+    init(args);
+
+    FlashMQTestClient client;
+    client.start();
+    client.connectClient(ProtocolVersion::Mqtt5, true, 30, [](Connect &connect) {
+        connect.clientid = "test_user_with_retain_as_published_v8sIeCvI";
+    });
+
+    client.subscribe("mytopic", 1, false, true);
+
+    FlashMQTestClient client2;
+    client2.start();
+    client2.connectClient(ProtocolVersion::Mqtt5, true, 30, [](Connect &connect) {
+        connect.clientid = "test_user_without_retain_as_published_CswU21YA";
+    });
+
+    client2.subscribe("mytopic", 1, false, false);
+
+    FlashMQTestClient publish_client;
+    publish_client.start();
+    publish_client.connectClient(ProtocolVersion::Mqtt5);
+
+    Publish pub("mytopic", "mypayload", 1);
+    pub.retain = true;
+    publish_client.publish(pub);
+
+    try
+    {
+        client.waitForMessageCount(1);
+        client2.waitForMessageCount(1);
+    }
+    catch (std::exception &ex)
+    {
+        QVERIFY2(false, ex.what());
+    }
+
+    MYCASTCOMPARE(client.receivedPublishes.size(), 1);
+    MYCASTCOMPARE(client2.receivedPublishes.size(), 1);
+}
