@@ -971,38 +971,38 @@ void MqttPacket::handleConnAck()
 
     sender->setAuthenticated(true);
 
-    std::shared_ptr<BridgeState> bridgeConfig = sender->getBridgeConfig();
+    std::shared_ptr<BridgeState> bridgeState = sender->getBridgeState();
 
     // Should be impossible.
-    if (!bridgeConfig)
+    if (!bridgeState)
         return;
 
-    bridgeConfig->resetReconnectCounter();
+    bridgeState->resetReconnectCounter();
 
     logger->logf(LOG_NOTICE, "Bridge '%s' connection established. Subscribing to topics.", sender->repr().c_str());
 
     std::shared_ptr<SubscriptionStore> store = MainApp::getMainApp()->getSubscriptionStore();
-    std::shared_ptr<Session> session = bridgeConfig->session.lock();
+    std::shared_ptr<Session> session = bridgeState->session.lock();
 
     // Should be impossible.
     if (!session)
         return;
 
-    const uint16_t keepalive = data.keep_alive ? data.keep_alive : bridgeConfig->keepalive;
+    const uint16_t keepalive = data.keep_alive ? data.keep_alive : bridgeState->c.keepalive;
 
-    const uint16_t effectiveMaxOutgoingTopicAliases = std::min<uint16_t>(data.max_outgoing_topic_aliases, bridgeConfig->maxOutgoingTopicAliases);
+    const uint16_t effectiveMaxOutgoingTopicAliases = std::min<uint16_t>(data.max_outgoing_topic_aliases, bridgeState->c.maxOutgoingTopicAliases);
 
-    const bool realRetainedAvailable = data.retained_available && bridgeConfig->remoteRetainAvailable;
+    const bool realRetainedAvailable = data.retained_available && bridgeState->c.remoteRetainAvailable;
 
     sender->setClientProperties(true, keepalive, data.max_outgoing_packet_size, effectiveMaxOutgoingTopicAliases, realRetainedAvailable);
-    session->setSessionProperties(data.client_receive_max, bridgeConfig->localSessionExpiryInterval, bridgeConfig->localCleanStart, bridgeConfig->protocolVersion);
+    session->setSessionProperties(data.client_receive_max, bridgeState->c.localSessionExpiryInterval, bridgeState->c.localCleanStart, bridgeState->c.protocolVersion);
 
     ThreadGlobals::getThreadData()->queueClientNextKeepAliveCheckLocked(sender, true);
 
     // This resubscribes also when there is already a session with subscriptions remotely, but that is required when you change QoS levels, for instance. It
     // will not unsubscribe, so it will add to the existing subscriptions.
     // Note that this will also get you retained messages again.
-    for(BridgeTopicPath &sub : bridgeConfig->subscribes)
+    for(const BridgeTopicPath &sub : bridgeState->c.subscribes)
     {
         const uint8_t real_qos = std::min<uint8_t>(data.max_qos, sub.qos);
 
@@ -1019,7 +1019,7 @@ void MqttPacket::handleConnAck()
     // It doesn't matter if we do this every time on connack; a client can only be subscribed once per pattern.
     // Note that this will also send all locally retained messages. I think that's the best approach: the state of retained
     // messages need to be synced; they may have been removed remotely while disconnected, for instance.
-    for(BridgeTopicPath &pub : bridgeConfig->publishes)
+    for(const BridgeTopicPath &pub : bridgeState->c.publishes)
     {
         logger->log(LOG_DEBUG) << "Bridge '" << sender->repr() << "' subscribing locally to '" << pub.topic << "', QoS="
                                << static_cast<int>(pub.qos) << ".";
@@ -1028,7 +1028,7 @@ void MqttPacket::handleConnAck()
         store->addSubscription(sender, subtopics, pub.qos, true, true);
     }
 
-    ThreadGlobals::getThreadData()->publishBridgeState(bridgeConfig, true);
+    ThreadGlobals::getThreadData()->publishBridgeState(bridgeState, true);
 
     session->sendAllPendingQosData();
 }
@@ -1323,13 +1323,13 @@ void MqttPacket::handleSubAck()
 
     const SubAckData data = parseSubAckData();
 
-    std::shared_ptr<BridgeState> bridgeConfig = sender->getBridgeConfig();
+    std::shared_ptr<BridgeState> bridgeState = sender->getBridgeState();
 
     // Should be impossible.
-    if (!bridgeConfig)
+    if (!bridgeState)
         return;
 
-    std::shared_ptr<Session> session = bridgeConfig->session.lock();
+    std::shared_ptr<Session> session = bridgeState->session.lock();
 
     // Should be impossible.
     if (!session)

@@ -197,9 +197,9 @@ public:
 
     std::shared_ptr<ThreadData> lockThreadData();
 
-    void setBridgeConfig(std::shared_ptr<BridgeState> bridgeConfig);
+    void setBridgeState(std::shared_ptr<BridgeState> bridgeState);
     bool isOutgoingConnection() const;
-    std::shared_ptr<BridgeState> getBridgeConfig();
+    std::shared_ptr<BridgeState> getBridgeState();
     void setBridgeConnected();
     bool getOutgoingConnectionEstablished() const;
     bool isBridge() const { return bridge; }

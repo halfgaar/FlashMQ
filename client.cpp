@@ -153,7 +153,7 @@ void Client::connectToBridgeTarget(FMQSockaddr_in6 addr)
 
     this->outgoingConnection = true;
 
-    addr.setPort(bridge->port);
+    addr.setPort(bridge->c.port);
     int rc = connect(fd, addr.getSockaddr(), addr.getSize());
 
     if (rc < 0)
@@ -373,22 +373,22 @@ void Client::writePingResp()
 
 void Client::writeLoginPacket()
 {
-    std::shared_ptr<BridgeConfig> config = this->bridgeState.lock();
+    std::shared_ptr<BridgeState> config = this->bridgeState.lock();
 
     if (!config)
         throw std::runtime_error("No bridge config in bridge?");
 
     Connect connectInfo(protocolVersion, clientid);
-    connectInfo.username = config->remote_username;
-    connectInfo.password = config->remote_password;
-    connectInfo.clean_start = config->remoteCleanStart;
-    connectInfo.keepalive = config->keepalive;
-    connectInfo.bridgeProtocolBit = config->bridgeProtocolBit;
+    connectInfo.username = config->c.remote_username;
+    connectInfo.password = config->c.remote_password;
+    connectInfo.clean_start = config->c.remoteCleanStart;
+    connectInfo.keepalive = config->c.keepalive;
+    connectInfo.bridgeProtocolBit = config->c.bridgeProtocolBit;
 
-    if (config->remoteSessionExpiryInterval)
+    if (config->c.remoteSessionExpiryInterval)
     {
         connectInfo.constructPropertyBuilder();
-        connectInfo.propertyBuilder->writeSessionExpiry(config->remoteSessionExpiryInterval);
+        connectInfo.propertyBuilder->writeSessionExpiry(config->c.remoteSessionExpiryInterval);
     }
 
     // We tell the other side they can send us topics with aliases, if set.
@@ -670,28 +670,28 @@ std::shared_ptr<ThreadData> Client::lockThreadData()
     return this->threadData.lock();
 }
 
-void Client::setBridgeConfig(std::shared_ptr<BridgeState> bridgeConfig)
+void Client::setBridgeState(std::shared_ptr<BridgeState> bridgeState)
 {
-    this->bridgeState = bridgeConfig;
+    this->bridgeState = bridgeState;
     this->outgoingConnection = true;
     setBridge(true);
 
-    if (bridgeConfig)
+    if (bridgeState)
     {
-        this->protocolVersion = bridgeConfig->protocolVersion;
-        this->address = bridgeConfig->address;
-        this->clean_start = bridgeConfig->localCleanStart;
-        this->clientid = bridgeConfig->getClientid();
-        this->username = bridgeConfig->local_username;
-        this->keepalive = bridgeConfig->keepalive;
+        this->protocolVersion = bridgeState->c.protocolVersion;
+        this->address = bridgeState->c.address;
+        this->clean_start = bridgeState->c.localCleanStart;
+        this->clientid = bridgeState->c.getClientid();
+        this->username = bridgeState->c.local_username;
+        this->keepalive = bridgeState->c.keepalive;
 
         // Not setting maxOutgoingTopicAliasValue, because that must remain 0 until the other side says (in the connack) we can uses aliases.
-        this->maxIncomingTopicAliasValue = bridgeConfig->maxIncomingTopicAliases;
+        this->maxIncomingTopicAliasValue = bridgeState->c.maxIncomingTopicAliases;
 
-        if (bridgeConfig->tlsMode > BridgeTLSMode::None)
+        if (bridgeState->c.tlsMode > BridgeTLSMode::None)
         {
-            const int mode = bridgeConfig->tlsMode == BridgeTLSMode::On ? SSL_VERIFY_PEER : SSL_VERIFY_NONE;
-            ioWrapper.setSslVerify(mode, bridgeConfig->address);
+            const int mode = bridgeState->c.tlsMode == BridgeTLSMode::On ? SSL_VERIFY_PEER : SSL_VERIFY_NONE;
+            ioWrapper.setSslVerify(mode, bridgeState->c.address);
         }
     }
 }
@@ -701,7 +701,7 @@ bool Client::isOutgoingConnection() const
     return this->outgoingConnection;
 }
 
-std::shared_ptr<BridgeState> Client::getBridgeConfig()
+std::shared_ptr<BridgeState> Client::getBridgeState()
 {
     return this->bridgeState.lock();
 }

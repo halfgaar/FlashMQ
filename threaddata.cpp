@@ -276,7 +276,7 @@ void ThreadData::bridgeReconnect()
             {
                 if (bridge->dns.idle())
                 {
-                    bridge->dns.query(bridge->address, bridge->inet_protocol, std::chrono::milliseconds(5000));
+                    bridge->dns.query(bridge->c.address, bridge->c.inet_protocol, std::chrono::milliseconds(5000));
 
                     auto f = std::bind(&ThreadData::bridgeReconnect, this);
                     delayedTasks.addTask(f, 500);
@@ -305,7 +305,7 @@ void ThreadData::bridgeReconnect()
             fcntl(sockfd, F_SETFL, flags | O_NONBLOCK);
 
             SSL *clientSSL = nullptr;
-            if (bridge->tlsMode > BridgeTLSMode::None)
+            if (bridge->c.tlsMode > BridgeTLSMode::None)
             {
                 clientSSL = SSL_new(bridge->sslctx->get());
 
@@ -320,7 +320,7 @@ void ThreadData::bridgeReconnect()
             }
 
             std::shared_ptr<Client> c(new Client(sockfd, _threadData, clientSSL, false, false, nullptr, settingsLocalCopy));
-            c->setBridgeConfig(bridge);
+            c->setBridgeState(bridge);
 
             logger->logf(LOG_NOTICE, "Connecting brige: %s", c->repr().c_str());
 
@@ -497,7 +497,7 @@ void ThreadData::publishBridgeState(std::shared_ptr<BridgeState> bridge, bool co
     const std::string payload = connected ? "1" : "0";
 
     std::stringstream ss;
-    ss << "$SYS/broker/bridge/" << bridge->clientidPrefix << "/connected";
+    ss << "$SYS/broker/bridge/" << bridge->c.clientidPrefix << "/connected";
     const std::string topic = ss.str();
 
     GlobalStats *globalStats = GlobalStats::getInstance();

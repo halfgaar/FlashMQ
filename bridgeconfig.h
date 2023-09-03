@@ -31,11 +31,6 @@ class BridgeConfig
     void setClientId();
 
 public:
-    virtual ~BridgeConfig() = default;
-
-    std::weak_ptr<Session> session;
-    std::weak_ptr<ThreadData> threadData; // kind of hacky, but I need it later.
-
     ListenerProtocol inet_protocol = ListenerProtocol::IPv46;
     std::string address;
     uint16_t port = 0;
@@ -61,11 +56,11 @@ public:
     std::vector<BridgeTopicPath> publishes;
 
     void setClientId(const std::string &prefix, const std::string &id);
-    const std::string &getClientid();
+    const std::string &getClientid() const;
     void isValid();
 };
 
-class BridgeState : public BridgeConfig
+class BridgeState
 {
     bool sslInitialized = false;
     std::chrono::time_point<std::chrono::steady_clock> lastReconnectAttempt;
@@ -73,6 +68,9 @@ class BridgeState : public BridgeConfig
     const int baseReconnectInterval = (get_random_int<int>() % 30) + 30;
     int intervalLogged = 0;
 public:
+    const BridgeConfig c;
+    std::weak_ptr<Session> session;
+    std::weak_ptr<ThreadData> threadData; // kind of hacky, but I need it later.
     std::unique_ptr<SslCtxManager> sslctx;
 
     BridgeState(const BridgeConfig &config);

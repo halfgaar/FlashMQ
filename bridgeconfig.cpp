@@ -14,7 +14,8 @@ bool BridgeTopicPath::isValidQos() const
 }
 
 
-BridgeState::BridgeState(const BridgeConfig &config) : BridgeConfig(config)
+BridgeState::BridgeState(const BridgeConfig &config) :
+    c(config)
 {
 
 }
@@ -31,7 +32,7 @@ FMQSockaddr_in6 BridgeState::popDnsResult()
 
 void BridgeState::initSSL(bool reloadCertificates)
 {
-    if (this->tlsMode == BridgeTLSMode::None)
+    if (this->c.tlsMode == BridgeTLSMode::None)
         return;
 
     if (!sslctx)
@@ -51,8 +52,8 @@ void BridgeState::initSSL(bool reloadCertificates)
 
     if (!this->sslInitialized || reloadCertificates)
     {
-        const char *ca_file = caFile.empty() ? nullptr : caFile.c_str();
-        const char *ca_dir = caDir.empty() ? nullptr : caDir.c_str();
+        const char *ca_file = c.caFile.empty() ? nullptr : c.caFile.c_str();
+        const char *ca_dir = c.caDir.empty() ? nullptr : c.caDir.c_str();
 
         if (ca_file || ca_dir)
         {
@@ -81,7 +82,7 @@ bool BridgeState::timeForNewReconnectAttempt()
     {
         intervalLogged = next;
         Logger *logger = Logger::getInstance();
-        logger->log(LOG_NOTICE) << "Bridge '" << clientidPrefix << "' connection failure count: " << reconnectCounter
+        logger->log(LOG_NOTICE) << "Bridge '" << c.clientidPrefix << "' connection failure count: " << reconnectCounter
                                 << ". Increasing reconnect interval to " << next << " seconds.";
     }
 
@@ -134,7 +135,7 @@ void BridgeConfig::setClientId()
     clientid = oss.str();
 }
 
-const std::string &BridgeConfig::getClientid()
+const std::string &BridgeConfig::getClientid() const
 {
     return clientid;
 }
