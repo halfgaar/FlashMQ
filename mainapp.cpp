@@ -738,7 +738,7 @@ void MainApp::start()
     bool waitTimeExpired = false;
     while(std::any_of(threads.begin(), threads.end(), [](std::shared_ptr<ThreadData> t){ return !t->finished; }))
     {
-        if (count++ >= 5000)
+        if (count++ >= 10000)
         {
             waitTimeExpired = true;
             break;
