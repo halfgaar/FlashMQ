@@ -396,9 +396,12 @@ void MqttPacket::bufferToMqttPackets(CirBuf &buf, std::vector<MqttPacket> &packe
             throw ProtocolError("An unauthenticated client sends a packet of 1 MB or bigger? Probably it's just random bytes.", ReasonCodes::ProtocolError);
         }
 
-        if (packet_length > ABSOLUTE_MAX_PACKET_SIZE)
+        const uint32_t size_limit = std::min<uint32_t>(sender->getMaxIncomingPacketSize(), ABSOLUTE_MAX_PACKET_SIZE);
+        if (packet_length > size_limit)
         {
-            throw ProtocolError("A client sends a packet claiming to be bigger than the maximum MQTT allows.", ReasonCodes::ProtocolError);
+            std::ostringstream oss;
+            oss << "Packet exceeded " << size_limit << " bytes, which exceeds the server limit of " << size_limit << " bytes";
+            throw ProtocolError(oss.str(), ReasonCodes::PacketTooLarge);
         }
 
         if (packet_length <= buf.usedBytes())
