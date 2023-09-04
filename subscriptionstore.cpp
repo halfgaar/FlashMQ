@@ -311,7 +311,8 @@ void SubscriptionStore::registerClientAndKickExistingOne(std::shared_ptr<Client>
 
         if (!session || session->getDestroyOnDisconnect() || clean_start)
         {
-            session = std::make_shared<Session>();
+            // Don't use sdt::make_shared to avoid the weak pointers from retaining the size of session in the control block.
+            session = std::shared_ptr<Session>(new Session());
 
             sessionsById[client->getClientId()] = session;
         }

@@ -665,7 +665,8 @@ void MainApp::start()
                         SSL_set_fd(clientSSL, fd);
                     }
 
-                    std::shared_ptr<Client> client = std::make_shared<Client>(fd, thread_data, clientSSL, listener->websocket, listener->isHaProxy(), addr, settings);
+                    // Don't use std::make_shared to avoid the weak pointers keeping the control block in memory.
+                    std::shared_ptr<Client> client = std::shared_ptr<Client>(new Client(fd, thread_data, clientSSL, listener->websocket, listener->isHaProxy(), addr, settings));
 
                     thread_data->giveClient(std::move(client));
 
