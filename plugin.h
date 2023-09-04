@@ -130,6 +130,7 @@ class Authentication
     F_flashmq_plugin_alter_publish_v2 flashmq_plugin_alter_publish_v2 = nullptr;
 
     static std::mutex initMutex;
+    static std::mutex deinitMutex;
     static std::mutex authChecksMutex;
 
     PluginFamily pluginFamily = PluginFamily::None;

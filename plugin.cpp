@@ -23,6 +23,7 @@ See LICENSE for license details.
 #include "utils.h"
 
 std::mutex Authentication::initMutex;
+std::mutex Authentication::deinitMutex;
 std::mutex Authentication::authChecksMutex;
 
 void mosquitto_log_printf(int level, const char *fmt, ...)
@@ -172,7 +173,7 @@ void Authentication::cleanup()
 
     securityCleanup(false);
 
-    UnscopedLock lock(initMutex);
+    UnscopedLock lock(deinitMutex);
     if (settings.pluginSerializeInit)
         lock.lock();
 
@@ -241,7 +242,7 @@ void Authentication::securityCleanup(bool reloading)
 
     initialized = false;
 
-    UnscopedLock lock(initMutex);
+    UnscopedLock lock(deinitMutex);
     if (settings.pluginSerializeInit)
         lock.lock();
 
