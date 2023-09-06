@@ -427,11 +427,12 @@ void MqttPacket::handle()
     if (packetType == PacketType::Reserved)
         throw ProtocolError("Packet type 0 specified, which is reserved and invalid.", ReasonCodes::MalformedPacket);
 
-    if (packetType != PacketType::CONNECT && packetType != PacketType::AUTH)
+    if (!sender->getAuthenticated())
     {
-        if (!sender->getAuthenticated())
+        if (!(packetType == PacketType::CONNECT || packetType == PacketType::AUTH || packetType == PacketType::DISCONNECT ||
+              packetType == PacketType::PINGREQ || packetType == PacketType::PINGRESP))
         {
-            logger->logf(LOG_WARNING, "Non-connect packet (%d) from non-authenticated client. Dropping packet.", packetType);
+            logger->logf(LOG_WARNING, "Unapproved packet type (code %d) from non-authenticated client. Dropping packet.", packetType);
             return;
         }
     }
