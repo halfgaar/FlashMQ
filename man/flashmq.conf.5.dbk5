@@ -78,7 +78,7 @@
             The plugin should preferrably be written with proper synchronization like that, but as a last resort, you can use this to synchronize initialization.
           </para>
           <para>
-            Default value: <literal>true</literal>
+            Default value: <literal>false</literal>
           </para>
         </listitem>
       </varlistentry>

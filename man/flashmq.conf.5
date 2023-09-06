@@ -5,7 +5,7 @@
 \\$2 \(la\\$1\(ra\\$3
 ..
 .if \n(.g .mso www.tmac
-.TH flashmq.conf 5 "19 August 2023" "" ""
+.TH flashmq.conf 5 "6 September 2023" "" ""
 .SH NAME
 flashmq.conf \- FlashMQ configuration file format
 .SH SYNOPSIS
@@ -42,7 +42,7 @@ There could be circumstances where the plugin code is mostly thread-safe, but no
 
 The plugin should preferrably be written with proper synchronization like that, but as a last resort, you can use this to synchronize initialization.
 
-Default value: \*(T<true\*(T>
+Default value: \*(T<false\*(T>
 .TP 
 \*(T<\fBplugin_serialize_auth_checks\fR\*(T> \fItrue/false\fR 
 Like \*(T<\fBplugin_serialize_init\fR\*(T>, but then for all login and ACL checks.
