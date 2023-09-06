@@ -783,7 +783,9 @@ std::chrono::seconds Client::getSecondsTillKillTime() const
 void Client::clearWill()
 {
     willPublish.reset();
-    session->clearWill();
+
+    if (session)
+        session->clearWill();
 }
 
 std::string &Client::getMutableUsername()

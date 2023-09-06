@@ -1032,6 +1032,9 @@ DisconnectData MqttPacket::parseDisconnectData()
 
 void MqttPacket::handleDisconnect()
 {
+    if (!sender)
+        return;
+
     DisconnectData data = parseDisconnectData();
 
     std::string disconnectReason = formatString("MQTT Disconnect received (code %d).", static_cast<uint8_t>(data.reasonCode));
@@ -1040,7 +1043,11 @@ void MqttPacket::handleDisconnect()
         disconnectReason += data.reasonString;
 
     if (data.session_expiry_interval_set)
-        sender->getSession()->setSessionExpiryInterval(data.session_expiry_interval);
+    {
+        const std::shared_ptr<Session> session = sender->getSession();
+        if (session)
+            session->setSessionExpiryInterval(data.session_expiry_interval);
+    }
 
     logger->logf(LOG_NOTICE, "Client '%s' cleanly disconnecting", sender->repr().c_str());
     sender->setDisconnectReason(disconnectReason);
