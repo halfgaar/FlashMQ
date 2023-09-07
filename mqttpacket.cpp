@@ -479,8 +479,8 @@ ConnectData MqttPacket::parseConnectData()
 
     const Settings &settings = *ThreadGlobals::getSettings();
 
-    char *c = readBytes(variable_header_length);
-    std::string magic_marker(c, variable_header_length);
+    const char *c = readBytes(variable_header_length);
+    const std::string magic_marker(c, variable_header_length);
 
     const uint8_t protocolVersionByte = readUint8();
     result.protocol_level_byte = protocolVersionByte & 0x7F;
@@ -496,6 +496,10 @@ ConnectData MqttPacket::parseConnectData()
     else if (magic_marker == "MQIsdp" && result.protocol_level_byte == 0x03)
     {
         protocolVersion = ProtocolVersion::Mqtt31;
+    }
+    else
+    {
+        throw ProtocolError("Packet contains invalid MQTT marker.", ReasonCodes::MalformedPacket);
     }
 
     char flagByte = readByte();
