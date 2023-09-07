@@ -429,6 +429,11 @@ void MqttPacket::handle()
 
     if (!sender->getAuthenticated())
     {
+        if (packetType == PacketType::AUTH && sender->getExtendedAuthenticationMethod().empty())
+        {
+            throw ProtocolError("You can't initiate first (extended) authentication with an AUTH packet.", ReasonCodes::ProtocolError);
+        }
+
         if (!(packetType == PacketType::CONNECT || packetType == PacketType::AUTH || packetType == PacketType::DISCONNECT ||
               packetType == PacketType::PINGREQ || packetType == PacketType::PINGRESP))
         {
