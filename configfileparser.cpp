@@ -16,7 +16,6 @@ See LICENSE for license details.
 #include <fstream>
 #include <regex>
 #include <sys/stat.h>
-#include <filesystem>
 
 #include <openssl/ssl.h>
 #include <openssl/err.h>
@@ -108,7 +107,7 @@ void ConfigFileParser::checkDirExists(const std::string &key, const std::string 
     struct stat statbuf;
     memset(&statbuf, 0, sizeof(struct stat));
     if (stat(dir.c_str(), &statbuf) < 0)
-        throw ConfigFileException(formatString("Reading stat of '%s' failed.", dir.c_str()));
+        throw ConfigFileException(formatString("Error for '%s': path '%s' does not exist or reading stat failed.", key.c_str(), dir.c_str()));
 
     if (!S_ISDIR(statbuf.st_mode))
     {
@@ -221,11 +220,7 @@ std::list<std::string> ConfigFileParser::readFileRecursively(const std::string &
                 {
                     Logger *logger = Logger::getInstance();
 
-                    if (!std::filesystem::is_directory(value))
-                    {
-                        std::ostringstream oss; oss << "Include_dir '" << value << "' is not there or is not a directory";
-                        throw ConfigFileException(oss.str());
-                    }
+                    checkDirExists(key, value);
 
                     Globber globber;
                     std::vector<std::string> files = globber.getGlob(value + "/*.conf");
