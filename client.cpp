@@ -470,9 +470,6 @@ bool Client::keepAliveExpired()
 
     const std::chrono::time_point<std::chrono::steady_clock> now = std::chrono::steady_clock::now();
 
-    if (!authenticated)
-        return lastActivity + std::chrono::seconds(20) < now;
-
     std::chrono::seconds x(keepalive + keepalive/2);
     bool result = (lastActivity + x) < now;
     return result;

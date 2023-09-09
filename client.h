@@ -79,11 +79,11 @@ class Client
     bool bridge = false;
     bool supportsRetained = true; // Interestingly, only SERVERS can tell CLIENTS they don't support it (in CONNACK). The CONNECT packet has no field for it.
     std::string disconnectReason;
-    std::chrono::time_point<std::chrono::steady_clock> lastActivity;
+    std::chrono::time_point<std::chrono::steady_clock> lastActivity = std::chrono::steady_clock::now();
 
     std::string clientid;
     std::string username;
-    uint16_t keepalive = 0;
+    uint16_t keepalive = 10;
     bool clean_start = false;
 
     std::shared_ptr<WillPublish> willPublish;
