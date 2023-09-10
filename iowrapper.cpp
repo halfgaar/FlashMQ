@@ -649,8 +649,22 @@ ssize_t IoWrapper::websocketBytesToReadBuffer(void *buf, const size_t nbytes, Io
     const ssize_t targetBufMaxSize = nbytes;
     ssize_t nbytesRead = 0;
 
+    int iter_count = 0;
+
+    auto log_spin = [&](const std::string &id) {
+        logger->log(LOG_ERR) << std::boolalpha << "Websocket spin loop in " << id << " detected. Please report at https://github.com/halfgaar/FlashMQ. Variables: "
+                             << "usedBytes=" << websocketPendingBytes.usedBytes() << ". nbytesRead=" << nbytesRead << ". targetBufMaxSize=" << targetBufMaxSize
+                             << ". sillWorkingOnFrame=" << incompleteWebsocketRead.sillWorkingOnFrame() << ". "
+                             << "frameBytesLeft=" << incompleteWebsocketRead.frame_bytes_left << ". opcode="
+                             << std::hex << static_cast<int>(incompleteWebsocketRead.opcode) << ".";
+        throw std::runtime_error("Websocket spin loop detected. Please report at https://github.com/halfgaar/FlashMQ with log.");
+    };
+
     while (websocketPendingBytes.usedBytes() > 0 && nbytesRead < targetBufMaxSize)
     {
+        if (iter_count++ >= 1000000)
+            log_spin("A");
+
         // This block decodes the header.
         if (!incompleteWebsocketRead.sillWorkingOnFrame())
         {
@@ -733,6 +747,9 @@ ssize_t IoWrapper::websocketBytesToReadBuffer(void *buf, const size_t nbytes, Io
                 websocketPendingBytes.advanceTail(maxReadSize);
                 incompleteWebsocketRead.frame_bytes_left -= maxReadSize;
                 nbytesRead += maxReadSize;
+
+                if (iter_count++ >= 1000000)
+                    log_spin("B");
             }
         }
         else if (incompleteWebsocketRead.opcode == WebsocketOpcode::Ping)
