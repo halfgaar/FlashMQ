@@ -761,6 +761,8 @@ ssize_t IoWrapper::websocketBytesToReadBuffer(void *buf, const size_t nbytes, Io
 
                 incompleteWebsocketRead.frame_bytes_left -= bufLen;
             }
+            else
+                break;
         }
         else if (incompleteWebsocketRead.opcode == WebsocketOpcode::Close)
         {
@@ -785,6 +787,8 @@ ssize_t IoWrapper::websocketBytesToReadBuffer(void *buf, const size_t nbytes, Io
                 // There may be a UTF8 string with a reason in the packet still, but ignoring that for now.
                 incompleteWebsocketRead.reset();
             }
+            else
+                break;
         }
         else
         {
