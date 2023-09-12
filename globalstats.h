@@ -13,6 +13,7 @@ See LICENSE for license details.
 
 #include <stdint.h>
 #include <unordered_map>
+#include <string>
 
 #include "derivablecounter.h"
 
