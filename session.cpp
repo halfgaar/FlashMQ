@@ -117,7 +117,7 @@ void Session::writePacket(PublishCopyFactory &copyFactory, const uint8_t max_qos
 {
     assert(max_qos <= 2);
 
-    std::shared_ptr<Client> c = makeSharedClient();
+    const std::shared_ptr<Client> c = makeSharedClient();
 
     const uint8_t effectiveQos = copyFactory.getEffectiveQos(max_qos);
     retainAsPublished = retainAsPublished || bridge;
@@ -131,48 +131,51 @@ void Session::writePacket(PublishCopyFactory &copyFactory, const uint8_t max_qos
     Authentication *_auth = ThreadGlobals::getAuth();
     assert(_auth);
     Authentication &auth = *_auth;
-    if (auth.aclCheck(client_id, username, copyFactory.getTopic(), copyFactory.getSubtopics(), copyFactory.getPayload(), AclAccess::read, effectiveQos, effectiveRetain, copyFactory.getUserProperties()) == AuthResult::success)
+
+    const AuthResult aclResult = auth.aclCheck(client_id, username, copyFactory.getTopic(), copyFactory.getSubtopics(), copyFactory.getPayload(), AclAccess::read,
+                                               effectiveQos, effectiveRetain, copyFactory.getUserProperties());
+
+    if (aclResult != AuthResult::success)
     {
-        if (effectiveQos == 0)
+        return;
+    }
+
+    if (effectiveQos == 0)
+    {
+        if (c)
+            c->writeMqttPacketAndBlameThisClient(copyFactory, effectiveQos, 0, effectiveRetain);
+        return;
+    }
+
+    std::unique_lock<std::mutex> locker(qosQueueMutex);
+
+    // We don't clear expired messages for online clients. It would slow down the 'happy flow' and those packets are already in the output
+    // buffer, so we can't clear them anyway.
+    if (!c)
+    {
+        clearExpiredMessagesFromQueue();
+    }
+
+    if (this->flowControlQuota <= 0 || (qosPacketQueue.getByteSize() >= settings->maxQosBytesPendingPerClient && qosPacketQueue.size() > 0))
+    {
+        if (QoSLogPrintedAtId != nextPacketId)
         {
-            if (c)
-            {
-                c->writeMqttPacketAndBlameThisClient(copyFactory, effectiveQos, 0, effectiveRetain);
-            }
+            logger->logf(LOG_WARNING, "Dropping QoS message(s) for client '%s', because it hasn't seen enough PUBACK/PUBCOMP/PUBRECs to release places "
+                                      "or it exceeded the queue size. You could increase 'max_qos_msg_pending_per_client' "
+                                      "or 'max_qos_bytes_pending_per_client' (but this is also subject the client's 'receive max').", client_id.c_str());
+            QoSLogPrintedAtId = nextPacketId;
         }
-        else if (effectiveQos > 0)
-        {
-            std::unique_lock<std::mutex> locker(qosQueueMutex);
+        return;
+    }
 
-            // We don't clear expired messages for online clients. It would slow down the 'happy flow' and those packets are already in the output
-            // buffer, so we can't clear them anyway.
-            if (!c)
-            {
-                clearExpiredMessagesFromQueue();
-            }
+    const uint16_t pack_id = getNextPacketId();
 
-            if (this->flowControlQuota <= 0 || (qosPacketQueue.getByteSize() >= settings->maxQosBytesPendingPerClient && qosPacketQueue.size() > 0))
-            {
-                if (QoSLogPrintedAtId != nextPacketId)
-                {
-                    logger->logf(LOG_WARNING, "Dropping QoS message(s) for client '%s', because it hasn't seen enough PUBACK/PUBCOMP/PUBRECs to release places "
-                                              "or it exceeded the queue size. You could increase 'max_qos_msg_pending_per_client' "
-                                              "or 'max_qos_bytes_pending_per_client' (but this is also subject the client's 'receive max').", client_id.c_str());
-                    QoSLogPrintedAtId = nextPacketId;
-                }
-                return;
-            }
+    if (requiresQoSQueueing())
+        qosPacketQueue.queuePublish(copyFactory, pack_id, effectiveQos, effectiveRetain);
 
-            const uint16_t pack_id = getNextPacketId();
-
-            if (requiresQoSQueueing())
-                qosPacketQueue.queuePublish(copyFactory, pack_id, effectiveQos, effectiveRetain);
-
-            if (c)
-            {
-                c->writeMqttPacketAndBlameThisClient(copyFactory, effectiveQos, pack_id, effectiveRetain);
-            }
-        }
+    if (c)
+    {
+        c->writeMqttPacketAndBlameThisClient(copyFactory, effectiveQos, pack_id, effectiveRetain);
     }
 }
 
