@@ -75,7 +75,7 @@ void Timer::stop()
 
 void Timer::addCallback(std::function<void ()> f, uint64_t interval_ms, const std::string &name)
 {
-    logger->logf(LOG_DEBUG, "Adding event '%s' to the timer with an interval of %" PRIu64 " ms.", name.c_str(), interval_ms);
+    logger->log(LOG_DEBUG) << "Adding event '" << name << "' to the timer with an interval of " << interval_ms << " ms.";
 
     std::lock_guard<std::mutex> locker(this->callbacksMutex);
 

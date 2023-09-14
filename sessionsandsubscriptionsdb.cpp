@@ -109,7 +109,7 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV3V4V5()
         const int64_t now_epoch = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
         const int64_t persistence_state_age = fileSavedAt > now_epoch ? 0 : now_epoch - fileSavedAt;
 
-        logger->logf(LOG_DEBUG, "Session file was saved at %" PRId64 ". That's %" PRId64 " seconds ago.", fileSavedAt, persistence_state_age);
+        logger->log(LOG_DEBUG) << "Session file was saved at " << fileSavedAt << ". That's " << persistence_state_age << " seconds ago.";
 
         const uint32_t nrOfSessions = readUint32(eofFound);
 
@@ -277,7 +277,7 @@ void SessionsAndSubscriptionsDB::saveData(const std::vector<std::shared_ptr<Sess
     std::memset(reserved, 0, RESERVED_SPACE_SESSIONS_DB_V2);
 
     const int64_t now_epoch = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-    logger->logf(LOG_DEBUG, "Saving current time stamp %" PRId64, now_epoch);
+    logger->log(LOG_DEBUG) << "Saving current time stamp " << now_epoch << ".";
     writeInt64(now_epoch);
 
     std::vector<std::shared_ptr<Session>> sessionsToSave;
