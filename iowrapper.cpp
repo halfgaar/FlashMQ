@@ -526,115 +526,113 @@ ssize_t IoWrapper::readWebsocketAndOrSsl(int fd, void *buf, size_t nbytes, IoWra
     {
         return readOrSslRead(fd, buf, nbytes, error);
     }
-    else
-    {
-        ssize_t n = 0;
-        while (websocketPendingBytes.freeSpace() > 0 && (n = readOrSslRead(fd, websocketPendingBytes.headPtr(), websocketPendingBytes.maxWriteSize(), error)) != 0)
-        {
-            if (n > 0)
-                websocketPendingBytes.advanceHead(n);
-            else if (n < 0)
-            {
-                if (*error == IoWrapResult::Interrupted)
-                    return n;
-                break; // On other errors, like 'would block' it depends on our 'pending bytes' what we will tell the caller.
-            }
 
-            // Make sure we either always have enough space for a next loop iteration, or stop reading the fd.
-            if (websocketPendingBytes.freeSpace() == 0)
-            {
-                if (websocketState == WebsocketState::NotUpgraded)
-                {
-                    if (websocketPendingBytes.getSize() * 2 <= 8192)
-                        websocketPendingBytes.doubleSize();
-                    else
-                        throw ProtocolError("Trying to exceed websocket buffer. Probably not valid websocket traffic.");
-                }
-                else
-                {
-                    const Settings *settings = ThreadGlobals::getSettings();
-                    if (websocketPendingBytes.getSize() * 2 <= settings->clientMaxWriteBufferSize)
-                    {
-                        websocketPendingBytes.doubleSize();
-                    }
-                    else
-                    {
-                        break;
-                    }
-                }
-            }
+    ssize_t n = 0;
+    while (websocketPendingBytes.freeSpace() > 0 && (n = readOrSslRead(fd, websocketPendingBytes.headPtr(), websocketPendingBytes.maxWriteSize(), error)) != 0)
+    {
+        if (n > 0)
+            websocketPendingBytes.advanceHead(n);
+        else if (n < 0)
+        {
+            if (*error == IoWrapResult::Interrupted)
+                return n;
+            break; // On other errors, like 'would block' it depends on our 'pending bytes' what we will tell the caller.
         }
 
-        const bool hasWebsocketPendingBytes = websocketPendingBytes.usedBytes() > 0;
-
-        // When some or all the data has been read, we can continue.
-        if (!(*error == IoWrapResult::Wouldblock || *error == IoWrapResult::Success) && !hasWebsocketPendingBytes)
-            return n; // TODO: I guess because of the error condition check this is never > 0? It needs a bit of clarification.
-
-        if (hasWebsocketPendingBytes)
+        // Make sure we either always have enough space for a next loop iteration, or stop reading the fd.
+        if (websocketPendingBytes.freeSpace() == 0)
         {
-            n = 0;
-
             if (websocketState == WebsocketState::NotUpgraded)
             {
-                try
-                {
-                    std::string websocketKey;
-                    int websocketVersion;
-                    std::string subprotocol;
-                    std::string xRealIp;
-                    if (parseHttpHeader(websocketPendingBytes, websocketKey, websocketVersion, subprotocol, xRealIp))
-                    {
-                        if (websocketKey.empty())
-                            throw BadHttpRequest("No websocket key specified.");
-                        if (websocketVersion != 13)
-                            throw BadWebsocketVersionException("Websocket version 13 required.");
-
-                        const std::string acceptString = generateWebsocketAcceptString(websocketKey);
-
-                        const Settings *settings = ThreadGlobals::getSettings();
-                        const size_t initialBufferSize = settings->clientInitialBufferSize;
-
-                        std::string answer = generateWebsocketAnswer(acceptString, subprotocol);
-                        parentClient->writeText(answer);
-                        websocketState = WebsocketState::Upgrading;
-                        websocketPendingBytes.reset();
-                        websocketPendingBytes.resetSize(initialBufferSize);
-                        *error = IoWrapResult::Success;
-
-                        if (!xRealIp.empty())
-                            parentClient->setAddr(xRealIp);
-                    }
-                }
-                catch (BadWebsocketVersionException &ex)
-                {
-                    std::string response = generateInvalidWebsocketVersionHttpHeaders(13);
-                    parentClient->writeText(response);
-                    parentClient->setDisconnectReason("Invalid websocket version");
-                    parentClient->setReadyForDisconnect();
-                }
-                catch (BadHttpRequest &ex) // Should should also properly deal with attempt at HTTP2 with PRI.
-                {
-                    std::string response = generateBadHttpRequestReponse(ex.what());
-                    parentClient->writeText(response);
-                    const std::string reason = formatString("Invalid websocket start: %s", ex.what());
-                    parentClient->setDisconnectReason(reason);
-                    parentClient->setReadyForDisconnect();
-                }
+                if (websocketPendingBytes.getSize() * 2 <= 8192)
+                    websocketPendingBytes.doubleSize();
+                else
+                    throw ProtocolError("Trying to exceed websocket buffer. Probably not valid websocket traffic.");
             }
             else
             {
-                n = websocketBytesToReadBuffer(buf, nbytes, error);
-
-                if (*error != IoWrapResult::Disconnected)
+                const Settings *settings = ThreadGlobals::getSettings();
+                if (websocketPendingBytes.getSize() * 2 <= settings->clientMaxWriteBufferSize)
                 {
-                    *error = websocketPendingBytes.usedBytes() == 0 ? IoWrapResult::Wouldblock : IoWrapResult::WantRead;
+                    websocketPendingBytes.doubleSize();
+                }
+                else
+                {
+                    break;
                 }
             }
         }
-
-        return n;
     }
+
+    const bool hasWebsocketPendingBytes = websocketPendingBytes.usedBytes() > 0;
+
+    // When some or all the data has been read, we can continue.
+    if (!(*error == IoWrapResult::Wouldblock || *error == IoWrapResult::Success) && !hasWebsocketPendingBytes)
+        return n; // TODO: I guess because of the error condition check this is never > 0? It needs a bit of clarification.
+
+    // This should never happen, because of the above check, but I'm leaving it in just in case.
+    if (!hasWebsocketPendingBytes)
+        return n;
+
+    if (websocketState == WebsocketState::NotUpgraded)
+    {
+        try
+        {
+            std::string websocketKey;
+            int websocketVersion;
+            std::string subprotocol;
+            std::string xRealIp;
+
+            if (!parseHttpHeader(websocketPendingBytes, websocketKey, websocketVersion, subprotocol, xRealIp))
+                return 0;
+
+            if (websocketKey.empty())
+                throw BadHttpRequest("No websocket key specified.");
+            if (websocketVersion != 13)
+                throw BadWebsocketVersionException("Websocket version 13 required.");
+
+            const std::string acceptString = generateWebsocketAcceptString(websocketKey);
+
+            const Settings *settings = ThreadGlobals::getSettings();
+            const size_t initialBufferSize = settings->clientInitialBufferSize;
+
+            std::string answer = generateWebsocketAnswer(acceptString, subprotocol);
+            parentClient->writeText(answer);
+            websocketState = WebsocketState::Upgrading;
+            websocketPendingBytes.reset();
+            websocketPendingBytes.resetSize(initialBufferSize);
+            *error = IoWrapResult::Success;
+
+            if (!xRealIp.empty())
+                parentClient->setAddr(xRealIp);
+
+            return 0;
+        }
+        catch (BadWebsocketVersionException &ex)
+        {
+            std::string response = generateInvalidWebsocketVersionHttpHeaders(13);
+            parentClient->writeText(response);
+            parentClient->setDisconnectReason("Invalid websocket version");
+            parentClient->setReadyForDisconnect();
+        }
+        catch (BadHttpRequest &ex) // Should should also properly deal with attempt at HTTP2 with PRI.
+        {
+            std::string response = generateBadHttpRequestReponse(ex.what());
+            parentClient->writeText(response);
+            const std::string reason = formatString("Invalid websocket start: %s", ex.what());
+            parentClient->setDisconnectReason(reason);
+            parentClient->setReadyForDisconnect();
+        }
+
+        return 0;
+    }
+
+    n = websocketBytesToReadBuffer(buf, nbytes, error);
+
+    if (*error != IoWrapResult::Disconnected)
+        *error = websocketPendingBytes.usedBytes() == 0 ? IoWrapResult::Wouldblock : IoWrapResult::WantRead;
+
+    return n;
 }
 
 /**
