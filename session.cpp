@@ -55,10 +55,17 @@ bool Session::requiresQoSQueueing() const
     if (!client)
         return true;
 
-    // MQTT 3.1: "Brokers, however, should retry any unacknowledged message."
-    // MQTT 3.1.1: "This [reconnecting] is the only circumstance where a Client or Server is REQUIRED to redeliver messages."
+    /*
+     * MQTT 3.1: "Brokers, however, should retry any unacknowledged message."
+     * MQTT 3.1.1: "This [reconnecting] is the only circumstance where a Client or Server is REQUIRED to redeliver messages."
+     *
+     * I disabled it, because MQTT 3.1 retransmission has not been implemented on purpose, because it's a legacy idea that
+     * doesn't work well in practice.
+     */
+    /*
     if (client->getProtocolVersion() < ProtocolVersion::Mqtt311)
         return true;
+    */
 
     return !destroyOnDisconnect;
 }
