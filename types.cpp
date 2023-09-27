@@ -81,7 +81,7 @@ ConnAck::ConnAck(const ProtocolVersion protVersion, ReasonCodes return_code, boo
 
         // [MQTT-3.2.2-4]
         if (mqtt3_return > ConnAckReturnCodes::Accepted)
-            session_present = false;
+            this->session_present = false;
 
         this->return_code = static_cast<uint8_t>(mqtt3_return);
     }
@@ -91,7 +91,7 @@ ConnAck::ConnAck(const ProtocolVersion protVersion, ReasonCodes return_code, boo
 
         // MQTT-3.2.2-6
         if (this->return_code > 0)
-            session_present = false;
+            this->session_present = false;
     }
 }
 
