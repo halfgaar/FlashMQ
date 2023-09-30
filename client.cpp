@@ -427,8 +427,7 @@ bool Client::writeBufIntoFd()
             break;
     }
 
-    const bool bufferHasData = writebuf.usedBytes() > 0;
-    setReadyForWriting(bufferHasData || error == IoWrapResult::Wouldblock);
+    setReadyForWriting(writebuf.usedBytes() > 0 || ioWrapper.hasPendingWrite() || error == IoWrapResult::Wouldblock);
 
     return true;
 }
