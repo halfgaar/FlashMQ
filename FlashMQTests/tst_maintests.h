@@ -206,6 +206,8 @@ private slots:
     void testDnsResolverSecondQuery();
     void testDnsResolverInvalid();
     void testGetResultWhenThereIsNone();
+
+    void testWebsocketPing();
 };
 
 

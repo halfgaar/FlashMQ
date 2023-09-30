@@ -68,11 +68,13 @@ SOURCES +=  tst_maintests.cpp \
     ../globber.cpp \
     conffiletemp.cpp \
     dnstests.cpp \
+    filecloser.cpp \
     flashmqtempdir.cpp \
     mainappthread.cpp \
     plugintests.cpp \
     retaintests.cpp \
     sharedsubscriptionstests.cpp \
+    websockettests.cpp \
     willtests.cpp
 
 
@@ -132,6 +134,7 @@ HEADERS += \
     ../bridgeinfodb.h \
     ../globber.h \
     conffiletemp.h \
+    filecloser.h \
     flashmqtempdir.h \
     mainappthread.h \
     tst_maintests.h
@@ -148,7 +151,7 @@ else
     QMAKE_CXXFLAGS += -msse4.2
 }
 
-copydata.commands = $(COPY_DIR) $$PWD/UTF-8-test.txt $$OUT_PWD
+copydata.commands = $(COPY_DIR) $$PWD/UTF-8-test.txt $$PWD/../fuzztests/plainwebsocketpacket1_handshake.dat $$OUT_PWD
 first.depends = $(first) copydata
 export(first.depends)
 export(copydata.commands)
