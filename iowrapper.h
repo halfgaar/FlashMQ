@@ -79,6 +79,7 @@ struct IncompleteWebsocketRead
     void reset();
     bool sillWorkingOnFrame() const;
     char getNextMaskingByte();
+    IncompleteWebsocketRead();
 };
 
 enum class WebsocketState

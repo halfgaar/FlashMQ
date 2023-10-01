@@ -163,6 +163,35 @@ void MainTests::testWebsocketPing()
                 MYCASTCOMPARE(answer.at(i++), 'l');
                 MYCASTCOMPARE(answer.at(i++), 'o');
             }
+
+            {
+                int m = 0;
+                char mask[4] = {31,11,66,120};
+
+                size_t l = 0;
+                std::vector<char> pingFrameWithMaskedPayload(1024);
+                pingFrameWithMaskedPayload[l++] = 0x09; // opcode 9
+                pingFrameWithMaskedPayload[l++] = 0x86; // Unmasked. payload length;
+                pingFrameWithMaskedPayload[l++] = mask[0];
+                pingFrameWithMaskedPayload[l++] = mask[1];
+                pingFrameWithMaskedPayload[l++] = mask[2];
+                pingFrameWithMaskedPayload[l++] = mask[3];
+                pingFrameWithMaskedPayload[l++] = 'a' ^ mask[m++ % 4];
+                pingFrameWithMaskedPayload[l++] = 'b' ^ mask[m++ % 4];
+                pingFrameWithMaskedPayload[l++] = 'c' ^ mask[m++ % 4];
+                pingFrameWithMaskedPayload[l++] = 'd' ^ mask[m++ % 4];
+                pingFrameWithMaskedPayload[l++] = 'e' ^ mask[m++ % 4];
+                pingFrameWithMaskedPayload[l++] = 'f' ^ mask[m++ % 4];
+
+                write(socket_to_client, pingFrameWithMaskedPayload.data(), l);
+                client->readFdIntoBuffer();
+                client->writeBufIntoFd();
+
+                std::vector<char> answer = readFromSocket(socket_to_client);
+                std::string answer_string(answer.begin() + 2, answer.end());
+
+                QCOMPARE(answer_string.c_str(), "abcdef");
+            }
         }
     }
     catch (std::exception &ex)

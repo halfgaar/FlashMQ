@@ -57,6 +57,11 @@ char IncompleteWebsocketRead::getNextMaskingByte()
     return maskingKey[maskingKeyI++ % 4];
 }
 
+IncompleteWebsocketRead::IncompleteWebsocketRead()
+{
+    reset();
+}
+
 IoWrapper::IoWrapper(SSL *ssl, bool websocket, const size_t initialBufferSize, Client *parent) :
     parentClient(parent),
     ssl(ssl),
@@ -767,8 +772,14 @@ ssize_t IoWrapper::websocketBytesToReadBuffer(void *buf, const size_t nbytes, Io
                 const size_t bufLen = std::min<size_t>(incompleteWebsocketRead.frame_bytes_left, websocketPendingBytes.usedBytes());
 
                 // Constructing a new temporary buffer because I need the reponse in one frame for writeAsMuchOfBufAsWebsocketFrame().
+                std::vector<char> masked_payload(bufLen);
+                websocketPendingBytes.read(masked_payload.data(), masked_payload.size());
+
                 std::vector<char> response(bufLen);
-                websocketPendingBytes.read(response.data(), response.size());
+                for (size_t i = 0; i < bufLen; i++)
+                {
+                    response[i] = masked_payload[i] ^ incompleteWebsocketRead.getNextMaskingByte();
+                }
 
                 websocketWriteRemainder.ensureFreeSpace(response.size() + WEBSOCKET_MAX_SENDING_HEADER_SIZE);
                 writeAsMuchOfBufAsWebsocketFrame(response.data(), response.size(), WebsocketOpcode::Pong);
