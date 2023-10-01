@@ -17,6 +17,8 @@ ScopedSocket::ScopedSocket(int socket) : socket(socket)
 
 ScopedSocket::ScopedSocket(ScopedSocket &&other)
 {
+    if (this->socket > 0)
+        close(this->socket);
     this->socket = other.socket;
     other.socket = 0;
 }
