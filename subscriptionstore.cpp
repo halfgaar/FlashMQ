@@ -180,20 +180,21 @@ void SubscriptionStore::addSubscription(std::shared_ptr<Client> &client, const s
 
     SubscriptionNode *deepestNode = getDeepestNode(subtopics);
 
-    if (deepestNode)
-    {
-        auto session_it = sessionsByIdConst.find(client->getClientId());
-        if (session_it != sessionsByIdConst.end())
-        {
-            const std::shared_ptr<Session> &ses = session_it->second;
-            deepestNode->addSubscriber(ses, qos, noLocal, retainAsPublished, shareName);
-            subscriptionCount++;
-            lock_guard.unlock();
+    if (!deepestNode)
+        return;
 
-            if (shareName.empty())
-                giveClientRetainedMessages(ses, subtopics, qos);
-        }
-    }
+    auto session_it = sessionsByIdConst.find(client->getClientId());
+    if (session_it == sessionsByIdConst.end())
+        return;
+
+    const std::shared_ptr<Session> &ses = session_it->second;
+    deepestNode->addSubscriber(ses, qos, noLocal, retainAsPublished, shareName);
+    subscriptionCount++;
+    lock_guard.unlock();
+
+    if (shareName.empty())
+        giveClientRetainedMessages(ses, subtopics, qos);
+
 }
 
 void SubscriptionStore::removeSubscription(std::shared_ptr<Client> &client, const std::string &topic)
