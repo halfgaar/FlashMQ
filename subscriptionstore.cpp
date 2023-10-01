@@ -622,12 +622,9 @@ void SubscriptionStore::giveClientRetainedMessagesRecursively(std::vector<std::s
 
         std::lock_guard<std::mutex> locker(this_node->messageSetMutex);
 
-        auto pos = this_node->retainedMessages.begin();
-        while (pos != this_node->retainedMessages.end())
+        if (this_node->message)
         {
-            auto cur = pos++;
-
-            const RetainedMessage &rm = *cur;
+            const RetainedMessage &rm = *this_node->message;
 
             if (!rm.hasExpired()) // We can't also erase here, because we're operating under a read lock.
             {
@@ -639,6 +636,7 @@ void SubscriptionStore::giveClientRetainedMessagesRecursively(std::vector<std::s
                 }
             }
         }
+
         if (poundMode)
         {
             for (auto &pair : this_node->children)
@@ -1056,11 +1054,8 @@ void SubscriptionStore::getRetainedMessages(RetainedMessageNode *this_node, std:
 {
     {
         std::lock_guard<std::mutex> locker(this_node->messageSetMutex);
-
-        for(const RetainedMessage &rm : this_node->retainedMessages)
-        {
-            outputList.push_back(rm);
-        }
+        if (this_node->message)
+            outputList.push_back(this_node->message.value());
     }
 
     for(auto &pair : this_node->children)
@@ -1148,19 +1143,12 @@ void SubscriptionStore::countSubscriptions(SubscriptionNode *this_node, int64_t 
 
 void SubscriptionStore::expireRetainedMessages(RetainedMessageNode *this_node, const std::chrono::time_point<std::chrono::steady_clock> &limit)
 {
-    auto pos = this_node->retainedMessages.begin();
-    while (pos != this_node->retainedMessages.end())
+    if (this_node->message && this_node->message->hasExpired())
     {
-        auto cur = pos++;
-        const RetainedMessage &rm = *cur;
-
-        if (rm.hasExpired())
-        {
-            Logger *logger = Logger::getInstance();
-            logger->logf(LOG_DEBUG, "Removing retained message '%s'.", rm.publish.topic.c_str());
-            this_node->retainedMessages.erase(cur);
-            this->retainedMessageCount--;
-        }
+        Logger *logger = Logger::getInstance();
+        logger->logf(LOG_DEBUG, "Removing retained message '%s'.", this_node->message->publish.topic.c_str());
+        this_node->message.reset();
+        this->retainedMessageCount--;
     }
 
     auto cpos = this_node->children.begin();
@@ -1320,29 +1308,21 @@ void RetainedMessageNode::addPayload(const Publish &publish, int64_t &totalCount
 {
     std::lock_guard<std::mutex> locker(this->messageSetMutex);
 
-    const int64_t countBefore = retainedMessages.size();
-    RetainedMessage rm(publish);
+    const bool retained_found = message.operator bool();
 
-    auto retained_ptr = retainedMessages.find(rm);
-    bool retained_found = retained_ptr != retainedMessages.end();
+    if (retained_found)
+        totalCount--;
 
-    if (!retained_found && publish.payload.empty())
-        return;
-
-    if (retained_found && publish.payload.empty())
+    if (publish.payload.empty())
     {
-        retainedMessages.erase(retained_ptr);
-        const int64_t diffCount = (retainedMessages.size() - countBefore);
-        totalCount += diffCount;
+        if (retained_found)
+            message.reset();
         return;
     }
 
-    if (retained_found)
-        retainedMessages.erase(retained_ptr);
-
-    retainedMessages.insert(std::move(rm));
-    const int64_t diffCount = (retainedMessages.size() - countBefore);
-    totalCount += diffCount;
+    RetainedMessage rm(publish);
+    message = std::move(rm);
+    totalCount += 1;
 }
 
 /**
@@ -1360,7 +1340,7 @@ RetainedMessageNode *RetainedMessageNode::getChildren(const std::string &subtopi
 
 bool RetainedMessageNode::isOrphaned() const
 {
-    return children.empty() && retainedMessages.empty();
+    return children.empty() && !message;
 }
 
 QueuedWill::QueuedWill(const std::shared_ptr<WillPublish> &will, const std::shared_ptr<Session> &session) :
