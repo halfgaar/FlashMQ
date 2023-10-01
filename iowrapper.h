@@ -73,7 +73,7 @@ struct IncompleteWebsocketRead
 {
     size_t frame_bytes_left = 0;
     char maskingKey[4];
-    int maskingKeyI = 0;
+    unsigned int maskingKeyI = 0;
     WebsocketOpcode opcode;
 
     void reset();
