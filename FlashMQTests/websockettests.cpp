@@ -3,17 +3,33 @@
 #include <fstream>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <poll.h>
 
 #include "filecloser.h"
 
-// TODO: perhaps also an expected byte count and loop a while until we have it?
-std::vector<char> readFromSocket(int fd)
+void pollFd(int fd, bool throw_on_timeout)
+{
+    struct pollfd polls[1];
+    memset(polls, 0, sizeof(struct pollfd));
+    polls[0].fd = fd;
+    polls[0].events = POLLIN;
+
+    const int rc = poll(polls, 1, 1000);
+
+    if (rc == 0 && throw_on_timeout)
+        throw std::runtime_error("Poll readFromSocket timed out");
+    if (rc < 0)
+        throw std::runtime_error(strerror(errno));
+}
+
+std::vector<char> readFromSocket(int fd, bool throw_on_timeout)
 {
     std::vector<char> answer;
     char buf[1024];
 
-    int n = 0;
+    pollFd(fd, throw_on_timeout);
 
+    ssize_t n = 0;
     while ((n = read(fd, buf, 1024)) > 0)
     {
         if (n > 0)
@@ -90,7 +106,7 @@ void MainTests::testWebsocketPing()
             write(socket_to_client, websocketstart.data(), websocketstart.size());
             client->readFdIntoBuffer();
             client->writeBufIntoFd();
-            std::vector<char> answer = readFromSocket(socket_to_client);
+            std::vector<char> answer = readFromSocket(socket_to_client, true);
             std::string answer_string(answer.begin(), answer.end());
 
             QVERIFY(startsWith(answer_string, "HTTP/1.1 101 Switching Protocols"));
@@ -105,10 +121,11 @@ void MainTests::testWebsocketPing()
             pingFrame[l++] = 0x09; // opcode 9
             pingFrame[l++] = 0x00; // Unmasked. payload length;
             write(socket_to_client, pingFrame.data(), l);
+            pollFd(client_socket, true);
             client->readFdIntoBuffer();
             client->writeBufIntoFd();
 
-            std::vector<char> answer = readFromSocket(socket_to_client);
+            std::vector<char> answer = readFromSocket(socket_to_client, true);
             MYCASTCOMPARE(answer.at(0), 0x8A); // 'final bit', final fragment of message, opcode A (pong).
             MYCASTCOMPARE(answer.at(1), 0x00); // Zero payload.
         }
@@ -124,10 +141,11 @@ void MainTests::testWebsocketPing()
             pingFrameWithPayload[l++] = 'l';
             pingFrameWithPayload[l++] = 'o';
             write(socket_to_client, pingFrameWithPayload.data(), l);
+            pollFd(client_socket, true);
             client->readFdIntoBuffer();
             client->writeBufIntoFd();
             {
-                std::vector<char> answer = readFromSocket(socket_to_client);
+                std::vector<char> answer = readFromSocket(socket_to_client, true);
                 int i = 0;
                 MYCASTCOMPARE(answer.at(i++), 0x8A); // 'final bit', final fragment of message, opcode A (pong).
                 MYCASTCOMPARE(answer.at(i++), 0x05); // Payload length
@@ -140,20 +158,22 @@ void MainTests::testWebsocketPing()
 
             // Again, but don't send all data. This would get stuck in a loop before, which should be fixed now.
             write(socket_to_client, pingFrameWithPayload.data(), l-1);
+            pollFd(client_socket, true);
             client->readFdIntoBuffer();
             client->writeBufIntoFd();
             usleep(10000);
             {
-                std::vector<char> answer = readFromSocket(socket_to_client);
+                std::vector<char> answer = readFromSocket(socket_to_client, false);
                 QVERIFY(answer.empty());
             }
 
             // And complete the last byte
             write(socket_to_client, pingFrameWithPayload.data() + (l-1), 1);
+            pollFd(client_socket, true);
             client->readFdIntoBuffer();
             client->writeBufIntoFd();
             {
-                std::vector<char> answer = readFromSocket(socket_to_client);
+                std::vector<char> answer = readFromSocket(socket_to_client, true);
                 int i = 0;
                 MYCASTCOMPARE(answer.at(i++), 0x8A); // 'final bit', final fragment of message, opcode A (pong).
                 MYCASTCOMPARE(answer.at(i++), 0x05); // Payload length
@@ -184,10 +204,11 @@ void MainTests::testWebsocketPing()
                 pingFrameWithMaskedPayload[l++] = 'f' ^ mask[m++ % 4];
 
                 write(socket_to_client, pingFrameWithMaskedPayload.data(), l);
+                pollFd(client_socket, true);
                 client->readFdIntoBuffer();
                 client->writeBufIntoFd();
 
-                std::vector<char> answer = readFromSocket(socket_to_client);
+                std::vector<char> answer = readFromSocket(socket_to_client, true);
                 std::string answer_string(answer.begin() + 2, answer.end());
 
                 QCOMPARE(answer_string.c_str(), "abcdef");
