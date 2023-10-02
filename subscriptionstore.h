@@ -18,7 +18,7 @@ See LICENSE for license details.
 #include <map>
 #include <vector>
 #include <pthread.h>
-#include <unordered_set>
+#include <optional>
 
 #include "client.h"
 #include "session.h"
