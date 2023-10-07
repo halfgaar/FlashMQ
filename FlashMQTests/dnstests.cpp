@@ -101,25 +101,33 @@ void MainTests::testDnsResolverInvalid()
     try
     {
         DnsResolver resolver;
-        resolver.query("qs2UqhKsX0gNKphIMEs65CZ9UGyWDz6H.org", ListenerProtocol::IPv46, std::chrono::milliseconds(5000));
+        const std::string rnd = getSecureRandomString(16);
+        const std::string domain = rnd + ".flashmq.org";
+        resolver.query(domain, ListenerProtocol::IPv46, std::chrono::milliseconds(5000));
 
         int count = 0;
-        while (count++ < 100)
+        while (count++ < 60)
         {
             std::list<FMQSockaddr_in6> results = resolver.getResult();
             if (!results.empty())
             {
+                for (const auto &r : results)
+                {
+                    std::cerr << "Wrong DNS result: " << r.getText() << std::endl;
+                }
+                QVERIFY2(false, "A DNS result was returned when we expected nothing.");
                 break;
             }
 
-            usleep(10000);
+            usleep(100000);
         }
 
-        QVERIFY(false);
+        QVERIFY2(false, "It took too long to get a result. That's weird, because we should have gotten a timeout exception.");
     }
     catch (std::exception &ex)
     {
-        std::string err = str_tolower(ex.what());
+        const std::string err = str_tolower(ex.what());
+        std::cout << "For reference, the error that we're scanning: " << err << std::endl;
         QVERIFY(strContains(err, "name or service not known"));
     }
 }
