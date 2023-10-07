@@ -86,6 +86,12 @@ void Listener::loadCertAndKeyFromConfig()
         SSL_CTX_set_options(sslctx->get(), SSL_OP_NO_TLSv1); // TODO: config option
 
         SSL_CTX_set_mode(sslctx->get(), SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
+
+        /*
+         * Session cache requires active shutdown of SSL connections, which we don't have right now. We
+         * might as well just turn the session cache off, at least until we do have session shutdown.
+         */
+        SSL_CTX_set_session_cache_mode(sslctx->get(), SSL_SESS_CACHE_OFF);
     }
 
     if (SSL_CTX_use_certificate_chain_file(sslctx->get(), sslFullchain.c_str()) != 1)
