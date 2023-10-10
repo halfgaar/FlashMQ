@@ -46,7 +46,8 @@ void PluginLoader::loadPlugin(const std::string &pathToSoFile)
 
     if (handle == NULL)
     {
-        std::string errmsg(dlerror());
+        const char *err = dlerror();
+        std::string errmsg = err ? err : "";
         throw FatalError(errmsg);
     }
 
