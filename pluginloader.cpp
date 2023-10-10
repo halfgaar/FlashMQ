@@ -50,17 +50,7 @@ void PluginLoader::loadPlugin(const std::string &pathToSoFile)
         throw FatalError(errmsg);
     }
 
-    version = (F_plugin_version)loadSymbol("mosquitto_auth_plugin_version", false);
-    if (version != nullptr)
-    {
-        if (version() != 2)
-        {
-            throw FatalError("Only Mosquitto plugin version 2 is supported at this time.");
-        }
-
-        pluginFamily = PluginFamily::MosquittoV2;
-    }
-    else if ((version = (F_plugin_version)loadSymbol("flashmq_plugin_version", false)) != nullptr)
+    if ((version = (F_plugin_version)loadSymbol("flashmq_plugin_version", false)) != nullptr)
     {
         pluginFamily = PluginFamily::FlashMQ;
         flashmqPluginVersionNumber = version();
@@ -69,6 +59,15 @@ void PluginLoader::loadPlugin(const std::string &pathToSoFile)
         {
             throw FatalError("FlashMQ plugin only supports version 1 or 2.");
         }
+    }
+    else if ((version = (F_plugin_version)loadSymbol("mosquitto_auth_plugin_version", false)) != nullptr)
+    {
+        if (version() != 2)
+        {
+            throw FatalError("Only Mosquitto plugin version 2 is supported at this time.");
+        }
+
+        pluginFamily = PluginFamily::MosquittoV2;
     }
     else
     {
