@@ -645,7 +645,11 @@ ssize_t IoWrapper::readWebsocketAndOrSsl(int fd, void *buf, size_t nbytes, IoWra
  * buffer that contains the MQTT bytes.
  * @param buf
  * @param nbytes
- * @return
+ * @return the number of bytes read. Can be 0 when only websocket meta or empty frames are processed.
+ *
+ * When websocketPendingBytes still has bytes when we return, the following could have happened:
+ * - We don't have enough bytes to know how long the frame is.
+ * - On ping/close, we don't have enough bytes of the frame.
  */
 ssize_t IoWrapper::websocketBytesToReadBuffer(void *buf, const size_t nbytes, IoWrapResult *error)
 {
@@ -762,59 +766,66 @@ ssize_t IoWrapper::websocketBytesToReadBuffer(void *buf, const size_t nbytes, Io
 
             const Settings *settings = ThreadGlobals::getSettings();
 
-            if (incompleteWebsocketRead.frame_bytes_left > settings->clientMaxWriteBufferSize)
-                throw std::runtime_error("The option 'client_max_write_buffer_size' is lower than the ping frame we're are supposed to pong back. Abusing client?");
+            // Because these internal websocket frames don't contain bytes for the client, we need to allow them to fit
+            // fully in websocketPendingBytes, otherwise you can get stuck.
+            if (incompleteWebsocketRead.frame_bytes_left > (settings->clientMaxWriteBufferSize / 2))
+                throw ProtocolError("The option 'client_max_write_buffer_size / 2' is lower than the ping frame we're are supposed to pong back. Abusing client?");
 
-            if (incompleteWebsocketRead.frame_bytes_left <= websocketPendingBytes.usedBytes())
-            {
-                logger->logf(LOG_DEBUG, "Ponging websocket");
-
-                const size_t bufLen = std::min<size_t>(incompleteWebsocketRead.frame_bytes_left, websocketPendingBytes.usedBytes());
-
-                // Constructing a new temporary buffer because I need the reponse in one frame for writeAsMuchOfBufAsWebsocketFrame().
-                std::vector<char> masked_payload(bufLen);
-                websocketPendingBytes.read(masked_payload.data(), masked_payload.size());
-
-                std::vector<char> response(bufLen);
-                for (size_t i = 0; i < bufLen; i++)
-                {
-                    response[i] = masked_payload[i] ^ incompleteWebsocketRead.getNextMaskingByte();
-                }
-
-                websocketWriteRemainder.ensureFreeSpace(response.size() + WEBSOCKET_MAX_SENDING_HEADER_SIZE);
-                writeAsMuchOfBufAsWebsocketFrame(response.data(), response.size(), WebsocketOpcode::Pong);
-                parentClient->setReadyForWriting(true);
-
-                incompleteWebsocketRead.frame_bytes_left -= bufLen;
-            }
-            else
+            if (incompleteWebsocketRead.frame_bytes_left > websocketPendingBytes.usedBytes())
                 break;
+
+            logger->logf(LOG_DEBUG, "Ponging websocket");
+
+            const size_t bufLen = std::min<size_t>(incompleteWebsocketRead.frame_bytes_left, websocketPendingBytes.usedBytes());
+
+            // Constructing a new temporary buffer because I need the reponse in one frame for writeAsMuchOfBufAsWebsocketFrame().
+            std::vector<char> masked_payload(bufLen);
+            websocketPendingBytes.read(masked_payload.data(), masked_payload.size());
+
+            std::vector<char> response(bufLen);
+            for (size_t i = 0; i < bufLen; i++)
+            {
+                response[i] = masked_payload[i] ^ incompleteWebsocketRead.getNextMaskingByte();
+            }
+
+            websocketWriteRemainder.ensureFreeSpace(response.size() + WEBSOCKET_MAX_SENDING_HEADER_SIZE);
+            writeAsMuchOfBufAsWebsocketFrame(response.data(), response.size(), WebsocketOpcode::Pong);
+            parentClient->setReadyForWriting(true);
+
+            incompleteWebsocketRead.frame_bytes_left -= bufLen;
         }
         else if (incompleteWebsocketRead.opcode == WebsocketOpcode::Close)
         {
-            // MUST be a 2-byte unsigned integer (in network byte order) representing a status code with value /code/ defined
-            if (incompleteWebsocketRead.frame_bytes_left <= websocketPendingBytes.usedBytes()
-                && incompleteWebsocketRead.frame_bytes_left >= 2)
-            {
-                const uint8_t msb = *websocketPendingBytes.tailPtr() ^ incompleteWebsocketRead.getNextMaskingByte();
-                websocketPendingBytes.advanceTail(1);
-                const uint8_t lsb = *websocketPendingBytes.tailPtr() ^ incompleteWebsocketRead.getNextMaskingByte();
-                websocketPendingBytes.advanceTail(1);
+            if (incompleteWebsocketRead.frame_bytes_left < 2)
+                throw ProtocolError("Close frames must be at least two bytes big.");
 
-                const uint16_t code = msb << 8 | lsb;
+            const Settings *settings = ThreadGlobals::getSettings();
 
-                // An actual MQTT disconnect doesn't send websocket close frames, or perhaps after the MQTT
-                // disconnect when it doesn't matter anymore. So, when users close the tab or stuff like that,
-                // we can consider it a closed transport i.e. failed connection. This means will messages
-                // will be sent.
-                parentClient->setDisconnectReason(websocketCloseCodeToString(code));
-                *error = IoWrapResult::Disconnected;
+            // Because these internal websocket frames don't contain bytes for the client, we need to allow them to fit
+            // fully in websocketPendingBytes, otherwise you can get stuck.
+            if (incompleteWebsocketRead.frame_bytes_left > (settings->clientMaxWriteBufferSize / 2))
+                throw ProtocolError("Websocket close frame is too big.");
 
-                // There may be a UTF8 string with a reason in the packet still, but ignoring that for now.
-                incompleteWebsocketRead.reset();
-            }
-            else
+            if (incompleteWebsocketRead.frame_bytes_left > websocketPendingBytes.usedBytes())
                 break;
+
+            // MUST be a 2-byte unsigned integer (in network byte order) representing a status code with value /code/ defined
+            const uint8_t msb = *websocketPendingBytes.tailPtr() ^ incompleteWebsocketRead.getNextMaskingByte();
+            websocketPendingBytes.advanceTail(1);
+            const uint8_t lsb = *websocketPendingBytes.tailPtr() ^ incompleteWebsocketRead.getNextMaskingByte();
+            websocketPendingBytes.advanceTail(1);
+
+            const uint16_t code = msb << 8 | lsb;
+
+            // An actual MQTT disconnect doesn't send websocket close frames, or perhaps after the MQTT
+            // disconnect when it doesn't matter anymore. So, when users close the tab or stuff like that,
+            // we can consider it a closed transport i.e. failed connection. This means will messages
+            // will be sent.
+            parentClient->setDisconnectReason(websocketCloseCodeToString(code));
+            *error = IoWrapResult::Disconnected;
+
+            // There may be a UTF8 string with a reason in the packet still, but ignoring that for now.
+            incompleteWebsocketRead.reset();
         }
         else
         {

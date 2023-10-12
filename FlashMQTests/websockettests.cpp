@@ -470,7 +470,7 @@ void MainTests::testWebsocketHugePing()
     catch (std::exception &ex)
     {
         std::string msg(ex.what());
-        QVERIFY(strContains(msg, "The option 'client_max_write_buffer_size' is lower than the ping frame we're are supposed to pong back"));
+        QVERIFY(strContains(msg, "The option 'client_max_write_buffer_size / 2' is lower than the ping frame we're are supposed to pong back"));
         QVERIFY2(true, ex.what());
     }
 }
