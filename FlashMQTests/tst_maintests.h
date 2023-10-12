@@ -208,6 +208,9 @@ private slots:
     void testGetResultWhenThereIsNone();
 
     void testWebsocketPing();
+    void testWebsocketCorruptLengthFrame();
+    void testWebsocketHugePing();
+    void testWebsocketManyBigPingFrames();
 };
 
 
