@@ -22,7 +22,7 @@ void pollFd(int fd, bool throw_on_timeout)
         throw std::runtime_error(strerror(errno));
 }
 
-std::vector<char> readFromSocket(int fd, bool throw_on_timeout)
+std::vector<char> readFromSocket(int fd, bool throw_on_timeout, size_t expected_bytes=0)
 {
     std::vector<char> answer;
     char buf[1024];
@@ -35,7 +35,12 @@ std::vector<char> readFromSocket(int fd, bool throw_on_timeout)
         if (n > 0)
             answer.insert(answer.end(), buf, buf + n);
         else if (errno == EWOULDBLOCK)
-            break;
+        {
+            if (answer.size() < expected_bytes)
+                pollFd(fd, throw_on_timeout);
+            else
+                break;
+        }
         else
             throw std::runtime_error(strerror(errno));
     }
@@ -485,8 +490,8 @@ void MainTests::testWebsocketManyBigPingFrames()
     {
         Settings settings;
 
-        QCOMPARE(settings.clientMaxWriteBufferSize, 1048576);
-        QCOMPARE(settings.clientInitialBufferSize, 1024);
+        MYCASTCOMPARE(settings.clientMaxWriteBufferSize, 1048576);
+        MYCASTCOMPARE(settings.clientInitialBufferSize, 1024);
 
         PluginLoader pluginLoader;
         std::shared_ptr<SubscriptionStore> store(new SubscriptionStore());
@@ -579,11 +584,25 @@ void MainTests::testWebsocketManyBigPingFrames()
             }
 
             write(socket_to_client, frame.data(), l);
-            pollFd(client_socket, true);
-            client->readFdIntoBuffer();
+
+            // Hacky, I know.
+            while (true)
+            {
+                try
+                {
+                    pollFd(client_socket, true);
+                    client->readFdIntoBuffer();
+                }
+                catch (std::exception &ex)
+                {
+                    break;
+                }
+            }
+
             client->writeBufIntoFd();
 
-            std::vector<char> answer = readFromSocket(socket_to_client, true);
+            std::vector<char> answer = readFromSocket(socket_to_client, true, 327720);
+            MYCASTCOMPARE(answer.size(), 327720);
 
             size_t k = 0;
             for (int z = 0; z < 10; z++)
@@ -610,7 +629,7 @@ void MainTests::testWebsocketManyBigPingFrames()
             }
 
             QCOMPARE(l,k);
-            QCOMPARE(l,327720);
+            MYCASTCOMPARE(l, 327720);
             QVERIFY(l == answer.size());
         }
     }
