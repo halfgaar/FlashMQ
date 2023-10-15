@@ -1526,7 +1526,7 @@ void MqttPacket::handlePublish()
 
 #ifndef NDEBUG
     const bool duplicate = !!(first_byte & 0b00001000);
-    logger->log(LOG_DEBUG) << "Publish received. Size: " << bites.size() << ". Topic: '" << publishData.topic << "'. QoS=" << publishData.qos
+    logger->log(LOG_DEBUG) << "Publish received. Size: " << bites.size() << ". Topic: '" << publishData.topic << "'. QoS=" << static_cast<int>(publishData.qos)
                            << ". Retain=" << publishData.retain << ". Dup=" << duplicate << ". Alias=" << publishData.topicAlias << ".";
 #endif
 
