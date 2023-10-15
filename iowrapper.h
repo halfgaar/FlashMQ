@@ -133,6 +133,7 @@ public:
     bool isSsl() const;
     void setSslVerify(int mode, const std::string &hostname);
     bool hasPendingWrite() const;
+    bool hasProcessedBufferedBytesToRead() const;
     bool isWebsocket() const;
     WebsocketState getWebsocketState() const;
 

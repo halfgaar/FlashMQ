@@ -233,6 +233,31 @@ bool IoWrapper::hasPendingWrite() const
     return incompleteSslWrite.hasPendingWrite() || websocketWriteRemainder.usedBytes() > 0;
 }
 
+/**
+ * @brief IoWrapper::hasProcessedBufferedBytesToRead needs to be used for when event-based IO (epoll) won't inform you there are pending bytes.
+ * @return
+ *
+ * When the system sockets is readable, epoll will say so. But when you buffer that with SSL and/or websockets, it can happen that you
+ * don't fully read that, because the client buffers are full. So, use this function on 'buffer full' conditions to determine that you
+ * need to grow the buffer and read again.
+ */
+bool IoWrapper::hasProcessedBufferedBytesToRead() const
+{
+    bool result = false;
+
+    if (ssl)
+        result |= SSL_pending(ssl) > 0;
+
+    /*
+     * Note that this is tecnhically not 100% correct. If the only bytes are part of a header, doing a read will actually
+     * result in 0 bytes. But, for the intended purpose at time of writing (see git), we can get away with this.
+     */
+    if (websocket)
+        result |= websocketPendingBytes.usedBytes() > 0;
+
+    return result;
+}
+
 bool IoWrapper::isWebsocket() const
 {
     return websocket;
