@@ -1671,6 +1671,19 @@ void MainTests::testQosDowngradeOnOfflineClients()
                 QVERIFY(std::all_of(receiver->receivedPublishes.begin(), receiver->receivedPublishes.end(), [&](MqttPacket &pack) { return pack.getQos() == expQos;}));
                 QVERIFY(std::all_of(receiver->receivedPublishes.begin(), receiver->receivedPublishes.end(), [&](MqttPacket &pack) { return pack.getTopic() == "topic1/FOOBAR";}));
                 QVERIFY(std::all_of(receiver->receivedPublishes.begin(), receiver->receivedPublishes.end(), [&](MqttPacket &pack) { return pack.getPayloadCopy() == payload;}));
+
+                receiver.reset();
+
+                // Now we connect again, and we should get nothing
+                receiver = std::make_unique<FlashMQTestClient>();
+                receiver->start();
+                receiver->connectClient(ProtocolVersion::Mqtt5, false, 600, [](Connect &connect) {
+                    connect.clientid = "TheReceiver";
+                });
+
+                usleep(100000);
+
+                QVERIFY(receiver->receivedPublishes.empty());
             }
         }
     }
