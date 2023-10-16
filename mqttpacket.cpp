@@ -875,10 +875,7 @@ void MqttPacket::handleConnect()
 
     if (settings.willsEnabled && connectData.will_flag)
     {
-        if (authentication.aclCheck(connectData.willpublish, connectData.willpublish.payload, AclAccess::register_will) == AuthResult::success)
-        {
-            sender->setWill(std::move(connectData.willpublish));
-        }
+        sender->stageWill(std::move(connectData.willpublish));
     }
 
     // Stage connack, for immediate or delayed use when auth succeeds.

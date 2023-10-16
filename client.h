@@ -86,6 +86,7 @@ class Client
     uint16_t keepalive = 10;
     bool clean_start = false;
 
+    std::shared_ptr<WillPublish> stagedWillPublish;
     std::shared_ptr<WillPublish> willPublish;
 
     const int epoll_fd;
@@ -139,7 +140,8 @@ public:
                              uint32_t maxOutgoingPacketSize, uint16_t maxOutgoingTopicAliasValue);
     void setClientProperties(bool connectPacketSeen, uint16_t keepalive, uint32_t maxOutgoingPacketSize, uint16_t maxOutgoingTopicAliasValue, bool supportsRetained);
     void setWill(const std::string &topic, const std::string &payload, bool retain, uint8_t qos);
-    void setWill(WillPublish &&willPublish);
+    void stageWill(WillPublish &&willPublish);
+    void setWillFromStaged();
     void clearWill();
     void setAuthenticated(bool value) { authenticated = value;}
     bool getAuthenticated() { return authenticated; }
@@ -148,6 +150,7 @@ public:
     const std::string &getUsername() const { return this->username; }
     std::string &getMutableUsername();
     std::shared_ptr<WillPublish> &getWill() { return this->willPublish; }
+    const std::shared_ptr<WillPublish> &getStagedWill() { return this->stagedWillPublish; }
     void assignSession(std::shared_ptr<Session> &session);
     std::shared_ptr<Session> getSession();
     void setDisconnectReason(const std::string &reason);

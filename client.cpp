@@ -883,11 +883,16 @@ void Client::setClientProperties(bool connectPacketSeen, uint16_t keepalive, uin
     this->supportsRetained = supportsRetained;
 }
 
-void Client::setWill(WillPublish &&willPublish)
+void Client::stageWill(WillPublish &&willPublish)
 {
-    this->willPublish = std::make_shared<WillPublish>(std::move(willPublish));
-    this->willPublish->client_id = this->clientid;
-    this->willPublish->username = this->username;
+    this->stagedWillPublish = std::make_shared<WillPublish>(std::move(willPublish));
+    this->stagedWillPublish->client_id = this->clientid;
+    this->stagedWillPublish->username = this->username;
+}
+
+void Client::setWillFromStaged()
+{
+    this->willPublish = std::move(stagedWillPublish);
 }
 
 void Client::assignSession(std::shared_ptr<Session> &session)
@@ -942,6 +947,7 @@ std::chrono::seconds Client::getSecondsTillKeepAliveAction() const
 void Client::clearWill()
 {
     willPublish.reset();
+    stagedWillPublish.reset();
 
     if (session)
         session->clearWill();

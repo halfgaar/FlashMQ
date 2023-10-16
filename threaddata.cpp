@@ -182,6 +182,13 @@ void ThreadData::continuationOfAuthentication(std::shared_ptr<Client> &client, A
             if (!returnData.empty())
                 client->addAuthReturnDataToStagedConnAck(returnData);
 
+            const std::shared_ptr<WillPublish> will = client->getStagedWill();
+
+            if (will && authentication.aclCheck(*will, will->payload, AclAccess::register_will) == AuthResult::success)
+            {
+                client->setWillFromStaged();
+            }
+
             client->sendConnackSuccess();
             subscriptionStore->registerClientAndKickExistingOne(client);
         }
