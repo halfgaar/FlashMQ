@@ -821,9 +821,6 @@ ssize_t IoWrapper::websocketBytesToReadBuffer(void *buf, const size_t nbytes, Io
         }
         else if (incompleteWebsocketRead.opcode == WebsocketOpcode::Close)
         {
-            if (incompleteWebsocketRead.frame_bytes_left < 2)
-                throw ProtocolError("Close frames must be at least two bytes big.");
-
             const Settings *settings = ThreadGlobals::getSettings();
 
             // Because these internal websocket frames don't contain bytes for the client, we need to allow them to fit
@@ -834,19 +831,26 @@ ssize_t IoWrapper::websocketBytesToReadBuffer(void *buf, const size_t nbytes, Io
             if (incompleteWebsocketRead.frame_bytes_left > websocketPendingBytes.usedBytes())
                 break;
 
-            // MUST be a 2-byte unsigned integer (in network byte order) representing a status code with value /code/ defined
-            const uint8_t msb = *websocketPendingBytes.tailPtr() ^ incompleteWebsocketRead.getNextMaskingByte();
-            websocketPendingBytes.advanceTail(1);
-            const uint8_t lsb = *websocketPendingBytes.tailPtr() ^ incompleteWebsocketRead.getNextMaskingByte();
-            websocketPendingBytes.advanceTail(1);
+            std::string websocketCloseString = "Websocket close without reason code";
 
-            const uint16_t code = msb << 8 | lsb;
+            if (incompleteWebsocketRead.frame_bytes_left >= 2)
+            {
+                // If there is payload, MUST be a 2-byte unsigned integer (in network byte order) representing a status code with value /code/ defined
+                const uint8_t msb = *websocketPendingBytes.tailPtr() ^ incompleteWebsocketRead.getNextMaskingByte();
+                websocketPendingBytes.advanceTail(1);
+                const uint8_t lsb = *websocketPendingBytes.tailPtr() ^ incompleteWebsocketRead.getNextMaskingByte();
+                websocketPendingBytes.advanceTail(1);
+
+                const uint16_t code = msb << 8 | lsb;
+
+                websocketCloseString = websocketCloseCodeToString(code);
+            }
 
             // An actual MQTT disconnect doesn't send websocket close frames, or perhaps after the MQTT
             // disconnect when it doesn't matter anymore. So, when users close the tab or stuff like that,
             // we can consider it a closed transport i.e. failed connection. This means will messages
             // will be sent.
-            parentClient->setDisconnectReason(websocketCloseCodeToString(code));
+            parentClient->setDisconnectReason(websocketCloseString);
             *error = IoWrapResult::Disconnected;
 
             // There may be a UTF8 string with a reason in the packet still, but ignoring that for now.
