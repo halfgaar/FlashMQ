@@ -855,6 +855,7 @@ ssize_t IoWrapper::websocketBytesToReadBuffer(void *buf, const size_t nbytes, Io
 
             // There may be a UTF8 string with a reason in the packet still, but ignoring that for now.
             incompleteWebsocketRead.reset();
+            websocketPendingBytes.reset();
         }
         else
         {

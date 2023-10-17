@@ -211,6 +211,7 @@ private slots:
     void testWebsocketCorruptLengthFrame();
     void testWebsocketHugePing();
     void testWebsocketManyBigPingFrames();
+    void testWebsocketClose();
 };
 
 
