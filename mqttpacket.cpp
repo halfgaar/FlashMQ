@@ -431,7 +431,8 @@ void MqttPacket::handle()
         if (!(packetType == PacketType::CONNECT || packetType == PacketType::AUTH || packetType == PacketType::DISCONNECT ||
               packetType == PacketType::PINGREQ || packetType == PacketType::PINGRESP || packetType == PacketType::CONNACK))
         {
-            logger->logf(LOG_WARNING, "Unapproved packet type (code %d) from non-authenticated client. Dropping packet.", packetType);
+            logger->log(LOG_WARNING) << "Unapproved packet type (code " << static_cast<int>(packetType)
+                                     << ") from non-authenticated client " << sender->repr() << ". Dropping packet.";
             return;
         }
     }
