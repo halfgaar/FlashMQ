@@ -30,7 +30,7 @@ std::vector<char> readFromSocket(int fd, bool throw_on_timeout, size_t expected_
     pollFd(fd, throw_on_timeout);
 
     ssize_t n = 0;
-    while ((n = read(fd, buf, 1024)) > 0)
+    while ((n = read(fd, buf, 1024)) != 0)
     {
         if (n > 0)
             answer.insert(answer.end(), buf, buf + n);
