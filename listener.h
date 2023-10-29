@@ -15,6 +15,7 @@ See LICENSE for license details.
 #include <memory>
 
 #include "sslctxmanager.h"
+#include "enums.h"
 
 enum class ListenerProtocol
 {
@@ -33,6 +34,9 @@ struct Listener
     bool haproxy = false;
     std::string sslFullchain;
     std::string sslPrivkey;
+    std::string clientVerificationCaFile;
+    std::string clientVerificationCaDir;
+    bool clientVerifictionStillDoAuthn = false;
     std::unique_ptr<SslCtxManager> sslctx;
 
     void isValid();
@@ -40,6 +44,7 @@ struct Listener
     bool isHaProxy() const;
     std::string getProtocolName() const;
     void loadCertAndKeyFromConfig();
+    X509ClientVerification getX509ClientVerficiationMode() const;
 
     std::string getBindAddress(ListenerProtocol p);
 };

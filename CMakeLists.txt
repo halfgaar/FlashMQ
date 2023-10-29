@@ -132,6 +132,7 @@ add_executable(flashmq
     dnsresolver.cpp
     bridgeinfodb.h bridgeinfodb.cpp
     globber.cpp
+    x509manager.h x509manager.cpp
 
     )
 

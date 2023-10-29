@@ -219,11 +219,14 @@ void IoWrapper::setSslVerify(int mode, const std::string &hostname)
 
     SSL_set_hostflags(ssl, X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS);
 
-    if (!SSL_set1_host(ssl, hostname.c_str()))
-        throw std::runtime_error("Failed setting hostname of SSL context.");
+    if (!hostname.empty())
+    {
+        if (!SSL_set1_host(ssl, hostname.c_str()))
+            throw std::runtime_error("Failed setting hostname of SSL context.");
 
-    if (SSL_set_tlsext_host_name(ssl, hostname.c_str()) != 1)
-        throw std::runtime_error("Failed setting SNI hostname of SSL context.");
+        if (SSL_set_tlsext_host_name(ssl, hostname.c_str()) != 1)
+            throw std::runtime_error("Failed setting SNI hostname of SSL context.");
+    }
 
     SSL_set_verify(ssl, mode, verify_callback);
 }
@@ -266,6 +269,12 @@ bool IoWrapper::isWebsocket() const
 WebsocketState IoWrapper::getWebsocketState() const
 {
     return websocketState;
+}
+
+X509Manager IoWrapper::getPeerCertificate() const
+{
+    X509Manager result(this->ssl);
+    return result;
 }
 
 bool IoWrapper::needsHaProxyParsing() const

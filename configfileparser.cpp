@@ -159,6 +159,9 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validListenKeys.insert("inet4_bind_address");
     validListenKeys.insert("inet6_bind_address");
     validListenKeys.insert("haproxy");
+    validListenKeys.insert("client_verification_ca_file");
+    validListenKeys.insert("client_verification_ca_dir");
+    validListenKeys.insert("client_verification_still_do_authn");
 
     validBridgeKeys.insert("local_username");
     validBridgeKeys.insert("remote_username");
@@ -358,6 +361,8 @@ void ConfigFileParser::loadFile(bool test)
 
         std::string key = matches[1].str();
         const std::string value = matches[2].str();
+        std::string valueTrimmed = value;
+        trim(valueTrimmed);
 
         try
         {
@@ -406,6 +411,21 @@ void ConfigFileParser::loadFile(bool test)
                 {
                     bool val = stringTruthiness(value);
                     curListener->haproxy = val;
+                }
+                if (testKeyValidity(key, "client_verification_ca_file", validListenKeys))
+                {
+                    checkFileExistsAndReadable(key, valueTrimmed, 1024*1024);
+                    curListener->clientVerificationCaFile = valueTrimmed;
+                }
+                if (testKeyValidity(key, "client_verification_ca_dir", validListenKeys))
+                {
+                    checkDirExists(key, value);
+                    curListener->clientVerificationCaDir = valueTrimmed;
+                }
+                if (testKeyValidity(key, "client_verification_still_do_authn", validListenKeys))
+                {
+                    bool val = stringTruthiness(value);
+                    curListener->clientVerifictionStillDoAuthn = val;
                 }
 
                 continue;

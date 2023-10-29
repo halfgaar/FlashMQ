@@ -8,10 +8,13 @@ it under the terms of The Open Software License 3.0 (OSL-3.0).
 See LICENSE for license details.
 */
 
+#include <openssl/err.h>
+
 #include "listener.h"
 
 #include "utils.h"
 #include "exceptions.h"
+#include "logger.h"
 
 void Listener::isValid()
 {
@@ -26,6 +29,7 @@ void Listener::isValid()
         }
 
         testSsl(sslFullchain, sslPrivkey);
+        testSslVerifyLocations(clientVerificationCaFile, clientVerificationCaDir, "Loading client_verification_ca_dir/client_verification_ca_file failed.");
     }
     else
     {
@@ -36,6 +40,11 @@ void Listener::isValid()
             else
                 port = 1883;
         }
+    }
+
+    if ((!clientVerificationCaDir.empty() || !clientVerificationCaFile.empty()) && !isSsl())
+    {
+        throw ConfigFileException("X509 client verification can only be done on TLS listeners.");
     }
 
     if (port <= 0 || port > 65534)
@@ -98,6 +107,35 @@ void Listener::loadCertAndKeyFromConfig()
         throw std::runtime_error("Loading cert failed. This was after test loading the certificate, so is very unexpected.");
     if (SSL_CTX_use_PrivateKey_file(sslctx->get(), sslPrivkey.c_str(), SSL_FILETYPE_PEM) != 1)
         throw std::runtime_error("Loading key failed. This was after test loading the certificate, so is very unexpected.");
+
+    {
+        const char *ca_file = clientVerificationCaFile.empty() ? nullptr : clientVerificationCaFile.c_str();
+        const char *ca_dir = clientVerificationCaDir.empty() ? nullptr : clientVerificationCaDir.c_str();
+
+        if (ca_file || ca_dir)
+        {
+            if (SSL_CTX_load_verify_locations(sslctx->get(), ca_file, ca_dir) != 1)
+            {
+                ERR_print_errors_cb(logSslError, NULL);
+                throw std::runtime_error("Loading client_verification_ca_dir/client_verification_ca_file failed. "
+                                         "This was after test loading the certificate, so is very unexpected.");
+            }
+        }
+    }
+}
+
+X509ClientVerification Listener::getX509ClientVerficiationMode() const
+{
+    X509ClientVerification result = X509ClientVerification::None;
+    const bool clientCADefined = !clientVerificationCaDir.empty() || !clientVerificationCaFile.empty();
+
+    if (clientCADefined)
+        result = X509ClientVerification::X509IsEnough;
+
+    if (result >= X509ClientVerification::X509IsEnough && clientVerifictionStillDoAuthn)
+        result = X509ClientVerification::X509AndUsernamePassword;
+
+    return result;
 }
 
 std::string Listener::getBindAddress(ListenerProtocol p)

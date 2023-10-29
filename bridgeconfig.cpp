@@ -149,7 +149,7 @@ void BridgeConfig::isValid()
             port = 8883;
         }
 
-        testSslVerifyLocations(caFile, caDir);
+        testSslVerifyLocations(caFile, caDir, "Loading bridge ca_file/ca_dir failed.");
     }
     else
     {

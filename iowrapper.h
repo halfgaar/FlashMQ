@@ -21,6 +21,7 @@ See LICENSE for license details.
 #include "logger.h"
 #include "haproxy.h"
 #include "cirbuf.h"
+#include "x509manager.h"
 
 #define WEBSOCKET_MIN_HEADER_BYTES_NEEDED 2
 #define WEBSOCKET_MAX_SENDING_HEADER_SIZE 10
@@ -136,6 +137,7 @@ public:
     bool hasProcessedBufferedBytesToRead() const;
     bool isWebsocket() const;
     WebsocketState getWebsocketState() const;
+    X509Manager getPeerCertificate() const;
 
     bool needsHaProxyParsing() const;
     HaProxyConnectionType readHaProxyData(int fd, struct sockaddr *addr);

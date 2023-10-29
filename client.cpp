@@ -963,3 +963,63 @@ std::string &Client::getMutableUsername()
     return this->username;
 }
 
+void Client::setSslVerify(X509ClientVerification verificationMode)
+{
+    const int mode = verificationMode > X509ClientVerification::None ? SSL_VERIFY_PEER : SSL_VERIFY_NONE;
+    this->x509ClientVerification = verificationMode;
+    ioWrapper.setSslVerify(mode, "");
+}
+
+std::optional<std::string> Client::getUsernameFromPeerCertificate()
+{
+    if (!ioWrapper.isSsl() || x509ClientVerification == X509ClientVerification::None)
+        return std::optional<std::string>();
+
+    X509Manager client_cert = ioWrapper.getPeerCertificate();
+
+    if (!client_cert)
+        throw ProtocolError("Client did not provide X509 peer certificate", ReasonCodes::BadUserNameOrPassword);
+
+    X509_NAME *x509_name = X509_get_subject_name(client_cert.get());
+    int index = X509_NAME_get_index_by_NID(x509_name, NID_commonName, -1);
+
+    if (index < 0)
+        return std::optional<std::string>();
+
+    X509_NAME_ENTRY *name_entry = X509_NAME_get_entry(x509_name, index);
+
+    if (!name_entry)
+        throw std::runtime_error("X509_NAME_get_entry failed. This should be impossible.");
+
+    ASN1_STRING *asn1_string = X509_NAME_ENTRY_get_data(name_entry);
+
+    if (!asn1_string)
+        throw std::runtime_error("Cannot obtain asn1 string from x509 certificate.");
+
+    const unsigned char *str = ASN1_STRING_get0_data(asn1_string);
+
+    if (!str)
+        throw std::runtime_error("ASN1_STRING_get0_data failed. This should be impossible.");
+
+    std::string username(reinterpret_cast<const char*>(str));
+
+    if (!isValidUtf8(username))
+        throw ProtocolError("Common name from peer certificate is not valid UTF8.", ReasonCodes::MalformedPacket);
+
+    return username;
+}
+
+X509ClientVerification Client::getX509ClientVerification() const
+{
+    return x509ClientVerification;
+}
+
+
+
+
+
+
+
+
+
+

@@ -804,6 +804,17 @@ void MqttPacket::handleConnect()
 
     ConnectData connectData = parseConnectData();
 
+    if (sender->getX509ClientVerification() > X509ClientVerification::None)
+    {
+        std::optional<std::string> certificateUsername = sender->getUsernameFromPeerCertificate();
+
+        if (!certificateUsername || certificateUsername.value().empty())
+            throw ProtocolError("Client certificate did not provider username", ReasonCodes::BadUserNameOrPassword);
+
+        connectData.user_name_flag = true;
+        connectData.username = certificateUsername.value();
+    }
+
     sender->setBridge(connectData.bridge);
 
     if (this->protocolVersion == ProtocolVersion::None)
@@ -926,6 +937,11 @@ void MqttPacket::handleConnect()
 
     if (!connectData.user_name_flag && connectData.authenticationMethod.empty() && settings.allowAnonymous)
     {
+        authResult = AuthResult::success;
+    }
+    else if (sender->getX509ClientVerification() == X509ClientVerification::X509IsEnough)
+    {
+        // The client will have been kicked out already if the certificate is not valid, so we can just approve it.
         authResult = AuthResult::success;
     }
     else if (connectData.authenticationMethod.empty())

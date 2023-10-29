@@ -733,6 +733,11 @@ void MainApp::start()
                     // Don't use std::make_shared to avoid the weak pointers keeping the control block in memory.
                     std::shared_ptr<Client> client = std::shared_ptr<Client>(new Client(fd, thread_data, clientSSL, listener->websocket, listener->isHaProxy(), addr, settings));
 
+                    if (listener->getX509ClientVerficiationMode() != X509ClientVerification::None)
+                    {
+                        client->setSslVerify(listener->getX509ClientVerficiationMode());
+                    }
+
                     thread_data->giveClient(std::move(client));
 
                     globalStats->socketConnects.inc();

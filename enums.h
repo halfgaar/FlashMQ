@@ -11,5 +11,11 @@ See LICENSE for license details.
 #ifndef ENUMS_H
 #define ENUMS_H
 
+enum class X509ClientVerification
+{
+    None,
+    X509IsEnough,
+    X509AndUsernamePassword
+};
 
 #endif // ENUMS_H

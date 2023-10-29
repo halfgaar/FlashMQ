@@ -81,7 +81,7 @@ std::string generateBadHttpRequestReponse(const std::string &msg);
 std::string generateWebsocketAnswer(const std::string &acceptString, const std::string &subprotocol);
 
 void testSsl(const std::string &fullchain, const std::string &privkey);
-void testSslVerifyLocations(const std::string &caFile, const std::string &caDir);
+void testSslVerifyLocations(const std::string &caFile, const std::string &caDir, const std::string &error);
 
 std::string formatString(const std::string str, ...);
 

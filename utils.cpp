@@ -560,7 +560,7 @@ void testSsl(const std::string &fullchain, const std::string &privkey)
     }
 }
 
-void testSslVerifyLocations(const std::string &caFile, const std::string &caDir)
+void testSslVerifyLocations(const std::string &caFile, const std::string &caDir, const std::string &error)
 {
     if (!caFile.empty() && getFileSize(caFile) <= 0)
         throw ConfigFileException(formatString("SSL 'ca_file' file '%s' is empty or invalid", caFile.c_str()));
@@ -576,7 +576,7 @@ void testSslVerifyLocations(const std::string &caFile, const std::string &caDir)
     if (SSL_CTX_load_verify_locations(sslCtx.get(), ca_file, ca_dir) != 1)
     {
         ERR_print_errors_cb(logSslError, NULL);
-        throw std::runtime_error("Loading ca_file/ca_dir failed.");
+        throw ConfigFileException(error);
     }
 }
 
