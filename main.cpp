@@ -35,14 +35,13 @@ static void signal_handler(int signal)
     {
         mainApp->queueReopenLogFile();
     }
+    else if (signal == SIGUSR2)
+    {
+        return;
+    }
     else if (signal == SIGTERM || signal == SIGINT)
     {
         mainApp->quit();
-    }
-    else
-    {
-        Logger *logger = Logger::getInstance();
-        logger->logf(LOG_INFO, "Received unhandled signal %d", signal);
     }
 }
 
@@ -54,7 +53,7 @@ int register_signal_handers()
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = SA_RESTART;
 
-    for (int signal : {SIGHUP, SIGTERM, SIGINT, SIGUSR1})
+    for (int signal : {SIGHUP, SIGTERM, SIGINT, SIGUSR1, SIGUSR2})
     {
         if (sigaction(signal, &sa, nullptr) != 0)
         {
