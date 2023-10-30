@@ -50,6 +50,7 @@ class MainApp
     int taskEventFd = -1;
     bool doConfigReload = false;
     bool doLogFileReOpen = false;
+    bool doQuitAction = false;
     std::mutex eventMutex;
     Timer timer;
 
@@ -98,6 +99,7 @@ public:
     static MainApp *getMainApp();
     static void initMainApp(int argc, char *argv[]);
     void start();
+    void queueQuit();
     void quit();
     bool getStarted() const {return started;}
     static void testConfig();

@@ -41,7 +41,7 @@ static void signal_handler(int signal)
     }
     else if (signal == SIGTERM || signal == SIGINT)
     {
-        mainApp->quit();
+        mainApp->queueQuit();
     }
 }
 

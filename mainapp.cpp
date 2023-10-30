@@ -782,6 +782,10 @@ void MainApp::start()
                     {
                         reopenLogfile();
                     }
+                    if (doQuitAction)
+                    {
+                        quit();
+                    }
 
                     std::list<std::function<void()>> tasks;
 
@@ -863,6 +867,12 @@ void MainApp::start()
 
     if (saveStateThread.joinable())
         saveStateThread.join();
+}
+
+void MainApp::queueQuit()
+{
+    this->doQuitAction = true;
+    wakeUpThread();
 }
 
 void MainApp::quit()
