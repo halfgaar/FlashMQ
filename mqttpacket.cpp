@@ -394,7 +394,7 @@ void MqttPacket::bufferToMqttPackets(CirBuf &buf, std::vector<MqttPacket> &packe
         if (packet_length > size_limit)
         {
             std::ostringstream oss;
-            oss << "Packet exceeded " << size_limit << " bytes, which exceeds the server limit of " << size_limit << " bytes";
+            oss << "Packet size " << packet_length << " exceeds the server limit of " << size_limit << " bytes";
             throw ProtocolError(oss.str(), ReasonCodes::PacketTooLarge);
         }
 
