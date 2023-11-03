@@ -877,6 +877,8 @@ void MainApp::queueQuit()
 
 void MainApp::quit()
 {
+    doQuitAction = false;
+
     std::lock_guard<std::mutex> guard(quitMutex);
     if (!running)
         return;
