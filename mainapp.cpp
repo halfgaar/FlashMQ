@@ -17,6 +17,7 @@ See LICENSE for license details.
 #include <sys/sysinfo.h>
 #include <arpa/inet.h>
 #include <memory>
+#include <malloc.h>
 
 #include <openssl/ssl.h>
 #include <openssl/err.h>
@@ -786,6 +787,10 @@ void MainApp::start()
                     {
                         quit();
                     }
+                    if (doMemoryTrim)
+                    {
+                        memoryTrim();
+                    }
 
                     std::list<std::function<void()>> tasks;
 
@@ -1025,6 +1030,33 @@ void MainApp::queueCleanup()
         std::shared_ptr<ThreadData> t = threads[threadnr];
         t->queueRemoveExpiredSessions();
     }
+}
+
+void MainApp::queueMemoryTrim()
+{
+    doMemoryTrim = true;
+    wakeUpThread();
+}
+
+void MainApp::memoryTrim()
+{
+    doMemoryTrim = false;
+    Logger *logger = Logger::getInstance();
+
+    logger->log(LOG_NOTICE) << "Initiating malloc_trim(0). Main thread will not be able to accept new connections while it's running.";
+
+    const auto a = std::chrono::steady_clock::now();
+    const int result = malloc_trim(0);
+    const auto b = std::chrono::steady_clock::now();
+    const std::chrono::microseconds dur = std::chrono::duration_cast<std::chrono::microseconds>(b - a);
+
+    std::string sresult = "Unknown result from malloc_trim(0).";
+    if (result == 0)
+        sresult = "Result was 0, so no memory was returned to the system.";
+    else if (result == 1)
+        sresult = "Result was 1, so memory was returned to the system.";
+
+    logger->log(LOG_NOTICE) << "Operation malloc_trim(0) done. " << sresult << " Duration was " << dur.count() << " µs.";
 }
 
 std::shared_ptr<SubscriptionStore> MainApp::getSubscriptionStore()

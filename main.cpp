@@ -37,7 +37,7 @@ static void signal_handler(int signal)
     }
     else if (signal == SIGUSR2)
     {
-        return;
+        mainApp->queueMemoryTrim();
     }
     else if (signal == SIGTERM || signal == SIGINT)
     {

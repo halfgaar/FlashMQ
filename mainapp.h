@@ -51,6 +51,7 @@ class MainApp
     bool doConfigReload = false;
     bool doLogFileReOpen = false;
     bool doQuitAction = false;
+    bool doMemoryTrim = false;
     std::mutex eventMutex;
     Timer timer;
 
@@ -107,6 +108,8 @@ public:
     void queueConfigReload();
     void queueReopenLogFile();
     void queueCleanup();
+    void queueMemoryTrim();
+    void memoryTrim();
 
     std::shared_ptr<SubscriptionStore> getSubscriptionStore();
 };
