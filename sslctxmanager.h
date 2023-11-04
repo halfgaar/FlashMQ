@@ -18,6 +18,8 @@ class SslCtxManager
     SSL_CTX *ssl_ctx = nullptr;
 public:
     SslCtxManager();
+    SslCtxManager(const SslCtxManager &other) = delete;
+    SslCtxManager(SslCtxManager &&other) = delete;
     SslCtxManager(const SSL_METHOD *method);
     ~SslCtxManager();
 
