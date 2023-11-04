@@ -11,7 +11,10 @@ See LICENSE for license details.
 #ifndef PACKETDATATYPES_H
 #define PACKETDATATYPES_H
 
+#include <optional>
+
 #include "mqtt5properties.h"
+
 
 struct ConnectData
 {
@@ -19,7 +22,6 @@ struct ConnectData
     bool bridge = false;
 
     // Flags
-    bool user_name_flag = false;
     bool password_flag = false;
     bool will_retain = false;
     uint8_t will_qos = false;
@@ -41,7 +43,7 @@ struct ConnectData
     // Content from Payload
     std::string client_id;
     WillPublish willpublish;
-    std::string username;
+    std::optional<std::string> username;
     std::string password;
 
     Mqtt5PropertyBuilder builder;

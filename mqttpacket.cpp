@@ -514,7 +514,7 @@ ConnectData MqttPacket::parseConnectData()
     if (reserved)
         throw ProtocolError("Protocol demands reserved flag in CONNECT is 0", ReasonCodes::MalformedPacket);
 
-    result.user_name_flag = !!(flagByte & 0b10000000);
+    bool user_name_flag = static_cast<bool>(flagByte & 0b10000000);
     result.password_flag = !!(flagByte & 0b01000000);
     result.will_retain = !!(flagByte & 0b00100000);
     result.will_qos = (flagByte & 0b00011000) >> 3;
@@ -668,22 +668,22 @@ ConnectData MqttPacket::parseConnectData()
         result.willpublish.payload = std::string(readBytes(will_payload_length), will_payload_length);
     }
 
-    if (result.user_name_flag)
+    if (user_name_flag)
     {
         result.username = readBytesToString(false);
-        result.willpublish.username = result.username;
+        result.willpublish.username = result.username.value();
 
-        if (result.username.empty())
+        if (result.username.value().empty())
             throw ProtocolError("Username flagged as present, but it's 0 bytes.", ReasonCodes::MalformedPacket);
 
-        if (!settings.allowUnsafeUsernameChars && containsDangerousCharacters(result.username))
-            throw ProtocolError(formatString("Username '%s' contains unsafe characters and 'allow_unsafe_username_chars' is false.", result.username.c_str()),
+        if (!settings.allowUnsafeUsernameChars && containsDangerousCharacters(result.username.value()))
+            throw ProtocolError(formatString("Username '%s' contains unsafe characters and 'allow_unsafe_username_chars' is false.", result.username.value().c_str()),
                                 ReasonCodes::BadUserNameOrPassword);
     }
 
     if (result.password_flag)
     {
-        if (this->protocolVersion <= ProtocolVersion::Mqtt311 && !result.user_name_flag)
+        if (this->protocolVersion <= ProtocolVersion::Mqtt311 && !result.username)
         {
             throw ProtocolError("MQTT 3.1.1: If the User Name Flag is set to 0, the Password Flag MUST be set to 0.", ReasonCodes::MalformedPacket);
         }
@@ -804,6 +804,8 @@ void MqttPacket::handleConnect()
 
     ConnectData connectData = parseConnectData();
 
+    std::string username = connectData.username ? connectData.username.value() : "";
+
     if (sender->getX509ClientVerification() > X509ClientVerification::None)
     {
         std::optional<std::string> certificateUsername = sender->getUsernameFromPeerCertificate();
@@ -811,8 +813,7 @@ void MqttPacket::handleConnect()
         if (!certificateUsername || certificateUsername.value().empty())
             throw ProtocolError("Client certificate did not provider username", ReasonCodes::BadUserNameOrPassword);
 
-        connectData.user_name_flag = true;
-        connectData.username = certificateUsername.value();
+        username = certificateUsername.value();
     }
 
     sender->setBridge(connectData.bridge);
@@ -838,13 +839,13 @@ void MqttPacket::handleConnect()
 
     // I deferred the initial UTF8 check on username to be able to give an appropriate connack here, but to me, the specs
     // are actually vague whether 'BadUserNameOrPassword' should be given on invalid UTF8.
-    if (!isValidUtf8(connectData.username))
+    if (connectData.username && !isValidUtf8(connectData.username.value()))
     {
         ConnAck connAck(protocolVersion, ReasonCodes::BadUserNameOrPassword);
         MqttPacket response(connAck);
         sender->setReadyForDisconnect();
         sender->writeMqttPacket(response);
-        logger->logf(LOG_ERR, "Username has invalid UTF8: %s", connectData.username.c_str());
+        logger->logf(LOG_ERR, "Username has invalid UTF8: %s", connectData.username.value().c_str());
         return;
     }
 
@@ -884,7 +885,7 @@ void MqttPacket::handleConnect()
         clientIdGenerated = true;
     }
 
-    sender->setClientProperties(protocolVersion, connectData.client_id, connectData.username, true, connectData.keep_alive,
+    sender->setClientProperties(protocolVersion, connectData.client_id, username, true, connectData.keep_alive,
                                 connectData.max_outgoing_packet_size, connectData.max_outgoing_topic_aliases);
 
     if (settings.willsEnabled && connectData.will_flag)
@@ -935,7 +936,7 @@ void MqttPacket::handleConnect()
     AuthResult authResult = AuthResult::login_denied;
     std::string authReturnData;
 
-    if (!connectData.user_name_flag && connectData.authenticationMethod.empty() && settings.allowAnonymous)
+    if (!connectData.username && connectData.authenticationMethod.empty() && settings.allowAnonymous)
     {
         authResult = AuthResult::success;
     }
@@ -946,7 +947,7 @@ void MqttPacket::handleConnect()
     }
     else if (connectData.authenticationMethod.empty())
     {
-        authResult = authentication.unPwdCheck(connectData.client_id, connectData.username, connectData.password, getUserProperties(), sender);
+        authResult = authentication.unPwdCheck(connectData.client_id, username, connectData.password, getUserProperties(), sender);
     }
     else
     {
