@@ -625,6 +625,43 @@
           </p>
         </dd>
       
+
+      
+        <dt id="client_verification_ca_file"><code class="option">client_verification_ca_file</code> <code class="replaceable">/foobar/client_authority.crt</code><a class="hash-anchor" href="#client_verification_ca_file">#</a></dt>
+        <dd>
+          <p>
+            Clients can be authenticated using X509 certificates, and the username taken from the CN (common name) field. Use this directive to specify the certificate authority you trust.
+          </p>
+          <p>
+            Specifying this or <code class="option">client_verification_ca_dir</code> will require the listener to be TLS.
+          </p>
+        </dd>
+      
+
+      
+        <dt id="client_verification_ca_dir"><code class="option">client_verification_ca_dir</code> <code class="replaceable">/foobar/dir_with_certificates</code><a class="hash-anchor" href="#client_verification_ca_dir">#</a></dt>
+        <dd>
+          <p>
+            Clients can be authenticated using X509 certificates, and the username taken from the CN (common name) field. Use this directive to specify the dir containing certificate authorities you trust.
+          </p>
+          <p>
+              Note that the filename requirements are dictated by OpenSSL. Use the utility <code class="command">openssl rehash /path/to/dir</code>.
+          </p>
+          <p>
+            Specifying this or <code class="option">client_verification_ca_file</code> will require the listener to be TLS.
+          </p>
+        </dd>
+      
+
+      
+        <dt id="client_verification_still_do_authn"><code class="option">client_verification_still_do_authn</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#client_verification_still_do_authn">#</a></dt>
+        <dd>
+          <p>
+            When using X509 client authentication with <code class="option">client_verification_ca_file</code> or <code class="option">client_verification_ca_dir</code>, the username will not be checked with a user database or a plugin by default. Set this option to <code class="literal">true</code> to override that.
+          </p>
+        </dd>
+      
+
       
         <dt id="haproxy"><code class="option">haproxy</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#haproxy">#</a></dt>
         <dd>
@@ -656,6 +693,13 @@
 
   # default = 8883
   port 8883
+}
+listen {
+  protocol mqtt
+  fullchain /foobar/server.crt
+  privkey /foobar/server.key
+  client_verification_ca_file /foobar/client_authority.crt
+  client_verification_still_do_authn false
 }
 listen {
   protocol mqtt

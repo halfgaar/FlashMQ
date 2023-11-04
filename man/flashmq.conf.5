@@ -5,7 +5,7 @@
 \\$2 \(la\\$1\(ra\\$3
 ..
 .if \n(.g .mso www.tmac
-.TH flashmq.conf 5 "8 September 2023" "" ""
+.TH flashmq.conf 5 "4 November 2023" "" ""
 .SH NAME
 flashmq.conf \- FlashMQ configuration file format
 .SH SYNOPSIS
@@ -275,6 +275,21 @@ Specifying a chain makes the listener SSL, and also requires the \*(T<\fBprivkey
 \*(T<\fBprivkey\fR\*(T> \fI/foobar/server.key\fR 
 Specifying a private key makes the listener SSL, and also requires the \*(T<\fBfullchain\fR\*(T> to be set.
 .TP 
+\*(T<\fBclient_verification_ca_file\fR\*(T> \fI/foobar/client_authority.crt\fR 
+Clients can be authenticated using X509 certificates, and the username taken from the CN (common name) field. Use this directive to specify the certificate authority you trust.
+
+Specifying this or \*(T<\fBclient_verification_ca_dir\fR\*(T> will require the listener to be TLS.
+.TP 
+\*(T<\fBclient_verification_ca_dir\fR\*(T> \fI/foobar/dir_with_certificates\fR 
+Clients can be authenticated using X509 certificates, and the username taken from the CN (common name) field. Use this directive to specify the dir containing certificate authorities you trust.
+
+Note that the filename requirements are dictated by OpenSSL. Use the utility \fBopenssl rehash /path/to/dir\fR.
+
+Specifying this or \*(T<\fBclient_verification_ca_file\fR\*(T> will require the listener to be TLS.
+.TP 
+\*(T<\fBclient_verification_still_do_authn\fR\*(T> \fItrue/false\fR 
+When using X509 client authentication with \*(T<\fBclient_verification_ca_file\fR\*(T> or \*(T<\fBclient_verification_ca_dir\fR\*(T>, the username will not be checked with a user database or a plugin by default. Set this option to \*(T<true\*(T> to override that.
+.TP 
 \*(T<\fBhaproxy\fR\*(T> \fItrue/false\fR 
 Setting the listener to haproxy makes it expect the PROXY protocol and set client source address to the original client. Make sure this listener is private / firewalled, otherwise anybody can set a different source address.
 
@@ -297,6 +312,13 @@ listen {
 
   # default = 8883
   port 8883
+}
+listen {
+  protocol mqtt
+  fullchain /foobar/server.crt
+  privkey /foobar/server.key
+  client_verification_ca_file /foobar/client_authority.crt
+  client_verification_still_do_authn false
 }
 listen {
   protocol mqtt

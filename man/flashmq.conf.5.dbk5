@@ -572,6 +572,43 @@
           </para>
         </listitem>
       </varlistentry>
+
+      <varlistentry xml:id="client_verification_ca_file">
+        <term><option>client_verification_ca_file</option> <replaceable>/foobar/client_authority.crt</replaceable></term>
+        <listitem>
+          <para>
+            Clients can be authenticated using X509 certificates, and the username taken from the CN (common name) field. Use this directive to specify the certificate authority you trust.
+          </para>
+          <para>
+            Specifying this or <option>client_verification_ca_dir</option> will require the listener to be TLS.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry xml:id="client_verification_ca_dir">
+        <term><option>client_verification_ca_dir</option> <replaceable>/foobar/dir_with_certificates</replaceable></term>
+        <listitem>
+          <para>
+            Clients can be authenticated using X509 certificates, and the username taken from the CN (common name) field. Use this directive to specify the dir containing certificate authorities you trust.
+          </para>
+          <para>
+              Note that the filename requirements are dictated by OpenSSL. Use the utility <command>openssl rehash /path/to/dir</command>.
+          </para>
+          <para>
+            Specifying this or <option>client_verification_ca_file</option> will require the listener to be TLS.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry xml:id="client_verification_still_do_authn">
+        <term><option>client_verification_still_do_authn</option> <replaceable>true/false</replaceable></term>
+        <listitem>
+          <para>
+            When using X509 client authentication with <option>client_verification_ca_file</option> or <option>client_verification_ca_dir</option>, the username will not be checked with a user database or a plugin by default. Set this option to <literal>true</literal> to override that.
+          </para>
+        </listitem>
+      </varlistentry>
+
       <varlistentry xml:id="haproxy">
         <term><option>haproxy</option> <replaceable>true/false</replaceable></term>
         <listitem>
@@ -605,6 +642,13 @@
 
   # default = 8883
   port 8883
+}
+listen {
+  protocol mqtt
+  fullchain /foobar/server.crt
+  privkey /foobar/server.key
+  client_verification_ca_file /foobar/client_authority.crt
+  client_verification_still_do_authn false
 }
 listen {
   protocol mqtt
