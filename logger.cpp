@@ -139,8 +139,15 @@ void Logger::reOpen()
 
     if (file)
     {
-        fclose(file);
+        // Any further use of 'file' is undefined behavior, including closing again, so we just have to abandon it.
+        const int rc = fclose(file);
         file = nullptr;
+
+        if (rc != 0)
+        {
+            const std::string err(strerror(errno));
+            log(LOG_ERR) << "Closing the log file failed with: " << err << ". Depending on whether it can be reopened again, logging may continue on stdout.";
+        }
     }
 
     if (logPath.empty())
