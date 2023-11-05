@@ -5,7 +5,7 @@
 \\$2 \(la\\$1\(ra\\$3
 ..
 .if \n(.g .mso www.tmac
-.TH flashmq 1 "8 September 2023" "" ""
+.TH flashmq 1 "12 November 2023" "" ""
 .SH NAME
 flashmq \- A fast light-weight scalable MQTT server
 .SH SYNOPSIS
@@ -27,9 +27,21 @@ flashmq \- A fast light-weight scalable MQTT server
 .SH DESCRIPTION
 FlashMQ is a MQTT 3.1, 3.1.1 and 5 broker designed to be light-weight and handle millions of clients and/or messages.
 .SH SIGNALS
-SIGHUP: reload config file and reopen log files. Changing listener configuration on reload is currently not supported, except that the x509 certificates are reloaded.
-.PP
-SIGUSR1: reopen log files. Use this in log rotation.
+.TP 
+\*(T<\fBSIGHUP\fR\*(T> 
+Reload config file and reopen log files. Changing listener configuration on reload is currently not supported, except that the x509 certificates are reloaded.
+.TP 
+\*(T<\fBSIGUSR1\fR\*(T> 
+Reopen log files. Use this in log rotation.
+.TP 
+\*(T<\fBSIGUSR2\fR\*(T> 
+It has been observed that certain implementations of malloc have a high memory use while still having many free blocks. See for instance the libc mailing list discussion 
+.URL https://sourceware.org/pipermail/libc-help/2020-September/005457.html "Abnormal memory usage with glibc 2.31 related to thread cache and trimming strategy"
+\&. This can be exacerbated by continuous thread recreation, because of how "memory arenas" are managed. FlashMQ has a fixed number of threads, but that may not be true for loaded plugins. Sending a SIGUSR2 will cause FlashMQ to call 'malloc_trim(0)', possibly resulting in it giving memory back to the operating system.
+
+The action is mostly pretty fast, but if not, the main loop will block during the operation, blocking the ability to accept new connections. The worker threads themselves will keep running and keep serving clients.
+
+Use, or need, of this feature on a regular basis is questionable, but at least it can help in a pinch.
 .SH AUTHOR
 Wiebe Cazemier <\*(T<contact@flashmq.org\*(T>>.
 .SH "SEE ALSO"

@@ -57,18 +57,40 @@
 
   <refsect1>
     <title>Signals</title>
-    <variablelist>
+
+    <varlistentry xml:id="SIGHUP">
+      <term><option>SIGHUP</option></term>
       <listitem>
         <para>
-          SIGHUP: reload config file and reopen log files. Changing listener configuration on reload is currently not supported, except that the x509 certificates are reloaded.
+          Reload config file and reopen log files. Changing listener configuration on reload is currently not supported, except that the x509 certificates are reloaded.
         </para>
       </listitem>
+    </varlistentry>
+
+    <varlistentry xml:id="SIGUSR1">
+      <term><option>SIGUSR1</option></term>
       <listitem>
         <para>
-          SIGUSR1: reopen log files. Use this in log rotation.
+          Reopen log files. Use this in log rotation.
         </para>
       </listitem>
-    </variablelist>
+    </varlistentry>
+
+    <varlistentry xml:id="SIGUSR2">
+      <term><option>SIGUSR2</option></term>
+      <listitem>
+        <para>
+          It has been observed that certain implementations of malloc have a high memory use while still having many free blocks. See for instance the libc mailing list discussion <link xlink:href="https://sourceware.org/pipermail/libc-help/2020-September/005457.html">Abnormal memory usage with glibc 2.31 related to thread cache and trimming strategy</link>. This can be exacerbated by continuous thread recreation, because of how "memory arenas" are managed. FlashMQ has a fixed number of threads, but that may not be true for loaded plugins. Sending a SIGUSR2 will cause FlashMQ to call 'malloc_trim(0)', possibly resulting in it giving memory back to the operating system.
+        </para>
+        <para>
+          The action is mostly pretty fast, but if not, the main loop will block during the operation, blocking the ability to accept new connections. The worker threads themselves will keep running and keep serving clients.
+        </para>
+        <para>
+          Use, or need, of this feature on a regular basis is questionable, but at least it can help in a pinch.
+        </para>
+      </listitem>
+    </varlistentry>
+
   </refsect1>
 
   <refsect1>
