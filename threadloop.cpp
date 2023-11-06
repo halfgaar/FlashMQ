@@ -190,20 +190,55 @@ void do_thread_work(ThreadData *threadData)
             catch (ProtocolError &ex)
             {
                 client->setDisconnectReason(ex.what());
-                if (client->getProtocolVersion() >= ProtocolVersion::Mqtt5 && client->hasConnectPacketSeen())
-                {
-                    Disconnect d(client->getProtocolVersion(), ex.reasonCode);
-                    MqttPacket p(d);
-                    client->writeMqttPacket(p);
-                    client->setReadyForDisconnect();
+                bool clientRemoved = true;
 
-                    // When a client's TCP buffers are full (when the client is gone, for instance), EPOLLOUT will never be
-                    // reported. In those cases, the client is not removed; not until the keep-alive mechanism anyway. Is
-                    // that a problem?
-                }
-                else
+                try
                 {
-                    logger->logf(LOG_ERR, "Protocol error: %s. Removing client.", ex.what());
+                    if (!client->hasConnectPacketSeen() || ex.reasonCode == ReasonCodes::UnspecifiedError)
+                    {
+                        logger->log(LOG_ERR) << "Unspecified or non-MQTT protocol error: " << ex.what() << ". Removing client.";
+                        threadData->removeClient(client);
+                    }
+                    else if (!client->getAuthenticated())
+                    {
+                        ConnAck connAck(client->getProtocolVersion(), ex.reasonCode);
+
+                        if (connAck.supported_reason_code)
+                        {
+                            MqttPacket p(connAck);
+                            client->writeMqttPacket(p);
+                            client->setReadyForDisconnect();
+                        }
+                        else
+                        {
+                            clientRemoved = false;
+                        }
+                    }
+                    else if (client->getProtocolVersion() >= ProtocolVersion::Mqtt5)
+                    {
+                        Disconnect d(client->getProtocolVersion(), ex.reasonCode);
+                        MqttPacket p(d);
+                        client->writeMqttPacket(p);
+                        client->setReadyForDisconnect();
+
+                        // When a client's TCP buffers are full (when the client is gone, for instance), EPOLLOUT will never be
+                        // reported. In those cases, the client is not removed; not until the keep-alive mechanism anyway. Is
+                        // that a problem?
+                    }
+                    else
+                    {
+                        clientRemoved = false;
+                    }
+                }
+                catch (std::exception &inner_ex)
+                {
+                    clientRemoved = false;
+                    logger->log(LOG_ERR) << "Exception when notyfing client about ProtocolError: " << inner_ex.what();
+                }
+
+                if (!clientRemoved)
+                {
+                    logger->log(LOG_ERR) << "Unspecified or non-MQTT protocol error: " << ex.what() << ". Removing client.";
                     threadData->removeClient(client);
                 }
             }

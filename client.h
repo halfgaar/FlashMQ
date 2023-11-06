@@ -132,6 +132,7 @@ public:
     bool getSslReadWantsWrite() const;
     bool getSslWriteWantsRead() const;
     ProtocolVersion getProtocolVersion() const;
+    void setProtocolVersion(ProtocolVersion version);
     void connectToBridgeTarget(FMQSockaddr_in6 addr);
 
     void startOrContinueSslHandshake();
@@ -149,7 +150,9 @@ public:
     void setAuthenticated(bool value) { authenticated = value;}
     bool getAuthenticated() { return authenticated; }
     bool hasConnectPacketSeen() { return connectPacketSeen; }
+    void setHasConnectPacketSeen() { connectPacketSeen = true; }
     std::string &getClientId() { return this->clientid; }
+    void setClientId(const std::string &id);
     const std::string &getUsername() const { return this->username; }
     std::string &getMutableUsername();
     std::shared_ptr<WillPublish> &getWill() { return this->willPublish; }

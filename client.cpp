@@ -142,6 +142,11 @@ ProtocolVersion Client::getProtocolVersion() const
     return protocolVersion;
 }
 
+void Client::setProtocolVersion(ProtocolVersion version)
+{
+    this->protocolVersion = version;
+}
+
 void Client::connectToBridgeTarget(FMQSockaddr_in6 addr)
 {
     this->lastActivity = std::chrono::steady_clock::now();
@@ -956,6 +961,11 @@ void Client::clearWill()
 
     if (session)
         session->clearWill();
+}
+
+void Client::setClientId(const std::string &id)
+{
+    this->clientid = id;
 }
 
 std::string &Client::getMutableUsername()

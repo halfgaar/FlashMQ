@@ -803,18 +803,8 @@ void MqttPacket::handleConnect()
     threadData->mqttConnectCounter.inc();
 
     ConnectData connectData = parseConnectData();
-
-    std::string username = connectData.username ? connectData.username.value() : "";
-
-    if (sender->getX509ClientVerification() > X509ClientVerification::None)
-    {
-        std::optional<std::string> certificateUsername = sender->getUsernameFromPeerCertificate();
-
-        if (!certificateUsername || certificateUsername.value().empty())
-            throw ProtocolError("Client certificate did not provider username", ReasonCodes::BadUserNameOrPassword);
-
-        username = certificateUsername.value();
-    }
+    sender->setHasConnectPacketSeen();
+    sender->setProtocolVersion(this->protocolVersion);
 
     sender->setBridge(connectData.bridge);
 
@@ -883,6 +873,20 @@ void MqttPacket::handleConnect()
     {
         connectData.client_id = getSecureRandomString(23);
         clientIdGenerated = true;
+    }
+
+    sender->setClientId(connectData.client_id);
+
+    std::string username = connectData.username ? connectData.username.value() : "";
+
+    if (sender->getX509ClientVerification() > X509ClientVerification::None)
+    {
+        std::optional<std::string> certificateUsername = sender->getUsernameFromPeerCertificate();
+
+        if (!certificateUsername || certificateUsername.value().empty())
+            throw ProtocolError("Client certificate did not provider username", ReasonCodes::BadUserNameOrPassword);
+
+        username = certificateUsername.value();
     }
 
     sender->setClientProperties(protocolVersion, connectData.client_id, username, true, connectData.keep_alive,

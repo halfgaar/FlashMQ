@@ -81,10 +81,11 @@ ConnAck::ConnAck(const ProtocolVersion protVersion, ReasonCodes return_code, boo
              * then the Server MUST close the Network Connection without sending a CONNACK"
              *
              * But throwing an exception here was removed, because it was too late, and it could bite us when trying we
-             * were already in error handling code. We just assert we never do this.
+             * were already in error handling code. So, you have the option to check the bool, but if you don't,
+             * it just sends ServerUnavailable.
              */
-            mqtt3_return = ConnAckReturnCodes::UnacceptableProtocolVersion;
-            assert(mqtt3_return != ConnAckReturnCodes::UnacceptableProtocolVersion);
+            supported_reason_code = false;
+            mqtt3_return = ConnAckReturnCodes::ServerUnavailable;
         }
 
         // [MQTT-3.2.2-4]
