@@ -126,6 +126,10 @@ private slots:
 
     void testBasicsWithFlashMQTestClient();
 
+    void testDontRemoveSessionGivenToNewClientWithSameId();
+    void testKeepSubscriptionOnKickingOutExistingClientWithCleanSessionFalse();
+    void testPickUpSessionWithSubscriptionsAfterDisconnect();
+
     /**
      * Will tests.
      */

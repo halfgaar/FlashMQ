@@ -144,7 +144,7 @@ public:
     std::shared_ptr<Session> lockSession(const std::string &clientid);
 
     void sendQueuedWillMessages();
-    void queueWillMessage(const std::shared_ptr<WillPublish> &willMessage, const std::shared_ptr<Session> &session, bool forceNow = false);
+    void queueWillMessage(const std::shared_ptr<WillPublish> &willMessage, const std::string &senderClientId, const std::shared_ptr<Session> &session, bool forceNow = false);
     void queuePacketAtSubscribers(PublishCopyFactory &copyFactory, const std::string &senderClientId, bool dollar = false);
     void giveClientRetainedMessages(const std::shared_ptr<Session> &ses,
                                     const std::vector<std::string> &subscribeSubtopics, uint8_t max_qos);

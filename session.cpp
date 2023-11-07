@@ -87,7 +87,7 @@ uint16_t Session::getNextPacketId()
 
 Session::~Session()
 {
-
+    logger->log(LOG_DEBUG) << "Session destructor of session with client ID '" << this->client_id << "'.";
 }
 
 /**

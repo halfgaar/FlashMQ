@@ -545,7 +545,7 @@ void Client::sendOrQueueWill()
         return;
 
     std::shared_ptr<SubscriptionStore> store = MainApp::getMainApp()->getSubscriptionStore();
-    store->queueWillMessage(willPublish, session);
+    store->queueWillMessage(willPublish, clientid, session);
     this->willPublish.reset();
 }
 
@@ -903,6 +903,11 @@ void Client::assignSession(std::shared_ptr<Session> &session)
 std::shared_ptr<Session> Client::getSession()
 {
     return this->session;
+}
+
+void Client::resetSession()
+{
+    this->session.reset();
 }
 
 void Client::setDisconnectReason(const std::string &reason)

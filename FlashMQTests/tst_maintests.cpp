@@ -1449,6 +1449,156 @@ void MainTests::testBasicsWithFlashMQTestClient()
 
 }
 
+void MainTests::testDontRemoveSessionGivenToNewClientWithSameId()
+{
+    FlashMQTestClient receiver;
+    receiver.start();
+    receiver.connectClient(ProtocolVersion::Mqtt311, true, 60, [] (Connect &c) {
+        c.clientid = "Sandra-nonrandom";
+    });
+    receiver.subscribe("just/a/path", 0);
+
+    FlashMQTestClient sender;
+    sender.start();
+    sender.connectClient(ProtocolVersion::Mqtt5);
+
+    {
+        Publish pub("just/a/path", "AAAAA", 0);
+        pub.constructPropertyBuilder();
+        pub.propertyBuilder->writeTopicAlias(1);
+        sender.publish(pub);
+    }
+
+    {
+        receiver.waitForMessageCount(1);
+
+        const MqttPacket &pack1 = receiver.receivedPublishes.at(0);
+
+        QCOMPARE(pack1.getTopic(), "just/a/path");
+        QCOMPARE(pack1.getPayloadCopy(), "AAAAA");
+    }
+
+    FlashMQTestClient receiver2;
+    receiver2.start();
+    receiver2.connectClient(ProtocolVersion::Mqtt311, true, 60, [] (Connect &c) {
+        c.clientid = "Sandra-nonrandom";
+    });
+    receiver2.subscribe("just/a/path", 0);
+
+    {
+        Publish pub("just/a/path", "AAAAA", 0);
+        pub.constructPropertyBuilder();
+        pub.propertyBuilder->writeTopicAlias(1);
+        sender.publish(pub);
+    }
+
+    {
+        try
+        {
+            receiver2.waitForMessageCount(1);
+        }
+        catch(std::exception &ex)
+        {
+            QFAIL("The second subscriber did not get the message, so the subscription failed.");
+        }
+
+        const MqttPacket &pack1 = receiver2.receivedPublishes.at(0);
+
+        QCOMPARE(pack1.getTopic(), "just/a/path");
+        QCOMPARE(pack1.getPayloadCopy(), "AAAAA");
+    }
+
+}
+
+void MainTests::testKeepSubscriptionOnKickingOutExistingClientWithCleanSessionFalse()
+{
+    FlashMQTestClient receiver;
+    receiver.start();
+    receiver.connectClient(ProtocolVersion::Mqtt311, false, 60, [] (Connect &c) {
+        c.clientid = "Carl-nonrandom";
+    });
+    receiver.subscribe("just/a/path", 0);
+
+    FlashMQTestClient sender;
+    sender.start();
+    sender.connectClient(ProtocolVersion::Mqtt5);
+
+    FlashMQTestClient receiver2;
+    receiver2.start();
+    receiver2.connectClient(ProtocolVersion::Mqtt311, false, 60, [] (Connect &c) {
+        c.clientid = "Carl-nonrandom";
+    });
+
+    {
+        Publish pub("just/a/path", "AAAAA", 0);
+        pub.constructPropertyBuilder();
+        pub.propertyBuilder->writeTopicAlias(1);
+        sender.publish(pub);
+    }
+
+    {
+        try
+        {
+            receiver2.waitForMessageCount(1);
+        }
+        catch(std::exception &ex)
+        {
+            QFAIL("The second subscriber did not get the message, so the subscription failed.");
+        }
+
+        const MqttPacket &pack1 = receiver2.receivedPublishes.at(0);
+
+        QCOMPARE(pack1.getTopic(), "just/a/path");
+        QCOMPARE(pack1.getPayloadCopy(), "AAAAA");
+    }
+}
+
+void MainTests::testPickUpSessionWithSubscriptionsAfterDisconnect()
+{
+    FlashMQTestClient receiver;
+    receiver.start();
+    receiver.connectClient(ProtocolVersion::Mqtt311, false, 60, [] (Connect &c) {
+        c.clientid = "Hungus-nonrandom";
+    });
+    receiver.subscribe("just/a/path", 0);
+    receiver.disconnect(ReasonCodes::Success);
+
+    usleep(50000);
+
+    FlashMQTestClient sender;
+    sender.start();
+    sender.connectClient(ProtocolVersion::Mqtt5);
+
+    FlashMQTestClient receiver2;
+    receiver2.start();
+    receiver2.connectClient(ProtocolVersion::Mqtt311, false, 60, [] (Connect &c) {
+        c.clientid = "Hungus-nonrandom";
+    });
+
+    {
+        Publish pub("just/a/path", "AAAAAB", 0);
+        pub.constructPropertyBuilder();
+        pub.propertyBuilder->writeTopicAlias(1);
+        sender.publish(pub);
+    }
+
+    {
+        try
+        {
+            receiver2.waitForMessageCount(1);
+        }
+        catch(std::exception &ex)
+        {
+            QFAIL("The second subscriber did not get the message, so the subscription failed.");
+        }
+
+        const MqttPacket &pack1 = receiver2.receivedPublishes.at(0);
+
+        QCOMPARE(pack1.getTopic(), "just/a/path");
+        QCOMPARE(pack1.getPayloadCopy(), "AAAAAB");
+    }
+}
+
 void MainTests::testIncomingTopicAlias()
 {
     FlashMQTestClient receiver;

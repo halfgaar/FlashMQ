@@ -315,6 +315,7 @@ void SubscriptionStore::registerClientAndKickExistingOne(std::shared_ptr<Client>
                 if (clientOfOtherSession)
                 {
                     logger->logf(LOG_NOTICE, "Disconnecting existing client with id '%s'", clientOfOtherSession->getClientId().c_str());
+                    clientOfOtherSession->resetSession();
                     clientOfOtherSession->setDisconnectReason("Another client with this ID connected");
                     clientOfOtherSession->serverInitiatedDisconnect(ReasonCodes::SessionTakenOver);
                 }
@@ -423,7 +424,7 @@ void SubscriptionStore::sendQueuedWillMessages()
  * The queued will is only valid for that time. Should a new will be placed in the map for a session, the original shared_ptr
  * will be cleared and the previously queued entry is void (but still there, so it needs to be checked).
  */
-void SubscriptionStore::queueWillMessage(const std::shared_ptr<WillPublish> &willMessage, const std::shared_ptr<Session> &session, bool forceNow)
+void SubscriptionStore::queueWillMessage(const std::shared_ptr<WillPublish> &willMessage, const std::string &senderClientId, const std::shared_ptr<Session> &session, bool forceNow)
 {
     if (!willMessage)
         return;
@@ -438,11 +439,6 @@ void SubscriptionStore::queueWillMessage(const std::shared_ptr<WillPublish> &wil
     {
         if (settings->willsEnabled && auth.aclCheck(*willMessage, willMessage->payload) == AuthResult::success)
         {
-            std::string senderClientId;
-
-            if (session)
-                senderClientId = session->getClientId();
-
             PublishCopyFactory factory(willMessage.get());
             queuePacketAtSubscribers(factory, senderClientId);
 
@@ -451,7 +447,9 @@ void SubscriptionStore::queueWillMessage(const std::shared_ptr<WillPublish> &wil
         }
 
         // Avoid sending two immediate wills when a session is destroyed with the client disconnect.
-        if (session) // session is null when you're destroying a client before a session is assigned.
+        // Session is null when you're destroying a client before a session is assigned, or
+        // when an old client has no session anymore after a client with the same ID connects.
+        if (session)
             session->clearWill();
 
         return;
@@ -881,13 +879,16 @@ int SubscriptionNode::cleanSubscriptions()
 
 void SubscriptionStore::removeSession(const std::shared_ptr<Session> &session)
 {
+    if (!session)
+        return;
+
     const std::string &clientid = session->getClientId();
     logger->logf(LOG_DEBUG, "Removing session of client '%s'.", clientid.c_str());
 
     std::shared_ptr<WillPublish> &will = session->getWill();
     if (will)
     {
-        queueWillMessage(will, session, true);
+        queueWillMessage(will, clientid, session, true);
     }
 
     std::list<std::shared_ptr<Session>> sessionsToRemove;
@@ -1277,7 +1278,7 @@ void SubscriptionStore::loadSessionsAndSubscriptions(const std::string &filePath
         {
             sessionsById[session->getClientId()] = session;
             queueSessionRemoval(session);
-            queueWillMessage(session->getWill(), session);
+            queueWillMessage(session->getWill(), session->getClientId(), session);
         }
 
         for (auto &pair : loadedData.subscriptions)
