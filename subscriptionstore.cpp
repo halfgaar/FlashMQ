@@ -883,13 +883,7 @@ void SubscriptionStore::removeSession(const std::shared_ptr<Session> &session)
         return;
 
     const std::string &clientid = session->getClientId();
-    logger->logf(LOG_DEBUG, "Removing session of client '%s'.", clientid.c_str());
-
-    std::shared_ptr<WillPublish> &will = session->getWill();
-    if (will)
-    {
-        queueWillMessage(will, clientid, session, true);
-    }
+    logger->log(LOG_DEBUG) << "Removing session of client '" << clientid << "', if it matches the object.";
 
     std::list<std::shared_ptr<Session>> sessionsToRemove;
 
@@ -898,7 +892,7 @@ void SubscriptionStore::removeSession(const std::shared_ptr<Session> &session)
         lock_guard.wrlock();
 
         auto session_it = sessionsById.find(clientid);
-        if (session_it != sessionsById.end())
+        if (session_it != sessionsById.end() && session_it->second == session)
         {
             sessionsToRemove.push_back(session_it->second);
             sessionsById.erase(session_it);
@@ -907,6 +901,15 @@ void SubscriptionStore::removeSession(const std::shared_ptr<Session> &session)
 
     for(std::shared_ptr<Session> &s : sessionsToRemove)
     {
+        if (!s)
+            continue;
+
+        std::shared_ptr<WillPublish> &will = s->getWill();
+        if (will)
+        {
+            queueWillMessage(will, clientid, s, true);
+        }
+
         s.reset();
     }
 }
