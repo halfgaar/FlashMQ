@@ -146,5 +146,7 @@ T get_random_int()
     return val;
 }
 
+void exceptionOnNonMqtt(const std::vector<char> &data);
+
 
 #endif // UTILS_H

@@ -801,6 +801,28 @@ std::string timestampWithMillis()
     return oss.str();
 }
 
+void exceptionOnNonMqtt(const std::vector<char> &data)
+{
+    const std::string str(data.data(), data.size());
+
+    std::istringstream is(str);
+    bool firstLine = true;
+
+    std::string line;
+    while (std::getline(is, line))
+    {
+        if (firstLine)
+        {
+            firstLine = false;
+
+            if (strContains(line, "HTTP"))
+            {
+                throw ProtocolError("This looks like HTTP traffic.", ReasonCodes::MalformedPacket);
+            }
+        }
+    }
+}
+
 
 
 
