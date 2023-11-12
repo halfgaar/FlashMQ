@@ -66,12 +66,14 @@ class Logger
 
     Logger();
     ~Logger();
-    std::string_view getLogLevelString(int level) const;
+    static std::string_view getLogLevelString(int level);
     void reOpen();
     void writeLog();
+    static std::string getPrefix(int level);
 
 public:
     static Logger *getInstance();
+    void logstring(int level, const std::string &str);
     void logf(int level, const char *str, va_list args);
     void logf(int level, const char *str, ...);
     StreamToLog log(int level);

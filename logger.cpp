@@ -18,7 +18,7 @@ See LICENSE for license details.
 #include "utils.h"
 
 LogLine::LogLine(std::string &&line, bool alsoToStdOut) :
-    line(line),
+    line(std::move(line)),
     alsoToStdOut(alsoToStdOut)
 {
 
@@ -73,7 +73,7 @@ Logger::~Logger()
     sem_close(&linesPending);
 }
 
-std::string_view Logger::getLogLevelString(int level) const
+std::string_view Logger::getLogLevelString(int level)
 {
     switch (level)
     {
@@ -250,19 +250,39 @@ void Logger::writeLog()
     }
 }
 
+std::string Logger::getPrefix(int level)
+{
+    std::ostringstream oss;
+    const std::string stamp = timestampWithMillis();
+    oss << "[" << stamp << "] [" << getLogLevelString(level) << "] ";
+    std::string result = oss.str();
+    return result;
+}
+
+void Logger::logstring(int level, const std::string &str)
+{
+    if ((level & curLogLevel) == 0)
+        return;
+
+    std::string s = getPrefix(level);
+    s.append(str);
+    LogLine line(std::move(s), alsoLogToStd);
+
+    {
+        std::lock_guard<std::mutex> locker(logMutex);
+        lines.push(std::move(line));
+    }
+
+    sem_post(&linesPending);
+}
+
 void Logger::logf(int level, const char *str, va_list valist)
 {
     if ((level & curLogLevel) == 0)
         return;
 
-    std::ostringstream oss;
-
-    const std::string stamp = timestampWithMillis();
-
-    std::string str_(str);
-    oss << "[" << stamp << "] [" << getLogLevelString(level) << "] " << str_;
-    oss.flush();
-    const std::string s = oss.str();
+    std::string s = getPrefix(level);
+    s.append(str);
     const char *logfmtstring = s.c_str();
 
     constexpr const int buf_size = 512;
@@ -292,7 +312,7 @@ int logSslError(const char *str, size_t len, void *u)
     std::string msg(str, len);
 
     Logger *logger = Logger::getInstance();
-    logger->logf(LOG_ERR, msg.c_str());
+    logger->logstring(LOG_ERR, msg);
     return 0;
 }
 
@@ -306,5 +326,5 @@ StreamToLog::~StreamToLog()
 {
     const std::string s = str();
     Logger *logger = Logger::getInstance();
-    logger->logf(this->level, s.c_str());
+    logger->logstring(this->level, s);
 }
