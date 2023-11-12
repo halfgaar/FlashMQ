@@ -222,7 +222,7 @@ void Mqtt5PropertyBuilder::writeUint8(Mqtt5Properties prop, const uint8_t x)
 void Mqtt5PropertyBuilder::writeStr(Mqtt5Properties prop, const std::string &str)
 {
     if (str.length() > 65535)
-        throw ProtocolError("String too long.");
+        throw ProtocolError("String too long.", ReasonCodes::MalformedPacket);
 
     const uint16_t strlen = str.length();
 
@@ -255,7 +255,7 @@ void Mqtt5PropertyBuilder::write2Str(Mqtt5Properties prop, const std::string &on
     for (const std::string *str : strings)
     {
         if (str->length() > 0xFFFF)
-            throw ProtocolError("String too long.");
+            throw ProtocolError("String too long.", ReasonCodes::MalformedPacket);
 
         const uint16_t strlen = str->length();
 

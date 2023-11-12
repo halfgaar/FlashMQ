@@ -685,7 +685,7 @@ ConnectData MqttPacket::parseConnectData()
     {
         if (this->protocolVersion <= ProtocolVersion::Mqtt311 && !result.user_name_flag)
         {
-            throw ProtocolError("MQTT 3.1.1: If the User Name Flag is set to 0, the Password Flag MUST be set to 0.");
+            throw ProtocolError("MQTT 3.1.1: If the User Name Flag is set to 0, the Password Flag MUST be set to 0.", ReasonCodes::MalformedPacket);
         }
 
         result.password = readBytesToString(false);
@@ -1042,7 +1042,7 @@ AuthPacketData MqttPacket::parseAuthData()
         throw ProtocolError("AUTH packet first 4 bits should be 0.", ReasonCodes::MalformedPacket);
 
     if (this->protocolVersion < ProtocolVersion::Mqtt5)
-        throw ProtocolError("AUTH packet needs MQTT5 or higher");
+        throw ProtocolError("AUTH packet needs MQTT5 or higher", ReasonCodes::ProtocolError);
 
     setPosToDataStart();
 
@@ -1353,7 +1353,7 @@ void MqttPacket::handleUnsubscribe()
 
     if (packet_id == 0)
     {
-        throw ProtocolError("Packet ID 0 when unsubscribing is invalid."); // [MQTT-2.3.1-1]
+        throw ProtocolError("Packet ID 0 when unsubscribing is invalid.", ReasonCodes::ProtocolError); // [MQTT-2.3.1-1]
     }
 
     if (protocolVersion == ProtocolVersion::Mqtt5)
