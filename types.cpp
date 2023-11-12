@@ -76,7 +76,15 @@ ConnAck::ConnAck(const ProtocolVersion protVersion, ReasonCodes return_code, boo
             mqtt3_return = ConnAckReturnCodes::NotAuthorized;
             break;
         default:
-            throw ProtocolError("CONNACK error situation. As per MQTT3 spec, closing connection without sending any return code.");
+            /*
+             * The MQTT 3 says: "If none of the return codes listed in Table 3.1 – Connect Return code values are deemed applicable,
+             * then the Server MUST close the Network Connection without sending a CONNACK"
+             *
+             * But throwing an exception here was removed, because it was too late, and it could bite us when trying we
+             * were already in error handling code. We just assert we never do this.
+             */
+            mqtt3_return = ConnAckReturnCodes::UnacceptableProtocolVersion;
+            assert(mqtt3_return != ConnAckReturnCodes::UnacceptableProtocolVersion);
         }
 
         // [MQTT-3.2.2-4]
