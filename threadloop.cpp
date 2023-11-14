@@ -194,12 +194,7 @@ void do_thread_work(ThreadData *threadData)
 
                 try
                 {
-                    if (!client->hasConnectPacketSeen() || ex.reasonCode == ReasonCodes::UnspecifiedError)
-                    {
-                        logger->log(LOG_ERR) << "Unspecified or non-MQTT protocol error: " << ex.what() << ". Removing client.";
-                        threadData->removeClient(client);
-                    }
-                    else if (!client->getAuthenticated())
+                    if (!client->getAuthenticated())
                     {
                         ConnAck connAck(client->getProtocolVersion(), ex.reasonCode);
 
@@ -241,6 +236,11 @@ void do_thread_work(ThreadData *threadData)
                     logger->log(LOG_ERR) << "Unspecified or non-MQTT protocol error: " << ex.what() << ". Removing client.";
                     threadData->removeClient(client);
                 }
+            }
+            catch(BadClientException &ex)
+            {
+                client->setDisconnectReason(ex.what());
+                threadData->removeClient(client);
             }
             catch(std::exception &ex)
             {

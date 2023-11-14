@@ -21,7 +21,7 @@ See LICENSE for license details.
  * @brief The ProtocolError class is handled by the error handler in the worker threads and is used to make decisions about if and how
  * to inform a client and log the message.
  *
- * If you don't specify a reason code it becomes UnspecifiedError, and no MQTT packet will be sent back to the client.
+ * It's mainly meant for errors that can be communicated with MQTT packets.
  */
 class ProtocolError : public std::runtime_error
 {
@@ -33,6 +33,12 @@ public:
     {
 
     }
+};
+
+class BadClientException : public std::runtime_error
+{
+public:
+    BadClientException(const std::string &msg) : std::runtime_error(msg) {}
 };
 
 class NotImplementedException : public std::runtime_error

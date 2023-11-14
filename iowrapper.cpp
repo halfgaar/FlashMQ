@@ -586,7 +586,7 @@ ssize_t IoWrapper::readWebsocketAndOrSsl(int fd, void *buf, size_t nbytes, IoWra
                 if (websocketPendingBytes.getSize() * 2 <= 8192)
                     websocketPendingBytes.doubleSize();
                 else
-                    throw ProtocolError("Trying to exceed websocket buffer. Probably not valid websocket traffic.");
+                    throw BadClientException("Trying to exceed websocket buffer. Probably not valid websocket traffic.");
             }
             else
             {
@@ -729,10 +729,10 @@ ssize_t IoWrapper::websocketBytesToReadBuffer(void *buf, const size_t nbytes, Io
             headerLength += extendedPayloadLengthLength;
 
             //if (!masked)
-            //    throw ProtocolError("Client must send masked websocket bytes.");
+            //    throw BadClientException("Client must send masked websocket bytes.");
 
             if (reserved != 0)
-                throw ProtocolError("Reserved bytes in header must be 0.");
+                throw BadClientException("Reserved bytes in header must be 0.");
 
             if (headerLength > websocketPendingBytes.usedBytes())
                 return nbytesRead;
@@ -803,7 +803,7 @@ ssize_t IoWrapper::websocketBytesToReadBuffer(void *buf, const size_t nbytes, Io
             // Because these internal websocket frames don't contain bytes for the client, we need to allow them to fit
             // fully in websocketPendingBytes, otherwise you can get stuck.
             if (incompleteWebsocketRead.frame_bytes_left > (settings->clientMaxWriteBufferSize / 2))
-                throw ProtocolError("The option 'client_max_write_buffer_size / 2' is lower than the ping frame we're are supposed to pong back. Abusing client?");
+                throw BadClientException("The option 'client_max_write_buffer_size / 2' is lower than the ping frame we're are supposed to pong back. Abusing client?");
 
             if (incompleteWebsocketRead.frame_bytes_left > websocketPendingBytes.usedBytes())
                 break;
@@ -835,7 +835,7 @@ ssize_t IoWrapper::websocketBytesToReadBuffer(void *buf, const size_t nbytes, Io
             // Because these internal websocket frames don't contain bytes for the client, we need to allow them to fit
             // fully in websocketPendingBytes, otherwise you can get stuck.
             if (incompleteWebsocketRead.frame_bytes_left > (settings->clientMaxWriteBufferSize / 2))
-                throw ProtocolError("Websocket close frame is too big.");
+                throw BadClientException("Websocket close frame is too big.");
 
             if (incompleteWebsocketRead.frame_bytes_left > websocketPendingBytes.usedBytes())
                 break;
@@ -870,7 +870,7 @@ ssize_t IoWrapper::websocketBytesToReadBuffer(void *buf, const size_t nbytes, Io
         {
             // Specs: "MQTT Control Packets MUST be sent in WebSocket binary data frames. If any other type of data frame is
             // received the recipient MUST close the Network Connection [MQTT-6.0.0-1]".
-            throw ProtocolError(formatString("Websocket frames must be 'binary' or 'ping'. Received: %d", incompleteWebsocketRead.opcode));
+            throw BadClientException(formatString("Websocket frames must be 'binary' or 'ping'. Received: %d", incompleteWebsocketRead.opcode));
         }
 
         if (!incompleteWebsocketRead.sillWorkingOnFrame())

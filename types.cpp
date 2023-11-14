@@ -50,9 +50,9 @@ ConnAck::ConnAck(const ProtocolVersion protVersion, ReasonCodes return_code, boo
     protocol_version(protVersion),
     session_present(session_present)
 {
-
     if (this->protocol_version <= ProtocolVersion::Mqtt311)
     {
+        this->supported_reason_code = true;
         ConnAckReturnCodes mqtt3_return = ConnAckReturnCodes::Accepted;
 
         switch (return_code)
@@ -96,6 +96,7 @@ ConnAck::ConnAck(const ProtocolVersion protVersion, ReasonCodes return_code, boo
     }
     else
     {
+        this->supported_reason_code = true;
         this->return_code = static_cast<uint8_t>(return_code);
 
         // MQTT-3.2.2-6

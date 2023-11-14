@@ -164,7 +164,7 @@ public:
     const ProtocolVersion protocol_version;
     uint8_t return_code;
     bool session_present = false;
-    bool supported_reason_code = true;
+    bool supported_reason_code = false;
     std::shared_ptr<Mqtt5PropertyBuilder> propertyBuilder;
 
     size_t getLengthWithoutFixedHeader() const;

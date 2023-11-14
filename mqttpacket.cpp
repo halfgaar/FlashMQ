@@ -508,6 +508,9 @@ ConnectData MqttPacket::parseConnectData()
         throw ProtocolError("Packet contains invalid MQTT marker.", ReasonCodes::MalformedPacket);
     }
 
+    // Even though we're still parsing, setting this helps the exception handler to make decisions.
+    sender->setProtocolVersion(this->protocolVersion);
+
     char flagByte = readByte();
     bool reserved = !!(flagByte & 0b00000001);
 

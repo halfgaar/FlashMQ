@@ -817,7 +817,7 @@ void exceptionOnNonMqtt(const std::vector<char> &data)
 
             if (strContains(line, "HTTP"))
             {
-                throw ProtocolError("This looks like HTTP traffic.", ReasonCodes::MalformedPacket);
+                throw BadClientException("This looks like HTTP traffic.");
             }
         }
     }
