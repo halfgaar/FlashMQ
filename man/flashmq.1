@@ -5,7 +5,7 @@
 \\$2 \(la\\$1\(ra\\$3
 ..
 .if \n(.g .mso www.tmac
-.TH flashmq 1 "12 November 2023" "" ""
+.TH flashmq 1 "16 November 2023" "" ""
 .SH NAME
 flashmq \- A fast light-weight scalable MQTT server
 .SH SYNOPSIS
@@ -29,7 +29,7 @@ FlashMQ is a MQTT 3.1, 3.1.1 and 5 broker designed to be light-weight and handle
 .SH SIGNALS
 .TP 
 \*(T<\fBSIGHUP\fR\*(T> 
-Reload config file and reopen log files. Changing listener configuration on reload is currently not supported, except that the x509 certificates are reloaded.
+Reload config file and reopen log files. Listeners are recreated. Bridge configuration is currently not subject to dynamic configuration change.
 .TP 
 \*(T<\fBSIGUSR1\fR\*(T> 
 Reopen log files. Use this in log rotation.

@@ -180,27 +180,26 @@ std::list<ScopedSocket> MainApp::createListenSocket(const std::shared_ptr<Listen
 
             BindAddr bindAddr = getBindAddr(family, listener->getBindAddress(p), listener->port);
 
-            int listen_fd = check<std::runtime_error>(socket(family, SOCK_STREAM, 0));
+            ScopedSocket uniqueListenFd(check<std::runtime_error>(socket(family, SOCK_STREAM, 0)), listener);
 
             // Not needed for now. Maybe I will make multiple accept threads later, with SO_REUSEPORT.
             int optval = 1;
-            check<std::runtime_error>(setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &optval, sizeof(optval)));
+            check<std::runtime_error>(setsockopt(uniqueListenFd.get(), SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &optval, sizeof(optval)));
 
-            int flags = fcntl(listen_fd, F_GETFL);
-            check<std::runtime_error>(fcntl(listen_fd, F_SETFL, flags | O_NONBLOCK ));
+            int flags = fcntl(uniqueListenFd.get(), F_GETFL);
+            check<std::runtime_error>(fcntl(uniqueListenFd.get(), F_SETFL, flags | O_NONBLOCK ));
 
-            check<std::runtime_error>(bind(listen_fd, bindAddr.p.get(), bindAddr.len));
-            check<std::runtime_error>(listen(listen_fd, 32768));
+            check<std::runtime_error>(bind(uniqueListenFd.get(), bindAddr.p.get(), bindAddr.len));
+            check<std::runtime_error>(listen(uniqueListenFd.get(), 32768));
 
             struct epoll_event ev;
             memset(&ev, 0, sizeof (struct epoll_event));
 
-            ev.data.fd = listen_fd;
+            ev.data.fd = uniqueListenFd.get();
             ev.events = EPOLLIN;
-            check<std::runtime_error>(epoll_ctl(this->epollFdAccept, EPOLL_CTL_ADD, listen_fd, &ev));
+            check<std::runtime_error>(epoll_ctl(this->epollFdAccept, EPOLL_CTL_ADD, uniqueListenFd.get(), &ev));
 
-            result.push_back(ScopedSocket(listen_fd));
-
+            result.push_back(std::move(uniqueListenFd));
         }
         catch (std::exception &ex)
         {
@@ -547,48 +546,13 @@ MainApp *MainApp::getMainApp()
 
 void MainApp::start()
 {
-    bool fuzzMode = false;
+    const bool fuzzMode = getFuzzMode();
 #ifndef NDEBUG
-    if (!fuzzFilePath.empty())
-        fuzzMode = true;
-
     if (!fuzzMode)
     {
         oneInstanceLock.lock();
     }
 #endif
-
-    std::map<int, std::shared_ptr<Listener>> listenerMap; // For finding listeners by fd.
-    std::list<ScopedSocket> activeListenSockets; // For RAII/ownership
-
-    bool listenerCreateError = false;
-
-    // At this point, we don't fuzz through the listeners, so we can skip it. Saves CPU and bind failures.
-    if (!fuzzMode)
-    {
-        for(std::shared_ptr<Listener> &listener : this->listeners)
-        {
-            std::list<ScopedSocket> scopedSockets = createListenSocket(listener);
-
-            if (scopedSockets.empty())
-            {
-                listenerCreateError = true;
-                continue;
-            }
-
-            for (ScopedSocket &scopedSocket : scopedSockets)
-            {
-                if (scopedSocket.socket > 0)
-                    listenerMap[scopedSocket.socket] = listener;
-                activeListenSockets.push_back(std::move(scopedSocket));
-            }
-        }
-
-        if (listenerCreateError)
-        {
-            throw std::runtime_error("Some listeners failed.");
-        }
-    }
 
 #ifdef NDEBUG
     logger->noLongerLogToStd();
@@ -737,7 +701,10 @@ void MainApp::start()
             {
                 if (cur_fd != taskEventFd)
                 {
-                    std::shared_ptr<Listener> listener = listenerMap[cur_fd];
+                    std::shared_ptr<Listener> listener = activeListenSockets[cur_fd].getListener();
+                    if (!listener)
+                        continue;
+
                     std::shared_ptr<ThreadData> thread_data = threads[next_thread_index++ % num_threads];
 
                     logger->logf(LOG_DEBUG, "Accepting connection on thread %d on %s", thread_data->threadnr, listener->getProtocolName().c_str());
@@ -894,6 +861,14 @@ void MainApp::quit()
     running = false;
 }
 
+bool MainApp::getFuzzMode() const
+{
+    bool fuzzMode = false;
+#ifndef NDEBUG
+    fuzzMode = !fuzzFilePath.empty();
+#endif
+    return fuzzMode;
+}
 
 void MainApp::setlimits()
 {
@@ -935,19 +910,41 @@ void MainApp::loadConfig(bool reload)
         settings.listeners.push_back(defaultListener);
     }
 
-    // For now, it's too much work to be able to reload new listeners, with all the shared resource stuff going on. So, I'm
-    // loading them to a local var which is never updated.
-    if (listeners.empty())
-        listeners = settings.listeners;
-    else
+    listeners = settings.listeners;
+
+    for (std::shared_ptr<Listener> &listener : this->listeners)
     {
-        for (std::shared_ptr<Listener> &listener : this->listeners)
+        listener->isValid();
+    }
+
+    if (!getFuzzMode())
+    {
+        activeListenSockets.clear();
+
+        bool listenerCreateError = false;
+        for(std::shared_ptr<Listener> &listener : this->listeners)
         {
-            listener->isValid();
+            std::list<ScopedSocket> scopedSockets = createListenSocket(listener);
+
+            if (scopedSockets.empty())
+            {
+                listenerCreateError = true;
+                continue;
+            }
+
+            for(ScopedSocket &s : scopedSockets)
+            {
+                activeListenSockets[s.get()] = std::move(s);
+            }
+        }
+
+        if (listenerCreateError)
+        {
+            throw std::runtime_error("Some listeners failed.");
         }
     }
 
-    // Like listeners, we are not reloading bridges, because it's hard to figure out what to do. This does mean we need to
+    // We are not reloading bridges, because it's hard to figure out what to do. This does mean we need to
     // validate the config of existing ones, because they may have their certificate paths changed.
     if (this->bridges.empty())
     {

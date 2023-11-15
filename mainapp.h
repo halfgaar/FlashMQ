@@ -58,6 +58,8 @@ class MainApp
     Settings settings;
 
     std::list<std::shared_ptr<Listener>> listeners;
+    std::unordered_map<int, ScopedSocket> activeListenSockets;
+
     std::list<std::shared_ptr<BridgeConfig>> bridges;
     std::mutex quitMutex;
     std::string fuzzFilePath;
@@ -68,6 +70,7 @@ class MainApp
     std::thread saveStateThread;
     static std::mutex saveStateMutex;
 
+    bool getFuzzMode() const;
     void setlimits();
     void loadConfig(bool reload);
     void reloadConfig();

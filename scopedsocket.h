@@ -13,16 +13,24 @@ See LICENSE for license details.
 
 #include <fcntl.h>
 #include <unistd.h>
+#include "listener.h"
 
 /**
  * @brief The ScopedSocket struct allows for a bit of RAII and move semantics on a socket fd.
  */
-struct ScopedSocket
+class ScopedSocket
 {
-    int socket = 0;
-    ScopedSocket(int socket);
+    int socket = -1;
+    std::weak_ptr<Listener> listener;
+public:
+    ScopedSocket() = default;
+    ScopedSocket(int socket, const std::shared_ptr<Listener> &listener);
+    ScopedSocket(const ScopedSocket &other) = delete;
     ScopedSocket(ScopedSocket &&other);
     ~ScopedSocket();
+    int get() const;
+    ScopedSocket &operator=(ScopedSocket &&other);
+    std::shared_ptr<Listener> getListener() const;
 };
 
 #endif // SCOPEDSOCKET_H
