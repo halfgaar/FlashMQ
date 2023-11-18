@@ -546,9 +546,8 @@ MainApp *MainApp::getMainApp()
 
 void MainApp::start()
 {
-    const bool fuzzMode = getFuzzMode();
 #ifndef NDEBUG
-    if (!fuzzMode)
+    if (!getFuzzMode())
     {
         oneInstanceLock.lock();
     }
@@ -566,7 +565,7 @@ void MainApp::start()
 
 #ifndef NDEBUG
     // I fuzzed using afl-fuzz. You need to compile it with their compiler.
-    if (fuzzMode)
+    if (getFuzzMode())
     {
         // No threads for execution stability/determinism.
         num_threads = 0;
