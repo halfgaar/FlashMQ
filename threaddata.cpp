@@ -228,8 +228,8 @@ void ThreadData::continueAsyncAuths()
 
     {
         std::lock_guard<std::mutex> lck2(asyncClientsReadyMutex);
-        asyncClientsReadyCopies = this->asyncClientsReady;
-        asyncClientsReady.clear();
+        asyncClientsReadyCopies = std::move(this->asyncClientsReady);
+        this->asyncClientsReady.clear();
     }
 
     for(AsyncAuth &auth : asyncClientsReadyCopies)
