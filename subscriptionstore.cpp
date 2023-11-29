@@ -566,14 +566,15 @@ void SubscriptionStore::publishRecursively(std::vector<std::string>::const_itera
     }
 
     const auto &sub_node = this_node->children.find(cur_subtop);
-    if (sub_node != this_node->children.end())
-    {
-        publishRecursively(next_subtopic, end, sub_node->second.get(), targetSessions, distributionHash, senderClientId);
-    }
 
     if (this_node->childrenPlus)
     {
         publishRecursively(next_subtopic, end, this_node->childrenPlus.get(), targetSessions, distributionHash, senderClientId);
+    }
+
+    if (sub_node != this_node->children.end())
+    {
+        publishRecursively(next_subtopic, end, sub_node->second.get(), targetSessions, distributionHash, senderClientId);
     }
 }
 
