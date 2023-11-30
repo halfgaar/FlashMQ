@@ -717,6 +717,13 @@ void MainApp::start()
                     SSL *clientSSL = nullptr;
                     if (listener->isSsl())
                     {
+                        if (!listener->sslctx)
+                        {
+                            logger->log(LOG_ERR) << "Listener is SSL but SSL context is null. Application bug.";
+                            close(fd);
+                            continue;
+                        }
+
                         clientSSL = SSL_new(listener->sslctx->get());
 
                         if (clientSSL == NULL)
@@ -928,6 +935,7 @@ void MainApp::loadConfig(bool reload)
         bool listenerCreateError = false;
         for(std::shared_ptr<Listener> &listener : this->listeners)
         {
+            listener->loadCertAndKeyFromConfig();
             std::list<ScopedSocket> scopedSockets = createListenSocket(listener);
 
             if (scopedSockets.empty())
@@ -942,7 +950,7 @@ void MainApp::loadConfig(bool reload)
             }
         }
 
-        if (listenerCreateError)
+        if (listenerCreateError && !reload)
         {
             throw std::runtime_error("Some listeners failed.");
         }
@@ -970,11 +978,6 @@ void MainApp::loadConfig(bool reload)
     logger->setFlags(settings.logDebug, settings.logSubscriptions, settings.quiet);
 
     setlimits();
-
-    for (std::shared_ptr<Listener> &l : this->listeners)
-    {
-        l->loadCertAndKeyFromConfig();
-    }
 
     for (std::shared_ptr<ThreadData> &thread : threads)
     {
