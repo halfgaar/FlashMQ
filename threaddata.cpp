@@ -436,12 +436,12 @@ void ThreadData::queueBridgeReconnect()
 void ThreadData::publishStatsOnDollarTopic(std::vector<std::shared_ptr<ThreadData>> &threads)
 {
     uint nrOfClients = 0;
-    uint64_t receivedMessageCountPerSecond = 0;
+    double receivedMessageCountPerSecond = 0;
     uint64_t receivedMessageCount = 0;
-    uint64_t sentMessageCountPerSecond = 0;
+    double sentMessageCountPerSecond = 0;
     uint64_t sentMessageCount = 0;
 
-    uint64_t mqttConnectCountPerSecond = 0;
+    double mqttConnectCountPerSecond = 0;
     uint64_t mqttConnectCount = 0;
 
     for (const std::shared_ptr<ThreadData> &thread : threads)

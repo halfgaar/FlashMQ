@@ -30,7 +30,7 @@ public:
 
     void inc(uint64_t n = 1);
     uint64_t get() const;
-    uint64_t getPerSecond();
+    double getPerSecond();
 };
 
 #endif // DERIVABLECOUNTER_H
