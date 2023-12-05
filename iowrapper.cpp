@@ -828,6 +828,24 @@ ssize_t IoWrapper::websocketBytesToReadBuffer(void *buf, const size_t nbytes, Io
 
             incompleteWebsocketRead.frame_bytes_left -= bufLen;
         }
+        else if (incompleteWebsocketRead.opcode == WebsocketOpcode::Pong)
+        {
+            // See ping comments
+
+            const Settings *settings = ThreadGlobals::getSettings();
+
+            if (incompleteWebsocketRead.frame_bytes_left > (settings->clientMaxWriteBufferSize / 2))
+                throw BadClientException("The option 'client_max_write_buffer_size / 2' is lower than the pong frame we're getting. Abusing client?");
+
+            if (incompleteWebsocketRead.frame_bytes_left > websocketPendingBytes.usedBytes())
+                break;
+
+            const size_t ponglen = std::min<size_t>(incompleteWebsocketRead.frame_bytes_left, websocketPendingBytes.usedBytes());
+            logger->log(LOG_DEBUG) << "Received websocket pong (with length " << ponglen << ")? We never sent a ping...";
+            std::vector<char> payload(ponglen);
+            websocketPendingBytes.read(payload.data(), payload.size());
+            incompleteWebsocketRead.frame_bytes_left -= ponglen;
+        }
         else if (incompleteWebsocketRead.opcode == WebsocketOpcode::Close)
         {
             const Settings *settings = ThreadGlobals::getSettings();
@@ -870,7 +888,9 @@ ssize_t IoWrapper::websocketBytesToReadBuffer(void *buf, const size_t nbytes, Io
         {
             // Specs: "MQTT Control Packets MUST be sent in WebSocket binary data frames. If any other type of data frame is
             // received the recipient MUST close the Network Connection [MQTT-6.0.0-1]".
-            throw BadClientException(formatString("Websocket frames must be 'binary' or 'ping'. Received: %d", incompleteWebsocketRead.opcode));
+            std::ostringstream opcode_oss;
+            opcode_oss << "Unsupported websocket frame type: " << std::hex << static_cast<int>(incompleteWebsocketRead.opcode);
+            throw BadClientException(opcode_oss.str());
         }
 
         if (!incompleteWebsocketRead.sillWorkingOnFrame())
