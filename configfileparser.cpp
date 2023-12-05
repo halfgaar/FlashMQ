@@ -150,6 +150,7 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validKeys.insert("client_max_write_buffer_size");
     validKeys.insert("retained_messages_delivery_limit");
     validKeys.insert("include_dir");
+    validKeys.insert("rebuild_subscription_tree_interval_seconds");
 
     validListenKeys.insert("port");
     validListenKeys.insert("protocol");
@@ -897,6 +898,21 @@ void ConfigFileParser::loadFile(bool test)
                         throw ConfigFileException("Set retained_messages_delivery_limit higher than 0, or use 'retained_messages_mode'.");
 
                     tmpSettings.retainedMessagesDeliveryLimit = newVal;
+                }
+
+                if (testKeyValidity(key, "rebuild_subscription_tree_interval_seconds", validKeys))
+                {
+                    const uint32_t minVal = 900;
+                    const uint32_t newVal = std::stoul(value);
+
+                    if (newVal < minVal)
+                    {
+                        std::ostringstream oss;
+                        oss << "Value '" << value << "' for '" << key << "' is too low. It must be at least " << minVal;
+                        throw ConfigFileException(oss.str());
+                    }
+
+                    tmpSettings.rebuildSubscriptionTreeInterval = std::chrono::seconds(newVal);
                 }
             }
         }

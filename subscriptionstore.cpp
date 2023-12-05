@@ -976,14 +976,18 @@ void SubscriptionStore::removeExpiredSessionsClients()
     logger->logf(LOG_DEBUG, "Processed %d queued session removals, resulting in %d deleted expired sessions. %d queued removals in the future.",
                  processedRemovals, removedSessions, queuedRemovalsLeft);
 
-    if (lastTreeCleanup + std::chrono::minutes(30) < now)
+    const Settings *settings = ThreadGlobals::getSettings();
+
+    if (lastTreeCleanup + settings->rebuildSubscriptionTreeInterval < now)
     {
         RWLockGuard lock_guard(&sessionsAndSubscriptionsRwlock);
         lock_guard.wrlock();
 
+        lastTreeCleanup = now;
+
         logger->logf(LOG_NOTICE, "Rebuilding subscription tree");
         root.cleanSubscriptions();
-        lastTreeCleanup = now;
+        logger->logf(LOG_NOTICE, "Rebuilding subscription tree done");
     }
 }
 
