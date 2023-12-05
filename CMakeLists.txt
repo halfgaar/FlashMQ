@@ -133,6 +133,7 @@ add_executable(flashmq
     bridgeinfodb.h bridgeinfodb.cpp
     globber.cpp
     x509manager.h x509manager.cpp
+    backgroundworker.h backgroundworker.cpp
 
     )
 

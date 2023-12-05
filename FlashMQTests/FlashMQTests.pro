@@ -67,6 +67,7 @@ SOURCES +=  tst_maintests.cpp \
     ../bridgeinfodb.cpp \
     ../globber.cpp \
     ../x509manager.cpp \
+    ../backgroundworker.cpp \
     conffiletemp.cpp \
     dnstests.cpp \
     filecloser.cpp \
@@ -135,6 +136,7 @@ HEADERS += \
     ../bridgeinfodb.h \
     ../globber.h \
     ../x509manager.h \
+    ../backgroundworker.h \
     conffiletemp.h \
     filecloser.h \
     flashmqtempdir.h \

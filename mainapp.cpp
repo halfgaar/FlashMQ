@@ -33,7 +33,6 @@ See LICENSE for license details.
 #include "bridgeinfodb.h"
 
 MainApp *MainApp::instance = nullptr;
-std::mutex MainApp::saveStateMutex;
 
 MainApp::MainApp(const std::string &configFilePath) :
     subscriptionStore(std::make_shared<SubscriptionStore>())
@@ -271,22 +270,12 @@ void MainApp::queuePublishStatsOnDollarTopic()
  */
 void MainApp::saveStateInThread()
 {
-    // Prevent queueing it again when it's still running.
-    std::unique_lock<std::mutex> locker(saveStateMutex, std::try_to_lock);
-    if (!locker.owns_lock())
-        return;
-
-    // Join previous instances.
-    if (saveStateThread.joinable())
-        saveStateThread.join();
-
     std::list<BridgeInfoForSerializing> bridgeInfos = BridgeInfoForSerializing::getBridgeInfosForSerializing(this->bridges);
 
     auto f = std::bind(&MainApp::saveState, this->settings, bridgeInfos);
-    saveStateThread = std::thread(f);
+    this->bgWorker.addTask(f);
 
-    pthread_t native = saveStateThread.native_handle();
-    pthread_setname_np(native, "SaveState");
+
 }
 
 void MainApp::queueSendQueuedWills()
@@ -367,8 +356,6 @@ void MainApp::queueBridgeReconnectAllThreads(bool alsoQueueNexts)
  */
 void MainApp::saveState(const Settings &settings, const std::list<BridgeInfoForSerializing> &bridgeInfos)
 {
-    std::lock_guard<std::mutex> lg(saveStateMutex);
-
     Logger *logger = Logger::getInstance();
 
     try
@@ -678,6 +665,8 @@ void MainApp::start()
         queueBridgeReconnectAllThreads(true);
     }
 
+    this->bgWorker.start();
+
     struct epoll_event events[MAX_EVENTS];
     memset(&events, 0, sizeof (struct epoll_event)*MAX_EVENTS);
 
@@ -792,6 +781,8 @@ void MainApp::start()
         }
     }
 
+    this->bgWorker.stop();
+
     if (settings.willsEnabled)
     {
         logger->logf(LOG_DEBUG, "Having all client in all threads send or queue their will.");
@@ -845,11 +836,10 @@ void MainApp::start()
 
     pluginLoader.mainDeinit(settings.getFlashmqpluginOpts());
 
+    this->bgWorker.waitForStop();
+
     std::list<BridgeInfoForSerializing> bridgeInfos = BridgeInfoForSerializing::getBridgeInfosForSerializing(this->bridges);
     saveState(this->settings, bridgeInfos);
-
-    if (saveStateThread.joinable())
-        saveStateThread.join();
 }
 
 void MainApp::queueQuit()

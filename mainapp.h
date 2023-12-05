@@ -30,6 +30,7 @@ See LICENSE for license details.
 #include "scopedsocket.h"
 #include "oneinstancelock.h"
 #include "bridgeinfodb.h"
+#include "backgroundworker.h"
 
 class MainApp
 {
@@ -67,8 +68,7 @@ class MainApp
 
     Logger *logger = Logger::getInstance();
 
-    std::thread saveStateThread;
-    static std::mutex saveStateMutex;
+    BackgroundWorker bgWorker;
 
     bool getFuzzMode() const;
     void setlimits();
