@@ -54,13 +54,14 @@ public:
     const std::string &getSubtopic() const;
     void addSubscriber(const std::shared_ptr<Session> &subscriber, uint8_t qos, bool noLocal, bool retainAsPublished, const std::string &shareName);
     void removeSubscriber(const std::shared_ptr<Session> &subscriber, const std::string &shareName);
-    std::unordered_map<std::string, std::unique_ptr<SubscriptionNode>> children;
-    std::unique_ptr<SubscriptionNode> childrenPlus;
-    std::unique_ptr<SubscriptionNode> childrenPound;
+    std::unordered_map<std::string, std::shared_ptr<SubscriptionNode>> children;
+    std::shared_ptr<SubscriptionNode> childrenPlus;
+    std::shared_ptr<SubscriptionNode> childrenPound;
 
     SubscriptionNode *getChildren(const std::string &subtopic) const;
 
-    int cleanSubscriptions();
+    int cleanSubscriptions(std::deque<std::weak_ptr<SubscriptionNode>> &defferedLeafs);
+    bool empty() const;
 };
 
 class RetainedMessageNode
@@ -115,6 +116,7 @@ class SubscriptionStore
     std::map<std::chrono::seconds, std::vector<QueuedWill>> pendingWillMessages;
 
     std::chrono::time_point<std::chrono::steady_clock> lastTreeCleanup;
+    std::deque<std::weak_ptr<SubscriptionNode>> defferedLeafs;
 
     Logger *logger = Logger::getInstance();
 

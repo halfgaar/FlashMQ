@@ -147,7 +147,7 @@ SubscriptionNode *SubscriptionStore::getDeepestNode(const std::vector<std::strin
 
     for(const std::string &subtopic : subtopics)
     {
-        std::unique_ptr<SubscriptionNode> *selectedChildren = nullptr;
+        std::shared_ptr<SubscriptionNode> *selectedChildren = nullptr;
 
         if (subtopic == "#")
             selectedChildren = &deepestNode->childrenPound;
@@ -156,11 +156,11 @@ SubscriptionNode *SubscriptionStore::getDeepestNode(const std::vector<std::strin
         else
             selectedChildren = &deepestNode->children[subtopic];
 
-        std::unique_ptr<SubscriptionNode> &node = *selectedChildren;
+        std::shared_ptr<SubscriptionNode> &node = *selectedChildren;
 
         if (!node)
         {
-            node = std::make_unique<SubscriptionNode>(subtopic);
+            node = std::make_shared<SubscriptionNode>(subtopic);
         }
         deepestNode = node.get();
     }
@@ -815,18 +815,34 @@ void SubscriptionStore::setRetainedMessage(const Publish &publish, const std::ve
 }
 
 // Clean up the weak pointers to sessions and remove nodes that are empty.
-int SubscriptionNode::cleanSubscriptions()
+int SubscriptionNode::cleanSubscriptions(std::deque<std::weak_ptr<SubscriptionNode>> &defferedLeafs)
 {
+    const size_t children_amount = children.size();
+    const bool split = children_amount > 15;
+
+    if (split)
+    {
+        Logger::getInstance()->log(LOG_INFO) << "Rebuilding subscription tree: leaf '" << subtopic << "' has " << children_amount << " children, so we're splitting up tree clean-up.";
+    }
+
     int subscribersLeftInChildren = 0;
     auto childrenIt = children.begin();
     while(childrenIt != children.end())
     {
-        std::unique_ptr<SubscriptionNode> &node = childrenIt->second;
+        std::shared_ptr<SubscriptionNode> &node = childrenIt->second;
 
         if (!node)
             continue;
 
-        int n = node->cleanSubscriptions();
+        if (split && !node->empty())
+        {
+            defferedLeafs.push_back(node);
+            subscribersLeftInChildren += 1; // We just have to be sure it's not 0.
+            childrenIt++;
+            continue;
+        }
+
+        int n = node->cleanSubscriptions(defferedLeafs);
         subscribersLeftInChildren += n;
 
         if (n > 0)
@@ -838,17 +854,17 @@ int SubscriptionNode::cleanSubscriptions()
         }
     }
 
-    std::list<std::unique_ptr<SubscriptionNode>*> wildcardChildren;
+    std::list<std::shared_ptr<SubscriptionNode>*> wildcardChildren;
     wildcardChildren.push_back(&childrenPlus);
     wildcardChildren.push_back(&childrenPound);
 
-    for (std::unique_ptr<SubscriptionNode> *node : wildcardChildren)
+    for (std::shared_ptr<SubscriptionNode> *node : wildcardChildren)
     {
-        std::unique_ptr<SubscriptionNode> &node_ = *node;
+        std::shared_ptr<SubscriptionNode> &node_ = *node;
 
         if (!node_)
             continue;
-        int n = node_->cleanSubscriptions();
+        int n = node_->cleanSubscriptions(defferedLeafs);
         subscribersLeftInChildren += n;
 
         if (n == 0)
@@ -890,6 +906,11 @@ int SubscriptionNode::cleanSubscriptions()
     }
 
     return subscribers.size() + sharedSubscribers.size() + subscribersLeftInChildren;
+}
+
+bool SubscriptionNode::empty() const
+{
+    return children.empty() && subscribers.empty() && sharedSubscribers.empty() && !childrenPlus && !childrenPound;
 }
 
 void SubscriptionStore::removeSession(const std::shared_ptr<Session> &session)
@@ -992,16 +1013,50 @@ void SubscriptionStore::removeExpiredSessionsClients()
 
     const Settings *settings = ThreadGlobals::getSettings();
 
-    if (lastTreeCleanup + settings->rebuildSubscriptionTreeInterval < now)
+    bool deferredLeavesPresent = false;
+
+    {
+        RWLockGuard lock_guard(&sessionsAndSubscriptionsRwlock);
+        lock_guard.rdlock();
+        deferredLeavesPresent = !defferedLeafs.empty();
+    }
+
+    if (deferredLeavesPresent)
+    {
+        RWLockGuard lock_guard(&sessionsAndSubscriptionsRwlock);
+        lock_guard.wrlock();
+
+        logger->log(LOG_INFO) << "Rebuilding subscription tree: we have " << defferedLeafs.size() << " deferred leafs to clean up. Doing some.";
+
+        const std::chrono::time_point<std::chrono::steady_clock> limit = std::chrono::steady_clock::now() + std::chrono::milliseconds(200);
+
+        int counter = 0;
+        for (; !defferedLeafs.empty(); defferedLeafs.pop_front())
+        {
+            if (limit < std::chrono::steady_clock::now())
+                break;
+
+            std::shared_ptr<SubscriptionNode> node = defferedLeafs.front().lock();
+
+            if (node)
+            {
+                counter++;
+                node->cleanSubscriptions(defferedLeafs);
+            }
+        }
+
+        logger->log(LOG_INFO) << "Rebuilding subscription tree: processed " << counter << " deferred leafs. Deferred leafs left: " << defferedLeafs.size();
+    }
+    else if (lastTreeCleanup + settings->rebuildSubscriptionTreeInterval < now)
     {
         RWLockGuard lock_guard(&sessionsAndSubscriptionsRwlock);
         lock_guard.wrlock();
 
         lastTreeCleanup = now;
 
-        logger->logf(LOG_NOTICE, "Rebuilding subscription tree");
-        root.cleanSubscriptions();
-        logger->logf(LOG_NOTICE, "Rebuilding subscription tree done");
+        logger->logf(LOG_INFO, "Rebuilding subscription tree");
+        root.cleanSubscriptions(defferedLeafs);
+        logger->log(LOG_INFO) << "Rebuilding subscription tree done, with " << defferedLeafs.size() << " deferred direct leafs to check";
     }
 }
 
