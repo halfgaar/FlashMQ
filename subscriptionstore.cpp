@@ -322,7 +322,6 @@ void SubscriptionStore::registerClientAndKickExistingOne(std::shared_ptr<Client>
                 if (clientOfOtherSession)
                 {
                     logger->logf(LOG_NOTICE, "Disconnecting existing client with id '%s'", clientOfOtherSession->getClientId().c_str());
-                    clientOfOtherSession->resetSession();
                     clientOfOtherSession->setDisconnectReason("Another client with this ID connected");
                     clientOfOtherSession->serverInitiatedDisconnect(ReasonCodes::SessionTakenOver);
                 }
