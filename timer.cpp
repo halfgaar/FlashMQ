@@ -135,9 +135,9 @@ void Timer::process()
             continue;
         }
 
-        logger->logf(LOG_DEBUG, "Calling timed event '%s'.", callbacks.front().name.c_str());
-
         std::lock_guard<std::mutex> locker(this->callbacksMutex);
+
+        logger->logf(LOG_DEBUG, "Calling timed event '%s'.", callbacks.front().name.c_str());
 
         CallbackEntry &c = callbacks.front();
         c.updateExectedAt();
