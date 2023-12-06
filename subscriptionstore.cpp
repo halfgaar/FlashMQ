@@ -821,7 +821,12 @@ int SubscriptionNode::cleanSubscriptions()
     auto childrenIt = children.begin();
     while(childrenIt != children.end())
     {
-        int n = childrenIt->second->cleanSubscriptions();
+        std::unique_ptr<SubscriptionNode> &node = childrenIt->second;
+
+        if (!node)
+            continue;
+
+        int n = node->cleanSubscriptions();
         subscribersLeftInChildren += n;
 
         if (n > 0)
