@@ -1045,6 +1045,9 @@ uint64_t SubscriptionStore::getSessionCount() const
  */
 int64_t SubscriptionStore::getSubscriptionCount()
 {
+    return 0;
+
+    /*
     if (this->lastSubscriptionCountRefreshedAt + std::chrono::minutes(30) > std::chrono::steady_clock::now())
         return this->subscriptionCount;
 
@@ -1067,6 +1070,7 @@ int64_t SubscriptionStore::getSubscriptionCount()
     }
 
     return count;
+    */
 }
 
 void SubscriptionStore::getRetainedMessages(RetainedMessageNode *this_node, std::vector<RetainedMessage> &outputList) const
