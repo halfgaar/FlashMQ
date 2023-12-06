@@ -1133,6 +1133,9 @@ void SubscriptionStore::getSubscriptions(SubscriptionNode *this_node, const std:
 
 void SubscriptionStore::countSubscriptions(SubscriptionNode *this_node, int64_t &count) const
 {
+    if (!this_node)
+        return;
+
     for (auto &pair : this_node->getSubscribers())
     {
         const Subscription &node = pair.second;
