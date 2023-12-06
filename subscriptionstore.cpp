@@ -53,6 +53,9 @@ const std::string &SubscriptionNode::getSubtopic() const
 
 void SubscriptionNode::addSubscriber(const std::shared_ptr<Session> &subscriber, uint8_t qos, bool noLocal, bool retainAsPublished, const std::string &shareName)
 {
+    if (!subscriber)
+        return;
+
     Subscription sub;
     sub.session = subscriber;
     sub.qos = qos;
@@ -188,6 +191,10 @@ void SubscriptionStore::addSubscription(std::shared_ptr<Client> &client, const s
         return;
 
     const std::shared_ptr<Session> &ses = session_it->second;
+
+    if (!ses)
+        return;
+
     deepestNode->addSubscriber(ses, qos, noLocal, retainAsPublished, shareName);
     subscriptionCount++;
     lock_guard.unlock();
@@ -686,6 +693,9 @@ void SubscriptionStore::giveClientRetainedMessagesRecursively(std::vector<std::s
 void SubscriptionStore::giveClientRetainedMessages(const std::shared_ptr<Session> &ses,
                                                    const std::vector<std::string> &subscribeSubtopics, uint8_t max_qos)
 {
+    if (!ses)
+        return;
+
     const Settings *settings = ThreadGlobals::getSettings();
 
     if (settings->retainedMessagesMode != RetainedMessagesMode::Enabled)
