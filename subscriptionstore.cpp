@@ -190,7 +190,7 @@ void SubscriptionStore::addSubscription(std::shared_ptr<Client> &client, const s
     if (session_it == sessionsByIdConst.end())
         return;
 
-    const std::shared_ptr<Session> &ses = session_it->second;
+    const std::shared_ptr<Session> ses = session_it->second;
 
     if (!ses)
         return;
