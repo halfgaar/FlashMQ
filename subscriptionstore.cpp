@@ -848,10 +848,7 @@ int SubscriptionNode::cleanSubscriptions(std::deque<std::weak_ptr<SubscriptionNo
         if (n > 0)
             childrenIt++;
         else
-        {
-            Logger::getInstance()->logf(LOG_DEBUG, "Removing orphaned subscriber node from %s", childrenIt->first.c_str());
             childrenIt = children.erase(childrenIt);
-        }
     }
 
     std::list<std::shared_ptr<SubscriptionNode>*> wildcardChildren;
