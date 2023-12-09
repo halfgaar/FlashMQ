@@ -40,18 +40,16 @@ public:
 
 class SubscriptionNode
 {
-    std::string subtopic;
     std::unordered_map<std::string, Subscription> subscribers;
     std::unordered_map<std::string, SharedSubscribers> sharedSubscribers;
 
 public:
-    SubscriptionNode(const std::string &subtopic);
+    SubscriptionNode();
     SubscriptionNode(const SubscriptionNode &node) = delete;
     SubscriptionNode(SubscriptionNode &&node) = delete;
 
     const std::unordered_map<std::string, Subscription> &getSubscribers() const;
     std::unordered_map<std::string, SharedSubscribers> &getSharedSubscribers();
-    const std::string &getSubtopic() const;
     void addSubscriber(const std::shared_ptr<Session> &subscriber, uint8_t qos, bool noLocal, bool retainAsPublished, const std::string &shareName);
     void removeSubscriber(const std::shared_ptr<Session> &subscriber, const std::string &shareName);
     std::unordered_map<std::string, std::shared_ptr<SubscriptionNode>> children;

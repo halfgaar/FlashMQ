@@ -30,8 +30,7 @@ ReceivingSubscriber::ReceivingSubscriber(const std::shared_ptr<Session> &ses, ui
 
 }
 
-SubscriptionNode::SubscriptionNode(const std::string &subtopic) :
-    subtopic(subtopic)
+SubscriptionNode::SubscriptionNode()
 {
 
 }
@@ -44,11 +43,6 @@ const std::unordered_map<std::string, Subscription> &SubscriptionNode::getSubscr
 std::unordered_map<std::string, SharedSubscribers> &SubscriptionNode::getSharedSubscribers()
 {
     return sharedSubscribers;
-}
-
-const std::string &SubscriptionNode::getSubtopic() const
-{
-    return subtopic;
 }
 
 void SubscriptionNode::addSubscriber(const std::shared_ptr<Session> &subscriber, uint8_t qos, bool noLocal, bool retainAsPublished, const std::string &shareName)
@@ -120,8 +114,8 @@ SubscriptionNode *SubscriptionNode::getChildren(const std::string &subtopic) con
 
 
 SubscriptionStore::SubscriptionStore() :
-    root("root"),
-    rootDollar("rootDollar"),
+    root(),
+    rootDollar(),
     sessionsByIdConst(sessionsById)
 {
 
@@ -160,7 +154,7 @@ SubscriptionNode *SubscriptionStore::getDeepestNode(const std::vector<std::strin
 
         if (!node)
         {
-            node = std::make_shared<SubscriptionNode>(subtopic);
+            node = std::make_shared<SubscriptionNode>();
         }
         deepestNode = node.get();
     }
@@ -822,7 +816,7 @@ int SubscriptionNode::cleanSubscriptions(std::deque<std::weak_ptr<SubscriptionNo
 
     if (split)
     {
-        Logger::getInstance()->log(LOG_INFO) << "Rebuilding subscription tree: leaf '" << subtopic << "' has " << children_amount << " children, so we're splitting up tree clean-up.";
+        Logger::getInstance()->log(LOG_INFO) << "Rebuilding subscription tree: leaf has " << children_amount << " children, so we're splitting up tree clean-up.";
     }
 
     int subscribersLeftInChildren = 0;
