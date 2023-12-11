@@ -68,7 +68,7 @@ class RetainedMessageNode
 
     std::unordered_map<std::string, std::shared_ptr<RetainedMessageNode>> children;
     std::mutex messageSetMutex;
-    std::optional<RetainedMessage> message;
+    std::unique_ptr<RetainedMessage> message;
 
     void addPayload(const Publish &publish, int64_t &totalCount);
     RetainedMessageNode *getChildren(const std::string &subtopic) const;

@@ -1170,7 +1170,7 @@ void SubscriptionStore::getRetainedMessages(RetainedMessageNode *this_node, std:
     {
         std::lock_guard<std::mutex> locker(this_node->messageSetMutex);
         if (this_node->message)
-            outputList.push_back(this_node->message.value());
+            outputList.push_back(*this_node->message);
     }
 
     for(auto &pair : this_node->children)
@@ -1433,7 +1433,7 @@ void RetainedMessageNode::addPayload(const Publish &publish, int64_t &totalCount
     }
 
     RetainedMessage rm(publish);
-    message = std::move(rm);
+    message = std::make_unique<RetainedMessage>(std::move(rm));
     totalCount += 1;
 }
 
