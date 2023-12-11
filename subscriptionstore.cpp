@@ -644,7 +644,7 @@ void SubscriptionStore::giveClientRetainedMessagesRecursively(std::vector<std::s
                 if (count >= limit)
                     break;
 
-                std::unique_ptr<RetainedMessageNode> &child = pair.second;
+                std::shared_ptr<RetainedMessageNode> &child = pair.second;
                 giveClientRetainedMessagesRecursively(cur_subtopic_it, end, child.get(), poundMode, packetList, count, limit);
             }
         }
@@ -662,12 +662,12 @@ void SubscriptionStore::giveClientRetainedMessagesRecursively(std::vector<std::s
     }
     else if (cur_subtop == "+")
     {
-        for (std::pair<const std::string, std::unique_ptr<RetainedMessageNode>> &pair : this_node->children)
+        for (std::pair<const std::string, std::shared_ptr<RetainedMessageNode>> &pair : this_node->children)
         {
             if (count >= limit)
                 break;
 
-            std::unique_ptr<RetainedMessageNode> &child = pair.second;
+            std::shared_ptr<RetainedMessageNode> &child = pair.second;
             if (child) // I don't think it can ever be unset, but I'd rather avoid a crash.
                 giveClientRetainedMessagesRecursively(next_subtopic, end, child.get(), false, packetList, count, limit);
         }
@@ -763,7 +763,7 @@ void SubscriptionStore::setRetainedMessage(const Publish &publish, const std::ve
                 break;
             }
 
-            std::unique_ptr<RetainedMessageNode> &selectedChildren = pos->second;
+            std::shared_ptr<RetainedMessageNode> &selectedChildren = pos->second;
 
             if (!selectedChildren)
             {
@@ -789,11 +789,11 @@ void SubscriptionStore::setRetainedMessage(const Publish &publish, const std::ve
 
         while(subtopic_pos != subtopics.end())
         {
-            std::unique_ptr<RetainedMessageNode> &selectedChildren = deepestNode->children[*subtopic_pos];
+            std::shared_ptr<RetainedMessageNode> &selectedChildren = deepestNode->children[*subtopic_pos];
 
             if (!selectedChildren)
             {
-                selectedChildren = std::make_unique<RetainedMessageNode>();
+                selectedChildren = std::make_shared<RetainedMessageNode>();
             }
             deepestNode = selectedChildren.get();
             subtopic_pos++;
@@ -1051,13 +1051,54 @@ void SubscriptionStore::removeExpiredSessionsClients()
     }
 }
 
-void SubscriptionStore::expireRetainedMessages()
+bool SubscriptionStore::hasDeferredRetainedMessageNodesForPurging()
 {
-    const Settings *settings = ThreadGlobals::getSettings();
-    std::chrono::time_point<std::chrono::steady_clock> limit = std::chrono::steady_clock::now() + std::chrono::milliseconds(settings->expireRetainedMessagesTimeBudgetMs);
     RWLockGuard lock_guard(&retainedMessagesRwlock);
-    lock_guard.wrlock();
-    this->expireRetainedMessages(&retainedMessagesRoot, limit);
+    lock_guard.rdlock();
+    return !deferredRetainedMessageNodeToPurge.empty();
+}
+
+bool SubscriptionStore::expireRetainedMessages()
+{
+    bool deferredRetainedCleanup = hasDeferredRetainedMessageNodesForPurging();
+    const std::chrono::time_point<std::chrono::steady_clock> limit = std::chrono::steady_clock::now() + std::chrono::milliseconds(10);
+
+    if (deferredRetainedCleanup)
+    {
+        RWLockGuard lock_guard(&retainedMessagesRwlock);
+        lock_guard.wrlock();
+
+        logger->log(LOG_INFO) << "Expiring retained messages: we have " << deferredRetainedMessageNodeToPurge.size() << " deferred leafs to expire. Doing some.";
+
+        int counter = 0;
+        for (; !deferredRetainedMessageNodeToPurge.empty(); deferredRetainedMessageNodeToPurge.pop_front())
+        {
+            if (limit < std::chrono::steady_clock::now())
+                break;
+
+            std::shared_ptr<RetainedMessageNode> node = deferredRetainedMessageNodeToPurge.front().lock();
+
+            if (node)
+            {
+                counter++;
+                this->expireRetainedMessages(node.get(), limit, deferredRetainedMessageNodeToPurge);
+            }
+        }
+
+        logger->log(LOG_INFO) << "Expiring retained messages: processed " << counter << " deferred leafs. Deferred leafs left: " << deferredRetainedMessageNodeToPurge.size();
+    }
+    else
+    {
+        logger->log(LOG_INFO) << "Expiring retained messages.";
+
+        RWLockGuard lock_guard(&retainedMessagesRwlock);
+        lock_guard.wrlock();
+        this->expireRetainedMessages(&retainedMessagesRoot, limit, deferredRetainedMessageNodeToPurge);
+
+        logger->log(LOG_INFO) << "Expiring retained messages done, with " << deferredRetainedMessageNodeToPurge.size() << " deferred nodes to check.";
+    }
+
+    return deferredRetainedMessageNodeToPurge.empty();
 }
 
 /**
@@ -1134,7 +1175,7 @@ void SubscriptionStore::getRetainedMessages(RetainedMessageNode *this_node, std:
 
     for(auto &pair : this_node->children)
     {
-        const std::unique_ptr<RetainedMessageNode> &child = pair.second;
+        const std::shared_ptr<RetainedMessageNode> &child = pair.second;
         getRetainedMessages(child.get(), outputList);
     }
 }
@@ -1218,12 +1259,11 @@ void SubscriptionStore::countSubscriptions(SubscriptionNode *this_node, int64_t 
     }
 }
 
-void SubscriptionStore::expireRetainedMessages(RetainedMessageNode *this_node, const std::chrono::time_point<std::chrono::steady_clock> &limit)
+void SubscriptionStore::expireRetainedMessages(RetainedMessageNode *this_node, const std::chrono::time_point<std::chrono::steady_clock> &limit,
+                                               std::deque<std::weak_ptr<RetainedMessageNode>> &deferred)
 {
     if (this_node->message && this_node->message->hasExpired())
     {
-        Logger *logger = Logger::getInstance();
-        logger->logf(LOG_DEBUG, "Removing retained message '%s'.", this_node->message->publish.topic.c_str());
         this_node->message.reset();
         this->retainedMessageCount--;
     }
@@ -1231,22 +1271,17 @@ void SubscriptionStore::expireRetainedMessages(RetainedMessageNode *this_node, c
     auto cpos = this_node->children.begin();
     while (cpos != this_node->children.end())
     {
-        if (std::chrono::steady_clock::now() > limit)
-        {
-            const Settings *settings = ThreadGlobals::getSettings();
-            Logger *logger = Logger::getInstance();
-            logger->logf(LOG_WARNING, "Aborting expiration of retained messages because it exceeded time budget of %d ms. If you see this warning "
-                                      "regarly, consider your retained message load or increase 'expire_retained_messages_time_budget_ms'.",
-                         settings->expireRetainedMessagesTimeBudgetMs);
-            break;
-        }
-
         auto cur = cpos;
         cpos++;
-        auto &pair = *cur;
 
-        const std::unique_ptr<RetainedMessageNode> &child = pair.second;
-        expireRetainedMessages(child.get(), limit);
+        if (std::chrono::steady_clock::now() > limit)
+        {
+            deferred.push_back(cur->second);
+            continue;
+        }
+
+        const std::shared_ptr<RetainedMessageNode> &child = cur->second;
+        expireRetainedMessages(child.get(), limit, deferred);
 
         if (child->isOrphaned())
         {

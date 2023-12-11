@@ -126,6 +126,10 @@ void ThreadData::queueRemoveExpiredSessions()
 
 void ThreadData::queueRemoveExpiredRetainedMessages()
 {
+    std::shared_ptr<SubscriptionStore> subscriptionStore = MainApp::getMainApp()->getSubscriptionStore();
+    if (subscriptionStore->hasDeferredRetainedMessageNodesForPurging())
+        return;
+
     std::lock_guard<std::mutex> locker(taskQueueMutex);
 
     auto f = std::bind(&ThreadData::removeExpiredRetainedMessages, this);
@@ -553,7 +557,13 @@ void ThreadData::removeExpiredSessions()
 void ThreadData::removeExpiredRetainedMessages()
 {
     std::shared_ptr<SubscriptionStore> subscriptionStore = MainApp::getMainApp()->getSubscriptionStore();
-    subscriptionStore->expireRetainedMessages();
+    bool done = subscriptionStore->expireRetainedMessages();
+
+    if (!done)
+    {
+        auto f = std::bind(&ThreadData::removeExpiredRetainedMessages, this);
+        addTask(f, 100);
+    }
 }
 
 void ThreadData::sendAllWills()

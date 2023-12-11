@@ -66,7 +66,7 @@ class RetainedMessageNode
 {
     friend class SubscriptionStore;
 
-    std::unordered_map<std::string, std::unique_ptr<RetainedMessageNode>> children;
+    std::unordered_map<std::string, std::shared_ptr<RetainedMessageNode>> children;
     std::mutex messageSetMutex;
     std::optional<RetainedMessage> message;
 
@@ -103,6 +103,7 @@ class SubscriptionStore
     std::map<std::chrono::seconds, std::vector<std::weak_ptr<Session>>> queuedSessionRemovals;
 
     pthread_rwlock_t retainedMessagesRwlock = PTHREAD_RWLOCK_INITIALIZER;
+    std::deque<std::weak_ptr<RetainedMessageNode>> deferredRetainedMessageNodeToPurge;
     RetainedMessageNode retainedMessagesRoot;
     RetainedMessageNode retainedMessagesRootDollar;
     int64_t retainedMessageCount = 0;
@@ -129,7 +130,8 @@ class SubscriptionStore
     void getSubscriptions(SubscriptionNode *this_node, const std::string &composedTopic, bool root,
                           std::unordered_map<std::string, std::list<SubscriptionForSerializing>> &outputList) const;
     void countSubscriptions(SubscriptionNode *this_node, int64_t &count) const;
-    void expireRetainedMessages(RetainedMessageNode *this_node, const std::chrono::time_point<std::chrono::steady_clock> &limit);
+    void expireRetainedMessages(RetainedMessageNode *this_node, const std::chrono::time_point<std::chrono::steady_clock> &limit,
+                                std::deque<std::weak_ptr<RetainedMessageNode>> &deferred);
 
     SubscriptionNode *getDeepestNode(const std::vector<std::string> &subtopics);
 public:
@@ -153,7 +155,8 @@ public:
 
     void removeSession(const std::shared_ptr<Session> &session);
     void removeExpiredSessionsClients();
-    void expireRetainedMessages();
+    bool hasDeferredRetainedMessageNodesForPurging();
+    bool expireRetainedMessages();
 
     int64_t getRetainedMessageCount() const;
     uint64_t getSessionCount() const;

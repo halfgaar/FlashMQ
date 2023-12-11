@@ -73,7 +73,7 @@ public:
     int rlimitNoFile = 1000000;
     uint32_t expireSessionsAfterSeconds = 1209600;
     uint32_t expireRetainedMessagesAfterSeconds = std::numeric_limits<uint32_t>::max();
-    uint32_t expireRetainedMessagesTimeBudgetMs = 300;
+    uint32_t expireRetainedMessagesTimeBudgetMs = 100;
     int pluginTimerPeriod = 60;
     std::string storageDir;
     int threadCount = 0;
