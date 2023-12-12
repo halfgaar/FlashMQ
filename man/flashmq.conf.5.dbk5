@@ -385,21 +385,6 @@
         </listitem>
       </varlistentry>
 
-      <varlistentry xml:id="expire_retained_messages_time_budget_ms">
-        <term><option>expire_retained_messages_time_budget_ms</option> <replaceable>milliseconds</replaceable></term>
-        <listitem>
-          <para>
-            When purging the retained messages tree, spend a maximum of this many milliseconds on it. The purge requires a write lock, so you don't want to hold up everything too long.
-          </para>
-          <para>
-            Currently, the purge frequency is 3949193 milliseconds, but this is subject to change.
-          </para>
-          <para>
-            Default value: <filename>200</filename>
-          </para>
-        </listitem>
-      </varlistentry>
-
       <varlistentry xml:id="retained_messages_delivery_limit">
         <term><option>retained_messages_delivery_limit</option> <replaceable>number</replaceable></term>
         <listitem>

@@ -857,8 +857,7 @@ void ConfigFileParser::loadFile(bool test)
 
                 if (testKeyValidity(key, "expire_retained_messages_time_budget_ms", validKeys))
                 {
-                    uint32_t newVal = std::stoi(value);
-                    tmpSettings.expireRetainedMessagesTimeBudgetMs = newVal;
+                    Logger::getInstance()->log(LOG_WARNING) << "The config option '" << key << "' is deprecated.";
                 }
 
                 if (testKeyValidity(key, "websocket_set_real_ip_from", validKeys))

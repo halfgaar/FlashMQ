@@ -441,21 +441,6 @@
       
 
       
-        <dt id="expire_retained_messages_time_budget_ms"><code class="option">expire_retained_messages_time_budget_ms</code> <code class="replaceable">milliseconds</code><a class="hash-anchor" href="#expire_retained_messages_time_budget_ms">#</a></dt>
-        <dd>
-          <p>
-            When purging the retained messages tree, spend a maximum of this many milliseconds on it. The purge requires a write lock, so you don't want to hold up everything too long.
-          </p>
-          <p>
-            Currently, the purge frequency is 3949193 milliseconds, but this is subject to change.
-          </p>
-          <p>
-            Default value: <code class="filename">200</code>
-          </p>
-        </dd>
-      
-
-      
         <dt id="retained_messages_delivery_limit"><code class="option">retained_messages_delivery_limit</code> <code class="replaceable">number</code><a class="hash-anchor" href="#retained_messages_delivery_limit">#</a></dt>
         <dd>
           <p>
