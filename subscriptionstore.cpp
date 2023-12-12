@@ -814,11 +814,6 @@ int SubscriptionNode::cleanSubscriptions(std::deque<std::weak_ptr<SubscriptionNo
     const size_t children_amount = children.size();
     const bool split = children_amount > 15;
 
-    if (split)
-    {
-        Logger::getInstance()->log(LOG_INFO) << "Rebuilding subscription tree: leaf has " << children_amount << " children, so we're splitting up tree clean-up.";
-    }
-
     int subscribersLeftInChildren = 0;
     auto childrenIt = children.begin();
     while(childrenIt != children.end())
