@@ -124,6 +124,20 @@ void ThreadData::queueRemoveExpiredSessions()
     wakeUpThread();
 }
 
+void ThreadData::queuePurgeSubscriptionTree()
+{
+    std::shared_ptr<SubscriptionStore> subscriptionStore = MainApp::getMainApp()->getSubscriptionStore();
+    if (subscriptionStore->hasDeferredSubscriptionTreeNodesForPurging())
+        return;
+
+    std::lock_guard<std::mutex> locker(taskQueueMutex);
+
+    auto f = std::bind(&ThreadData::purgeSubscriptionTree, this);
+    taskQueue.push_back(f);
+
+    wakeUpThread();
+}
+
 void ThreadData::queueRemoveExpiredRetainedMessages()
 {
     std::shared_ptr<SubscriptionStore> subscriptionStore = MainApp::getMainApp()->getSubscriptionStore();
@@ -548,6 +562,18 @@ void ThreadData::removeExpiredSessions()
 {
     std::shared_ptr<SubscriptionStore> subscriptionStore = MainApp::getMainApp()->getSubscriptionStore();
     subscriptionStore->removeExpiredSessionsClients();
+}
+
+void ThreadData::purgeSubscriptionTree()
+{
+    std::shared_ptr<SubscriptionStore> subscriptionStore = MainApp::getMainApp()->getSubscriptionStore();
+    bool done = subscriptionStore->purgeSubscriptionTree();
+
+    if (!done)
+    {
+        auto f = std::bind(&ThreadData::purgeSubscriptionTree, this);
+        addTask(f, 100);
+    }
 }
 
 /**

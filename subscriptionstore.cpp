@@ -1001,54 +1001,56 @@ void SubscriptionStore::removeExpiredSessionsClients()
 
     logger->logf(LOG_DEBUG, "Processed %d queued session removals, resulting in %d deleted expired sessions. %d queued removals in the future.",
                  processedRemovals, removedSessions, queuedRemovalsLeft);
+}
 
-    const Settings *settings = ThreadGlobals::getSettings();
+bool SubscriptionStore::hasDeferredSubscriptionTreeNodesForPurging()
+{
+    RWLockGuard lock_guard(&sessionsAndSubscriptionsRwlock);
+    lock_guard.rdlock();
+    return !deferredSubscriptionLeafsForPurging.empty();
+}
 
-    bool deferredLeavesPresent = false;
-
-    {
-        RWLockGuard lock_guard(&sessionsAndSubscriptionsRwlock);
-        lock_guard.rdlock();
-        deferredLeavesPresent = !defferedLeafs.empty();
-    }
+bool SubscriptionStore::purgeSubscriptionTree()
+{
+    bool deferredLeavesPresent = hasDeferredSubscriptionTreeNodesForPurging();
 
     if (deferredLeavesPresent)
     {
         RWLockGuard lock_guard(&sessionsAndSubscriptionsRwlock);
         lock_guard.wrlock();
 
-        logger->log(LOG_INFO) << "Rebuilding subscription tree: we have " << defferedLeafs.size() << " deferred leafs to clean up. Doing some.";
+        logger->log(LOG_INFO) << "Rebuilding subscription tree: we have " << deferredSubscriptionLeafsForPurging.size() << " deferred leafs to clean up. Doing some.";
 
-        const std::chrono::time_point<std::chrono::steady_clock> limit = std::chrono::steady_clock::now() + std::chrono::milliseconds(200);
+        const std::chrono::time_point<std::chrono::steady_clock> limit = std::chrono::steady_clock::now() + std::chrono::milliseconds(10);
 
         int counter = 0;
-        for (; !defferedLeafs.empty(); defferedLeafs.pop_front())
+        for (; !deferredSubscriptionLeafsForPurging.empty(); deferredSubscriptionLeafsForPurging.pop_front())
         {
             if (limit < std::chrono::steady_clock::now())
                 break;
 
-            std::shared_ptr<SubscriptionNode> node = defferedLeafs.front().lock();
+            std::shared_ptr<SubscriptionNode> node = deferredSubscriptionLeafsForPurging.front().lock();
 
             if (node)
             {
                 counter++;
-                node->cleanSubscriptions(defferedLeafs);
+                node->cleanSubscriptions(deferredSubscriptionLeafsForPurging);
             }
         }
 
-        logger->log(LOG_INFO) << "Rebuilding subscription tree: processed " << counter << " deferred leafs. Deferred leafs left: " << defferedLeafs.size();
+        logger->log(LOG_INFO) << "Rebuilding subscription tree: processed " << counter << " deferred leafs. Deferred leafs left: " << deferredSubscriptionLeafsForPurging.size();
     }
-    else if (lastTreeCleanup + settings->rebuildSubscriptionTreeInterval < now)
+    else
     {
         RWLockGuard lock_guard(&sessionsAndSubscriptionsRwlock);
         lock_guard.wrlock();
 
-        lastTreeCleanup = now;
-
         logger->logf(LOG_INFO, "Rebuilding subscription tree");
-        root.cleanSubscriptions(defferedLeafs);
-        logger->log(LOG_INFO) << "Rebuilding subscription tree done, with " << defferedLeafs.size() << " deferred direct leafs to check";
+        root.cleanSubscriptions(deferredSubscriptionLeafsForPurging);
+        logger->log(LOG_INFO) << "Rebuilding subscription tree done, with " << deferredSubscriptionLeafsForPurging.size() << " deferred direct leafs to check";
     }
+
+    return deferredSubscriptionLeafsForPurging.empty();
 }
 
 bool SubscriptionStore::hasDeferredRetainedMessageNodesForPurging()

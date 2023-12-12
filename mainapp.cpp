@@ -69,6 +69,12 @@ MainApp::MainApp(const std::string &configFilePath) :
     }
 
     {
+        uint64_t interval = 1846849; // prime
+        auto f = std::bind(&MainApp::queuePurgeSubscriptionTree, this);
+        timer.addCallback(f, interval, "Rebuild subscription tree");
+    }
+
+    {
         uint64_t interval = 3949193; // prime
 #ifdef TESTING
         interval = 500;
@@ -1023,6 +1029,16 @@ void MainApp::queueCleanup()
         int threadnr = rand() % threads.size();
         std::shared_ptr<ThreadData> t = threads[threadnr];
         t->queueRemoveExpiredSessions();
+    }
+}
+
+void MainApp::queuePurgeSubscriptionTree()
+{
+    if (!threads.empty())
+    {
+        int threadnr = rand() % threads.size();
+        std::shared_ptr<ThreadData> t = threads[threadnr];
+        t->queuePurgeSubscriptionTree();
     }
 }
 

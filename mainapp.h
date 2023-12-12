@@ -111,6 +111,7 @@ public:
     void queueConfigReload();
     void queueReopenLogFile();
     void queueCleanup();
+    void queuePurgeSubscriptionTree();
     void queueMemoryTrim();
     void memoryTrim();
 

@@ -114,8 +114,7 @@ class SubscriptionStore
     std::mutex pendingWillsMutex;
     std::map<std::chrono::seconds, std::vector<QueuedWill>> pendingWillMessages;
 
-    std::chrono::time_point<std::chrono::steady_clock> lastTreeCleanup;
-    std::deque<std::weak_ptr<SubscriptionNode>> defferedLeafs;
+    std::deque<std::weak_ptr<SubscriptionNode>> deferredSubscriptionLeafsForPurging;
 
     Logger *logger = Logger::getInstance();
 
@@ -155,6 +154,8 @@ public:
 
     void removeSession(const std::shared_ptr<Session> &session);
     void removeExpiredSessionsClients();
+    bool hasDeferredSubscriptionTreeNodesForPurging();
+    bool purgeSubscriptionTree();
     bool hasDeferredRetainedMessageNodesForPurging();
     bool expireRetainedMessages();
 
