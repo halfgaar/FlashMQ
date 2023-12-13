@@ -898,21 +898,6 @@ void ConfigFileParser::loadFile(bool test)
 
                     tmpSettings.retainedMessagesDeliveryLimit = newVal;
                 }
-
-                if (testKeyValidity(key, "rebuild_subscription_tree_interval_seconds", validKeys))
-                {
-                    const uint32_t minVal = 900;
-                    const uint32_t newVal = std::stoul(value);
-
-                    if (newVal < minVal)
-                    {
-                        std::ostringstream oss;
-                        oss << "Value '" << value << "' for '" << key << "' is too low. It must be at least " << minVal;
-                        throw ConfigFileException(oss.str());
-                    }
-
-                    tmpSettings.rebuildSubscriptionTreeInterval = std::chrono::seconds(newVal);
-                }
             }
         }
         catch (std::invalid_argument &ex) // catch for the stoi()
