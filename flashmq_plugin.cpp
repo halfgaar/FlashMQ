@@ -187,7 +187,7 @@ uint32_t flashmq_add_task(std::function<void ()> f, uint32_t delay_in_ms)
     if (!d)
         throw std::runtime_error("No thread data?");
 
-    return d->addTask(f, delay_in_ms);
+    return d->addDelayedTask(f, delay_in_ms);
 }
 
 void flashmq_remove_task(uint32_t id)
@@ -197,5 +197,5 @@ void flashmq_remove_task(uint32_t id)
     if (!d)
         return;
 
-    d->removeTask(id);
+    d->removeDelayedTask(id);
 }

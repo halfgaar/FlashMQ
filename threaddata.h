@@ -155,8 +155,8 @@ public:
 
     void pollExternalFd(int fd, uint32_t events, const std::weak_ptr<void> &p);
     void pollExternalRemove(int fd);
-    uint32_t addTask(std::function<void()> f, uint32_t delayMs);
-    void removeTask(uint32_t id);
+    uint32_t addDelayedTask(std::function<void()> f, uint32_t delayMs);
+    void removeDelayedTask(uint32_t id);
 };
 
 #endif // THREADDATA_H

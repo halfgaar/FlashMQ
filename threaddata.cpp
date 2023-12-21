@@ -572,7 +572,7 @@ void ThreadData::purgeSubscriptionTree()
     if (!done)
     {
         auto f = std::bind(&ThreadData::purgeSubscriptionTree, this);
-        addTask(f, 100);
+        addDelayedTask(f, 100);
     }
 }
 
@@ -588,7 +588,7 @@ void ThreadData::removeExpiredRetainedMessages()
     if (!done)
     {
         auto f = std::bind(&ThreadData::removeExpiredRetainedMessages, this);
-        addTask(f, 100);
+        addDelayedTask(f, 100);
     }
 }
 
@@ -868,12 +868,12 @@ void ThreadData::pollExternalRemove(int fd)
     }
 }
 
-uint32_t ThreadData::addTask(std::function<void ()> f, uint32_t delayMs)
+uint32_t ThreadData::addDelayedTask(std::function<void ()> f, uint32_t delayMs)
 {
     return delayedTasks.addTask(f, delayMs);
 }
 
-void ThreadData::removeTask(uint32_t id)
+void ThreadData::removeDelayedTask(uint32_t id)
 {
     delayedTasks.eraseTask(id);
 }
