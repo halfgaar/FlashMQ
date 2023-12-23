@@ -167,9 +167,9 @@ public:
     void writePing();
     void writePingResp();
     void writeLoginPacket();
-    void writeMqttPacket(const MqttPacket &packet);
-    void writeMqttPacketAndBlameThisClient(PublishCopyFactory &copyFactory, uint8_t max_qos, uint16_t packet_id, bool retain);
-    void writeMqttPacketAndBlameThisClient(const MqttPacket &packet);
+    PacketDropReason writeMqttPacket(const MqttPacket &packet);
+    PacketDropReason writeMqttPacketAndBlameThisClient(PublishCopyFactory &copyFactory, uint8_t max_qos, uint16_t packet_id, bool retain);
+    PacketDropReason writeMqttPacketAndBlameThisClient(const MqttPacket &packet);
     bool writeBufIntoFd();
     bool isBeingDisconnected() const { return disconnectWhenBytesWritten; }
     bool readyForDisconnecting() const { return disconnectWhenBytesWritten && writebuf.usedBytes() == 0; }

@@ -613,9 +613,17 @@ void SubscriptionStore::queuePacketAtSubscribers(PublishCopyFactory &copyFactory
 }
 
 void SubscriptionStore::giveClientRetainedMessagesRecursively(std::vector<std::string>::const_iterator cur_subtopic_it,
-                                                              std::vector<std::string>::const_iterator end, RetainedMessageNode *this_node,
-                                                              bool poundMode, std::forward_list<Publish> &packetList, int &count, const int limit)
+                                                              std::vector<std::string>::const_iterator end,
+                                                              const std::shared_ptr<RetainedMessageNode> &this_node,
+                                                              bool poundMode,
+                                                              const std::shared_ptr<Session> &session, const uint8_t max_qos,
+                                                              const std::chrono::time_point<std::chrono::steady_clock> &limit,
+                                                              std::deque<DeferredRetainedMessageNodeDelivery> &deferred,
+                                                              int &drop_count, int &processed_nodes_count)
 {
+    if (!this_node)
+        return;
+
     if (cur_subtopic_it == end)
     {
         Authentication &auth = *ThreadGlobals::getAuth();
@@ -631,21 +639,51 @@ void SubscriptionStore::giveClientRetainedMessagesRecursively(std::vector<std::s
                 Publish publish = rm.publish;
                 if (auth.aclCheck(publish, publish.payload) == AuthResult::success)
                 {
-                    packetList.push_front(std::move(publish));
-                    count++;
+                    PublishCopyFactory copyFactory(&publish);
+                    const PacketDropReason drop_reason = session->writePacket(copyFactory, max_qos, true);
+
+                    if (drop_reason == PacketDropReason::BufferFull || drop_reason == PacketDropReason::QoSTODOSomethingSomething)
+                    {
+                        drop_count++;
+
+                        DeferredRetainedMessageNodeDelivery d;
+                        d.node = this_node;
+                        d.cur = cur_subtopic_it;
+                        d.end = end;
+                        d.poundMode = poundMode;
+                        deferred.push_back(d);
+
+                        /*
+                         * Capacity-wise, we wouldn't have to return here if it was merely a QoS limit, but then it becomes hard
+                         * to filter out the children of this node, which you'd need to avoid duplicate deliveries. So,
+                         * this is the easier approach.
+                         */
+                        return;
+                    }
                 }
             }
         }
 
         if (poundMode)
         {
+            const int drop_count_start = drop_count;
+
             for (auto &pair : this_node->children)
             {
-                if (count >= limit)
-                    break;
-
-                std::shared_ptr<RetainedMessageNode> &child = pair.second;
-                giveClientRetainedMessagesRecursively(cur_subtopic_it, end, child.get(), poundMode, packetList, count, limit);
+                if (std::chrono::steady_clock::now() >= limit || drop_count_start != drop_count)
+                {
+                    DeferredRetainedMessageNodeDelivery d;
+                    d.node = pair.second;
+                    d.cur = cur_subtopic_it;
+                    d.end = end;
+                    d.poundMode = poundMode;
+                    deferred.push_back(d);
+                }
+                else
+                {
+                    std::shared_ptr<RetainedMessageNode> &child = pair.second;
+                    giveClientRetainedMessagesRecursively(cur_subtopic_it, end, child, poundMode, session, max_qos, limit, deferred, drop_count, ++processed_nodes_count);
+                }
             }
         }
 
@@ -658,28 +696,111 @@ void SubscriptionStore::giveClientRetainedMessagesRecursively(std::vector<std::s
     if (cur_subtop == "#")
     {
         // We start at this node, so that a subscription on 'one/two/three/#' gives you 'one/two/three' too.
-        giveClientRetainedMessagesRecursively(next_subtopic, end, this_node, true, packetList, count, limit);
+        giveClientRetainedMessagesRecursively(next_subtopic, end, this_node, true, session, max_qos, limit, deferred, drop_count, ++processed_nodes_count);
     }
     else if (cur_subtop == "+")
     {
+        const int drop_count_start = drop_count;
+
         for (std::pair<const std::string, std::shared_ptr<RetainedMessageNode>> &pair : this_node->children)
         {
-            if (count >= limit)
-                break;
-
-            std::shared_ptr<RetainedMessageNode> &child = pair.second;
-            if (child) // I don't think it can ever be unset, but I'd rather avoid a crash.
-                giveClientRetainedMessagesRecursively(next_subtopic, end, child.get(), false, packetList, count, limit);
+            if (std::chrono::steady_clock::now() >= limit || drop_count_start != drop_count)
+            {
+                DeferredRetainedMessageNodeDelivery d;
+                d.node = pair.second;
+                d.cur = next_subtopic;
+                d.end = end;
+                d.poundMode = poundMode;
+                deferred.push_back(d);
+            }
+            else
+            {
+                std::shared_ptr<RetainedMessageNode> &child = pair.second;
+                giveClientRetainedMessagesRecursively(next_subtopic, end, child, false, session, max_qos, limit, deferred, drop_count, ++processed_nodes_count);
+            }
         }
     }
-    else if (count < limit)
+    else
     {
-        RetainedMessageNode *children = this_node->getChildren(cur_subtop);
+        std::shared_ptr<RetainedMessageNode> children = this_node->getChildren(cur_subtop);
 
         if (children)
         {
-            giveClientRetainedMessagesRecursively(next_subtopic, end, children, false, packetList, count, limit);
+            if (std::chrono::steady_clock::now() >= limit)
+            {
+                DeferredRetainedMessageNodeDelivery d;
+                d.node = children;
+                d.cur = next_subtopic;
+                d.end = end;
+                d.poundMode = poundMode;
+                deferred.push_back(d);
+            }
+            else
+            {
+                giveClientRetainedMessagesRecursively(next_subtopic, end, children, false, session, max_qos, limit, deferred, drop_count, ++processed_nodes_count);
+            }
         }
+    }
+}
+
+void SubscriptionStore::giveClientRetainedMessagesInitiateDeferred(const std::weak_ptr<Session> ses,
+                                                                   const std::shared_ptr<const std::vector<std::string>> subscribeSubtopicsCopy,
+                                                                   std::shared_ptr<std::deque<DeferredRetainedMessageNodeDelivery>> deferred,
+                                                                   int &requeue_count, uint &total_node_count, uint8_t max_qos)
+{
+    std::shared_ptr<Session> session = ses.lock();
+
+    if (!session)
+        return;
+
+    const Settings *settings = ThreadGlobals::getSettings();
+
+    const std::chrono::time_point<std::chrono::steady_clock> new_limit = std::chrono::steady_clock::now() + std::chrono::milliseconds(10);
+    int drop_count = 0;
+    int processed_nodes = 0;
+
+    for (; !deferred->empty(); deferred->pop_front())
+    {
+        if (std::chrono::steady_clock::now() >= new_limit)
+            break;
+
+        if (drop_count > 0)
+            break;
+
+        DeferredRetainedMessageNodeDelivery &d = deferred->front();
+
+        std::shared_ptr<RetainedMessageNode> node = d.node.lock();
+
+        if (!node)
+            continue;
+
+        RWLockGuard locker(&retainedMessagesRwlock);
+        locker.rdlock();
+        giveClientRetainedMessagesRecursively(d.cur, d.end, node, d.poundMode, session, max_qos, new_limit, *deferred, drop_count, processed_nodes);
+    }
+
+    total_node_count += processed_nodes;
+
+    if (processed_nodes > 0)
+    {
+        requeue_count = 0;
+    }
+
+    if (!deferred->empty() && ++requeue_count < 100 && total_node_count < settings->retainedMessagesDeliveryLimit)
+    {
+        ThreadData *t = ThreadGlobals::getThreadData();
+        auto again = std::bind(&SubscriptionStore::giveClientRetainedMessagesInitiateDeferred, this, ses, subscribeSubtopicsCopy, deferred, requeue_count, total_node_count, max_qos);
+
+        /*
+         * Adding a delayed retry is kind of a cheap way to avoid detecting when there is buffer or QoS space in the event loop, but that comes
+         * with several layers of complexity that makes the the normal (non-retained) flow more complicated. Also, buffer full situations
+         * is probably most likely to happen when clients subscribe to a broad wildcard on a big subscription tree, and this
+         * allows some depriorirzation.
+         */
+        if (drop_count > 0)
+            t->addDelayedTask(again, 50);
+        else
+            t->addImmediateTask(again);
     }
 }
 
@@ -703,33 +824,23 @@ void SubscriptionStore::giveClientRetainedMessages(const std::shared_ptr<Session
             return;
     }
 
-    RetainedMessageNode *startNode = &retainedMessagesRoot;
+    const std::shared_ptr<RetainedMessageNode> *startNode = &retainedMessagesRoot;
     if (!subscribeSubtopics.empty() && !subscribeSubtopics[0].empty() > 0 && subscribeSubtopics[0][0] == '$')
         startNode = &retainedMessagesRootDollar;
 
-    std::forward_list<Publish> packetList;
+    const std::shared_ptr<const std::vector<std::string>> subscribeSubtopicsCopy = std::make_shared<const std::vector<std::string>>(subscribeSubtopics);
+    std::shared_ptr<std::deque<DeferredRetainedMessageNodeDelivery>> deferred = std::make_shared<std::deque<DeferredRetainedMessageNodeDelivery>>();
 
-    const int limit = settings->retainedMessagesDeliveryLimit;
-    bool limitReached = false;
+    DeferredRetainedMessageNodeDelivery start;
+    start.node = *startNode;
+    start.cur = subscribeSubtopicsCopy->begin();
+    start.end = subscribeSubtopicsCopy->end();
 
-    {
-        RWLockGuard locker(&retainedMessagesRwlock);
-        locker.rdlock();
-        int count = 0;
-        giveClientRetainedMessagesRecursively(subscribeSubtopics.begin(), subscribeSubtopics.end(), startNode, false, packetList, count, limit);
-        limitReached = count >= limit;
-    }
+    deferred->push_back(start);
 
-    if (limitReached)
-    {
-        logger->logf(LOG_DEBUG, "Reached limit of 'retained_messages_delivery_limit' when delivering retained messages.");
-    }
-
-    for(Publish &publish : packetList)
-    {
-        PublishCopyFactory copyFactory(&publish);
-        ses->writePacket(copyFactory, max_qos, true);
-    }
+    int requeue_count = 0;
+    uint total_node_count = 0;
+    giveClientRetainedMessagesInitiateDeferred(ses, subscribeSubtopicsCopy, deferred, requeue_count, total_node_count, max_qos);
 }
 
 void SubscriptionStore::setRetainedMessage(const Publish &publish, const std::vector<std::string> &subtopics)
@@ -741,9 +852,9 @@ void SubscriptionStore::setRetainedMessage(const Publish &publish, const std::ve
     if (settings->retainedMessagesMode != RetainedMessagesMode::Enabled)
         return;
 
-    RetainedMessageNode *deepestNode = &retainedMessagesRoot;
+    RetainedMessageNode *deepestNode = retainedMessagesRoot.get();
     if (!subtopics.empty() && !subtopics[0].empty() > 0 && subtopics[0][0] == '$')
-        deepestNode = &retainedMessagesRootDollar;
+        deepestNode = retainedMessagesRootDollar.get();
 
     bool needsWriteLock = false;
     auto subtopic_pos = subtopics.begin();
@@ -1090,7 +1201,7 @@ bool SubscriptionStore::expireRetainedMessages()
 
         RWLockGuard lock_guard(&retainedMessagesRwlock);
         lock_guard.wrlock();
-        this->expireRetainedMessages(&retainedMessagesRoot, limit, deferredRetainedMessageNodeToPurge);
+        this->expireRetainedMessages(retainedMessagesRoot.get(), limit, deferredRetainedMessageNodeToPurge);
 
         logger->log(LOG_INFO) << "Expiring retained messages done, with " << deferredRetainedMessageNodeToPurge.size() << " deferred nodes to check.";
     }
@@ -1297,7 +1408,7 @@ void SubscriptionStore::saveRetainedMessages(const std::string &filePath)
         RWLockGuard locker(&retainedMessagesRwlock);
         locker.rdlock();
         result.reserve(std::max<int64_t>(retainedMessageCount, 0));
-        getRetainedMessages(&retainedMessagesRoot, result);
+        getRetainedMessages(retainedMessagesRoot.get(), result);
     }
 
     logger->logf(LOG_DEBUG, "Collected %zu retained messages to save.", result.size());
@@ -1439,12 +1550,12 @@ void RetainedMessageNode::addPayload(const Publish &publish, int64_t &totalCount
  * @param subtopic
  * @return
  */
-RetainedMessageNode *RetainedMessageNode::getChildren(const std::string &subtopic) const
+std::shared_ptr<RetainedMessageNode> RetainedMessageNode::getChildren(const std::string &subtopic) const
 {
     auto it = children.find(subtopic);
     if (it != children.end())
-        return it->second.get();
-    return nullptr;
+        return it->second;
+    return std::shared_ptr<RetainedMessageNode>();
 }
 
 bool RetainedMessageNode::isOrphaned() const

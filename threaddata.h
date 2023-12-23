@@ -157,6 +157,8 @@ public:
     void pollExternalRemove(int fd);
     uint32_t addDelayedTask(std::function<void()> f, uint32_t delayMs);
     void removeDelayedTask(uint32_t id);
+
+    void addImmediateTask(std::function<void()> f);
 };
 
 #endif // THREADDATA_H

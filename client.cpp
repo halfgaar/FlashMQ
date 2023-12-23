@@ -271,7 +271,7 @@ void Client::writePing()
     setReadyForWriting(true);
 }
 
-void Client::writeMqttPacket(const MqttPacket &packet)
+PacketDropReason Client::writeMqttPacket(const MqttPacket &packet)
 {
     const size_t packetSize = packet.getSizeIncludingNonPresentHeader();
 
@@ -279,7 +279,7 @@ void Client::writeMqttPacket(const MqttPacket &packet)
     // sending that Application Message [MQTT-3.1.2-25]."
     if (packetSize > this->maxOutgoingPacketSize)
     {
-        return;
+        return PacketDropReason::BiggerThanPacketLimit;
     }
 
     const Settings *settings = ThreadGlobals::getSettings();
@@ -296,7 +296,7 @@ void Client::writeMqttPacket(const MqttPacket &packet)
     // QoS packet are queued and limited elsewhere.
     if (packet.packetType == PacketType::PUBLISH && packet.getQos() == 0 && packetSize > writebuf.freeSpace())
     {
-        return;
+        return PacketDropReason::BufferFull;
     }
 
     packet.readIntoBuf(writebuf);
@@ -310,9 +310,11 @@ void Client::writeMqttPacket(const MqttPacket &packet)
         setReadyForDisconnect();
 
     setReadyForWriting(true);
+
+    return PacketDropReason::Success;
 }
 
-void Client::writeMqttPacketAndBlameThisClient(PublishCopyFactory &copyFactory, uint8_t max_qos, uint16_t packet_id, bool retain)
+PacketDropReason Client::writeMqttPacketAndBlameThisClient(PublishCopyFactory &copyFactory, uint8_t max_qos, uint16_t packet_id, bool retain)
 {
     uint16_t topic_alias = 0;
     bool skip_topic = false;
@@ -343,21 +345,23 @@ void Client::writeMqttPacketAndBlameThisClient(PublishCopyFactory &copyFactory, 
 
     p->setRetain(retain);
 
-    writeMqttPacketAndBlameThisClient(*p);
+    return writeMqttPacketAndBlameThisClient(*p);
 }
 
 // Helper method to avoid the exception ending up at the sender of messages, which would then get disconnected.
-void Client::writeMqttPacketAndBlameThisClient(const MqttPacket &packet)
+PacketDropReason Client::writeMqttPacketAndBlameThisClient(const MqttPacket &packet)
 {
     try
     {
-        this->writeMqttPacket(packet);
+        return this->writeMqttPacket(packet);
     }
     catch (std::exception &ex)
     {
         std::shared_ptr<ThreadData> td = this->threadData.lock();
         if (td)
             td->removeClientQueued(fd);
+
+        return PacketDropReason::ClientError;
     }
 }
 

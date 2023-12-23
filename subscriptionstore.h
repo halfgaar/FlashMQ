@@ -71,7 +71,7 @@ class RetainedMessageNode
     std::unique_ptr<RetainedMessage> message;
 
     void addPayload(const Publish &publish, int64_t &totalCount);
-    RetainedMessageNode *getChildren(const std::string &subtopic) const;
+    std::shared_ptr<RetainedMessageNode> getChildren(const std::string &subtopic) const;
     bool isOrphaned() const;
 };
 
@@ -85,6 +85,14 @@ public:
 
     const std::weak_ptr<WillPublish> &getWill() const;
     std::shared_ptr<Session> getSession();
+};
+
+struct DeferredRetainedMessageNodeDelivery
+{
+    std::weak_ptr<RetainedMessageNode> node;
+    std::vector<std::string>::const_iterator cur;
+    std::vector<std::string>::const_iterator end;
+    bool poundMode = false;
 };
 
 class SubscriptionStore
@@ -104,8 +112,8 @@ class SubscriptionStore
 
     pthread_rwlock_t retainedMessagesRwlock = PTHREAD_RWLOCK_INITIALIZER;
     std::deque<std::weak_ptr<RetainedMessageNode>> deferredRetainedMessageNodeToPurge;
-    RetainedMessageNode retainedMessagesRoot;
-    RetainedMessageNode retainedMessagesRootDollar;
+    const std::shared_ptr<RetainedMessageNode> retainedMessagesRoot = std::make_shared<RetainedMessageNode>();
+    const std::shared_ptr<RetainedMessageNode> retainedMessagesRootDollar = std::make_shared<RetainedMessageNode>();
     int64_t retainedMessageCount = 0;
 
     int64_t subscriptionCount = 0;
@@ -123,8 +131,11 @@ class SubscriptionStore
     static void publishRecursively(std::vector<std::string>::const_iterator cur_subtopic_it, std::vector<std::string>::const_iterator end,
                             SubscriptionNode *this_node, std::forward_list<ReceivingSubscriber> &targetSessions, size_t distributionHash, const std::string &senderClientId);
     static void giveClientRetainedMessagesRecursively(std::vector<std::string>::const_iterator cur_subtopic_it,
-                                               std::vector<std::string>::const_iterator end, RetainedMessageNode *this_node, bool poundMode,
-                                               std::forward_list<Publish> &packetList, int &count, const int limit);
+                                                      std::vector<std::string>::const_iterator end, const std::shared_ptr<RetainedMessageNode> &this_node, bool poundMode,
+                                                      const std::shared_ptr<Session> &session, const uint8_t max_qos,
+                                                      const std::chrono::time_point<std::chrono::steady_clock> &limit,
+                                                      std::deque<DeferredRetainedMessageNodeDelivery> &deferred,
+                                                      int &drop_count, int &processed_nodes_count);
     void getRetainedMessages(RetainedMessageNode *this_node, std::vector<RetainedMessage> &outputList) const;
     void getSubscriptions(SubscriptionNode *this_node, const std::string &composedTopic, bool root,
                           std::unordered_map<std::string, std::list<SubscriptionForSerializing>> &outputList) const;
@@ -149,6 +160,10 @@ public:
     void queuePacketAtSubscribers(PublishCopyFactory &copyFactory, const std::string &senderClientId, bool dollar = false);
     void giveClientRetainedMessages(const std::shared_ptr<Session> &ses,
                                     const std::vector<std::string> &subscribeSubtopics, uint8_t max_qos);
+    void giveClientRetainedMessagesInitiateDeferred(const std::weak_ptr<Session> ses,
+                                                    const std::shared_ptr<const std::vector<std::string>> subscribeSubtopicsCopy,
+                                                    std::shared_ptr<std::deque<DeferredRetainedMessageNodeDelivery>> deferred,
+                                                    int &requeue_count, uint &total_node_count, uint8_t max_qos);
 
     void setRetainedMessage(const Publish &publish, const std::vector<std::string> &subtopics);
 

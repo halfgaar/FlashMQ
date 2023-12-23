@@ -878,6 +878,22 @@ void ThreadData::removeDelayedTask(uint32_t id)
     delayedTasks.eraseTask(id);
 }
 
+void ThreadData::addImmediateTask(std::function<void ()> f)
+{
+    bool wakeupNeeded = true;
+
+    {
+        std::lock_guard<std::mutex> lockertaskQueue(taskQueueMutex);
+        wakeupNeeded = taskQueue.empty();
+        taskQueue.push_back(f);
+    }
+
+    if (wakeupNeeded)
+    {
+        wakeUpThread();
+    }
+}
+
 void ThreadData::doKeepAliveCheck()
 {
     logger->logf(LOG_DEBUG, "doKeepAliveCheck in thread %d", threadnr);

@@ -469,7 +469,7 @@ void MainTests::test_retained_tree_purging()
     store->expireRetainedMessages();
 
     std::vector<RetainedMessage> list;
-    store->getRetainedMessages(&store->retainedMessagesRoot, list);
+    store->getRetainedMessages(store->retainedMessagesRoot.get(), list);
 
     QVERIFY(std::none_of(list.begin(), list.end(), [](RetainedMessage &rm) {
         return rm.publish.payload == "willexpire";

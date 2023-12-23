@@ -120,7 +120,7 @@ void Session::assignActiveConnection(std::shared_ptr<Client> &client)
  * @param retain. Keep MQTT-3.3.1-9 in mind: existing subscribers don't get retain=1 on packets.
  * @param count. Reference value is updated. It's for statistics.
  */
-void Session::writePacket(PublishCopyFactory &copyFactory, const uint8_t max_qos, bool retainAsPublished)
+PacketDropReason Session::writePacket(PublishCopyFactory &copyFactory, const uint8_t max_qos, bool retainAsPublished)
 {
     assert(max_qos <= 2);
 
@@ -144,14 +144,14 @@ void Session::writePacket(PublishCopyFactory &copyFactory, const uint8_t max_qos
 
     if (aclResult != AuthResult::success)
     {
-        return;
+        return PacketDropReason::AuthDenied;
     }
 
     if (effectiveQos == 0)
     {
         if (c)
-            c->writeMqttPacketAndBlameThisClient(copyFactory, effectiveQos, 0, effectiveRetain);
-        return;
+            return c->writeMqttPacketAndBlameThisClient(copyFactory, effectiveQos, 0, effectiveRetain);
+        return PacketDropReason::ClientOffline;
     }
 
     std::unique_lock<std::mutex> locker(qosQueueMutex);
@@ -172,7 +172,7 @@ void Session::writePacket(PublishCopyFactory &copyFactory, const uint8_t max_qos
                                       "or 'max_qos_bytes_pending_per_client' (but this is also subject the client's 'receive max').", client_id.c_str());
             QoSLogPrintedAtId = nextPacketId;
         }
-        return;
+        return PacketDropReason::QoSTODOSomethingSomething;
     }
 
     const uint16_t pack_id = getNextPacketId();
@@ -180,10 +180,14 @@ void Session::writePacket(PublishCopyFactory &copyFactory, const uint8_t max_qos
     if (requiresQoSQueueing())
         qosPacketQueue.queuePublish(copyFactory, pack_id, effectiveQos, effectiveRetain);
 
+    PacketDropReason return_value = PacketDropReason::ClientOffline;
+
     if (c)
     {
-        c->writeMqttPacketAndBlameThisClient(copyFactory, effectiveQos, pack_id, effectiveRetain);
+        return_value = c->writeMqttPacketAndBlameThisClient(copyFactory, effectiveQos, pack_id, effectiveRetain);
     }
+
+    return return_value;
 }
 
 /**

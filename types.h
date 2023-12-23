@@ -358,4 +358,15 @@ struct Unsubscribe
     size_t getLengthWithoutFixedHeader() const;
 };
 
+enum class PacketDropReason
+{
+    Success,
+    ClientError,
+    ClientOffline,
+    AuthDenied,
+    BiggerThanPacketLimit,
+    BufferFull,
+    QoSTODOSomethingSomething
+};
+
 #endif // TYPES_H
