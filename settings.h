@@ -80,6 +80,7 @@ public:
     uint maxQosBytesPendingPerClient = 65536;
     bool willsEnabled = true;
     uint32_t retainedMessagesDeliveryLimit = 2048;
+    uint32_t retainedMessagesNodeLimit = std::numeric_limits<uint32_t>::max();
     RetainedMessagesMode retainedMessagesMode = RetainedMessagesMode::Enabled;
     SharedSubscriptionTargeting sharedSubscriptionTargeting = SharedSubscriptionTargeting::RoundRobin;
     std::list<std::shared_ptr<Listener>> listeners; // Default one is created later, when none are defined.

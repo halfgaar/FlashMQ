@@ -141,6 +141,7 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validKeys.insert("max_qos_bytes_pending_per_client");
     validKeys.insert("wills_enabled");
     validKeys.insert("retained_messages_mode");
+    validKeys.insert("retained_messages_node_limit");
     validKeys.insert("expire_retained_messages_after_seconds");
     validKeys.insert("expire_retained_messages_time_budget_ms");
     validKeys.insert("websocket_set_real_ip_from");
@@ -891,12 +892,17 @@ void ConfigFileParser::loadFile(bool test)
 
                 if (testKeyValidity(key, "retained_messages_delivery_limit", validKeys))
                 {
+                    Logger::getInstance()->log(LOG_WARNING) << "The config option '" << key << "' is deprecated. Use 'retained_messages_node_limit' instead.";
+                }
+
+                if (testKeyValidity(key, "retained_messages_node_limit", validKeys))
+                {
                     const uint32_t newVal = std::stoul(value);
 
                     if (newVal == 0)
-                        throw ConfigFileException("Set retained_messages_delivery_limit higher than 0, or use 'retained_messages_mode'.");
+                        throw ConfigFileException("Set '" + key + "' higher than 0, or use 'retained_messages_mode'.");
 
-                    tmpSettings.retainedMessagesDeliveryLimit = newVal;
+                    tmpSettings.retainedMessagesNodeLimit = newVal;
                 }
             }
         }
