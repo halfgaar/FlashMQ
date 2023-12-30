@@ -13,7 +13,7 @@ See LICENSE for license details.
 
 #include <functional>
 #include <set>
-#include <unordered_map>
+#include <map>
 #include <memory>
 #include <chrono>
 
@@ -21,6 +21,7 @@ struct QueuedTask
 {
     std::chrono::time_point<std::chrono::steady_clock> when;
     uint32_t id = 0;
+    std::weak_ptr<std::function<void()>> f;
 
     bool operator<(const QueuedTask &rhs) const;
 };
@@ -34,7 +35,7 @@ class QueuedTasks
 {
     uint32_t nextId = 1;
     std::multiset<QueuedTask> queuedTasks;
-    std::unordered_map<uint32_t, std::function<void()>> tasks;
+    std::map<uint32_t, std::shared_ptr<std::function<void()>>> tasks;
     std::chrono::time_point<std::chrono::steady_clock> next = std::chrono::time_point<std::chrono::steady_clock>::max();
 
 public:

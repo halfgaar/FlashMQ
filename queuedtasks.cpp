@@ -28,13 +28,15 @@ uint32_t QueuedTasks::addTask(std::function<void ()> f, uint32_t delayInMs)
 {
     std::chrono::time_point<std::chrono::steady_clock> when = std::chrono::steady_clock::now() + std::chrono::milliseconds(delayInMs);
 
-    while(++nextId == 0) {}
+    while(++nextId == 0 || tasks.find(nextId) != tasks.end()) { }
 
     const uint32_t id = nextId;
-    tasks[id] = f;
+    std::shared_ptr<std::function<void()>> &inserted = tasks[id];
+    inserted = std::make_shared<std::function<void()>>(std::move(f));
 
     QueuedTask t;
     t.id = id;
+    t.f = inserted;
     t.when = when;
 
     queuedTasks.insert(t);
@@ -64,7 +66,7 @@ void QueuedTasks::performAll()
     next = std::chrono::time_point<std::chrono::steady_clock>::max();
     const auto now = std::chrono::steady_clock::now();
 
-    std::list<std::function<void()>> copiedTasks;
+    std::list<std::shared_ptr<std::function<void()>>> copiedTasks;
 
     auto _pos = queuedTasks.begin();
     while (_pos != queuedTasks.end())
@@ -72,31 +74,32 @@ void QueuedTasks::performAll()
         auto pos = _pos;
         _pos++;
 
-        const QueuedTask &t = *pos;
-
-        if (t.when > now)
+        if (pos->when > now)
         {
-            next = t.when;
+            next = pos->when;
             break;
         }
 
-        const uint32_t id = t.id;
+        const uint32_t id = pos->id;
+        std::shared_ptr<std::function<void()>> queued_f = pos->f.lock();
         queuedTasks.erase(pos);
 
         auto tpos = tasks.find(id);
-        if (tpos != tasks.end())
+        if (tpos != tasks.end() && queued_f == tpos->second)
         {
-            auto f = tpos->second;
-            tasks.erase(tpos); // TODO: allow repeatable tasks? It would require more expensive nextId generation.
-            copiedTasks.push_back(f);
+            copiedTasks.push_back(tpos->second);
+            tasks.erase(tpos); // TODO: allow repeatable tasks?
         }
     }
 
-    for(auto &f : copiedTasks)
+    for(std::shared_ptr<std::function<void()>> &f : copiedTasks)
     {
         try
         {
-            f();
+            if (!f)
+                continue;
+
+            f->operator()();
         }
         catch (std::exception &ex)
         {
