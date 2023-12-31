@@ -444,13 +444,22 @@
         <dt id="retained_messages_delivery_limit"><code class="option">retained_messages_delivery_limit</code> <code class="replaceable">number</code><a class="hash-anchor" href="#retained_messages_delivery_limit">#</a></dt>
         <dd>
           <p>
-            When clients place a subscription, they will get the retained messages matching that subscription. However, if you have millions, clients subscribing to '#' will cause a heavy load. Use this setting to limit to what you need/expect. 
+            Deprecated.
+          </p>
+        </dd>
+      
+
+      
+        <dt id="retained_messages_node_limit"><code class="option">retained_messages_node_limit</code> <code class="replaceable">number</code><a class="hash-anchor" href="#retained_messages_node_limit">#</a></dt>
+        <dd>
+          <p>
+            When clients place a subscription, they will get the retained messages matching that subscription. Even though traversing the retained message tree is deprioritized in favor of other traffic, it will still cause CPU load until it's done. If you have a tree with millions of nodes and clients subscribe to `#`, this is potentially unwanted. You can use this setting to limit how many nodes of the retrained tree are traversed. 
           </p>
           <p>
-            Note that clients will also have (buffer) limits, so even if you set this high, clients may drop messages as well.
+            Note that the topic `one/two/three` is three nodes, and each node doesn't necessarilly need to contain a message.
           </p>
           <p>
-            Default value: <code class="filename">2048</code>
+            Default value: <code class="filename">4294967296</code>
           </p>
         </dd>
       

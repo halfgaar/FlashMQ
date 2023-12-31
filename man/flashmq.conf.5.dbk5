@@ -389,13 +389,22 @@
         <term><option>retained_messages_delivery_limit</option> <replaceable>number</replaceable></term>
         <listitem>
           <para>
-            When clients place a subscription, they will get the retained messages matching that subscription. However, if you have millions, clients subscribing to '#' will cause a heavy load. Use this setting to limit to what you need/expect. 
+            Deprecated.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry xml:id="retained_messages_node_limit">
+        <term><option>retained_messages_node_limit</option> <replaceable>number</replaceable></term>
+        <listitem>
+          <para>
+            When clients place a subscription, they will get the retained messages matching that subscription. Even though traversing the retained message tree is deprioritized in favor of other traffic, it will still cause CPU load until it's done. If you have a tree with millions of nodes and clients subscribe to `#`, this is potentially unwanted. You can use this setting to limit how many nodes of the retrained tree are traversed. 
           </para>
           <para>
-            Note that clients will also have (buffer) limits, so even if you set this high, clients may drop messages as well.
+            Note that the topic `one/two/three` is three nodes, and each node doesn't necessarilly need to contain a message.
           </para>
           <para>
-            Default value: <filename>2048</filename>
+            Default value: <filename>4294967296</filename>
           </para>
         </listitem>
       </varlistentry>
