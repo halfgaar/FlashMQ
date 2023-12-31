@@ -11,10 +11,10 @@
  * It's best practice to build your plugin with the same library versions of the
  * build of FlashMQ you're using. In practice, this means building on the OS
  * version you're running on. This also means using the AppImage build of FlashMQ
- * is not really compabible with plugins, because that includes older, and fixed,
+ * is not really compatible with plugins, because that includes older, and fixed,
  * versions of various libraries.
  *
- * For instance, if you use OpenSSL, by the time your plugin is loaded, FlashMQ will
+ * For instance, if you use OpenSSL: by the time your plugin is loaded, FlashMQ will
  * have already dynamically linked OpenSSL. If you then try to call OpenSSL
  * functions, you'll run into ABI incompatibilities.
  */
@@ -251,6 +251,8 @@ void flashmq_plugin_poll_event_received(void *thread_data, int fd, uint32_t even
  * @param delay_in_ms
  * @return id of the timer, which can be used to remove it.
  *
+ * The task queue is local to the thread, including the id returned.
+ *
  * This can be necessary for asynchronous interfaces, like libcurl.
  *
  * Can throw an exceptions.
@@ -262,6 +264,8 @@ uint32_t flashmq_add_task(std::function<void()> f, uint32_t delay_in_ms);
 /**
  * @brief Remove a task with id as given by 'flashmq_add_task()'.
  * @param id
+ *
+ * The task queue is local to the thread, including the id returned.
  *
  * [Function provided by FlashMQ]
  */
