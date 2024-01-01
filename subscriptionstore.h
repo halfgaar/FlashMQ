@@ -136,7 +136,9 @@ class SubscriptionStore
                                                       const std::chrono::time_point<std::chrono::steady_clock> &limit,
                                                       std::deque<DeferredRetainedMessageNodeDelivery> &deferred,
                                                       int &drop_count, int &processed_nodes_count);
-    void getRetainedMessages(RetainedMessageNode *this_node, std::vector<RetainedMessage> &outputList) const;
+    void getRetainedMessages(RetainedMessageNode *this_node, std::vector<RetainedMessage> &outputList,
+                             const std::chrono::time_point<std::chrono::steady_clock> &limit,
+                             std::deque<std::weak_ptr<RetainedMessageNode>> &deferred) const;
     void getSubscriptions(SubscriptionNode *this_node, const std::string &composedTopic, bool root,
                           std::unordered_map<std::string, std::list<SubscriptionForSerializing>> &outputList) const;
     void countSubscriptions(SubscriptionNode *this_node, int64_t &count) const;
@@ -178,7 +180,7 @@ public:
     uint64_t getSessionCount() const;
     int64_t getSubscriptionCount();
 
-    void saveRetainedMessages(const std::string &filePath);
+    void saveRetainedMessages(const std::string &filePath, bool sleep_after_limit);
     void loadRetainedMessages(const std::string &filePath);
 
     void saveSessionsAndSubscriptions(const std::string &filePath);

@@ -469,7 +469,11 @@ void MainTests::test_retained_tree_purging()
     store->expireRetainedMessages();
 
     std::vector<RetainedMessage> list;
-    store->getRetainedMessages(store->retainedMessagesRoot.get(), list);
+    const std::chrono::time_point<std::chrono::steady_clock> limit = std::chrono::steady_clock::now() + std::chrono::milliseconds(1000);
+    std::deque<std::weak_ptr<RetainedMessageNode>> deferred;
+    store->getRetainedMessages(store->retainedMessagesRoot.get(), list, limit, deferred);
+
+    QVERIFY(deferred.empty());
 
     QVERIFY(std::none_of(list.begin(), list.end(), [](RetainedMessage &rm) {
         return rm.publish.payload == "willexpire";

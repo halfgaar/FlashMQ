@@ -84,7 +84,7 @@ class MainApp
     void queuepluginPeriodicEventAllThreads();
     void setFuzzFile(const std::string &fuzzFilePath);
     void queuePublishStatsOnDollarTopic();
-    static void saveState(const Settings &settings, const std::list<BridgeInfoForSerializing> &bridgeInfos);
+    static void saveState(const Settings &settings, const std::list<BridgeInfoForSerializing> &bridgeInfos, bool sleep_after_limit);
     static void saveBridgeInfo(const std::string &filePath, const std::list<BridgeInfoForSerializing> &bridgeInfos);
     void loadBridgeInfo();
     void saveStateInThread();

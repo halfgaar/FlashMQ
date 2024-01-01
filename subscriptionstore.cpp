@@ -21,6 +21,7 @@ See LICENSE for license details.
 #include "plugin.h"
 #include "exceptions.h"
 #include "threaddata.h"
+#include <deque>
 
 ReceivingSubscriber::ReceivingSubscriber(const std::shared_ptr<Session> &ses, uint8_t qos, bool retainAsPublished) :
     session(ses),
@@ -1273,7 +1274,9 @@ int64_t SubscriptionStore::getSubscriptionCount()
     */
 }
 
-void SubscriptionStore::getRetainedMessages(RetainedMessageNode *this_node, std::vector<RetainedMessage> &outputList) const
+void SubscriptionStore::getRetainedMessages(RetainedMessageNode *this_node, std::vector<RetainedMessage> &outputList,
+                                            const std::chrono::time_point<std::chrono::steady_clock> &limit,
+                                            std::deque<std::weak_ptr<RetainedMessageNode>> &deferred) const
 {
     {
         std::lock_guard<std::mutex> locker(this_node->messageSetMutex);
@@ -1284,7 +1287,11 @@ void SubscriptionStore::getRetainedMessages(RetainedMessageNode *this_node, std:
     for(auto &pair : this_node->children)
     {
         const std::shared_ptr<RetainedMessageNode> &child = pair.second;
-        getRetainedMessages(child.get(), outputList);
+
+        if (std::chrono::steady_clock::now() > limit)
+            deferred.push_back(child);
+        else
+            getRetainedMessages(child.get(), outputList, limit, deferred);
     }
 }
 
@@ -1398,20 +1405,40 @@ void SubscriptionStore::expireRetainedMessages(RetainedMessageNode *this_node, c
     }
 }
 
-void SubscriptionStore::saveRetainedMessages(const std::string &filePath)
+void SubscriptionStore::saveRetainedMessages(const std::string &filePath, bool sleep_after_limit)
 {
     logger->logf(LOG_INFO, "Saving retained messages to '%s'", filePath.c_str());
 
     std::vector<RetainedMessage> result;
+    int64_t reserve = std::max<int64_t>(retainedMessageCount, 0);
+    reserve = std::min<int64_t>(reserve, 1000000);
+    result.reserve(reserve);
 
+    std::deque<std::weak_ptr<RetainedMessageNode>> deferred;
+
+    deferred.push_back(retainedMessagesRoot);
+
+    for (; !deferred.empty(); deferred.pop_front())
     {
-        RWLockGuard locker(&retainedMessagesRwlock);
-        locker.rdlock();
-        result.reserve(std::max<int64_t>(retainedMessageCount, 0));
-        getRetainedMessages(retainedMessagesRoot.get(), result);
+        {
+            RWLockGuard locker(&retainedMessagesRwlock);
+            locker.rdlock();
+
+            std::shared_ptr<RetainedMessageNode> node = deferred.front().lock();
+
+            if (!node)
+                continue;
+
+            const std::chrono::time_point<std::chrono::steady_clock> limit = std::chrono::steady_clock::now() + std::chrono::milliseconds(5);
+            getRetainedMessages(node.get(), result, limit, deferred);
+        }
+
+        // Because we only do this operation in background threads or on exit, we don't have to requeue, so can just sleep.
+        if (sleep_after_limit && !deferred.empty())
+            std::this_thread::sleep_for(std::chrono::microseconds(100));
     }
 
-    logger->logf(LOG_DEBUG, "Collected %zu retained messages to save.", result.size());
+    logger->log(LOG_DEBUG) << "Collected " << result.size() << " retained messages to save.";
 
     // Then do the IO without locking the threads.
     RetainedMessagesDB db(filePath);

@@ -278,7 +278,7 @@ void MainApp::saveStateInThread()
 {
     std::list<BridgeInfoForSerializing> bridgeInfos = BridgeInfoForSerializing::getBridgeInfosForSerializing(this->bridges);
 
-    auto f = std::bind(&MainApp::saveState, this->settings, bridgeInfos);
+    auto f = std::bind(&MainApp::saveState, this->settings, bridgeInfos, true);
     this->bgWorker.addTask(f);
 
 
@@ -360,7 +360,7 @@ void MainApp::queueBridgeReconnectAllThreads(bool alsoQueueNexts)
  * @param settings A local settings, copied from a std::bind copy when running in a thread, because of thread safety.
  * @param bridgeInfos is a list of objects already prepared from the original bridge configs, to avoid concurrent access.
  */
-void MainApp::saveState(const Settings &settings, const std::list<BridgeInfoForSerializing> &bridgeInfos)
+void MainApp::saveState(const Settings &settings, const std::list<BridgeInfoForSerializing> &bridgeInfos, bool sleep_after_limit)
 {
     Logger *logger = Logger::getInstance();
 
@@ -372,7 +372,7 @@ void MainApp::saveState(const Settings &settings, const std::list<BridgeInfoForS
 
             const std::string retainedDBPath = settings.getRetainedMessagesDBFile();
             if (settings.retainedMessagesMode == RetainedMessagesMode::Enabled)
-                subscriptionStore->saveRetainedMessages(retainedDBPath);
+                subscriptionStore->saveRetainedMessages(retainedDBPath, sleep_after_limit);
             else
                 logger->logf(LOG_INFO, "Not saving '%s', because 'retained_messages_mode' is not 'enabled'.", retainedDBPath.c_str());
 
@@ -845,7 +845,7 @@ void MainApp::start()
     this->bgWorker.waitForStop();
 
     std::list<BridgeInfoForSerializing> bridgeInfos = BridgeInfoForSerializing::getBridgeInfosForSerializing(this->bridges);
-    saveState(this->settings, bridgeInfos);
+    saveState(this->settings, bridgeInfos, false);
 }
 
 void MainApp::queueQuit()
