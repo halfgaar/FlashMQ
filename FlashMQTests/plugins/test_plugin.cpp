@@ -191,6 +191,9 @@ AuthResult flashmq_plugin_acl_check(void *thread_data, const AclAccess access, c
     (void)retain;
     (void)userProperties;
 
+    if (access == AclAccess::subscribe && clientid == "success_without_retained_delivery")
+        return AuthResult::success_without_retained_delivery;
+
     if (clientid == "test_user_without_retain_as_published_CswU21YA" && access == AclAccess::read)
         assert(!retain);
 

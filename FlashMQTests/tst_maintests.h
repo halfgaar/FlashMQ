@@ -199,6 +199,7 @@ private slots:
     void testWillDenialByPlugin();
     void testPluginMainInit();
     void testAsyncCurl();
+    void testSubscribeWithoutRetainedDelivery();
 
     void testPublishToItself();
     void testNoLocalPublishToItself();
