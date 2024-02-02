@@ -1307,9 +1307,11 @@ void MqttPacket::handleSubscribe()
         std::string shareName;
         parseSubscriptionShare(subtopics, shareName);
 
-        if (authentication.aclCheck(sender->getClientId(), sender->getUsername(), topic, subtopics, std::string_view(), AclAccess::subscribe, qos, false, getUserProperties()) == AuthResult::success)
+        const AuthResult authResult = authentication.aclCheck(sender->getClientId(), sender->getUsername(), topic, subtopics, std::string_view(), AclAccess::subscribe, qos, false, getUserProperties());
+
+        if (authResult == AuthResult::success || authResult == AuthResult::success_without_retained_delivery)
         {
-            deferredSubscribes.emplace_front(topic, subtopics, qos, noLocal, retainedAsPublished, shareName);
+            deferredSubscribes.emplace_front(topic, subtopics, qos, noLocal, retainedAsPublished, shareName, authResult);
             subs_reponse_codes.push_back(static_cast<ReasonCodes>(qos));
         }
         else
@@ -1336,7 +1338,7 @@ void MqttPacket::handleSubscribe()
     for(const SubscriptionTuple &tup : deferredSubscribes)
     {
         logger->logf(LOG_SUBSCRIBE, "Client '%s' subscribed to '%s' QoS %d", sender->repr().c_str(), tup.topic.c_str(), tup.qos);
-        MainApp::getMainApp()->getSubscriptionStore()->addSubscription(sender, tup.subtopics, tup.qos, tup.noLocal, tup.retainAsPublished, tup.shareName);
+        MainApp::getMainApp()->getSubscriptionStore()->addSubscription(sender, tup.subtopics, tup.qos, tup.noLocal, tup.retainAsPublished, tup.shareName, tup.authResult);
     }
 }
 
@@ -2163,13 +2165,15 @@ void MqttPacket::readIntoBuf(CirBuf &buf) const
     buf.write(bites.data(), bites.size());
 }
 
-SubscriptionTuple::SubscriptionTuple(const std::string &topic, const std::vector<std::string> &subtopics, uint8_t qos, bool noLocal, bool retainAsPublished, const std::string &shareName) :
+SubscriptionTuple::SubscriptionTuple(const std::string &topic, const std::vector<std::string> &subtopics, uint8_t qos, bool noLocal, bool retainAsPublished,
+                                     const std::string &shareName, const AuthResult authResult) :
     topic(topic),
     subtopics(subtopics),
     qos(qos),
     noLocal(noLocal),
     retainAsPublished(retainAsPublished),
-    shareName(shareName)
+    shareName(shareName),
+    authResult(authResult)
 {
 
 }

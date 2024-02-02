@@ -150,7 +150,8 @@ public:
     SubscriptionStore();
 
     void addSubscription(std::shared_ptr<Client> &client, const std::vector<std::string> &subtopics, uint8_t qos, bool noLocal, bool retainAsPublished);
-    void addSubscription(std::shared_ptr<Client> &client, const std::vector<std::string> &subtopics, uint8_t qos, bool noLocal, bool retainAsPublished, const std::string &shareName);
+    void addSubscription(std::shared_ptr<Client> &client, const std::vector<std::string> &subtopics, uint8_t qos, bool noLocal, bool retainAsPublished,
+                         const std::string &shareName, AuthResult authResult);
     void removeSubscription(std::shared_ptr<Client> &client, const std::string &topic);
     std::shared_ptr<Session> getBridgeSession(std::shared_ptr<Client> &client);
     void registerClientAndKickExistingOne(std::shared_ptr<Client> &client);

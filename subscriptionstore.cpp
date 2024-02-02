@@ -167,11 +167,11 @@ SubscriptionNode *SubscriptionStore::getDeepestNode(const std::vector<std::strin
 void SubscriptionStore::addSubscription(std::shared_ptr<Client> &client, const std::vector<std::string> &subtopics, uint8_t qos, bool noLocal, bool retainAsPublished)
 {
     const static std::string empty;
-    addSubscription(client, subtopics, qos, noLocal, retainAsPublished, empty);
+    addSubscription(client, subtopics, qos, noLocal, retainAsPublished, empty, AuthResult::success);
 }
 
 void SubscriptionStore::addSubscription(std::shared_ptr<Client> &client, const std::vector<std::string> &subtopics, uint8_t qos, bool noLocal, bool retainAsPublished,
-                                        const std::string &shareName)
+                                        const std::string &shareName, AuthResult authResult)
 {
     RWLockGuard lock_guard(&sessionsAndSubscriptionsRwlock);
     lock_guard.wrlock();
@@ -194,7 +194,7 @@ void SubscriptionStore::addSubscription(std::shared_ptr<Client> &client, const s
     subscriptionCount++;
     lock_guard.unlock();
 
-    if (shareName.empty())
+    if (authResult == AuthResult::success && shareName.empty())
         giveClientRetainedMessages(ses, subtopics, qos);
 
 }

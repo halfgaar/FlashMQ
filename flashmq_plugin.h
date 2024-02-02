@@ -69,6 +69,10 @@ enum class AclAccess
  * async = defer the decision until you have the result from an async call, which can be submitted with flashmq_continue_async_authentication().
  *
  * auth_continue = part of MQTT5 extended authentication, which can be a back-and-forth between server and client.
+ *
+ * success_without_retained_delivery = allow the subscription action, but don't try to give client the matching retained messages. This
+ * can be used prevent load on the server. For instance, if there are many retained messages and clients subscribe to '#'. This value
+ * is only valid for AclAccess::subscribe.
  */
 enum class AuthResult
 {
@@ -78,6 +82,7 @@ enum class AuthResult
     login_denied = 11,
     error = 13,
     async = 50,
+    success_without_retained_delivery = 51,
     auth_continue = -4
 };
 

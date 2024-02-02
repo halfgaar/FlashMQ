@@ -171,8 +171,10 @@ struct SubscriptionTuple
     const bool noLocal;
     const bool retainAsPublished;
     const std::string shareName;
+    const AuthResult authResult;
 
-    SubscriptionTuple(const std::string &topic, const std::vector<std::string> &subtopics, uint8_t qos, bool noLocal, bool retainAsPublished, const std::string &shareName);
+    SubscriptionTuple(const std::string &topic, const std::vector<std::string> &subtopics, uint8_t qos, bool noLocal, bool retainAsPublished,
+                      const std::string &shareName, const AuthResult authResult);
 };
 
 #endif // MQTTPACKET_H
