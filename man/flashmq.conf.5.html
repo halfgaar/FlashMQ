@@ -501,6 +501,33 @@
       
 
       
+        <dt id="minimum_wildcard_subscription_depth"><code class="option">minimum_wildcard_subscription_depth</code> <code class="replaceable">number</code><a class="hash-anchor" href="#minimum_wildcard_subscription_depth">#</a></dt>
+        <dd>
+          <p>
+            Defines the minimum level of the first wildcard topic filter (<code class="option">#</code> and <code class="option">+</code>). In a topic filter like <code class="option">sensors/temperature/#</code>, that is 2. If you specify 2, a subscription to <code class="option">sensors/#</code> will be denied. Remember that only MQTT 3.1.1 and newer actually notify the client of the denial in the sub-ack packet.
+          </p>
+          <p>
+            The reason you may want to limit it, is performance. If you have a base message load of 100,000 messages per second, each client subscribing to <code class="option">#</code> causes that many permission checks per second. If you have 100 clients doing that, there will be 10 million permission checks per second.
+          </p>
+          <p>
+            Default: <code class="replaceable">0</code>
+          </p>
+        </dd>
+      
+
+      
+        <dt id="wildcard_subscription_deny_mode"><code class="option">wildcard_subscription_deny_mode</code> <code class="replaceable">deny_all/deny_retained_only</code><a class="hash-anchor" href="#wildcard_subscription_deny_mode">#</a></dt>
+        <dd>
+          <p>
+            For <code class="option">minimum_wildcard_subscription_depth</code>, specify what you want to deny. Trying to give a client all retained messages can cause quite some load, so only denying the retained messages upon receiving a broad wildcard subscription can be useful if you have a low enough general message volume, but a high number of retained messages. 
+          </p>
+          <p>
+            Default: <code class="literal">deny_all</code>
+          </p>
+        </dd>
+      
+
+      
         <dt id="include_dir"><code class="option">include_dir</code> <code class="replaceable">/path/to/dir</code><a class="hash-anchor" href="#include_dir">#</a></dt>
         <dd>
           <p>

@@ -445,6 +445,33 @@
         </listitem>
       </varlistentry>
 
+      <varlistentry xml:id="minimum_wildcard_subscription_depth">
+        <term><option>minimum_wildcard_subscription_depth</option> <replaceable>number</replaceable></term>
+        <listitem>
+          <para>
+            Defines the minimum level of the first wildcard topic filter (<option>#</option> and <option>+</option>). In a topic filter like <option>sensors/temperature/#</option>, that is 2. If you specify 2, a subscription to <option>sensors/#</option> will be denied. Remember that only MQTT 3.1.1 and newer actually notify the client of the denial in the sub-ack packet.
+          </para>
+          <para>
+            The reason you may want to limit it, is performance. If you have a base message load of 100,000 messages per second, each client subscribing to <option>#</option> causes that many permission checks per second. If you have 100 clients doing that, there will be 10 million permission checks per second.
+          </para>
+          <para>
+            Default: <replaceable>0</replaceable>
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry xml:id="wildcard_subscription_deny_mode">
+        <term><option>wildcard_subscription_deny_mode</option> <replaceable>deny_all/deny_retained_only</replaceable></term>
+        <listitem>
+          <para>
+            For <option>minimum_wildcard_subscription_depth</option>, specify what you want to deny. Trying to give a client all retained messages can cause quite some load, so only denying the retained messages upon receiving a broad wildcard subscription can be useful if you have a low enough general message volume, but a high number of retained messages. 
+          </para>
+          <para>
+            Default: <literal>deny_all</literal>
+          </para>
+        </listitem>
+      </varlistentry>
+
       <varlistentry xml:id="include_dir">
         <term><option>include_dir</option> <replaceable>/path/to/dir</replaceable></term>
         <listitem>

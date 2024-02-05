@@ -5,7 +5,7 @@
 \\$2 \(la\\$1\(ra\\$3
 ..
 .if \n(.g .mso www.tmac
-.TH flashmq.conf 5 "31 December 2023" "" ""
+.TH flashmq.conf 5 "5 February 2024" "" ""
 .SH NAME
 flashmq.conf \- FlashMQ configuration file format
 .SH SYNOPSIS
@@ -216,6 +216,18 @@ When having multiple subscribers on a shared subscription (like '$share/myshare/
 \fIsender_hash\fR. Selects a receiver deterministically based on the hash of the client ID of the sender. The selected subscriber will depend on how many subscribers there are, so if some disconnect, the distribution will change. Moreover, the selection may also change when FlashMQ cleans up empty spaces in the list of shared subscribers.
 
 Default: \fIround_robin\fR
+.TP 
+\*(T<\fBminimum_wildcard_subscription_depth\fR\*(T> \fInumber\fR 
+Defines the minimum level of the first wildcard topic filter (\*(T<\fB#\fR\*(T> and \*(T<\fB+\fR\*(T>). In a topic filter like \*(T<\fBsensors/temperature/#\fR\*(T>, that is 2. If you specify 2, a subscription to \*(T<\fBsensors/#\fR\*(T> will be denied. Remember that only MQTT 3.1.1 and newer actually notify the client of the denial in the sub-ack packet.
+
+The reason you may want to limit it, is performance. If you have a base message load of 100,000 messages per second, each client subscribing to \*(T<\fB#\fR\*(T> causes that many permission checks per second. If you have 100 clients doing that, there will be 10 million permission checks per second.
+
+Default: \fI0\fR
+.TP 
+\*(T<\fBwildcard_subscription_deny_mode\fR\*(T> \fIdeny_all/deny_retained_only\fR 
+For \*(T<\fBminimum_wildcard_subscription_depth\fR\*(T>, specify what you want to deny. Trying to give a client all retained messages can cause quite some load, so only denying the retained messages upon receiving a broad wildcard subscription can be useful if you have a low enough general message volume, but a high number of retained messages. 
+
+Default: \*(T<deny_all\*(T>
 .TP 
 \*(T<\fBinclude_dir\fR\*(T> \fI/path/to/dir\fR 
 Load *.conf files from the specified directory, to merge with the main configuration file.
