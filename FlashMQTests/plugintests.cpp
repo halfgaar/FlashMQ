@@ -859,9 +859,147 @@ void MainTests::testSubscribeWithoutRetainedDelivery()
     QVERIFY(receiver.receivedPublishes.front().getPayloadView() == "on-line payload");
 }
 
+void MainTests::testDontUpgradeWildcardDenyMode()
+{
+    ConfFileTemp confFile;
+    confFile.writeLine("plugin plugins/libtest_plugin.so.0.0.1");
+    confFile.writeLine("minimum_wildcard_subscription_depth 2");
+    confFile.writeLine("wildcard_subscription_deny_mode deny_retained_only");
+    confFile.closeFile();
 
+    std::vector<std::string> args {"--config-file", confFile.getFilePath()};
 
+    cleanup();
+    init(args);
 
+    FlashMQTestClient sender;
+    FlashMQTestClient receiver;
+
+    sender.start();
+    receiver.start();
+
+    const std::string payload = "retained payload";
+    const std::string topic = "retaintopic/one/two/three";
+
+    sender.connectClient(ProtocolVersion::Mqtt5);
+
+    Publish pub1(topic, payload, 0);
+    pub1.retain = true;
+    sender.publish(pub1);
+
+    receiver.connectClient(ProtocolVersion::Mqtt5);
+    receiver.subscribe("#", 0);
+
+    usleep(250000);
+    QVERIFY(receiver.receivedPublishes.empty());
+
+    sender.publish("retaintopic/one/two/three", "on-line payload", 0);
+
+    receiver.waitForMessageCount(1);
+
+    MYCASTCOMPARE(receiver.receivedPublishes.size(), 1);
+    QVERIFY(receiver.receivedPublishes.front().getPayloadView() == "on-line payload");
+}
+
+void MainTests::testAlsoDontApproveOnErrorInPluginWithWildcardDenyMode()
+{
+    ConfFileTemp confFile;
+    confFile.writeLine("plugin plugins/libtest_plugin.so.0.0.1");
+    confFile.writeLine("minimum_wildcard_subscription_depth 2");
+    confFile.writeLine("wildcard_subscription_deny_mode deny_retained_only");
+    confFile.closeFile();
+
+    std::vector<std::string> args {"--config-file", confFile.getFilePath()};
+
+    cleanup();
+    init(args);
+
+    FlashMQTestClient sender;
+    FlashMQTestClient receiver;
+
+    sender.start();
+    receiver.start();
+
+    const std::string payload = "retained payload";
+    const std::string topic = "retaintopic/one/two/three";
+
+    sender.connectClient(ProtocolVersion::Mqtt5);
+
+    Publish pub1(topic, payload, 0);
+    pub1.retain = true;
+    sender.publish(pub1);
+
+    receiver.connectClient(ProtocolVersion::Mqtt5, true, 0, [] (Connect &connect){
+        connect.clientid = "return_error";
+    });
+
+    bool suback_errored = false;
+
+    try
+    {
+        receiver.subscribe("#", 0);
+    }
+    catch (SubAckIsError)
+    {
+        suback_errored = true;
+    }
+
+    QVERIFY(suback_errored);
+
+    usleep(250000);
+    QVERIFY(receiver.receivedPublishes.empty());
+
+    sender.publish("retaintopic/one/two/three", "on-line payload", 0);
+
+    usleep(250000);
+    QVERIFY(receiver.receivedPublishes.empty());
+}
+
+void MainTests::testDenyWildcardSubscription()
+{
+    ConfFileTemp confFile;
+    confFile.writeLine("plugin plugins/libtest_plugin.so.0.0.1");
+    confFile.writeLine("minimum_wildcard_subscription_depth 2");
+    confFile.writeLine("wildcard_subscription_deny_mode deny_all");
+    confFile.closeFile();
+
+    std::vector<std::string> args {"--config-file", confFile.getFilePath()};
+
+    cleanup();
+    init(args);
+
+    FlashMQTestClient sender;
+    FlashMQTestClient receiver;
+
+    sender.start();
+    receiver.start();
+
+    const std::string payload = "retained payload";
+    const std::string topic = "retaintopic/one/two/three";
+
+    sender.connectClient(ProtocolVersion::Mqtt5);
+
+    Publish pub1(topic, payload, 0);
+    pub1.retain = true;
+    sender.publish(pub1);
+
+    receiver.connectClient(ProtocolVersion::Mqtt5, true, 0, [] (Connect &connect){
+        connect.clientid = "success_without_retained_delivery";
+    });
+
+    bool suback_errored = false;
+
+    try
+    {
+        receiver.subscribe("bla/#", 0);
+    }
+    catch (SubAckIsError)
+    {
+        suback_errored = true;
+    }
+
+    QVERIFY(suback_errored);
+}
 
 
 

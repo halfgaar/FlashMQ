@@ -18,6 +18,12 @@ See LICENSE for license details.
 #include "settings.h"
 #include "threaddata.h"
 
+class SubAckIsError : public std::runtime_error
+{
+public:
+    SubAckIsError(const std::string &msg) : std::runtime_error(msg) {}
+};
+
 /**
  * @brief The FlashMQTestClient class uses the existing server code as a client, for testing purposes.
  */

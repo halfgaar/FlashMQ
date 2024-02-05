@@ -200,6 +200,9 @@ private slots:
     void testPluginMainInit();
     void testAsyncCurl();
     void testSubscribeWithoutRetainedDelivery();
+    void testDontUpgradeWildcardDenyMode();
+    void testAlsoDontApproveOnErrorInPluginWithWildcardDenyMode();
+    void testDenyWildcardSubscription();
 
     void testPublishToItself();
     void testNoLocalPublishToItself();

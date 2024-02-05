@@ -207,7 +207,7 @@ void FlashMQTestClient::subscribe(const std::string topic, uint8_t qos, bool noL
 
     if (!std::all_of(data.subAckCodes.begin(), data.subAckCodes.end(), [&](uint8_t x) { return x <= qos ;}))
     {
-        throw std::runtime_error("Suback indicates error.");
+        throw SubAckIsError("Suback indicates error.");
     }
 }
 
