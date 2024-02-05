@@ -823,6 +823,31 @@ void exceptionOnNonMqtt(const std::vector<char> &data)
     }
 }
 
+/**
+ * #               is 0
+ * one/#           is 1
+ * one/two/+/four  is 2
+ * one/two/three   is 65535
+ *
+ */
+uint16_t getFirstWildcardDepth(const std::vector<std::string> &subtopics)
+{
+    uint16_t result = std::numeric_limits<uint16_t>::max();
+    uint16_t i = 0;
+
+    for (const std::string &s : subtopics)
+    {
+        if (s == "#" || s == "+")
+        {
+            result = i;
+            break;
+        }
+
+        i++;
+    }
+
+    return result;
+}
 
 
 

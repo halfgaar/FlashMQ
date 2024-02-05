@@ -1307,7 +1307,37 @@ void MqttPacket::handleSubscribe()
         std::string shareName;
         parseSubscriptionShare(subtopics, shareName);
 
-        const AuthResult authResult = authentication.aclCheck(sender->getClientId(), sender->getUsername(), topic, subtopics, std::string_view(), AclAccess::subscribe, qos, false, getUserProperties());
+        const Settings *settings = ThreadGlobals::getSettings();
+
+        AuthResult authResult = AuthResult::success;
+
+        if (settings->minimumWildcardSubscriptionDepth > 0 && getFirstWildcardDepth(subtopics) < settings->minimumWildcardSubscriptionDepth)
+        {
+            std::string action_text = "";
+
+            if (settings->wildcardSubscriptionDenyMode == WildcardSubscriptionDenyMode::DenyRetainedOnly)
+            {
+                authResult = AuthResult::success_without_retained_delivery;
+                action_text = "Denying retained messages";
+            }
+            else
+            {
+                authResult = AuthResult::acl_denied;
+                action_text = "Denying subscription";
+            }
+
+            logger->log(LOG_WARNING) << "Wildcard subscription too broad. " << action_text << ". Topic: '"
+                                     << topic << "'. Client: " << sender->repr();
+        }
+
+        if (authResult == AuthResult::success || authResult == AuthResult::success_without_retained_delivery)
+        {
+            const AuthResult newAuthResult = authentication.aclCheck(sender->getClientId(), sender->getUsername(), topic, subtopics, std::string_view(), AclAccess::subscribe, qos, false, getUserProperties());
+
+            // We don't allow upgrading back to success. This gets too complicated between having no additional ACL, having an ACL file, and/or a plugin.
+            if (newAuthResult != AuthResult::success)
+                authResult = newAuthResult;
+        }
 
         if (authResult == AuthResult::success || authResult == AuthResult::success_without_retained_delivery)
         {

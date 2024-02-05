@@ -152,6 +152,8 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validKeys.insert("retained_messages_delivery_limit");
     validKeys.insert("include_dir");
     validKeys.insert("rebuild_subscription_tree_interval_seconds");
+    validKeys.insert("minimum_wildcard_subscription_depth");
+    validKeys.insert("wildcard_subscription_deny_mode");
 
     validListenKeys.insert("port");
     validListenKeys.insert("protocol");
@@ -903,6 +905,28 @@ void ConfigFileParser::loadFile(bool test)
                         throw ConfigFileException("Set '" + key + "' higher than 0, or use 'retained_messages_mode'.");
 
                     tmpSettings.retainedMessagesNodeLimit = newVal;
+                }
+
+                if (testKeyValidity(key, "minimum_wildcard_subscription_depth", validKeys))
+                {
+                    const unsigned long newVal = std::stoul(value);
+
+                    if (newVal > 0xFFFF)
+                        throw ConfigFileException("Option '" + key + "' must be between 0 and 65535.");
+
+                    tmpSettings.minimumWildcardSubscriptionDepth = newVal;
+                }
+
+                if (testKeyValidity(key, "wildcard_subscription_deny_mode", validKeys))
+                {
+                    const std::string _val = str_tolower(value);
+
+                    if (_val == "deny_all")
+                        tmpSettings.wildcardSubscriptionDenyMode = WildcardSubscriptionDenyMode::DenyAll;
+                    else if (_val == "deny_retained_only")
+                        tmpSettings.wildcardSubscriptionDenyMode = WildcardSubscriptionDenyMode::DenyRetainedOnly;
+                    else
+                        throw ConfigFileException(formatString("Value '%s' for '%s' is invalid.", value.c_str(), key.c_str()));
                 }
             }
         }
