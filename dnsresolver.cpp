@@ -150,6 +150,7 @@ std::list<FMQSockaddr_in6> DnsResolver::getResult()
     if (err != 0)
     {
         const std::string errorstr(gai_strerror(err));
+        freeStuff();
         throw std::runtime_error(formatString("Dns lookup failure: %s", errorstr.c_str()));
     }
 
