@@ -270,6 +270,8 @@ void ThreadData::bridgeReconnect()
 {
     std::lock_guard<std::mutex> locker(clients_by_fd_mutex);
 
+    bool requeue = false;
+
     for (std::shared_ptr<BridgeState> &bridge : bridges)
     {
         try
@@ -299,22 +301,20 @@ void ThreadData::bridgeReconnect()
 
             if (bridge->dnsResults.empty())
             {
+                // If no DNS query is pending, queue one.
                 if (bridge->dns.idle())
                 {
                     bridge->dns.query(bridge->c.address, bridge->c.inet_protocol, std::chrono::milliseconds(5000));
-
-                    auto f = std::bind(&ThreadData::bridgeReconnect, this);
-                    delayedTasks.addTask(f, 500);
-
+                    requeue = true;
                     continue;
                 }
 
                 const std::list<FMQSockaddr_in6> &results = bridge->dns.getResult();
 
+                // If empty, we're still waiting for the result but there is no error.
                 if (results.empty())
                 {
-                    auto f = std::bind(&ThreadData::bridgeReconnect, this);
-                    delayedTasks.addTask(f, 500);
+                    requeue = true;
                     continue;
                 }
 
@@ -377,6 +377,12 @@ void ThreadData::bridgeReconnect()
         {
             logger->logf(LOG_ERR, "Error creating bridge: %s", ex.what());
         }
+    }
+
+    if (requeue)
+    {
+        auto f = std::bind(&ThreadData::bridgeReconnect, this);
+        delayedTasks.addTask(f, 500);
     }
 }
 
