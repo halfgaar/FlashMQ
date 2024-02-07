@@ -375,7 +375,8 @@ void ThreadData::bridgeReconnect()
         }
         catch (std::exception &ex)
         {
-            logger->logf(LOG_ERR, "Error creating bridge: %s", ex.what());
+            logger->log(LOG_ERR) << "Error creating bridge '" << bridge->c.clientidPrefix << "': " << ex.what();
+            bridge->registerReconnect();
         }
     }
 
