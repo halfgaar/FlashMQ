@@ -111,6 +111,10 @@ public:
     DerivableCounter receivedMessageCounter;
     DerivableCounter sentMessageCounter;
     DerivableCounter mqttConnectCounter;
+    DerivableCounter aclReadChecks;
+    DerivableCounter aclWriteChecks;
+    DerivableCounter aclSubscribeChecks;
+    DerivableCounter aclRegisterWillChecks;
 
     ThreadData(int threadnr, const Settings &settings, const PluginLoader &pluginLoader);
     ThreadData(const ThreadData &other) = delete;

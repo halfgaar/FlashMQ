@@ -22,6 +22,8 @@ See LICENSE for license details.
 #include "unscopedlock.h"
 #include "utils.h"
 #include "client.h"
+#include "threadglobals.h"
+#include "threaddata.h"
 
 std::mutex Authentication::initMutex;
 std::mutex Authentication::deinitMutex;
@@ -295,6 +297,26 @@ AuthResult Authentication::aclCheck(const std::string &clientid, const std::stri
     // because of the payload copy prevention optimization.
     assert(retain || access == AclAccess::subscribe || !payload.empty());
 #endif
+
+    ThreadData *threadData = ThreadGlobals::getThreadData();
+
+    switch (access)
+    {
+    case AclAccess::read:
+        threadData->aclReadChecks.inc(1);
+        break;
+    case AclAccess::write:
+        threadData->aclWriteChecks.inc(1);
+        break;
+    case AclAccess::subscribe:
+        threadData->aclSubscribeChecks.inc(1);
+        break;
+    case AclAccess::register_will:
+        threadData->aclRegisterWillChecks.inc(1);
+        break;
+    default:
+        break;
+    }
 
     AuthResult firstResult = aclCheckFromMosquittoAclFile(clientid, username, subtopics, access);
 

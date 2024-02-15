@@ -469,6 +469,18 @@ void ThreadData::publishStatsOnDollarTopic(std::vector<std::shared_ptr<ThreadDat
     double mqttConnectCountPerSecond = 0;
     uint64_t mqttConnectCount = 0;
 
+    double aclReadChecksPerSecond = 0;
+    uint64_t aclReadCheckCount = 0;
+
+    double aclWriteChecksPerSecond = 0;
+    uint64_t aclWriteCheckCount = 0;
+
+    double aclSubscribeChecksPerSecond = 0;
+    uint64_t aclSubscribeCheckCount = 0;
+
+    double aclRegisterWillChecksPerSecond = 0;
+    uint64_t aclRegisterWillCheckCount = 0;
+
     for (const std::shared_ptr<ThreadData> &thread : threads)
     {
         nrOfClients += thread->getNrOfClients();
@@ -481,6 +493,18 @@ void ThreadData::publishStatsOnDollarTopic(std::vector<std::shared_ptr<ThreadDat
 
         mqttConnectCountPerSecond += thread->mqttConnectCounter.getPerSecond();
         mqttConnectCount += thread->mqttConnectCounter.get();
+
+        aclReadChecksPerSecond += thread->aclReadChecks.getPerSecond();
+        aclReadCheckCount += thread->aclReadChecks.get();
+
+        aclWriteChecksPerSecond += thread->aclWriteChecks.getPerSecond();
+        aclWriteCheckCount += thread->aclWriteChecks.get();
+
+        aclSubscribeChecksPerSecond += thread->aclSubscribeChecks.getPerSecond();
+        aclSubscribeCheckCount += thread->aclSubscribeChecks.get();
+
+        aclRegisterWillChecksPerSecond += thread->aclRegisterWillChecks.getPerSecond();
+        aclRegisterWillCheckCount += thread->aclRegisterWillChecks.get();
     }
 
     GlobalStats *globalStats = GlobalStats::getInstance();
@@ -498,6 +522,18 @@ void ThreadData::publishStatsOnDollarTopic(std::vector<std::shared_ptr<ThreadDat
 
     publishStat("$SYS/broker/load/messages/sent/total", sentMessageCount);
     publishStat("$SYS/broker/load/messages/sent/persecond", sentMessageCountPerSecond);
+
+    publishStat("$SYS/broker/load/aclchecks/read/total", aclReadCheckCount);
+    publishStat("$SYS/broker/load/aclchecks/read/persecond", aclReadChecksPerSecond);
+
+    publishStat("$SYS/broker/load/aclchecks/write/total", aclWriteCheckCount);
+    publishStat("$SYS/broker/load/aclchecks/write/persecond", aclWriteChecksPerSecond);
+
+    publishStat("$SYS/broker/load/aclchecks/subscribe/total", aclSubscribeCheckCount);
+    publishStat("$SYS/broker/load/aclchecks/subscribe/persecond", aclSubscribeChecksPerSecond);
+
+    publishStat("$SYS/broker/load/aclchecks/registerwill/total", aclRegisterWillCheckCount);
+    publishStat("$SYS/broker/load/aclchecks/registerwill/persecond", aclRegisterWillChecksPerSecond);
 
     std::shared_ptr<SubscriptionStore> subscriptionStore = MainApp::getMainApp()->getSubscriptionStore();
 
