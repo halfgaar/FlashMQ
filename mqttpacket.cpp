@@ -531,6 +531,12 @@ ConnectData MqttPacket::parseConnectData()
 
     if (protocolVersion == ProtocolVersion::Mqtt5)
     {
+        /*
+         * MQTT5: "If the Session Expiry Interval is absent the value 0 is used. If it is set to 0, or is absent,
+         * the Session ends when the Network Connection is closed."
+         */
+        result.session_expire = 0;
+
         result.keep_alive = std::max<uint16_t>(result.keep_alive, 5);
 
         const size_t proplen = decodeVariableByteIntAtPos();
@@ -543,7 +549,7 @@ ConnectData MqttPacket::parseConnectData()
             switch (prop)
             {
             case Mqtt5Properties::SessionExpiryInterval:
-                result.session_expire = std::min<uint32_t>(readFourBytesToUint32(), result.session_expire);
+                result.session_expire = std::min<uint32_t>(readFourBytesToUint32(), settings.getExpireSessionAfterSeconds());
                 break;
             case Mqtt5Properties::ReceiveMaximum:
                 result.client_receive_max = std::min<int16_t>(readTwoBytesToUInt16(), result.client_receive_max);
