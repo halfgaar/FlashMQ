@@ -9,7 +9,7 @@ DEFAULT_BUILD_TYPE="Release"
 usage() {
   cat <<EOF
 Usage:
-  $script_name fail-on-doc-failure] <build_type>
+  $script_name [--fail-on-doc-failure] [--njobs-override <nr>] <build_type>
   $script_name --help     Display this help
 
   <build_type>  'Debug' or 'Release'; default: $DEFAULT_BUILD_TYPE
@@ -18,6 +18,8 @@ EOF
 
 FAIL_ON_DOC_FAILURE=""
 BUILD_TYPE="$DEFAULT_BUILD_TYPE"
+NJOBS_OVERRIDE=""
+
 while [[ "$#" -gt 0 ]]; do
   case "$1" in
     --help|-h)
@@ -26,6 +28,11 @@ while [[ "$#" -gt 0 ]]; do
       ;;
     --fail-on-doc-failure)
       FAIL_ON_DOC_FAILURE="yeah"
+      shift
+      ;;
+    --njobs-override)
+      shift
+      NJOBS_OVERRIDE="$1"
       shift
       ;;
     --*|-*)
@@ -44,6 +51,11 @@ while [[ "$#" -gt 0 ]]; do
       ;;
   esac
 done
+
+if ! [[ "$NJOBS_OVERRIDE" =~ ^[0-9]*$ ]] ; then
+  >&2 echo "--njobs-override must be a number"
+  exit 1
+fi
 
 if ! make -C "$thisdir/man"; then
   if [[ -z "$FAIL_ON_DOC_FAILURE" ]]; then
@@ -69,6 +81,10 @@ nprocs=4
 
 if _nprocs=$(nproc); then
   nprocs="$_nprocs"
+fi
+
+if [[ -n "$NJOBS_OVERRIDE" ]]; then
+  nprocs="$NJOBS_OVERRIDE"
 fi
 
 cd "$BUILD_DIR"
