@@ -27,7 +27,7 @@ See LICENSE for license details.
 #include "packetdatatypes.h"
 
 /**
- * @brief The MqttPacket class represents incoming and outgonig packets.
+ * @brief The MqttPacket class represents incoming and outgoing packets.
  *
  * Be sure to understand the 'externallyReceived' member. See in-code documentation.
  *
