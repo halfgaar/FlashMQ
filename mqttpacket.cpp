@@ -819,8 +819,7 @@ void MqttPacket::handleConnect()
 
     if (this->protocolVersion == ProtocolVersion::None)
     {
-        if (this->protocolVersion == ProtocolVersion::None)
-            logger->logf(LOG_ERR, "Rejecting because of invalid protocol version: %s", sender->repr().c_str());
+        logger->logf(LOG_ERR, "Rejecting because of invalid protocol version: %s", sender->repr().c_str());
 
         // The specs are unclear when to use the version 3 codes or version 5 codes when you don't know which protocol version to speak.
         ProtocolVersion fuzzyProtocolVersion = connectData.protocol_level_byte < 0x05 ? ProtocolVersion::Mqtt31 : ProtocolVersion::Mqtt5;
