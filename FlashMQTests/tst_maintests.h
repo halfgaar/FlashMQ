@@ -165,6 +165,7 @@ private slots:
     void testOverrideAllowAnonymousToTrue();
     void testOverrideAllowAnonymousToFalse();
     void testKeepAllowAnonymousFalse();
+    void testAllowAnonymousWithoutPasswordsLoaded();
 
     void testAddrMatchesSubnetIpv4();
     void testAddrMatchesSubnetIpv6();

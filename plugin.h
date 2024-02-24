@@ -178,7 +178,7 @@ public:
     AuthResult aclCheck(const std::string &clientid, const std::string &username, const std::string &topic, const std::vector<std::string> &subtopics,
                         std::string_view payload, AclAccess access, uint8_t qos, bool retain, const std::vector<std::pair<std::string, std::string>> *userProperties);
     AuthResult unPwdCheck(const std::string &clientid, const std::string &username, const std::string &password,
-                          const std::vector<std::pair<std::string, std::string>> *userProperties, const std::weak_ptr<Client> &client);
+                          const std::vector<std::pair<std::string, std::string>> *userProperties, const std::weak_ptr<Client> &client, const bool allowAnonymous);
     AuthResult extendedAuth(const std::string &clientid, ExtendedAuthStage stage, const std::string &authMethod,
                             const std::string &authData, const std::vector<std::pair<std::string, std::string>> *userProperties, std::string &returnData,
                             std::string &username, const std::weak_ptr<Client> &client);
@@ -193,7 +193,7 @@ public:
     void loadMosquittoPasswordFile();
     void loadMosquittoAclFile();
     AuthResult aclCheckFromMosquittoAclFile(const std::string &clientid, const std::string &username, const std::vector<std::string> &subtopics, AclAccess access);
-    AuthResult unPwdCheckFromMosquittoPasswordFile(const std::string &username, const std::string &password);
+    std::optional<AuthResult> unPwdCheckFromMosquittoPasswordFile(const std::string &username, const std::string &password);
 
     void periodicEvent();
 
