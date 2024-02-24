@@ -288,6 +288,9 @@
         <dt id="allow_anonymous"><code class="option">allow_anonymous</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#allow_anonymous">#</a></dt>
         <dd>
           <p>
+              This option can be overriden on a per-listener basis; see <a href="#listen__allow_anonymous"><code class="option">listener.allow_anonymous</code></a>.
+          </p>
+          <p>
             Default value: <code class="literal">false</code>
           </p>
         </dd>
@@ -684,6 +687,15 @@
       
 
       
+        <dt id="listen__allow_anonymous"><code class="option">allow_anonymous</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#listen__allow_anonymous">#</a></dt>
+        <dd>
+          <p>
+            This allows you to override the <a href="#allow_anonymous">global <code class="option">allow_anonymous</code></a> setting on the listener level.
+          </p>
+        </dd>
+      
+
+      
         <dt id="haproxy"><code class="option">haproxy</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#haproxy">#</a></dt>
         <dd>
           <p>
@@ -747,8 +759,8 @@ listen {
   port 2883
   haproxy on
 }</pre>
-  </section><section class="refsect1">
-    <header><h2>Bridge configuration</h2></header>
+  </section><section class="refsect1" id="bridge">
+    <header><h2>Bridge configuration<a class="hash-anchor" href="#bridge">#</a></h2></header>
     <p>
        Bridges can be defined inside <code class="literal">bridge { }</code> blocks. A bridge is essentially just an outgoing connection to another server with loop-detection and retain flag relaying. It is not a form of clustering. Also note that one bridge is one connection, and because FlashMQ's threading model is that clients are serviced by one selected thread only, a bridge has the potential to saturate a thread, if it's heavily loaded. You could work around that by defining multiple bridges to the same server, for various topic paths. A future version of FlashMQ will likely improve upon this.
     </p>

@@ -5,7 +5,7 @@
 \\$2 \(la\\$1\(ra\\$3
 ..
 .if \n(.g .mso www.tmac
-.TH flashmq.conf 5 "5 February 2024" "" ""
+.TH flashmq.conf 5 "24 February 2024" "" ""
 .SH NAME
 flashmq.conf \- FlashMQ configuration file format
 .SH SYNOPSIS
@@ -115,6 +115,10 @@ Mosquitto up to version 1.6 uses the sha512 algorithm. Newer version use sha512-
 ACL (access control lists) for users, anonymous users and patterns expandable with %u (username) and %c (clientid). Format is Mosquitto's acl_file.
 .TP 
 \*(T<\fBallow_anonymous\fR\*(T> \fItrue/false\fR 
+This option can be overriden on a per-listener basis; see 
+.URL #listen__allow_anonymous listener.allow_anonymous
+\&.
+
 Default value: \*(T<false\*(T>
 .TP 
 \*(T<\fBrlimit_nofile\fR\*(T> \fInumber\fR 
@@ -297,6 +301,11 @@ Specifying this or \*(T<\fBclient_verification_ca_file\fR\*(T> will require the 
 .TP 
 \*(T<\fBclient_verification_still_do_authn\fR\*(T> \fItrue/false\fR 
 When using X509 client authentication with \*(T<\fBclient_verification_ca_file\fR\*(T> or \*(T<\fBclient_verification_ca_dir\fR\*(T>, the username will not be checked with a user database or a plugin by default. Set this option to \*(T<true\*(T> to override that.
+.TP 
+\*(T<\fBallow_anonymous\fR\*(T> \fItrue/false\fR 
+This allows you to override the 
+.URL #allow_anonymous "global allow_anonymous"
+setting on the listener level.
 .TP 
 \*(T<\fBhaproxy\fR\*(T> \fItrue/false\fR 
 Setting the listener to haproxy makes it expect the PROXY protocol and set client source address to the original client. Make sure this listener is private / firewalled, otherwise anybody can set a different source address.

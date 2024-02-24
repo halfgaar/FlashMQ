@@ -233,6 +233,9 @@
         <term><option>allow_anonymous</option> <replaceable>true/false</replaceable></term>
         <listitem>
           <para>
+              This option can be overriden on a per-listener basis; see <link xlink:href="#listen__allow_anonymous"><option>listener.allow_anonymous</option></link>.
+          </para>
+          <para>
             Default value: <literal>false</literal>
           </para>
         </listitem>
@@ -630,6 +633,15 @@
         </listitem>
       </varlistentry>
 
+      <varlistentry xml:id="listen__allow_anonymous">
+        <term><option>allow_anonymous</option> <replaceable>true/false</replaceable></term>
+        <listitem>
+          <para>
+            This allows you to override the <link xlink:href="#allow_anonymous">global <option>allow_anonymous</option></link> setting on the listener level.
+          </para>
+        </listitem>
+      </varlistentry>
+
       <varlistentry xml:id="haproxy">
         <term><option>haproxy</option> <replaceable>true/false</replaceable></term>
         <listitem>
@@ -698,7 +710,7 @@ listen {
 }]]></literallayout>
   </refsect1>
 
-  <refsect1>
+  <refsect1 xml:id="bridge">
     <title>Bridge configuration</title>
     <para>
        Bridges can be defined inside <literal>bridge { }</literal> blocks. A bridge is essentially just an outgoing connection to another server with loop-detection and retain flag relaying. It is not a form of clustering. Also note that one bridge is one connection, and because FlashMQ's threading model is that clients are serviced by one selected thread only, a bridge has the potential to saturate a thread, if it's heavily loaded. You could work around that by defining multiple bridges to the same server, for various topic paths. A future version of FlashMQ will likely improve upon this.
