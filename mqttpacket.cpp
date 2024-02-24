@@ -948,7 +948,13 @@ void MqttPacket::handleConnect()
     AuthResult authResult = AuthResult::login_denied;
     std::string authReturnData;
 
-    if (!connectData.username && connectData.authenticationMethod.empty() && settings.allowAnonymous)
+    bool allowAnonymous = settings.allowAnonymous;
+    if (sender->getAllowAnonymousOverride() != AllowListenerAnonymous::None)
+    {
+        allowAnonymous = sender->getAllowAnonymousOverride() == AllowListenerAnonymous::Yes;
+    }
+
+    if (!connectData.username && connectData.authenticationMethod.empty() && allowAnonymous)
     {
         authResult = AuthResult::success;
     }

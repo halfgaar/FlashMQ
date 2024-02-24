@@ -1028,12 +1028,12 @@ X509ClientVerification Client::getX509ClientVerification() const
     return x509ClientVerification;
 }
 
+void Client::setAllowAnonymousOverride(const AllowListenerAnonymous allow)
+{
+    allowAnonymousOverride = allow;
+}
 
-
-
-
-
-
-
-
-
+AllowListenerAnonymous Client::getAllowAnonymousOverride() const
+{
+    return allowAnonymousOverride;
+}

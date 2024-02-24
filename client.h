@@ -88,6 +88,7 @@ class Client
     uint16_t keepalive = 10;
     bool clean_start = false;
     X509ClientVerification x509ClientVerification = X509ClientVerification::None;
+    AllowListenerAnonymous allowAnonymousOverride = AllowListenerAnonymous::None;
 
     std::shared_ptr<WillPublish> stagedWillPublish;
     std::shared_ptr<WillPublish> willPublish;
@@ -227,6 +228,8 @@ public:
     void setSslVerify(X509ClientVerification verificationMode);
     std::optional<std::string> getUsernameFromPeerCertificate();
     X509ClientVerification getX509ClientVerification() const;
+    void setAllowAnonymousOverride(const AllowListenerAnonymous allow);
+    AllowListenerAnonymous getAllowAnonymousOverride() const;
 
 };
 

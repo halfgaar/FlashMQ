@@ -18,4 +18,11 @@ enum class X509ClientVerification
     X509AndUsernamePassword
 };
 
+enum class AllowListenerAnonymous
+{
+    None,
+    Yes,
+    No
+};
+
 #endif // ENUMS_H

@@ -38,6 +38,7 @@ struct Listener
     std::string clientVerificationCaDir;
     bool clientVerifictionStillDoAuthn = false;
     std::unique_ptr<SslCtxManager> sslctx;
+    AllowListenerAnonymous allowAnonymous = AllowListenerAnonymous::None;
 
     void isValid();
     bool isSsl() const;

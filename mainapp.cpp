@@ -739,6 +739,8 @@ void MainApp::start()
                         client->setSslVerify(listener->getX509ClientVerficiationMode());
                     }
 
+                    client->setAllowAnonymousOverride(listener->allowAnonymous);
+
                     thread_data->giveClient(std::move(client));
 
                     globalStats->socketConnects.inc();

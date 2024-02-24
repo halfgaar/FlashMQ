@@ -166,6 +166,7 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validListenKeys.insert("client_verification_ca_file");
     validListenKeys.insert("client_verification_ca_dir");
     validListenKeys.insert("client_verification_still_do_authn");
+    validListenKeys.insert("allow_anonymous");
 
     validBridgeKeys.insert("local_username");
     validBridgeKeys.insert("remote_username");
@@ -430,6 +431,11 @@ void ConfigFileParser::loadFile(bool test)
                 {
                     bool val = stringTruthiness(value);
                     curListener->clientVerifictionStillDoAuthn = val;
+                }
+                if (testKeyValidity(key, "allow_anonymous", validListenKeys))
+                {
+                    bool val = stringTruthiness(value);
+                    curListener->allowAnonymous = val ? AllowListenerAnonymous::Yes : AllowListenerAnonymous::No;
                 }
 
                 continue;
