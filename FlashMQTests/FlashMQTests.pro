@@ -147,6 +147,9 @@ LIBS += -ldl -lssl -lcrypto -lresolv -lanl
 
 QMAKE_LFLAGS += -rdynamic
 
+# QVariant triggers this all the time, in Qt 5.12 anyway. Our own misuse of it we'll see in the cmake builds.
+QMAKE_CXXFLAGS += -Wno-deprecated-copy
+
 contains(DEFINES, FMQ_NO_SSE) {
    message(Building tests wihout SSE.)
 }
