@@ -939,7 +939,7 @@ void MainTests::testAlsoDontApproveOnErrorInPluginWithWildcardDenyMode()
     {
         receiver.subscribe("#", 0);
     }
-    catch (SubAckIsError)
+    catch (SubAckIsError &ex)
     {
         suback_errored = true;
     }
@@ -993,7 +993,7 @@ void MainTests::testDenyWildcardSubscription()
     {
         receiver.subscribe("bla/#", 0);
     }
-    catch (SubAckIsError)
+    catch (SubAckIsError &ex)
     {
         suback_errored = true;
     }
