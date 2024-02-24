@@ -162,6 +162,9 @@ private slots:
     void testTimePointToAge();
 
     void testMosquittoPasswordFile();
+    void testOverrideAllowAnonymousToTrue();
+    void testOverrideAllowAnonymousToFalse();
+    void testKeepAllowAnonymousFalse();
 
     void testAddrMatchesSubnetIpv4();
     void testAddrMatchesSubnetIpv6();

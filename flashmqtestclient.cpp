@@ -88,17 +88,18 @@ void FlashMQTestClient::start()
     testServerWorkerThreadData->start(&do_thread_work);
 }
 
-void FlashMQTestClient::connectClient(ProtocolVersion protocolVersion)
+void FlashMQTestClient::connectClient(ProtocolVersion protocolVersion, int port)
 {
-    connectClient(protocolVersion, true, 0, [](Connect&){});
+    connectClient(protocolVersion, true, 0, [](Connect&){}, port);
 }
 
-void FlashMQTestClient::connectClient(ProtocolVersion protocolVersion, bool clean_start, uint32_t session_expiry_interval)
+void FlashMQTestClient::connectClient(ProtocolVersion protocolVersion, bool clean_start, uint32_t session_expiry_interval, int port)
 {
-    connectClient(protocolVersion, clean_start, session_expiry_interval, [](Connect&){});
+    connectClient(protocolVersion, clean_start, session_expiry_interval, [](Connect&){}, port);
 }
 
-void FlashMQTestClient::connectClient(ProtocolVersion protocolVersion, bool clean_start, uint32_t session_expiry_interval, std::function<void(Connect&)> manipulateConnect)
+void FlashMQTestClient::connectClient(ProtocolVersion protocolVersion, bool clean_start, uint32_t session_expiry_interval,
+                                      std::function<void(Connect&)> manipulateConnect, int port)
 {
     int sockfd = check<std::runtime_error>(socket(AF_INET, SOCK_STREAM, 0));
 
@@ -109,7 +110,7 @@ void FlashMQTestClient::connectClient(ProtocolVersion protocolVersion, bool clea
 
     servaddr.sin_family = AF_INET;
     servaddr.sin_addr.s_addr = inet_addr(hostname.c_str());
-    servaddr.sin_port = htons(21883);
+    servaddr.sin_port = htons(port);
 
     int flags = fcntl(sockfd, F_GETFL);
     fcntl(sockfd, F_SETFL, flags | O_NONBLOCK);

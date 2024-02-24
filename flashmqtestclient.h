@@ -52,9 +52,9 @@ public:
     ~FlashMQTestClient();
 
     void start();
-    void connectClient(ProtocolVersion protocolVersion);
-    void connectClient(ProtocolVersion protocolVersion, bool clean_start, uint32_t session_expiry_interval);
-    void connectClient(ProtocolVersion protocolVersion, bool clean_start, uint32_t session_expiry_interval, std::function<void(Connect&)> manipulateConnect);
+    void connectClient(ProtocolVersion protocolVersion, int port=21883);
+    void connectClient(ProtocolVersion protocolVersion, bool clean_start, uint32_t session_expiry_interval, int port=21883);
+    void connectClient(ProtocolVersion protocolVersion, bool clean_start, uint32_t session_expiry_interval, std::function<void(Connect&)> manipulateConnect, int port=21883);
     void subscribe(const std::string topic, uint8_t qos, bool noLocal=false, bool retainAsPublished=false);
     void unsubscribe(const std::string &topic);
     void publish(const std::string &topic, const std::string &payload, uint8_t qos);

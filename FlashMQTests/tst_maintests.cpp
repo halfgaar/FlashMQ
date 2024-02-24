@@ -2280,6 +2280,244 @@ void MainTests::testMosquittoPasswordFile()
     }
 }
 
+void MainTests::testOverrideAllowAnonymousToTrue()
+{
+    ConfFileTemp passwd_file;
+    passwd_file.writeLine("one:$6$JCNyGIZwxpaB++iTCwiT2e80YX6mEFymRCkRpHkm50dNP8IfHMWz97BdadZVsZCCC9yr"
+                          "7/OXxAbdfAVk71xqyA==$AL25hdhMm0CkQ3/nxtgGJ96xfSv6hCAf7aHZby8mZWnkNxmvRnuu6f"
+                          "HWi6yvyr1EjPD4P9vmIvKwqvdKEVDLLQ==");
+    passwd_file.closeFile();
+
+    ConfFileTemp confFile;
+    confFile.writeLine(formatString("mosquitto_password_file %s", passwd_file.getFilePath().c_str()));
+    confFile.writeLine("allow_anonymous false");
+    confFile.writeLine(R"(
+listen {
+        protocol mqtt
+        port 2883
+        allow_anonymous true
+}
+listen {
+        protocol mqtt
+        port 2884
+})");
+    confFile.closeFile();
+
+    std::vector<std::string> args {"--config-file", confFile.getFilePath()};
+
+    cleanup();
+    init(args);
+
+    // With users, both listeners should act the same.
+    for (int port : {2883, 2884})
+    {
+        {
+            FlashMQTestClient client;
+            client.start();
+            client.connectClient(ProtocolVersion::Mqtt5, false, 120, [](Connect &connect) {
+                connect.username = "one";
+                connect.password = "one";
+            }, port);
+
+            auto ack = client.receivedPackets.front();
+            ConnAckData ackData = ack.parseConnAckData();
+            QCOMPARE(ackData.reasonCode, ReasonCodes::Success);
+        }
+
+        {
+            FlashMQTestClient client;
+            client.start();
+            client.connectClient(ProtocolVersion::Mqtt5, false, 120, [](Connect &connect) {
+                    connect.username = "one";
+                    connect.password = "wrong";
+                }, port);
+
+            auto ack = client.receivedPackets.front();
+            ConnAckData ackData = ack.parseConnAckData();
+            QCOMPARE(ackData.reasonCode, ReasonCodes::NotAuthorized);
+        }
+    }
+
+    {
+        FlashMQTestClient client;
+        client.start();
+        client.connectClient(ProtocolVersion::Mqtt5, 2883);
+
+        auto ack = client.receivedPackets.front();
+        ConnAckData ackData = ack.parseConnAckData();
+        QCOMPARE(ackData.reasonCode, ReasonCodes::Success);
+    }
+
+    {
+        FlashMQTestClient client;
+        client.start();
+        client.connectClient(ProtocolVersion::Mqtt5, 2884);
+
+        auto ack = client.receivedPackets.front();
+        ConnAckData ackData = ack.parseConnAckData();
+        QCOMPARE(ackData.reasonCode, ReasonCodes::NotAuthorized);
+    }
+}
+
+void MainTests::testOverrideAllowAnonymousToFalse()
+{
+    ConfFileTemp passwd_file;
+    passwd_file.writeLine("one:$6$JCNyGIZwxpaB++iTCwiT2e80YX6mEFymRCkRpHkm50dNP8IfHMWz97BdadZVsZCCC9yr"
+                          "7/OXxAbdfAVk71xqyA==$AL25hdhMm0CkQ3/nxtgGJ96xfSv6hCAf7aHZby8mZWnkNxmvRnuu6f"
+                          "HWi6yvyr1EjPD4P9vmIvKwqvdKEVDLLQ==");
+    passwd_file.closeFile();
+
+    ConfFileTemp confFile;
+    confFile.writeLine(formatString("mosquitto_password_file %s", passwd_file.getFilePath().c_str()));
+    confFile.writeLine("allow_anonymous true");
+    confFile.writeLine(R"(
+listen {
+        protocol mqtt
+        port 2883
+        allow_anonymous false
+}
+listen {
+        protocol mqtt
+        port 2884
+})");
+    confFile.closeFile();
+
+    std::vector<std::string> args {"--config-file", confFile.getFilePath()};
+
+    cleanup();
+    init(args);
+
+    // With users, both listeners should act the same.
+    for (int port : {2883, 2884})
+    {
+        {
+            FlashMQTestClient client;
+            client.start();
+            client.connectClient(ProtocolVersion::Mqtt5, false, 120, [](Connect &connect) {
+                    connect.username = "one";
+                    connect.password = "one";
+                }, port);
+
+            auto ack = client.receivedPackets.front();
+            ConnAckData ackData = ack.parseConnAckData();
+            QCOMPARE(ackData.reasonCode, ReasonCodes::Success);
+        }
+
+        {
+            FlashMQTestClient client;
+            client.start();
+            client.connectClient(ProtocolVersion::Mqtt5, false, 120, [](Connect &connect) {
+                    connect.username = "one";
+                    connect.password = "wrong";
+                }, port);
+
+            auto ack = client.receivedPackets.front();
+            ConnAckData ackData = ack.parseConnAckData();
+            QCOMPARE(ackData.reasonCode, ReasonCodes::NotAuthorized);
+        }
+    }
+
+    {
+        FlashMQTestClient client;
+        client.start();
+        client.connectClient(ProtocolVersion::Mqtt5, 2883);
+
+        auto ack = client.receivedPackets.front();
+        ConnAckData ackData = ack.parseConnAckData();
+        QCOMPARE(ackData.reasonCode, ReasonCodes::NotAuthorized);
+    }
+
+    {
+        FlashMQTestClient client;
+        client.start();
+        client.connectClient(ProtocolVersion::Mqtt5, 2884);
+
+        auto ack = client.receivedPackets.front();
+        ConnAckData ackData = ack.parseConnAckData();
+        QCOMPARE(ackData.reasonCode, ReasonCodes::Success);
+    }
+}
+
+void MainTests::testKeepAllowAnonymousFalse()
+{
+    ConfFileTemp passwd_file;
+    passwd_file.writeLine("one:$6$JCNyGIZwxpaB++iTCwiT2e80YX6mEFymRCkRpHkm50dNP8IfHMWz97BdadZVsZCCC9yr"
+                          "7/OXxAbdfAVk71xqyA==$AL25hdhMm0CkQ3/nxtgGJ96xfSv6hCAf7aHZby8mZWnkNxmvRnuu6f"
+                          "HWi6yvyr1EjPD4P9vmIvKwqvdKEVDLLQ==");
+    passwd_file.closeFile();
+
+    ConfFileTemp confFile;
+    confFile.writeLine(formatString("mosquitto_password_file %s", passwd_file.getFilePath().c_str()));
+    confFile.writeLine("allow_anonymous false");
+    confFile.writeLine(R"(
+listen {
+        protocol mqtt
+        port 2883
+        allow_anonymous false
+}
+listen {
+        protocol mqtt
+        port 2884
+})");
+    confFile.closeFile();
+
+    std::vector<std::string> args {"--config-file", confFile.getFilePath()};
+
+    cleanup();
+    init(args);
+
+    // With users, both listeners should act the same.
+    for (int port : {2883, 2884})
+    {
+        {
+            FlashMQTestClient client;
+            client.start();
+            client.connectClient(ProtocolVersion::Mqtt5, false, 120, [](Connect &connect) {
+                    connect.username = "one";
+                    connect.password = "one";
+                }, port);
+
+            auto ack = client.receivedPackets.front();
+            ConnAckData ackData = ack.parseConnAckData();
+            QCOMPARE(ackData.reasonCode, ReasonCodes::Success);
+        }
+
+        {
+            FlashMQTestClient client;
+            client.start();
+            client.connectClient(ProtocolVersion::Mqtt5, false, 120, [](Connect &connect) {
+                    connect.username = "one";
+                    connect.password = "wrong";
+                }, port);
+
+            auto ack = client.receivedPackets.front();
+            ConnAckData ackData = ack.parseConnAckData();
+            QCOMPARE(ackData.reasonCode, ReasonCodes::NotAuthorized);
+        }
+    }
+
+    {
+        FlashMQTestClient client;
+        client.start();
+        client.connectClient(ProtocolVersion::Mqtt5, 2883);
+
+        auto ack = client.receivedPackets.front();
+        ConnAckData ackData = ack.parseConnAckData();
+        QCOMPARE(ackData.reasonCode, ReasonCodes::NotAuthorized);
+    }
+
+    {
+        FlashMQTestClient client;
+        client.start();
+        client.connectClient(ProtocolVersion::Mqtt5, 2884);
+
+        auto ack = client.receivedPackets.front();
+        ConnAckData ackData = ack.parseConnAckData();
+        QCOMPARE(ackData.reasonCode, ReasonCodes::NotAuthorized);
+    }
+}
+
+
 void MainTests::testAddrMatchesSubnetIpv4()
 {
     struct sockaddr_in reference_addr;
