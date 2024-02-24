@@ -45,7 +45,7 @@ struct Listener
     bool isHaProxy() const;
     std::string getProtocolName() const;
     void loadCertAndKeyFromConfig();
-    X509ClientVerification getX509ClientVerficiationMode() const;
+    X509ClientVerification getX509ClientVerficationMode() const;
 
     std::string getBindAddress(ListenerProtocol p);
 };

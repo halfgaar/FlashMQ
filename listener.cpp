@@ -124,7 +124,7 @@ void Listener::loadCertAndKeyFromConfig()
     }
 }
 
-X509ClientVerification Listener::getX509ClientVerficiationMode() const
+X509ClientVerification Listener::getX509ClientVerficationMode() const
 {
     X509ClientVerification result = X509ClientVerification::None;
     const bool clientCADefined = !clientVerificationCaDir.empty() || !clientVerificationCaFile.empty();
