@@ -150,7 +150,7 @@ void MainApp::showLicense()
 #endif
 
     printf("FlashMQ Version %s %s\n", FLASHMQ_VERSION, sse.c_str());
-    puts("Copyright (C) 2021-2023 Wiebe Cazemier.");
+    puts("Copyright (C) 2021-2024 Wiebe Cazemier.");
     puts("License OSL3: Open Software License 3.0 <https://opensource.org/license/osl-3-0-php/>.");
     puts("");
     puts("Author: Wiebe Cazemier <wiebe@flashmq.org>");
