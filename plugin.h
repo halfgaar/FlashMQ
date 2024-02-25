@@ -14,6 +14,7 @@ See LICENSE for license details.
 #include <string>
 #include <string_view>
 #include <cstring>
+#include <optional>
 
 #include "logger.h"
 #include "acltree.h"
