@@ -7,11 +7,11 @@ jobs:
         include:
           - os: ubuntu-22.04
             friendly: clang
-            SPEC: linux-clang
+            compiler: clang++
             aptpkg: clang
           - os: ubuntu-22.04
             friendly: gcc
-            SPEC: linux-g++
+            compiler: g++
             aptpkg: build-essential
     runs-on: ${{ matrix.os }}
     defaults:
@@ -23,7 +23,7 @@ jobs:
         uses: actions/checkout@v3
       - run: sudo apt update
       # Build prerequisites
-      - run: sudo apt install -y cmake libssl-dev qtbase5-dev libcurl4-openssl-dev ${{ matrix.aptpkg }}
+      - run: sudo apt install -y cmake libssl-dev libcurl4-openssl-dev ${{ matrix.aptpkg }}
       # Building
-      - run: ./run-make-from-ci.sh --spec "${{ matrix.SPEC }}"
+      - run: ./run-make-from-ci.sh --compiler "${{ matrix.compiler }}"
       - run: ./run-tests-from-ci.sh

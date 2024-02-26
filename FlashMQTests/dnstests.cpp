@@ -1,4 +1,5 @@
-#include "tst_maintests.h"
+#include "maintests.h"
+#include "testhelpers.h"
 
 #include "utils.h"
 

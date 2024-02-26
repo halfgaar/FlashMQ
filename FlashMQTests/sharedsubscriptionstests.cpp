@@ -1,6 +1,11 @@
-#include "tst_maintests.h"
+#include "maintests.h"
+#include "testhelpers.h"
+#include "flashmqtestclient.h"
+#include "flashmqtempdir.h"
+#include "conffiletemp.h"
 
 #include "utils.h"
+#include "threadglobals.h"
 
 void MainTests::testSharedSubscribersUnit()
 {

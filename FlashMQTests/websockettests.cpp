@@ -1,9 +1,12 @@
-#include "tst_maintests.h"
+#include "maintests.h"
+#include "testhelpers.h"
 
 #include <fstream>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <poll.h>
+
+#include "threadglobals.h"
 
 #include "filecloser.h"
 

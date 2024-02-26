@@ -1,22 +1,23 @@
 #!/bin/bash
 
-spec="linux-g++"
-extra_config=""
+extra_configs=()
+compiler="g++"
 
 while [ -n "$*" ]; do
   flag=$1
   value=$2
 
   case "$flag" in
-    "--spec")
-      spec="$value"
+    "--compiler")
+      compiler="$value"
       shift
     ;;
     "--extra-config")
-      extra_config="$value"
+      extra_configs+=("$value")
       shift
     ;;
     "--")
+      shift
       break
     ;;
     *)
@@ -30,13 +31,15 @@ done
 
 set -u
 
-mkdir buildtests || exit 1
-cd buildtests || exit 1
-qmake -spec "$spec" "$extra_config" ../FlashMQTestsMeta.pro
+for item in "${extra_configs[@]}"; do
+  extra_configs_expanded=("${extra_configs_expanded[@]}" "-D" "$item")
+done
+
+CXX="$compiler" cmake -S . -B buildtests "${extra_configs_expanded[@]}"
 
 nprocs=4
 if _nprocs=$(nproc); then
   nprocs="$_nprocs"
 fi
 
-make -j "$nprocs"
+make -C buildtests -j "$nprocs"

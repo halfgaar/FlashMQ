@@ -1,4 +1,7 @@
-#include "tst_maintests.h"
+#include "maintests.h"
+#include "testhelpers.h"
+#include "conffiletemp.h"
+#include "flashmqtestclient.h"
 
 #include <sys/sysinfo.h>
 

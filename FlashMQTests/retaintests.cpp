@@ -1,6 +1,10 @@
-#include "tst_maintests.h"
+#include "maintests.h"
+#include "flashmqtestclient.h"
+#include "conffiletemp.h"
+#include "testhelpers.h"
 
 #include "utils.h"
+#include "retainedmessagesdb.h"
 
 void MainTests::test_retained()
 {
@@ -703,3 +707,5 @@ void MainTests::testRetainedAclReadCheck()
     MYCASTCOMPARE(client.receivedPublishes.size(), 1);
     MYCASTCOMPARE(client2.receivedPublishes.size(), 1);
 }
+
+

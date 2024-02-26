@@ -35,7 +35,7 @@ See LICENSE for license details.
 class MainApp
 {
 #ifdef TESTING
-    friend class MainAppThread;
+    friend class MainAppInThread;
 #endif
 
     static MainApp *instance;

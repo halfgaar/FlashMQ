@@ -1,64 +1,39 @@
-#ifndef TST_MAINTESTS_H
-#define TST_MAINTESTS_H
+#ifndef MAINTESTS_H
+#define MAINTESTS_H
 
-#include <QtTest>
+#include <memory>
+#include <unordered_map>
+#include <functional>
 
-#include <QScopedPointer>
-#include <QHostInfo>
+#include "mainappinthread.h"
 
-#include "cirbuf.h"
-#include "mainapp.h"
-#include "threadlocalutils.h"
-#include "retainedmessagesdb.h"
-#include "sessionsandsubscriptionsdb.h"
-#include "session.h"
-#include "threaddata.h"
-#include "threadglobals.h"
-#include "packetdatatypes.h"
-#include "qospacketqueue.h"
-#include "network.h"
-#include "pluginloader.h"
-#include "mainappthread.h"
-#include "conffiletemp.h"
-#include "flashmqtestclient.h"
-#include "flashmqtempdir.h"
+#define REGISTER_FUNCTION(name) registerFunction(#name, std::bind(&MainTests::name, this))
 
-// Dumb Qt version gives warnings when comparing uint with number literal.
-template <typename T1, typename T2>
-inline bool myCastCompare(const T1 &t1, const T2 &t2, const char *actual, const char *expected,
-                      const char *file, int line)
+class MainTests
 {
-    T1 t2_ = static_cast<T1>(t2);
-    return QTest::compare_helper(t1 == t2_, "Compared values are not the same",
-                                 QTest::toString(t1), QTest::toString(t2), actual, expected, file, line);
-}
+    friend class TestInitializer;
 
-#define MYCASTCOMPARE(actual, expected) \
-do {\
-    if (!myCastCompare(actual, expected, #actual, #expected, __FILE__, __LINE__))\
-        return;\
-} while (false)
-
-class MainTests : public QObject
-{
-    Q_OBJECT
-
-    QScopedPointer<MainAppThread> mainApp;
+    std::unique_ptr<MainAppInThread> mainApp;
     std::shared_ptr<ThreadData> dummyThreadData;
+
+    std::unordered_map<std::string, std::function<void()>> testFunctions;
+
+    void testAsserts();
+
+    void initBeforeEachTest(const std::vector<std::string> &args);
+    void initBeforeEachTest();
+    void cleanupAfterEachTest();
+    void registerFunction(const std::string &name, std::function<void()> f);
+
+    // Compatability for porting the tests away from Qt. The function names are too vague so want to phase them out.
+    void init(const std::vector<std::string> &args) { initBeforeEachTest(args);}
+    void init() {initBeforeEachTest();}
+    void cleanup() {cleanupAfterEachTest();}
 
     void testParsePacketHelper(const std::string &topic, uint8_t from_qos, bool retain);
     void testTopicMatchingInSubscriptionTreeHelper(const std::string &subscribe_topic, const std::string &publish_topic, int match_count=1);
 
-public:
-    MainTests();
-    ~MainTests();
-
-private slots:
-    void init(const std::vector<std::string> &args);
-    void init(); // will be called before each test function is executed
-    void cleanup(); // will be called after every test function.
-
-    void cleanupTestCase(); // will be called after the last test function was executed.
+    void testDummy();
 
     void test_circbuf();
     void test_circbuf_unwrapped_doubling();
@@ -95,6 +70,7 @@ private slots:
     void test_loading_acl_file();
 
     void test_validUtf8Generic();
+
 #ifndef FMQ_NO_SSE
     void test_sse_split();
     void test_validUtf8Sse();
@@ -224,7 +200,12 @@ private slots:
     void testWebsocketHugePing();
     void testWebsocketManyBigPingFrames();
     void testWebsocketClose();
+
+
+public:
+    MainTests();
+
+    bool test(const std::vector<std::string> &tests);
 };
 
-
-#endif // TST_MAINTESTS_H
+#endif // MAINTESTS_H

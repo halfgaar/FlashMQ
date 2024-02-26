@@ -1,23 +1,13 @@
-/*
-This file is part of FlashMQ (https://www.flashmq.org)
-Copyright (C) 2021-2023 Wiebe Cazemier
+#include "mainappinthread.h"
 
-FlashMQ is free software: you can redistribute it and/or modify
-it under the terms of The Open Software License 3.0 (OSL-3.0).
-
-See LICENSE for license details.
-*/
-
-#include "mainappthread.h"
-
-MainAppThread::MainAppThread(QObject *parent) : QThread(parent)
+MainAppInThread::MainAppInThread()
 {
     MainApp::initMainApp(1, nullptr);
     appInstance = MainApp::getMainApp();
     appInstance->settings.allowAnonymous = true;
 }
 
-MainAppThread::MainAppThread(const std::vector<std::string> &args, QObject *parent) : QThread(parent)
+MainAppInThread::MainAppInThread(const std::vector<std::string> &args)
 {
     std::list<std::vector<char>> argCopies;
 
@@ -50,7 +40,7 @@ MainAppThread::MainAppThread(const std::vector<std::string> &args, QObject *pare
         appInstance->settings.allowAnonymous = true;
 }
 
-MainAppThread::~MainAppThread()
+MainAppInThread::~MainAppInThread()
 {
     if (appInstance)
     {
@@ -60,30 +50,33 @@ MainAppThread::~MainAppThread()
     appInstance = nullptr;
 }
 
-void MainAppThread::run()
+void MainAppInThread::start()
 {
-    appInstance->start();
+    auto f = std::bind(&MainApp::start, this->appInstance);
+    this->thread = std::thread(f);
 }
 
-void MainAppThread::stopApp()
+void MainAppInThread::stopApp()
 {
-    appInstance->quit();
-    wait();
+    this->appInstance->quit();
+
+    if (this->thread.joinable())
+        this->thread.join();
 }
 
-void MainAppThread::waitForStarted()
+void MainAppInThread::waitForStarted()
 {
     int n = 0;
     while(!appInstance->getStarted())
     {
-        QThread::msleep(10);
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
         if (n++ > 500)
             throw std::runtime_error("Waiting for app to start failed.");
     }
 }
 
-std::shared_ptr<SubscriptionStore> MainAppThread::getStore()
+std::shared_ptr<SubscriptionStore> MainAppInThread::getStore()
 {
     return appInstance->getSubscriptionStore();
 }

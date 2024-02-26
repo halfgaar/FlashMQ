@@ -1,4 +1,7 @@
-#include "tst_maintests.h"
+#include "maintests.h"
+#include "testhelpers.h"
+#include "flashmqtestclient.h"
+#include "conffiletemp.h"
 
 void MainTests::testMqtt3will()
 {
