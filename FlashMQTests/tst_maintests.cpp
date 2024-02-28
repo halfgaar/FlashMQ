@@ -2347,6 +2347,20 @@ listen {
         ConnAckData ackData = ack.parseConnAckData();
         QCOMPARE(ackData.reasonCode, ReasonCodes::NotAuthorized);
     }
+
+    // Test empty password for existing user. It should not think it's anonymous.
+    {
+        FlashMQTestClient client;
+        client.start();
+        client.connectClient(ProtocolVersion::Mqtt5, false, 120, [](Connect &connect) {
+                connect.username = "one";
+                connect.password = "";
+            }, 2883); // allow_anonymous true global setting.
+
+        auto ack = client.receivedPackets.front();
+        ConnAckData ackData = ack.parseConnAckData();
+        QCOMPARE(ackData.reasonCode, ReasonCodes::NotAuthorized);
+    }
 }
 
 void MainTests::testOverrideAllowAnonymousToFalse()
@@ -2360,6 +2374,7 @@ void MainTests::testOverrideAllowAnonymousToFalse()
     ConfFileTemp confFile;
     confFile.writeLine(formatString("mosquitto_password_file %s", passwd_file.getFilePath().c_str()));
     confFile.writeLine("allow_anonymous true");
+    confFile.writeLine("zero_byte_username_is_anonymous true");
     confFile.writeLine(R"(
 listen {
         protocol mqtt
@@ -2421,6 +2436,20 @@ listen {
         FlashMQTestClient client;
         client.start();
         client.connectClient(ProtocolVersion::Mqtt5, 2884);
+
+        auto ack = client.receivedPackets.front();
+        ConnAckData ackData = ack.parseConnAckData();
+        QCOMPARE(ackData.reasonCode, ReasonCodes::Success);
+    }
+
+    // Test 'zero_byte_username_is_anonymous true'
+    {
+        FlashMQTestClient client;
+        client.start();
+        client.connectClient(ProtocolVersion::Mqtt311, false, 120, [](Connect &connect) {
+                connect.username = "";
+                connect.password = "wrong";
+            }, 2884);
 
         auto ack = client.receivedPackets.front();
         ConnAckData ackData = ack.parseConnAckData();

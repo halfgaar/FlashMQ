@@ -206,6 +206,7 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validKeys.insert("rebuild_subscription_tree_interval_seconds");
     validKeys.insert("minimum_wildcard_subscription_depth");
     validKeys.insert("wildcard_subscription_deny_mode");
+    validKeys.insert("zero_byte_username_is_anonymous");
 
     validListenKeys.insert("port");
     validListenKeys.insert("protocol");
@@ -990,6 +991,11 @@ void ConfigFileParser::loadFile(bool test)
                         tmpSettings.wildcardSubscriptionDenyMode = WildcardSubscriptionDenyMode::DenyRetainedOnly;
                     else
                         throw ConfigFileException(formatString("Value '%s' for '%s' is invalid.", value.c_str(), key.c_str()));
+                }
+
+                if (testKeyValidity(key, "zero_byte_username_is_anonymous", validKeys))
+                {
+                    tmpSettings.zeroByteUsernameIsAnonymous = stringTruthiness(value);
                 }
             }
         }

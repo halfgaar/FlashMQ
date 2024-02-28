@@ -263,8 +263,8 @@ MqttPacket::MqttPacket(const Connect &connect) :
     writeByte(protocolVersionByte);
 
     uint8_t flags = connect.clean_start << 1;
-    flags |= !connect.username.empty() << 7;
-    flags |= !connect.password.empty() << 6;
+    flags |= static_cast<unsigned int>(connect.username.has_value()) << 7;
+    flags |= static_cast<unsigned int>(connect.password.has_value()) << 6;
 
     if (connect.will)
     {
@@ -295,10 +295,10 @@ MqttPacket::MqttPacket(const Connect &connect) :
         writeString(connect.will->payload);
     }
 
-    if (!connect.username.empty())
-        writeString(connect.username);
-    if (!connect.password.empty())
-        writeString(connect.password);
+    if (connect.username.has_value())
+        writeString(connect.username.value());
+    if (connect.password.has_value())
+        writeString(connect.password.value());
 
     calculateRemainingLength();
 }
@@ -679,11 +679,22 @@ ConnectData MqttPacket::parseConnectData()
 
     if (user_name_flag)
     {
+        // Usernames must be UTF-8, but we defer that check so we can give proper a CONNACK, and continue parsing.
         result.username = readBytesToString(false);
-        result.willpublish.username = result.username.value();
 
         if (result.username.value().empty())
-            throw ProtocolError("Username flagged as present, but it's 0 bytes.", ReasonCodes::MalformedPacket);
+        {
+            if (settings.zeroByteUsernameIsAnonymous)
+                result.username.reset();
+            else
+                throw ProtocolError("Attempting anonymous login with zero byte username. See config option 'zero_byte_username_is_anonymous'.",
+                                    ReasonCodes::BadUserNameOrPassword);
+        }
+    }
+
+    if (result.username)
+    {
+        result.willpublish.username = result.username.value();
 
         if (!settings.allowUnsafeUsernameChars && containsDangerousCharacters(result.username.value()))
             throw ProtocolError(formatString("Username '%s' contains unsafe characters and 'allow_unsafe_username_chars' is false.", result.username.value().c_str()),
@@ -692,15 +703,12 @@ ConnectData MqttPacket::parseConnectData()
 
     if (result.password_flag)
     {
-        if (this->protocolVersion <= ProtocolVersion::Mqtt311 && !result.username)
+        if (this->protocolVersion <= ProtocolVersion::Mqtt311 && !user_name_flag)
         {
             throw ProtocolError("MQTT 3.1.1: If the User Name Flag is set to 0, the Password Flag MUST be set to 0.", ReasonCodes::MalformedPacket);
         }
 
         result.password = readBytesToString(false);
-
-        if (result.password.empty())
-            throw ProtocolError("Password flagged as present, but it's 0 bytes.", ReasonCodes::MalformedPacket);
     }
 
     return  result;

@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <optional>
 #include "session.h"
 #include "dnsresolver.h"
 #include "sslctxmanager.h"
@@ -40,9 +41,9 @@ public:
     ProtocolVersion protocolVersion = ProtocolVersion::Mqtt311;
     bool bridgeProtocolBit = true;
     std::string clientidPrefix = "fmqbridge";
-    std::string local_username;
-    std::string remote_username;
-    std::string remote_password;
+    std::optional<std::string> local_username;
+    std::optional<std::string> remote_username;
+    std::optional<std::string> remote_password;
     bool remoteCleanStart = true;
     uint32_t remoteSessionExpiryInterval = 0;
     bool localCleanStart = true;

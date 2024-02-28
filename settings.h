@@ -91,6 +91,7 @@ public:
     SharedSubscriptionTargeting sharedSubscriptionTargeting = SharedSubscriptionTargeting::RoundRobin;
     uint16_t minimumWildcardSubscriptionDepth = 0;
     WildcardSubscriptionDenyMode wildcardSubscriptionDenyMode = WildcardSubscriptionDenyMode::DenyAll;
+    bool zeroByteUsernameIsAnonymous = false;
     std::list<std::shared_ptr<Listener>> listeners; // Default one is created later, when none are defined.
 
     std::list<Network> setRealIpFrom;

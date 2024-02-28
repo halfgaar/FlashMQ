@@ -471,11 +471,11 @@ size_t Connect::getLengthWithoutFixedHeader() const
         result += will->payload.length() + 2;
     }
 
-    if (!username.empty())
-        result += username.size() + 2;
+    if (username.has_value())
+        result += username->size() + 2;
 
-    if (!password.empty())
-        result += password.size() + 2;
+    if (password.has_value())
+        result += password->size() + 2;
 
     return result;
 }

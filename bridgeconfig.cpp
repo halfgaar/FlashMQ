@@ -171,6 +171,9 @@ void BridgeConfig::isValid()
     if (clientidPrefix.length() > 10)
         throw ConfigFileException("clientidPrefix can't be longer than 10");
 
+    if (protocolVersion <= ProtocolVersion::Mqtt311 && remote_password.has_value() && !remote_username.has_value())
+        throw ConfigFileException("MQTT 3.1.1 and lower require a username when you set a password.");
+
     setClientId();
 }
 

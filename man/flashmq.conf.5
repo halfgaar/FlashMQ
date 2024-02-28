@@ -5,7 +5,7 @@
 \\$2 \(la\\$1\(ra\\$3
 ..
 .if \n(.g .mso www.tmac
-.TH flashmq.conf 5 "2 March 2024" "" ""
+.TH flashmq.conf 5 "16 March 2024" "" ""
 .SH NAME
 flashmq.conf \- FlashMQ configuration file format
 .SH SYNOPSIS
@@ -118,6 +118,17 @@ ACL (access control lists) for users, anonymous users and patterns expandable wi
 This option can be overriden on a per-listener basis; see 
 .URL #listen__allow_anonymous listener.allow_anonymous
 \&.
+
+Default value: \*(T<false\*(T>
+.TP 
+\*(T<\fBzero_byte_username_is_anonymous\fR\*(T> \fItrue/false\fR 
+The proper way to signal an anonymous client is by setting the 'username present' flag in the CONNECT packet to 0, which in MQTT3 also demands the absence of a password. However, there are also clients out there that set the 'username present' flag to 1 and then give an empty username. This is an undesirable situation, because it means there are two ways to identify an anonymous client.
+
+Anonymous clients are not authenticated against a loaded plugin when \*(T<\fBallow_anonymous\fR\*(T> is true. With this option enabled, that means users with empty string as usernames also aren't.
+
+With this option disabled, clients connecting with an empty username will be reject with 'bad username or password' as MQTT error code.
+
+The default is to be unambigious, but this can be overridden with this option.
 
 Default value: \*(T<false\*(T>
 .TP 

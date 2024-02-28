@@ -687,7 +687,7 @@ void Client::setBridgeState(std::shared_ptr<BridgeState> bridgeState)
         this->address = bridgeState->c.address;
         this->clean_start = bridgeState->c.localCleanStart;
         this->clientid = bridgeState->c.getClientid();
-        this->username = bridgeState->c.local_username;
+        this->username = bridgeState->c.local_username.value_or(std::string());
         this->keepalive = bridgeState->c.keepalive;
 
         // Not setting maxOutgoingTopicAliasValue, because that must remain 0 until the other side says (in the connack) we can uses aliases.

@@ -240,6 +240,29 @@
           </para>
         </listitem>
       </varlistentry>
+      <varlistentry xml:id="zero_byte_username_is_anonymous">
+        <term><option>zero_byte_username_is_anonymous</option> <replaceable>true/false</replaceable></term>
+        <listitem>
+          <para>
+            The proper way to signal an anonymous client is by setting the 'username present' flag in the CONNECT packet to 0, which in MQTT3 also demands the absence of a password. However, there are also clients out there that set the 'username present' flag to 1 and then give an empty username. This is an undesirable situation, because it means there are two ways to identify an anonymous client.
+          </para>
+
+          <para>
+            Anonymous clients are not authenticated against a loaded plugin when <option>allow_anonymous</option> is true. With this option enabled, that means users with empty string as usernames also aren't.
+          </para>
+
+          <para>
+            With this option disabled, clients connecting with an empty username will be reject with 'bad username or password' as MQTT error code.
+          </para>
+
+          <para>
+            The default is to be unambigious, but this can be overridden with this option.
+          </para>
+          <para>
+            Default value: <literal>false</literal>
+          </para>
+        </listitem>
+      </varlistentry>
       <varlistentry xml:id="rlimit_nofile">
         <term><option>rlimit_nofile</option> <replaceable>number</replaceable></term>
         <listitem>
