@@ -162,6 +162,7 @@ add_executable(flashmq-tests
     conffiletemp.cpp conffiletemp.h
     filecloser.cpp filecloser.h
     plugintests.cpp
+    configtests.cpp
     sharedsubscriptionstests.cpp
     websockettests.cpp
     willtests.cpp

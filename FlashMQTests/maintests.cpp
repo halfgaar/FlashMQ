@@ -184,6 +184,8 @@ MainTests::MainTests()
     REGISTER_FUNCTION(test_acl_patterns_username);
     REGISTER_FUNCTION(test_acl_patterns_clientid);
     REGISTER_FUNCTION(test_loading_acl_file);
+    REGISTER_FUNCTION(test_loading_second_value);
+    REGISTER_FUNCTION(test_parsing_numbers);
     REGISTER_FUNCTION(test_validUtf8Generic);
 
 #ifndef FMQ_NO_SSE

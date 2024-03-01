@@ -69,6 +69,8 @@ class MainTests
     void test_acl_patterns_clientid();
     void test_loading_acl_file();
 
+    void test_loading_second_value();
+    void test_parsing_numbers();
     void test_validUtf8Generic();
 
 #ifndef FMQ_NO_SSE

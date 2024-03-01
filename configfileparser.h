@@ -42,6 +42,7 @@ class ConfigFileParser
 
     Settings settings;
 
+    void static testCorrectNumberOfValues(const std::string &key, size_t expected_values, const std::smatch &matches);
     bool testKeyValidity(const std::string &key, const std::string &matchKey, const std::set<std::string> &validKeys) const;
     void static checkFileExistsAndReadable(const std::string &key, const std::string &pathToCheck, ssize_t max_size = std::numeric_limits<ssize_t>::max());
     void static checkFileOrItsDirWritable(const std::string &filepath);
