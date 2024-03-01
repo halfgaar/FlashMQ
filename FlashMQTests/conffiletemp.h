@@ -15,6 +15,10 @@ public:
     const std::string &getFilePath() const;
     void writeLine(const std::string &line);
     void closeFile();
+
+    ConfFileTemp &operator=(const ConfFileTemp &other) = delete;
+    ConfFileTemp(const ConfFileTemp &other) = delete;
+    ConfFileTemp(ConfFileTemp &&other) = delete;
 };
 
 #endif // CONFFILETEMP_H
