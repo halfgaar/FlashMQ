@@ -820,19 +820,31 @@ listen {
       </varlistentry>
 
       <varlistentry xml:id="bridge__publish">
-        <term><option>publish</option> <replaceable>filter</replaceable></term>
+        <term><option>publish</option> <replaceable>filter</replaceable> <replaceable>qos</replaceable></term>
         <listitem>
           <para>
               Messages matching this filter will be published to the other side. Examples: <literal>#</literal> or <literal>sport/tennis/#</literal>. This option can be repeated several times.
+          </para>
+          <para>
+            The QoS value should be seen as the QoS value of the internal subscription causing outgoing messages. Messages that are relayed have this QoS level at most.
+          </para>
+          <para>
+              Default: <literal>0</literal>
           </para>
         </listitem>
       </varlistentry>
 
       <varlistentry xml:id="bridge__subscribe">
-        <term><option>subscribe</option> <replaceable>filter</replaceable></term>
+        <term><option>subscribe</option> <replaceable>filter</replaceable> <replaceable>qos</replaceable></term>
         <listitem>
           <para>
               Subscriptions for this filter is placed at the other side. Examples: <literal>#</literal> or <literal>sport/tennis/#</literal>. This option can be repeated several times.
+          </para>
+          <para>
+            The QoS value is like any subscription at a server. Messages received by the other end will be given this QoS level at most.
+          </para>
+          <para>
+              Default: <literal>0</literal>
           </para>
         </listitem>
       </varlistentry>

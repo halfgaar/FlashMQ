@@ -869,19 +869,31 @@ listen {
       
 
       
-        <dt id="bridge__publish"><code class="option">publish</code> <code class="replaceable">filter</code><a class="hash-anchor" href="#bridge__publish">#</a></dt>
+        <dt id="bridge__publish"><code class="option">publish</code> <code class="replaceable">filter</code> <code class="replaceable">qos</code><a class="hash-anchor" href="#bridge__publish">#</a></dt>
         <dd>
           <p>
               Messages matching this filter will be published to the other side. Examples: <code class="literal">#</code> or <code class="literal">sport/tennis/#</code>. This option can be repeated several times.
+          </p>
+          <p>
+            The QoS value should be seen as the QoS value of the internal subscription causing outgoing messages. Messages that are relayed have this QoS level at most.
+          </p>
+          <p>
+              Default: <code class="literal">0</code>
           </p>
         </dd>
       
 
       
-        <dt id="bridge__subscribe"><code class="option">subscribe</code> <code class="replaceable">filter</code><a class="hash-anchor" href="#bridge__subscribe">#</a></dt>
+        <dt id="bridge__subscribe"><code class="option">subscribe</code> <code class="replaceable">filter</code> <code class="replaceable">qos</code><a class="hash-anchor" href="#bridge__subscribe">#</a></dt>
         <dd>
           <p>
               Subscriptions for this filter is placed at the other side. Examples: <code class="literal">#</code> or <code class="literal">sport/tennis/#</code>. This option can be repeated several times.
+          </p>
+          <p>
+            The QoS value is like any subscription at a server. Messages received by the other end will be given this QoS level at most.
+          </p>
+          <p>
+              Default: <code class="literal">0</code>
           </p>
         </dd>
       

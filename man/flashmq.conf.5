@@ -5,7 +5,7 @@
 \\$2 \(la\\$1\(ra\\$3
 ..
 .if \n(.g .mso www.tmac
-.TH flashmq.conf 5 "24 February 2024" "" ""
+.TH flashmq.conf 5 "2 March 2024" "" ""
 .SH NAME
 flashmq.conf \- FlashMQ configuration file format
 .SH SYNOPSIS
@@ -406,11 +406,19 @@ The prefix of the randomly generated client ID. Client IDs cannot be explicitely
 
 Default: \*(T<fmqbridge\*(T>
 .TP 
-\*(T<\fBpublish\fR\*(T> \fIfilter\fR 
+\*(T<\fBpublish\fR\*(T> \fIfilter\fR \fIqos\fR 
 Messages matching this filter will be published to the other side. Examples: \*(T<#\*(T> or \*(T<sport/tennis/#\*(T>. This option can be repeated several times.
+
+The QoS value should be seen as the QoS value of the internal subscription causing outgoing messages. Messages that are relayed have this QoS level at most.
+
+Default: \*(T<0\*(T>
 .TP 
-\*(T<\fBsubscribe\fR\*(T> \fIfilter\fR 
+\*(T<\fBsubscribe\fR\*(T> \fIfilter\fR \fIqos\fR 
 Subscriptions for this filter is placed at the other side. Examples: \*(T<#\*(T> or \*(T<sport/tennis/#\*(T>. This option can be repeated several times.
+
+The QoS value is like any subscription at a server. Messages received by the other end will be given this QoS level at most.
+
+Default: \*(T<0\*(T>
 .TP 
 \*(T<\fBlocal_username\fR\*(T> \fIusername\fR 
 Username as seen by the local FlashMQ's plugin or ACL checks. This is not always necessary.
