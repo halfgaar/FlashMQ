@@ -882,7 +882,7 @@ bool MainApp::getFuzzMode() const
 void MainApp::setlimits()
 {
     rlim_t nofile = settings.rlimitNoFile;
-    logger->logf(LOG_INFO, "Setting rlimit nofile to %ld.", nofile);
+    logger->log(LOG_INFO) << "Setting rlimit nofile to " << nofile;
     struct rlimit v = { nofile, nofile };
     if (setrlimit(RLIMIT_NOFILE, &v) < 0)
     {
