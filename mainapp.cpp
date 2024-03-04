@@ -381,7 +381,7 @@ void MainApp::saveState(const Settings &settings, const std::list<BridgeInfoForS
 
             MainApp::saveBridgeInfo(settings.getBridgeNamesDBFile(), bridgeInfos);
 
-            logger->logf(LOG_INFO, "Saving states done");
+            logger->logf(LOG_NOTICE, "Saving states done");
         }
     }
     catch(std::exception &ex)
@@ -393,7 +393,7 @@ void MainApp::saveState(const Settings &settings, const std::list<BridgeInfoForS
 void MainApp::saveBridgeInfo(const std::string &filePath, const std::list<BridgeInfoForSerializing> &bridgeInfos)
 {
     Logger *logger = Logger::getInstance();
-    logger->logf(LOG_INFO, "Saving bridge info in '%s'", filePath.c_str());
+    logger->logf(LOG_NOTICE, "Saving bridge info in '%s'", filePath.c_str());
     BridgeInfoDb bridgeInfoDb(filePath);
     bridgeInfoDb.openWrite();
     bridgeInfoDb.saveInfo(bridgeInfos);
@@ -410,7 +410,7 @@ void MainApp::loadBridgeInfo()
 
     try
     {
-        logger->logf(LOG_INFO, "Loading '%s'", filePath.c_str());
+        logger->logf(LOG_NOTICE, "Loading '%s'", filePath.c_str());
 
         BridgeInfoDb dbfile(filePath);
         dbfile.openRead();

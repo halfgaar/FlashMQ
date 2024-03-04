@@ -172,7 +172,7 @@ void Authentication::cleanup()
     if (pluginFamily == PluginFamily::None)
         return;
 
-    logger->logf(LOG_INFO, "Cleaning up authentication.");
+    logger->logf(LOG_NOTICE, "Cleaning up authentication.");
 
     securityCleanup(false);
 

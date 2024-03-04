@@ -757,7 +757,7 @@ ConnAckData MqttPacket::parseConnAckData()
             case Mqtt5Properties::ReasonString:
             {
                 const std::string reason = readBytesToString();
-                logger->logf(LOG_INFO, "ConnAck reason string: %s", reason.c_str());
+                logger->logf(LOG_NOTICE, "ConnAck reason string: %s", reason.c_str());
                 break;
             }
             case Mqtt5Properties::UserProperty:
