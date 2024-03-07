@@ -93,6 +93,15 @@ bool ConfigFileParser::testKeyValidity(const std::string &key, const std::string
     {
         std::ostringstream oss;
         oss << "Config key '" << key << "' is not valid (here).";
+
+        auto alternative = findCloseStringMatch(validKeys.begin(), validKeys.end(), key);
+
+        if (alternative != validKeys.end())
+        {
+            // The space before the question mark is to make copying using mouse-double-click possible.
+            oss << " Did you mean: " << *alternative << " ?";
+        }
+
         throw ConfigFileException(oss.str());
     }
 
@@ -374,6 +383,8 @@ void ConfigFileParser::loadFile(bool test)
     std::shared_ptr<BridgeConfig> curBridge;
     Settings tmpSettings;
 
+    const std::set<std::string> blockNames {"listen", "bridge"};
+
     // Then once we know the config file is valid, process it.
     for (std::string &line : lines)
     {
@@ -382,19 +393,29 @@ void ConfigFileParser::loadFile(bool test)
         if (std::regex_match(line, matches, block_regex_start))
         {
             const std::string &key = matches[1].str();
-            if (key == "listen")
+            if (testKeyValidity(key, "listen", blockNames))
             {
                 curParseLevel = ConfigParseLevel::Listen;
                 curListener = std::make_shared<Listener>();
             }
-            else if (key == "bridge")
+            else if (testKeyValidity(key, "bridge", blockNames))
             {
                 curParseLevel = ConfigParseLevel::Bridge;
                 curBridge = std::make_unique<BridgeConfig>();
             }
             else
             {
-                throw ConfigFileException(formatString("'%s' is not a valid block.", key.c_str()));
+                std::ostringstream oss;
+                oss << "'" << key << "' is not a valid block.";
+
+                auto alt = findCloseStringMatch(blockNames.begin(), blockNames.end(), key);
+
+                if (alt != blockNames.end())
+                {
+                    oss << " Did you mean: " << *alt << " ?";
+                }
+
+                throw ConfigFileException(oss.str());
             }
 
             continue;

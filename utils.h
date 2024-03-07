@@ -124,6 +124,34 @@ std::string websocketCloseCodeToString(uint16_t code);
 
 std::string protocolVersionString(ProtocolVersion p);
 
+unsigned int distanceBetweenStrings(const std::string &stringA, const std::string &stringB);
+
+template<typename it>
+it findCloseStringMatch(it first, it last, const std::string &s)
+{
+    it alternative = last;
+    unsigned int alternative_distance = UINT_MAX;
+
+    for (auto possible_key = first; possible_key != last; ++possible_key)
+    {
+        unsigned int distance = distanceBetweenStrings(s, *possible_key);
+
+        // We only want to suggest options that look a bit like the unknown
+        // one. Experimentally I found 50% of the total length a decent
+        // cutoff.
+        //
+        // The mathemathical formula "distance/length < 0.5" can be
+        // approximated with integers as "distance*2/length < 1"
+        if ((distance * 2) / s.length() < 1 && distance < alternative_distance)
+        {
+            alternative = possible_key;
+            alternative_distance = distance;
+        }
+    }
+
+    return alternative;
+}
+
 uint32_t ageFromTimePoint(const std::chrono::time_point<std::chrono::steady_clock> &point);
 std::chrono::time_point<std::chrono::steady_clock> timepointFromAge(const uint32_t age);
 
