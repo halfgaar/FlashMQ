@@ -93,6 +93,33 @@ bool ConfigFileParser::testKeyValidity(const std::string &key, const std::string
     {
         std::ostringstream oss;
         oss << "Config key '" << key << "' is not valid (here).";
+
+        // Maybe the user made a typo
+        auto alternative = validKeys.end();
+        unsigned int alternative_distance = UINT_MAX;
+
+        for (auto possible_key = validKeys.begin(); possible_key != validKeys.end(); ++possible_key)
+        {
+            unsigned int distance = distanceBetweenStrings(key.c_str(), *possible_key);
+            // We only want to suggest options that look a bit like the unknown
+            // one. Experimentally I found 50% of the total length a decent
+            // cutoff.
+            //
+            // The mathemathical formula "distance/length < 0.5" can be
+            // approximated with integers as "distance*2/length < 1"
+            if ((distance * 2) / key.length() < 1 && distance < alternative_distance)
+            {
+                alternative = possible_key;
+                alternative_distance = distance;
+            }
+        }
+        if (alternative != validKeys.end())
+        {
+            // It might indeed have been a typo.
+            // The space before the question mark is to make copying using mouse-double-click possible.
+            oss << " Did you mean: " << alternative->c_str() << " ?";
+        }
+
         throw ConfigFileException(oss.str());
     }
 

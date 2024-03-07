@@ -124,6 +124,8 @@ std::string websocketCloseCodeToString(uint16_t code);
 
 std::string protocolVersionString(ProtocolVersion p);
 
+unsigned int distanceBetweenStrings(const std::string &stringA, const std::string &stringB);
+
 uint32_t ageFromTimePoint(const std::chrono::time_point<std::chrono::steady_clock> &point);
 std::chrono::time_point<std::chrono::steady_clock> timepointFromAge(const uint32_t age);
 

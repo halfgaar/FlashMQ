@@ -724,6 +724,90 @@ std::string protocolVersionString(ProtocolVersion p)
     }
 }
 
+/**
+ * @brief Returns the edit distance between the two given strings
+ *
+ * This function uses the Wagner–Fischer algorithm to calculate the Levenshtein
+ * distance between two strings: the total number of insertions, swaps, and
+ * deletions that are needed to transform the one into the other.
+ */
+unsigned int distanceBetweenStrings(const std::string &stringA, const std::string &stringB)
+{
+    // The matrix contains the distances between the substrings.
+    // You can find a description of the algorithm online.
+    //
+    // Roughly:
+    //
+    // line_a: "dog"
+    // line_b: "horse"
+    //
+    //   -->
+    //  |   | # | d | o | g
+    //  V --+---+---+---+---+---+---+---
+    //    # | P
+    //    h |
+    //    o |
+    //    r | Q   X       Y
+    //    s |
+    //    e |             Z
+    //
+    // P = [0, 0] = the distance from ""    to ""       (which is 0)
+    // Q = [0, 3] = the distance from ""    to "hor"    (which is 3, all inserts)
+    // X = [1, 3] = the distance from "d"   to "hor"    (which is 3, 1 swap and 2 inserts)
+    // Y = [3, 3] = the distance from "dog" to "hor"    (which is 2, both swaps)
+    // Z = [3, 5] = the distance from "dog" to "horse"  (which is 4, two swaps and 2 inserts)
+    //
+    // The matrix does not have to be square, the dimensions depends on the inputs
+    //
+    // the position within stringA should always be referred to as x
+    // the position within stringB should always be referred to as y
+
+    using mymatrix = std::vector<std::vector<int>>;
+    // +1 because we also need to store the length from the empty strings
+    int width = stringA.size() + 1;
+    int height = stringB.size() + 1;
+    mymatrix distances(width, std::vector<int>(height));
+
+    // We know that the distance from the substrings of line_a to ""
+    // is equal to the length of the substring of line_a
+    for (int x = 0; x < width; x++)
+    {
+        distances[x][0] = x;
+    }
+
+    // We know that the distance from "" to the substrings of line_b
+    // is equal to the length of the substring of line_b
+    for (int y = 0; y < height; y++)
+    {
+        distances[0][y] = y;
+    }
+
+    // Now all we do is to fill out the rest of the matrix, easy peasy
+    // note we start at 1 because the top row and left column have already been calculated
+    for (int x = 1; x < width; x++)
+    {
+        for (int y = 1; y < height; y++)
+        {
+            if (stringA[x - 1] == stringB[y - 1])
+            {
+                // the letters in both words are the same: we can travel from the top-left for free to the current state
+                distances[x][y] = distances[x - 1][y - 1];
+            }
+            else
+            {
+                // let's calculate the different costs and pick the cheapest option
+                // We use "+1" for all costs since they are all equally likely in our case
+                int dinstance_with_deletion = distances[x][y - 1] + 1;
+                int dinstance_with_insertion = distances[x - 1][y] + 1;
+                int dinstance_with_substitution = distances[x - 1][y - 1] + 1;
+                distances[x][y] = std::min({dinstance_with_deletion, dinstance_with_insertion, dinstance_with_substitution});
+            }
+        }
+    }
+
+    return distances[width - 1][height - 1]; // the last cell contains our answer
+}
+
 uint32_t ageFromTimePoint(const std::chrono::time_point<std::chrono::steady_clock> &point)
 {
     auto duration = std::chrono::steady_clock::now() - point;

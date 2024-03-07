@@ -117,3 +117,56 @@ void MainTests::test_parsing_numbers()
         }
     }
 }
+
+void MainTests::testStringDistances()
+{
+    FMQ_COMPARE(distanceBetweenStrings("", ""), (unsigned int)0);
+    FMQ_COMPARE(distanceBetweenStrings("dog", ""), (unsigned int)3);
+    FMQ_COMPARE(distanceBetweenStrings("", "dog"), (unsigned int)3);
+    FMQ_COMPARE(distanceBetweenStrings("dog", "horse"), (unsigned int)4);
+    FMQ_COMPARE(distanceBetweenStrings("horse", "dog"), (unsigned int)4);
+    FMQ_COMPARE(distanceBetweenStrings("industry", "interest"), (unsigned int)6);
+    FMQ_COMPARE(distanceBetweenStrings("kitten", "sitting"), (unsigned int)3);
+    FMQ_COMPARE(distanceBetweenStrings("uninformed", "uniformed"), (unsigned int)1);
+}
+
+void MainTests::testConfigSuggestion()
+{
+    // User made a small typo: 'session' instead of 'sessions'
+    {
+        ConfFileTemp config;
+        config.writeLine("expire_session_after_seconds 180");
+        config.closeFile();
+
+        ConfigFileParser parser(config.getFilePath());
+
+        try
+        {
+            parser.loadFile(false);
+            FMQ_FAIL("The parser is too liberal");
+        }
+        catch (ConfigFileException &ex)
+        {
+            FMQ_COMPARE(ex.what(), "Config key 'expire_session_after_seconds' is not valid (here). Did you mean: expire_sessions_after_seconds ?");
+        }
+    }
+
+    // User entered gibberish. Let's not suggest gibberish back
+    {
+        ConfFileTemp config;
+        config.writeLine("foobarbaz 180");
+        config.closeFile();
+
+        ConfigFileParser parser(config.getFilePath());
+
+        try
+        {
+            parser.loadFile(false);
+            FMQ_FAIL("The parser is too liberal");
+        }
+        catch (ConfigFileException &ex)
+        {
+            FMQ_COMPARE(ex.what(), "Config key 'foobarbaz' is not valid (here).");
+        }
+    }
+}
