@@ -31,6 +31,8 @@ add_executable(flashmq
     main.cpp
     )
 
+target_include_directories(flashmq PRIVATE edlib/include)
+
 target_link_libraries(flashmq pthread dl ssl crypto resolv anl)
 
 execute_process(COMMAND ../.get-os-codename-and-stamp.sh OUTPUT_VARIABLE OS_CODENAME)

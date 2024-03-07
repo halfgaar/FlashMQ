@@ -117,3 +117,44 @@ void MainTests::test_parsing_numbers()
         }
     }
 }
+
+void MainTests::test_config_suggestion()
+{
+    // User made a small typo: 'session' instead of 'sessions'
+    {
+        ConfFileTemp config;
+        config.writeLine("expire_session_after_seconds 180");
+        config.closeFile();
+
+        ConfigFileParser parser(config.getFilePath());
+
+        try
+        {
+            parser.loadFile(false);
+            FMQ_FAIL("The parser is too liberal");
+        }
+        catch (ConfigFileException &ex)
+        {
+            FMQ_COMPARE(ex.what(), "Config key 'expire_session_after_seconds' is not valid (here). Did you mean: expire_sessions_after_seconds ?");
+        }
+    }
+
+    // User entered gibberish. Let's not suggest gibberish back
+    {
+        ConfFileTemp config;
+        config.writeLine("foobarbaz 180");
+        config.closeFile();
+
+        ConfigFileParser parser(config.getFilePath());
+
+        try
+        {
+            parser.loadFile(false);
+            FMQ_FAIL("The parser is too liberal");
+        }
+        catch (ConfigFileException &ex)
+        {
+            FMQ_COMPARE(ex.what(), "Config key 'foobarbaz' is not valid (here).");
+        }
+    }
+}

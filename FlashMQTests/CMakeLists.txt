@@ -65,6 +65,8 @@ add_executable(flashmq-tests
 
     )
 
+target_include_directories(flashmq-tests PRIVATE ../edlib/include)
+
 target_include_directories(flashmq-tests PUBLIC ..)
 
 target_link_libraries(flashmq-tests pthread dl ssl crypto resolv anl)

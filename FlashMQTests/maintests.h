@@ -120,6 +120,7 @@ class MainTests
     void testOverrideWillDelayOnSessionDestructionByTakeOver();
     void testDisabledWills();
     void testMqtt5DelayedWillsDisabled();
+    void test_config_suggestion();
 
 
     void testIncomingTopicAlias();

@@ -131,4 +131,5 @@ set(FLASHMQ_IMPLS
     ${RELPATH}globber.cpp
     ${RELPATH}x509manager.cpp
     ${RELPATH}backgroundworker.cpp
+    ${RELPATH}edlib/src/edlib.cpp
     )
