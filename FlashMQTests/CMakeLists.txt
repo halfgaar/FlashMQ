@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.5)
 cmake_policy(SET CMP0048 NEW)
 include(CheckCXXCompilerFlag)
+include(../CMakeLists.shared)
 
 project(FlashMQTests VERSION 1.0.0 LANGUAGES CXX)
 
@@ -41,116 +42,9 @@ add_custom_command(TARGET test_plugin POST_BUILD COMMAND ${CMAKE_COMMAND} -E cop
     "${CMAKE_BINARY_DIR}/plainwebsocketpacket1_handshake.dat")
 
 add_executable(flashmq-tests
-    ../forward_declarations.h
-    ../mainapp.h
-    ../utils.h
-    ../threaddata.h
-    ../client.h
-    ../session.h
-    ../mqttpacket.h
-    ../exceptions.h
-    ../types.h
-    ../subscriptionstore.h
-    ../rwlockguard.h
-    ../retainedmessage.h
-    ../cirbuf.h
-    ../logger.h
-    ../plugin.h
-    ../configfileparser.h
-    ../sslctxmanager.h
-    ../timer.h
-    ../iowrapper.h
-    ../mosquittoauthoptcompatwrap.h
-    ../settings.h
-    ../listener.h
-    ../unscopedlock.h
-    ../scopedsocket.h
-    ../bindaddr.h
-    ../oneinstancelock.h
-    ../evpencodectxmanager.h
-    ../acltree.h
-    ../enums.h
-    ../threadlocalutils.h
-    ../flashmq_plugin.h
-    ../retainedmessagesdb.h
-    ../persistencefile.h
-    ../sessionsandsubscriptionsdb.h
-    ../qospacketqueue.h
-    ../threadglobals.h
-    ../threadloop.h
-    ../publishcopyfactory.h
-    ../variablebyteint.h
-    ../mqtt5properties.h
-    ../globalstats.h
-    ../derivablecounter.h
-    ../packetdatatypes.h
-    ../haproxy.h
-    ../network.h
-    ../subscription.h
-    ../sharedsubscribers.h
-    ../pluginloader.h
-    ../queuedtasks.h
-    ../acksender.h
-    ../bridgeconfig.h
-    ../dnsresolver.h
-    ../globber.h
+    ${FLASHMQ_HEADERS}
+    ${FLASHMQ_IMPLS}
 
-    ../mainapp.cpp
-    ../utils.cpp
-    ../threaddata.cpp
-    ../client.cpp
-    ../session.cpp
-    ../mqttpacket.cpp
-    ../exceptions.cpp
-    ../types.cpp
-    ../subscriptionstore.cpp
-    ../rwlockguard.cpp
-    ../retainedmessage.cpp
-    ../cirbuf.cpp
-    ../logger.cpp
-    ../plugin.cpp
-    ../configfileparser.cpp
-    ../sslctxmanager.cpp
-    ../timer.cpp
-    ../iowrapper.cpp
-    ../mosquittoauthoptcompatwrap.cpp
-    ../settings.cpp
-    ../listener.cpp
-    ../unscopedlock.cpp
-    ../scopedsocket.cpp
-    ../bindaddr.cpp
-    ../oneinstancelock.cpp
-    ../evpencodectxmanager.cpp
-    ../acltree.cpp
-    ../threadlocalutils.cpp
-    ../flashmq_plugin.cpp
-    ../retainedmessagesdb.cpp
-    ../persistencefile.cpp
-    ../sessionsandsubscriptionsdb.cpp
-    ../qospacketqueue.cpp
-    ../threadglobals.cpp
-    ../threadloop.cpp
-    ../publishcopyfactory.cpp
-    ../variablebyteint.cpp
-    ../mqtt5properties.cpp
-    ../globalstats.cpp
-    ../derivablecounter.cpp
-    ../packetdatatypes.cpp
-    ../haproxy.cpp
-    ../network.cpp
-    ../subscription.cpp
-    ../sharedsubscribers.cpp
-    ../pluginloader.cpp
-    ../queuedtasks.cpp
-    ../acksender.cpp
-    ../bridgeconfig.cpp
-    ../dnsresolver.cpp
-    ../bridgeinfodb.h
-    ../bridgeinfodb.cpp
-    ../globber.cpp
-    ../x509manager.h
-    ../x509manager.cpp
-    ../backgroundworker.h ../backgroundworker.cpp
     ../flashmqtestclient.cpp ../flashmqtestclient.h
     main.cpp
     mainappinthread.h mainappinthread.cpp

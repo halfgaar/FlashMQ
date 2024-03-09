@@ -1,0 +1,134 @@
+# This file is shared between FlashMQ itself and FlashMQTests
+# It should not contain any definitions that isn't used by both
+
+# When building FlashMQTests:
+# CMAKE_CURRENT_SOURCE_DIR -> /home/user/FlashMQ/FlashMQTests
+# CMAKE_CURRENT_LIST_DIR   -> /home/user/FlashMQ
+#
+# When building FlashMQ:
+# CMAKE_CURRENT_SOURCE_DIR -> /home/user/FlashMQ
+# CMAKE_CURRENT_LIST_DIR   -> /home/user/FlashMQ
+
+if (CMAKE_CURRENT_LIST_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+    set(RELPATH "./")
+else()
+    set(RELPATH "../")
+endif()
+
+message("Determined RELPATH: ${RELPATH}")
+
+set(FLASHMQ_HEADERS
+    ${RELPATH}forward_declarations.h
+    ${RELPATH}mainapp.h
+    ${RELPATH}utils.h
+    ${RELPATH}threaddata.h
+    ${RELPATH}client.h
+    ${RELPATH}session.h
+    ${RELPATH}mqttpacket.h
+    ${RELPATH}exceptions.h
+    ${RELPATH}types.h
+    ${RELPATH}subscriptionstore.h
+    ${RELPATH}rwlockguard.h
+    ${RELPATH}retainedmessage.h
+    ${RELPATH}cirbuf.h
+    ${RELPATH}logger.h
+    ${RELPATH}plugin.h
+    ${RELPATH}configfileparser.h
+    ${RELPATH}sslctxmanager.h
+    ${RELPATH}timer.h
+    ${RELPATH}iowrapper.h
+    ${RELPATH}mosquittoauthoptcompatwrap.h
+    ${RELPATH}settings.h
+    ${RELPATH}listener.h
+    ${RELPATH}unscopedlock.h
+    ${RELPATH}scopedsocket.h
+    ${RELPATH}bindaddr.h
+    ${RELPATH}oneinstancelock.h
+    ${RELPATH}evpencodectxmanager.h
+    ${RELPATH}acltree.h
+    ${RELPATH}enums.h
+    ${RELPATH}threadlocalutils.h
+    ${RELPATH}flashmq_plugin.h
+    ${RELPATH}retainedmessagesdb.h
+    ${RELPATH}persistencefile.h
+    ${RELPATH}sessionsandsubscriptionsdb.h
+    ${RELPATH}qospacketqueue.h
+    ${RELPATH}threadglobals.h
+    ${RELPATH}threadloop.h
+    ${RELPATH}publishcopyfactory.h
+    ${RELPATH}variablebyteint.h
+    ${RELPATH}mqtt5properties.h
+    ${RELPATH}globalstats.h
+    ${RELPATH}derivablecounter.h
+    ${RELPATH}packetdatatypes.h
+    ${RELPATH}haproxy.h
+    ${RELPATH}network.h
+    ${RELPATH}subscription.h
+    ${RELPATH}sharedsubscribers.h
+    ${RELPATH}pluginloader.h
+    ${RELPATH}queuedtasks.h
+    ${RELPATH}acksender.h
+    ${RELPATH}bridgeconfig.h
+    ${RELPATH}dnsresolver.h
+    ${RELPATH}globber.h
+    ${RELPATH}bridgeinfodb.h
+    ${RELPATH}x509manager.h
+    ${RELPATH}backgroundworker.h
+)
+
+set(FLASHMQ_IMPLS
+    ${RELPATH}mainapp.cpp
+    ${RELPATH}utils.cpp
+    ${RELPATH}threaddata.cpp
+    ${RELPATH}client.cpp
+    ${RELPATH}session.cpp
+    ${RELPATH}mqttpacket.cpp
+    ${RELPATH}exceptions.cpp
+    ${RELPATH}types.cpp
+    ${RELPATH}subscriptionstore.cpp
+    ${RELPATH}rwlockguard.cpp
+    ${RELPATH}retainedmessage.cpp
+    ${RELPATH}cirbuf.cpp
+    ${RELPATH}logger.cpp
+    ${RELPATH}plugin.cpp
+    ${RELPATH}configfileparser.cpp
+    ${RELPATH}sslctxmanager.cpp
+    ${RELPATH}timer.cpp
+    ${RELPATH}iowrapper.cpp
+    ${RELPATH}mosquittoauthoptcompatwrap.cpp
+    ${RELPATH}settings.cpp
+    ${RELPATH}listener.cpp
+    ${RELPATH}unscopedlock.cpp
+    ${RELPATH}scopedsocket.cpp
+    ${RELPATH}bindaddr.cpp
+    ${RELPATH}oneinstancelock.cpp
+    ${RELPATH}evpencodectxmanager.cpp
+    ${RELPATH}acltree.cpp
+    ${RELPATH}threadlocalutils.cpp
+    ${RELPATH}flashmq_plugin.cpp
+    ${RELPATH}retainedmessagesdb.cpp
+    ${RELPATH}persistencefile.cpp
+    ${RELPATH}sessionsandsubscriptionsdb.cpp
+    ${RELPATH}qospacketqueue.cpp
+    ${RELPATH}threadglobals.cpp
+    ${RELPATH}threadloop.cpp
+    ${RELPATH}publishcopyfactory.cpp
+    ${RELPATH}variablebyteint.cpp
+    ${RELPATH}mqtt5properties.cpp
+    ${RELPATH}globalstats.cpp
+    ${RELPATH}derivablecounter.cpp
+    ${RELPATH}packetdatatypes.cpp
+    ${RELPATH}haproxy.cpp
+    ${RELPATH}network.cpp
+    ${RELPATH}subscription.cpp
+    ${RELPATH}sharedsubscribers.cpp
+    ${RELPATH}pluginloader.cpp
+    ${RELPATH}queuedtasks.cpp
+    ${RELPATH}acksender.cpp
+    ${RELPATH}bridgeconfig.cpp
+    ${RELPATH}dnsresolver.cpp
+    ${RELPATH}bridgeinfodb.cpp
+    ${RELPATH}globber.cpp
+    ${RELPATH}x509manager.cpp
+    ${RELPATH}backgroundworker.cpp
+    )
