@@ -276,7 +276,7 @@ void MainApp::queuePublishStatsOnDollarTopic()
  */
 void MainApp::saveStateInThread()
 {
-    std::list<BridgeInfoForSerializing> bridgeInfos = BridgeInfoForSerializing::getBridgeInfosForSerializing(this->bridges);
+    std::list<BridgeInfoForSerializing> bridgeInfos = BridgeInfoForSerializing::getBridgeInfosForSerializing(this->bridgeConfigs);
 
     auto f = std::bind(&MainApp::saveState, this->settings, bridgeInfos, true);
     this->bgWorker.addTask(f);
@@ -334,12 +334,54 @@ void MainApp::queueRetainedMessageExpiration()
     }
 }
 
-void MainApp::createBridge(std::shared_ptr<ThreadData> &thread, const std::shared_ptr<BridgeConfig> &bridgeConfig)
+void MainApp::sendBridgesToThreads()
 {
-    std::shared_ptr<BridgeState> bridgeState = std::make_shared<BridgeState>(*bridgeConfig);
+    if (threads.empty())
+        return;
 
-    bridgeState->threadData = thread;
-    thread->giveBridge(bridgeState);
+    int i = 0;
+    auto bridge_pos = this->bridgeConfigs.begin();
+    while (bridge_pos != this->bridgeConfigs.end())
+    {
+        auto cur = bridge_pos;
+        bridge_pos++;
+
+        std::shared_ptr<BridgeConfig> bridge = cur->second;
+
+        if (!bridge)
+            continue;
+
+        std::shared_ptr<ThreadData> owner = bridge->owner.lock();
+
+        if (!owner)
+        {
+            owner = threads.at(i++ % threads.size());
+            bridge->owner = owner;
+        }
+
+        if (bridge->queueForDelete)
+        {
+            owner->removeBridgeQueued(bridge, "Bridge disappeared from config");
+            this->bridgeConfigs.erase(cur);
+        }
+        else
+        {
+            std::shared_ptr<BridgeState> bridgeState = std::make_shared<BridgeState>(*bridge);
+            bridgeState->threadData = owner;
+            owner->giveBridge(bridgeState);
+        }
+    }
+}
+
+void MainApp::queueSendBridgesToThreads()
+{
+    {
+        std::lock_guard<std::mutex> locker(eventMutex);
+        auto f = std::bind(&MainApp::sendBridgesToThreads, this);
+        taskQueue.push_back(f);
+    }
+
+    wakeUpThread();
 }
 
 void MainApp::queueBridgeReconnectAllThreads(bool alsoQueueNexts)
@@ -409,12 +451,13 @@ void MainApp::saveBridgeInfo(const std::string &filePath, const std::list<Bridge
     bridgeInfoDb.saveInfo(bridgeInfos);
 }
 
-void MainApp::loadBridgeInfo()
+std::list<std::shared_ptr<BridgeConfig>> MainApp::loadBridgeInfo(Settings &settings)
 {
-    this->bridges = settings.stealBridges();
+    Logger *logger = Logger::getInstance();
+    std::list<std::shared_ptr<BridgeConfig>> bridges = settings.stealBridges();
 
     if (settings.storageDir.empty())
-        return;
+        return bridges;
 
     const std::string filePath = settings.getBridgeNamesDBFile();
 
@@ -428,7 +471,7 @@ void MainApp::loadBridgeInfo()
 
         for(const BridgeInfoForSerializing &info : bridgeInfos)
         {
-            for(std::shared_ptr<BridgeConfig> &bridgeConfig : this->bridges)
+            for(std::shared_ptr<BridgeConfig> &bridgeConfig : bridges)
             {
                 if (!bridgeConfig->useSavedClientId)
                     continue;
@@ -447,7 +490,7 @@ void MainApp::loadBridgeInfo()
         logger->logf(LOG_WARNING, "File '%s' is not there (yet)", filePath.c_str());
     }
 
-
+    return bridges;
 }
 
 void MainApp::initMainApp(int argc, char *argv[])
@@ -671,17 +714,10 @@ void MainApp::start()
 
     timer.start();
 
+    sendBridgesToThreads();
+    queueBridgeReconnectAllThreads(true);
+
     uint next_thread_index = 0;
-
-    {
-        for(std::shared_ptr<BridgeConfig> &bridge : this->bridges)
-        {
-            std::shared_ptr<ThreadData> &thread = threads[next_thread_index++ % threads.size()];
-            createBridge(thread, bridge);
-        }
-
-        queueBridgeReconnectAllThreads(true);
-    }
 
     this->bgWorker.start();
 
@@ -858,7 +894,7 @@ void MainApp::start()
 
     this->bgWorker.waitForStop();
 
-    std::list<BridgeInfoForSerializing> bridgeInfos = BridgeInfoForSerializing::getBridgeInfosForSerializing(this->bridges);
+    std::list<BridgeInfoForSerializing> bridgeInfos = BridgeInfoForSerializing::getBridgeInfosForSerializing(this->bridgeConfigs);
     saveState(this->settings, bridgeInfos, false);
 }
 
@@ -966,20 +1002,55 @@ void MainApp::loadConfig(bool reload)
         }
     }
 
-    // We are not reloading bridges, because it's hard to figure out what to do. This does mean we need to
-    // validate the config of existing ones, because they may have their certificate paths changed.
-    if (this->bridges.empty())
     {
-        if (!reload)
-            loadBridgeInfo();
-    }
-    else
-    {
-        // Note that this checks the certificate paths of how the briges came from the config file, not the actual bridges. But, at least
-        // for now, they must be the same, because bridges aren't changed after they are created.
-        for (auto &bridge : this->bridges)
+        for (auto &pair : bridgeConfigs)
         {
-            bridge->isValid();
+            pair.second->queueForDelete = true;
+        }
+
+        std::list<std::shared_ptr<BridgeConfig>> bridges = loadBridgeInfo(this->settings);
+
+        for (std::shared_ptr<BridgeConfig> &bridge : bridges)
+        {
+            if (!bridge)
+                continue;
+
+            auto pos = this->bridgeConfigs.find(bridge->clientidPrefix);
+            if (pos != this->bridgeConfigs.end())
+            {
+                logger->log(LOG_NOTICE) << "Assing new config to bridge '" << bridge->clientidPrefix << "' and reconnect if needed.";
+
+                std::shared_ptr<BridgeConfig> &cur = pos->second;
+
+                if (!cur)
+                    continue;
+
+                std::shared_ptr<ThreadData> owner = cur->owner.lock();
+                std::string clientid = cur->getClientid();
+                cur = bridge;
+                cur->owner = owner;
+                cur->setClientId(cur->clientidPrefix, clientid);
+            }
+            else
+            {
+                logger->log(LOG_NOTICE) << "Adding bridge '" << bridge->clientidPrefix << "'.";
+                this->bridgeConfigs[bridge->clientidPrefix] = bridge;
+            }
+        }
+
+        for (auto &pair : bridgeConfigs)
+        {
+            if (pair.second->queueForDelete)
+            {
+                logger->log(LOG_NOTICE) << "Queueing bridge '" << pair.first << "' for removal, because it disappeared from config.";
+            }
+        }
+
+        // On first load, the start() function will take care of it.
+        if (reload)
+        {
+            sendBridgesToThreads();
+            queueBridgeReconnectAllThreads(false);
         }
     }
 

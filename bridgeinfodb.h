@@ -17,7 +17,7 @@ struct BridgeInfoForSerializing
     BridgeInfoForSerializing() = default;
     BridgeInfoForSerializing(const std::shared_ptr<BridgeConfig> bridge);
 
-    static std::list<BridgeInfoForSerializing> getBridgeInfosForSerializing(const std::list<std::shared_ptr<BridgeConfig>> input);
+    static std::list<BridgeInfoForSerializing> getBridgeInfosForSerializing(const std::unordered_map<std::string, std::shared_ptr<BridgeConfig>> &input);
 };
 
 class BridgeInfoDb : private PersistenceFile

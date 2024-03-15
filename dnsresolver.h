@@ -45,6 +45,9 @@ class DnsResolver
     void freeStuff();
 public:
     DnsResolver();
+    DnsResolver(const DnsResolver &other) = delete;
+    DnsResolver(DnsResolver &&other) = delete;
+    DnsResolver &operator=(const DnsResolver &other) = delete;
     ~DnsResolver();
 
     void query(const std::string &text, ListenerProtocol protocol, std::chrono::milliseconds timeout);

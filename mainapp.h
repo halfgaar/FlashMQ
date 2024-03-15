@@ -62,7 +62,7 @@ class MainApp
     std::list<std::shared_ptr<Listener>> listeners;
     std::unordered_map<int, ScopedSocket> activeListenSockets;
 
-    std::list<std::shared_ptr<BridgeConfig>> bridges;
+    std::unordered_map<std::string, std::shared_ptr<BridgeConfig>> bridgeConfigs;
     std::mutex quitMutex;
     std::string fuzzFilePath;
     OneInstanceLock oneInstanceLock;
@@ -87,14 +87,15 @@ class MainApp
     void queuePublishStatsOnDollarTopic();
     static void saveState(const Settings &settings, const std::list<BridgeInfoForSerializing> &bridgeInfos, bool sleep_after_limit);
     static void saveBridgeInfo(const std::string &filePath, const std::list<BridgeInfoForSerializing> &bridgeInfos);
-    void loadBridgeInfo();
+    static std::list<std::shared_ptr<BridgeConfig>> loadBridgeInfo(Settings &settings);
     void saveStateInThread();
     void queueSaveStateInThread();
     void queueSendQueuedWills();
     void waitForWillsQueued();
     void waitForDisconnectsInitiated();
     void queueRetainedMessageExpiration();
-    void createBridge(std::shared_ptr<ThreadData> &thread, const std::shared_ptr<BridgeConfig> &bridgeConfig);
+    void sendBridgesToThreads();
+    void queueSendBridgesToThreads();
     void queueBridgeReconnectAllThreads(bool alsoQueueNexts);
 
     MainApp(const std::string &configFilePath);

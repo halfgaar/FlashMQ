@@ -7,12 +7,14 @@ BridgeInfoForSerializing::BridgeInfoForSerializing(const std::shared_ptr<BridgeC
 
 }
 
-std::list<BridgeInfoForSerializing> BridgeInfoForSerializing::getBridgeInfosForSerializing(const std::list<std::shared_ptr<BridgeConfig>> input)
+std::list<BridgeInfoForSerializing> BridgeInfoForSerializing::getBridgeInfosForSerializing(const std::unordered_map<std::string, std::shared_ptr<BridgeConfig>> &input)
 {
     std::list<BridgeInfoForSerializing> result;
 
-    for (const std::shared_ptr<BridgeConfig> &bridge : input)
+    for (auto &pair : input)
     {
+        const std::shared_ptr<BridgeConfig> &bridge = pair.second;
+
         if (!bridge)
             continue;
 

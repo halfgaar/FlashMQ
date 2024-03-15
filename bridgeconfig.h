@@ -23,6 +23,7 @@ struct BridgeTopicPath
     uint8_t qos = 0;
 
     bool isValidQos() const;
+    bool operator==(const BridgeTopicPath &other) const;
 };
 
 class BridgeConfig
@@ -55,10 +56,15 @@ public:
     bool remoteRetainAvailable = true;
     std::vector<BridgeTopicPath> subscribes;
     std::vector<BridgeTopicPath> publishes;
+    std::weak_ptr<ThreadData> owner;
+    bool queueForDelete = false;
 
     void setClientId(const std::string &prefix, const std::string &id);
     const std::string &getClientid() const;
     void isValid();
+
+    bool operator ==(const BridgeConfig &other) const;
+    bool operator !=(const BridgeConfig &other) const;
 };
 
 class BridgeState

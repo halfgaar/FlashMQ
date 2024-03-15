@@ -55,7 +55,7 @@ public:
 class ThreadData
 {
     std::unordered_map<int, std::shared_ptr<Client>> clients_by_fd;
-    std::vector<std::shared_ptr<BridgeState>> bridges;
+    std::unordered_map<std::string, std::shared_ptr<BridgeState>> bridges;
     std::mutex clients_by_fd_mutex;
     Logger *logger;
 
@@ -91,6 +91,7 @@ class ThreadData
 
     void removeQueuedClients();
     void publishWithAcl(Publish &pub, bool setRetain=false);
+    void removeBridge(std::shared_ptr<BridgeConfig> bridgeConfig, const std::string &reason);
 
 public:
     Settings settingsLocalCopy; // Is updated on reload, within the thread loop.
@@ -123,7 +124,8 @@ public:
     void start(thread_f f);
 
     void giveClient(std::shared_ptr<Client> &&client);
-    void giveBridge(std::shared_ptr<BridgeState> &bridgeConfig);
+    void giveBridge(std::shared_ptr<BridgeState> &bridgeState);
+    void removeBridgeQueued(std::shared_ptr<BridgeConfig> bridgeConfig, const std::string &reason);
     std::shared_ptr<Client> getClient(int fd);
     void removeClientQueued(const std::shared_ptr<Client> &client);
     void removeClientQueued(int fd);

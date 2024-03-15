@@ -13,6 +13,11 @@ bool BridgeTopicPath::isValidQos() const
     return qos < 3;
 }
 
+bool BridgeTopicPath::operator==(const BridgeTopicPath &other) const
+{
+    return this->topic == other.topic && this->qos == other.qos;
+}
+
 
 BridgeState::BridgeState(const BridgeConfig &config) :
     c(config)
@@ -175,6 +180,25 @@ void BridgeConfig::isValid()
         throw ConfigFileException("MQTT 3.1.1 and lower require a username when you set a password.");
 
     setClientId();
+}
+
+bool BridgeConfig::operator ==(const BridgeConfig &other) const
+{
+    return this->address == other.address && this->port == other.port && this->inet_protocol == other.inet_protocol && this->tlsMode == other.tlsMode
+           && this->caFile == other.caFile && this->caDir == other.caDir && this->protocolVersion == other.protocolVersion
+           && this->bridgeProtocolBit == other.bridgeProtocolBit && this->keepalive == other.keepalive && this->clientidPrefix == other.clientidPrefix
+           && this->publishes == other.publishes && this->subscribes == other.subscribes && this->local_username == other.local_username
+           && this->remote_username == other.remote_username && this->remote_password == other.remote_password && this->remoteCleanStart == other.remoteCleanStart
+           && this->localCleanStart == other.localCleanStart && this->remoteSessionExpiryInterval == other.remoteSessionExpiryInterval
+           && this->localSessionExpiryInterval == other.localSessionExpiryInterval && this->remoteRetainAvailable == other.remoteRetainAvailable
+           && this->useSavedClientId == other.useSavedClientId && this->maxOutgoingTopicAliases == other.maxOutgoingTopicAliases
+           && this->maxIncomingTopicAliases == other.maxIncomingTopicAliases;
+}
+
+bool BridgeConfig::operator !=(const BridgeConfig &other) const
+{
+    bool r = *this == other;
+    return !r;
 }
 
 

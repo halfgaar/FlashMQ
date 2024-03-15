@@ -272,8 +272,13 @@ void ThreadData::bridgeReconnect()
 
     bool requeue = false;
 
-    for (std::shared_ptr<BridgeState> &bridge : bridges)
+    for (auto &pair : bridges)
     {
+        std::shared_ptr<BridgeState> bridge = pair.second;
+
+        if (!bridge)
+            continue;
+
         try
         {
             bridge->initSSL(false);
@@ -718,12 +723,77 @@ void ThreadData::giveClient(std::shared_ptr<Client> &&client)
     check<std::runtime_error>(epoll_ctl(epollfd, EPOLL_CTL_ADD, fd, &ev));
 }
 
-void ThreadData::giveBridge(std::shared_ptr<BridgeState> &bridgeConfig)
+void ThreadData::giveBridge(std::shared_ptr<BridgeState> &bridgeState)
 {
+    if (!bridgeState)
+        return;
+
+    std::lock_guard<std::mutex> locker(clients_by_fd_mutex);
+
+    auto pos = bridges.find(bridgeState->c.clientidPrefix);
+
+    if (pos != bridges.end())
     {
-        std::lock_guard<std::mutex> locker(clients_by_fd_mutex);
-        bridges.push_back(bridgeConfig);
+        std::shared_ptr<BridgeState> &existingState = pos->second;
+
+        if (!existingState)
+            existingState = bridgeState;
+        else
+        {
+            if (existingState->c != bridgeState->c)
+            {
+                logger->log(LOG_NOTICE) << "Bridge '" << existingState->c.clientidPrefix << "' has changed. Reconnecting.";
+                existingState = bridgeState;
+            }
+        }
     }
+    else
+    {
+        bridges[bridgeState->c.clientidPrefix] = bridgeState;
+    }
+}
+
+void ThreadData::removeBridgeQueued(std::shared_ptr<BridgeConfig> bridgeConfig, const std::string &reason)
+{
+    auto f = std::bind(&ThreadData::removeBridge, this, bridgeConfig, reason);
+    std::lock_guard<std::mutex> lockertaskQueue(taskQueueMutex);
+    taskQueue.push_back(f);
+    wakeUpThread();
+}
+
+void ThreadData::removeBridge(std::shared_ptr<BridgeConfig> bridgeConfig, const std::string &reason)
+{
+    if (!bridgeConfig)
+        return;
+
+    std::lock_guard<std::mutex> locker(clients_by_fd_mutex);
+
+    auto pos = bridges.find(bridgeConfig->clientidPrefix);
+
+    if (pos == bridges.end())
+        return;
+
+    std::shared_ptr<BridgeState> bridge = pos->second;
+    bridges.erase(pos);
+
+    if (!bridge)
+        return;
+
+    std::shared_ptr<Session> session = bridge->session.lock();
+
+    if (!session)
+        return;
+
+    std::shared_ptr<Client> client = session->makeSharedClient();
+
+    if (!client)
+        return;
+
+    if (!reason.empty())
+        client->setDisconnectReason(reason);
+
+    publishBridgeState(bridge, false);
+    removeClientQueued(client);
 }
 
 std::shared_ptr<Client> ThreadData::getClient(int fd)
@@ -1045,8 +1115,13 @@ void ThreadData::reload(const Settings &settings)
         // Because the auth plugin has a reference to it, it will also be updated.
         settingsLocalCopy = settings;
 
-        for (auto b : this->bridges)
+        for (auto &pair : this->bridges)
         {
+            std::shared_ptr<BridgeState> b = pair.second;
+
+            if (!b)
+                continue;
+
             b->initSSL(true);
         }
 
