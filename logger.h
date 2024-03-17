@@ -17,9 +17,20 @@ See LICENSE for license details.
 #include <queue>
 #include <thread>
 #include <sstream>
+#include <optional>
 #include "semaphore.h"
 
 #include "flashmq_plugin.h"
+
+enum class LogLevel
+{
+    Debug,
+    Info,
+    Notice,
+    Warning,
+    Error,
+    None
+};
 
 int logSslError(const char *str, size_t len, void *u);
 
@@ -82,7 +93,8 @@ public:
     void noLongerLogToStd();
 
     void setLogPath(const std::string &path);
-    void setFlags(bool logDebug, bool logSubscriptions, bool quiet);
+    void setFlags(LogLevel level, bool logSubscriptions);
+    void setFlags(std::optional<bool> logDebug, std::optional<bool> quiet);
 
     void quit();
 

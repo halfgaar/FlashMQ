@@ -182,6 +182,7 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validKeys.insert("max_packet_size");
     validKeys.insert("log_debug");
     validKeys.insert("log_subscriptions");
+    validKeys.insert("log_level");
     validKeys.insert("mosquitto_password_file");
     validKeys.insert("mosquitto_acl_file");
     validKeys.insert("allow_anonymous");
@@ -724,6 +725,8 @@ void ConfigFileParser::loadFile(bool test)
 
                 if (testKeyValidity(key, "quiet", validKeys))
                 {
+                    Logger::getInstance()->log(LOG_WARNING) << "The config option '" << key << "' is deprecated. Use log_level instead.";
+
                     bool tmp = stringTruthiness(value);
                     tmpSettings.quiet = tmp;
                 }
@@ -774,8 +777,33 @@ void ConfigFileParser::loadFile(bool test)
 
                 if (testKeyValidity(key, "log_debug", validKeys))
                 {
+                    Logger::getInstance()->log(LOG_WARNING) << "The config option '" << key << "' is deprecated. Use log_level instead.";
+
                     bool tmp = stringTruthiness(value);
                     tmpSettings.logDebug = tmp;
+                }
+
+                if (testKeyValidity(key, "log_level", validKeys))
+                {
+                    const std::string v = str_tolower(value);
+                    LogLevel level = LogLevel::None;
+
+                    if (v == "debug")
+                        level = LogLevel::Debug;
+                    else if (v == "info")
+                        level = LogLevel::Info;
+                    else if (v == "notice")
+                        level = LogLevel::Notice;
+                    else if (v == "warning")
+                        level = LogLevel::Warning;
+                    else if (v == "error")
+                        level = LogLevel::Warning;
+                    else if (v == "none")
+                        level = LogLevel::None;
+                    else
+                        throw ConfigFileException("Invalid log level: " + value);
+
+                    tmpSettings.logLevel = level;
                 }
 
                 if (testKeyValidity(key, "log_subscriptions", validKeys))

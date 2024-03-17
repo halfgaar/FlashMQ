@@ -121,11 +121,28 @@
           </para>
         </listitem>
       </varlistentry>
+      <varlistentry xml:id="log_level">
+        <term><option>log_level</option> <replaceable>info/notice/warning/error/none</replaceable></term>
+        <listitem>
+          <para>
+            Set the log level to specified level and above. That means <replaceable>notice</replaceable> will log <replaceable>notice</replaceable>, <replaceable>warning</replaceable> and <replaceable>error</replaceable>.
+          </para>
+          <para>
+            Use this setting over the deprecated <option>log_debug</option> and <option>quiet</option>. If you do have those directives, they override the <option>log_level</option>, for backwards compatability reasons.
+          </para>
+          <para>
+            Default value: <literal>info</literal>.
+          </para>
+        </listitem>
+      </varlistentry>
       <varlistentry xml:id="log_debug">
         <term><option>log_debug</option> <replaceable>true/false</replaceable></term>
         <listitem>
           <para>
             Debug logging obviously creates a lot of log noise, so should only be done to diagnose problems.
+          </para>
+          <para>
+              Deprecated. Use <option>log_level</option> instead.
           </para>
           <para>
             Default value: <literal>false</literal>
@@ -290,6 +307,9 @@
         <listitem>
           <para>
             Don't log LOG_INFO and LOG_NOTICE. This is useful when you have a lot of foot traffic, because otherwise the log gets filled with connect/disconnect notices.
+          </para>
+          <para>
+              Deprecated. Use <option>log_level</option> instead.
           </para>
           <para>
             Default value: <literal>false</literal>

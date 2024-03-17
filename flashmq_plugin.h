@@ -38,6 +38,7 @@
 #define LOG_NOTICE 0x02
 #define LOG_WARNING 0x04
 #define LOG_ERR 0x08
+#define LOG_ERROR 0x08
 #define LOG_DEBUG 0x10
 #define LOG_SUBSCRIBE 0x20
 #define LOG_UNSUBSCRIBE 0x40

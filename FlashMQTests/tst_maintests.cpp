@@ -1060,10 +1060,10 @@ void MainTests::testSavingSessions()
 
 void MainTests::testParsePacketHelper(const std::string &topic, uint8_t from_qos, bool retain)
 {
-    Logger::getInstance()->setFlags(false, false, true);
+    Logger::getInstance()->setFlags(LogLevel::None, false);
 
     Settings settings;
-    settings.logDebug = false;
+    settings.logLevel = LogLevel::Info;
     std::shared_ptr<SubscriptionStore> store(new SubscriptionStore());
     PluginLoader pluginLoader;
     std::shared_ptr<ThreadData> t(new ThreadData(0, settings, pluginLoader));

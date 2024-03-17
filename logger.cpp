@@ -172,24 +172,59 @@ void Logger::setLogPath(const std::string &path)
     this->logPath = path;
 }
 
-void Logger::setFlags(bool logDebug, bool logSubscriptions, bool quiet)
+/**
+ * @brief Logger::setFlags sets the log level based on a maximum desired level.
+ * @param level Level based on the defines LOG_*.
+ * @param logSubscriptions
+ * @param quiet
+ *
+ * The log levels are mosquitto-compatible, and while the terminology is similar to the syslog standard, they are unfortunately
+ * not in order of verbosity/priority. So, we use our own enum for the config setting, so that DEBUG is indeed more verbose than INFO.
+ *
+ * The subscriptions flag is still set explicitly, because you may want that irrespective of the log level.
+ */
+void Logger::setFlags(LogLevel level, bool logSubscriptions)
 {
-    curLogLevel = LOG_ERR | LOG_WARNING | LOG_NOTICE | LOG_INFO | LOG_SUBSCRIBE | LOG_UNSUBSCRIBE ;
+    curLogLevel = 0;
 
-    if (logDebug)
+    if (level <= LogLevel::Debug)
         curLogLevel |= LOG_DEBUG;
-    else
-        curLogLevel &= ~LOG_DEBUG;
+    if (level <= LogLevel::Info)
+        curLogLevel |= LOG_INFO;
+    if (level <= LogLevel::Notice)
+        curLogLevel |= LOG_NOTICE;
+    if (level <= LogLevel::Warning)
+        curLogLevel |= LOG_WARNING;
+    if (level <= LogLevel::Error)
+        curLogLevel |= LOG_ERR;
 
     if (logSubscriptions)
         curLogLevel |= (LOG_UNSUBSCRIBE | LOG_SUBSCRIBE);
     else
         curLogLevel &= ~(LOG_UNSUBSCRIBE | LOG_SUBSCRIBE);
+}
 
-    if (!quiet)
-        curLogLevel |= (LOG_NOTICE | LOG_INFO);
-    else
-        curLogLevel &= ~(LOG_NOTICE | LOG_INFO);
+/**
+ * @brief Logger::setFlags is provided for backwards compatability
+ * @param logDebug
+ * @param quiet
+ */
+void Logger::setFlags(std::optional<bool> logDebug, std::optional<bool> quiet)
+{
+    if (logDebug)
+    {
+        if (logDebug.value())
+            curLogLevel |= LOG_DEBUG;
+        else
+            curLogLevel &= ~LOG_DEBUG;
+    }
+
+    // It only makes sense to allow quiet to mute things in backward compatability mode, not enable LOG_NOTICE and LOG_INFO again.
+    if (quiet)
+    {
+        if (quiet.value())
+            curLogLevel &= ~(LOG_NOTICE | LOG_INFO);
+    }
 }
 
 void Logger::quit()

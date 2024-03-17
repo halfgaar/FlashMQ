@@ -5,7 +5,7 @@
 \\$2 \(la\\$1\(ra\\$3
 ..
 .if \n(.g .mso www.tmac
-.TH flashmq.conf 5 "16 March 2024" "" ""
+.TH flashmq.conf 5 "17 March 2024" "" ""
 .SH NAME
 flashmq.conf \- FlashMQ configuration file format
 .SH SYNOPSIS
@@ -63,8 +63,17 @@ This configuration parameter sets the path to FlashMQ's log file. If you omit th
 
 Default value: \*(T<\fI/var/log/flashmq/flashmq.log\fR\*(T>
 .TP 
+\*(T<\fBlog_level\fR\*(T> \fIinfo/notice/warning/error/none\fR 
+Set the log level to specified level and above. That means \fInotice\fR will log \fInotice\fR, \fIwarning\fR and \fIerror\fR.
+
+Use this setting over the deprecated \*(T<\fBlog_debug\fR\*(T> and \*(T<\fBquiet\fR\*(T>. If you do have those directives, they override the \*(T<\fBlog_level\fR\*(T>, for backwards compatability reasons.
+
+Default value: \*(T<info\*(T>.
+.TP 
 \*(T<\fBlog_debug\fR\*(T> \fItrue/false\fR 
 Debug logging obviously creates a lot of log noise, so should only be done to diagnose problems.
+
+Deprecated. Use \*(T<\fBlog_level\fR\*(T> instead.
 
 Default value: \*(T<false\*(T>
 .TP 
@@ -144,6 +153,8 @@ Default value: \*(T<1209600\*(T>
 .TP 
 \*(T<\fBquiet\fR\*(T> \fItrue/false\fR 
 Don't log LOG_INFO and LOG_NOTICE. This is useful when you have a lot of foot traffic, because otherwise the log gets filled with connect/disconnect notices.
+
+Deprecated. Use \*(T<\fBlog_level\fR\*(T> instead.
 
 Default value: \*(T<false\*(T>
 .TP 

@@ -177,10 +177,27 @@
         </dd>
       
       
+        <dt id="log_level"><code class="option">log_level</code> <code class="replaceable">info/notice/warning/error/none</code><a class="hash-anchor" href="#log_level">#</a></dt>
+        <dd>
+          <p>
+            Set the log level to specified level and above. That means <code class="replaceable">notice</code> will log <code class="replaceable">notice</code>, <code class="replaceable">warning</code> and <code class="replaceable">error</code>.
+          </p>
+          <p>
+            Use this setting over the deprecated <code class="option">log_debug</code> and <code class="option">quiet</code>. If you do have those directives, they override the <code class="option">log_level</code>, for backwards compatability reasons.
+          </p>
+          <p>
+            Default value: <code class="literal">info</code>.
+          </p>
+        </dd>
+      
+      
         <dt id="log_debug"><code class="option">log_debug</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#log_debug">#</a></dt>
         <dd>
           <p>
             Debug logging obviously creates a lot of log noise, so should only be done to diagnose problems.
+          </p>
+          <p>
+              Deprecated. Use <code class="option">log_level</code> instead.
           </p>
           <p>
             Default value: <code class="literal">false</code>
@@ -345,6 +362,9 @@
         <dd>
           <p>
             Don't log LOG_INFO and LOG_NOTICE. This is useful when you have a lot of foot traffic, because otherwise the log gets filled with connect/disconnect notices.
+          </p>
+          <p>
+              Deprecated. Use <code class="option">log_level</code> instead.
           </p>
           <p>
             Default value: <code class="literal">false</code>

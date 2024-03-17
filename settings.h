@@ -14,6 +14,7 @@ See LICENSE for license details.
 #include <memory>
 #include <list>
 #include <limits>
+#include <optional>
 
 #include "mosquittoauthoptcompatwrap.h"
 #include "listener.h"
@@ -57,22 +58,24 @@ public:
     // Actual config options with their defaults.
     std::string pluginPath;
     std::string logPath;
-    bool quiet = false;
+    std::optional<bool> quiet;
     bool allowUnsafeClientidChars = false;
     bool allowUnsafeUsernameChars = false;
     bool pluginSerializeInit = false;
     bool pluginSerializeAuthChecks = false;
+    bool logSubscriptions = false;
     int clientInitialBufferSize = 1024; // Must be power of 2
     uint32_t maxPacketSize = ABSOLUTE_MAX_PACKET_SIZE;
     uint32_t clientMaxWriteBufferSize = 1048576;
     uint16_t maxIncomingTopicAliasValue = 65535;
     uint16_t maxOutgoingTopicAliasValue = 65535;
 #ifdef TESTING
-    bool logDebug = true;
+    std::optional<bool> logDebug;
+    LogLevel logLevel = LogLevel::Debug;
 #else
-    bool logDebug = false;
+    std::optional<bool> logDebug;
+    LogLevel logLevel = LogLevel::Info;
 #endif
-    bool logSubscriptions = false;
     std::string mosquittoPasswordFile;
     std::string mosquittoAclFile;
     bool allowAnonymous = false;
