@@ -569,7 +569,7 @@ void Client::sendOrQueueWill()
  */
 void Client::serverInitiatedDisconnect(ReasonCodes reason)
 {
-    setDisconnectReason(formatString("Server initiating disconnect with reason code '%d'", static_cast<uint8_t>(reason)));
+    setDisconnectReason("Server initiating disconnect with reason: " + reasonCodeToString(reason));
 
     if (this->protocolVersion >= ProtocolVersion::Mqtt5)
     {

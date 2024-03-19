@@ -849,7 +849,106 @@ uint16_t getFirstWildcardDepth(const std::vector<std::string> &subtopics)
     return result;
 }
 
+std::string reasonCodeToString(ReasonCodes code)
+{
+    switch (code)
+    {
+    case ReasonCodes::Success:
+        return "Success";
+    //case ReasonCodes::GrantedQoS0:
+    //    return "GrantedQoS0";
+    case (ReasonCodes::GrantedQoS1):
+        return "GrantedQoS1";
+    case (ReasonCodes::GrantedQoS2):
+        return "GrantedQoS2";
+    case (ReasonCodes::DisconnectWithWill):
+        return "DisconnectWithWill";
+    case (ReasonCodes::NoMatchingSubscribers):
+        return "NoMatchingSubscribers";
+    case (ReasonCodes::NoSubscriptionExisted):
+        return "NoSubscriptionExisted";
+    case (ReasonCodes::ContinueAuthentication):
+        return "ContinueAuthentication";
+    case (ReasonCodes::ReAuthenticate):
+        return "ReAuthenticate";
+    case (ReasonCodes::UnspecifiedError):
+        return "UnspecifiedError";
+    case (ReasonCodes::MalformedPacket):
+        return "MalformedPacket";
+    case (ReasonCodes::ProtocolError):
+        return "ProtocolError";
+    case (ReasonCodes::ImplementationSpecificError):
+        return "ImplementationSpecificError";
+    case (ReasonCodes::UnsupportedProtocolVersion):
+        return "UnsupportedProtocolVersion";
+    case (ReasonCodes::ClientIdentifierNotValid):
+        return "ClientIdentifierNotValid";
+    case (ReasonCodes::BadUserNameOrPassword):
+        return "BadUserNameOrPassword";
+    case (ReasonCodes::NotAuthorized):
+        return "NotAuthorized";
+    case (ReasonCodes::ServerUnavailable):
+        return "ServerUnavailable";
+    case (ReasonCodes::ServerBusy):
+        return "ServerBusy";
+    case (ReasonCodes::Banned):
+        return "Banned";
+    case (ReasonCodes::ServerShuttingDown):
+        return "ServerShuttingDown";
+    case (ReasonCodes::BadAuthenticationMethod):
+        return "BadAuthenticationMethod";
+    case (ReasonCodes::KeepAliveTimeout):
+        return "KeepAliveTimeout";
+    case (ReasonCodes::SessionTakenOver):
+        return "SessionTakenOver";
+    case (ReasonCodes::TopicFilterInvalid):
+        return "TopicFilterInvalid";
+    case (ReasonCodes::TopicNameInvalid):
+        return "TopicNameInvalid";
+    case (ReasonCodes::PacketIdentifierInUse):
+        return "PacketIdentifierInUse";
+    case (ReasonCodes::PacketIdentifierNotFound):
+        return "PacketIdentifierNotFound";
+    case (ReasonCodes::ReceiveMaximumExceeded):
+        return "ReceiveMaximumExceeded";
+    case (ReasonCodes::TopicAliasInvalid):
+        return "TopicAliasInvalid";
+    case (ReasonCodes::PacketTooLarge):
+        return "PacketTooLarge";
+    case (ReasonCodes::MessageRateTooHigh):
+        return "MessageRateTooHigh";
+    case (ReasonCodes::QuoteExceeded):
+        return "QuoteExceeded";
+    case (ReasonCodes::AdministrativeAction):
+        return "AdministrativeAction";
+    case (ReasonCodes::PayloadFormatInvalid):
+        return "PayloadFormatInvalid";
+    case (ReasonCodes::RetainNotSupported):
+        return "RetainNotSupported";
+    case (ReasonCodes::QosNotSupported):
+        return "QosNotSupported";
+    case (ReasonCodes::UseAnotherServer):
+        return "UseAnotherServer";
+    case (ReasonCodes::ServerMoved):
+        return "ServerMoved";
+    case (ReasonCodes::SharedSubscriptionsNotSupported):
+        return "SharedSubscriptionsNotSupported";
+    case (ReasonCodes::ConnectionRateExceeded):
+        return "ConnectionRateExceeded";
+    case (ReasonCodes::MaximumConnectTime):
+        return "MaximumConnectTime";
+    case (ReasonCodes::SubscriptionIdentifiersNotSupported):
+        return "SubscriptionIdentifiersNotSupported";
+    case (ReasonCodes::WildcardSubscriptionsNotSupported):
+        return "WildcardSubscriptionsNotSupported";
+    default:
+        break;
+    }
 
+    std::ostringstream oss;
+    oss << static_cast<int>(code);
+    return oss.str();
+}
 
 
 
