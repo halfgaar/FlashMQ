@@ -950,6 +950,50 @@ std::string reasonCodeToString(ReasonCodes code)
     return oss.str();
 }
 
+std::string packetTypeToString(PacketType ptype)
+{
+    switch (ptype)
+    {
+    case (PacketType::Reserved):
+        return "Reserved";
+    case (PacketType::CONNECT):
+        return "CONNECT";
+    case (PacketType::CONNACK):
+        return "CONNACK";
+    case (PacketType::PUBLISH):
+        return "PUBLISH";
+    case (PacketType::PUBACK):
+        return "PUBACK";
+    case (PacketType::PUBREC):
+        return "PUBREC";
+    case (PacketType::PUBREL):
+        return "PUBREL";
+    case (PacketType::PUBCOMP):
+        return "PUBCOMP";
+    case (PacketType::SUBSCRIBE):
+        return "SUBSCRIBE";
+    case (PacketType::SUBACK):
+        return "SUBACK";
+    case (PacketType::UNSUBSCRIBE):
+        return "UNSUBSCRIBE";
+    case (PacketType::UNSUBACK):
+        return "UNSUBACK";
+    case (PacketType::PINGREQ):
+        return "PINGREQ";
+    case (PacketType::PINGRESP):
+        return "PINGRESP";
+    case (PacketType::DISCONNECT):
+        return "DISCONNECT";
+    case (PacketType::AUTH):
+        return "AUTH";
+    default:
+        break;
+    }
+
+    std::ostringstream oss;
+    oss << static_cast<int>(ptype);
+    return oss.str();
+}
 
 
 

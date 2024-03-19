@@ -433,7 +433,7 @@ void MqttPacket::handle()
         {
             exceptionOnNonMqtt(this->bites);
 
-            logger->log(LOG_WARNING) << "Unapproved packet type (code " << static_cast<int>(packetType)
+            logger->log(LOG_WARNING) << "Unapproved packet type (" << packetTypeToString(packetType)
                                      << ") from non-authenticated client " << sender->repr() << ". Dropping packet.";
             return;
         }
