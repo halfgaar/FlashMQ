@@ -917,8 +917,8 @@ std::string reasonCodeToString(ReasonCodes code)
         return "PacketTooLarge";
     case (ReasonCodes::MessageRateTooHigh):
         return "MessageRateTooHigh";
-    case (ReasonCodes::QuoteExceeded):
-        return "QuoteExceeded";
+    case (ReasonCodes::QuotaExceeded):
+        return "QuotaExceeded";
     case (ReasonCodes::AdministrativeAction):
         return "AdministrativeAction";
     case (ReasonCodes::PayloadFormatInvalid):

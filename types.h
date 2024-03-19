@@ -131,7 +131,7 @@ enum class ReasonCodes
     TopicAliasInvalid = 148,
     PacketTooLarge = 149,
     MessageRateTooHigh = 150,
-    QuoteExceeded = 151,
+    QuotaExceeded = 151,
     AdministrativeAction = 152,
     PayloadFormatInvalid = 153,
     RetainNotSupported = 154,
