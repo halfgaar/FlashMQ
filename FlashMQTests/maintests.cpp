@@ -223,6 +223,7 @@ MainTests::MainTests()
     REGISTER_FUNCTION(testOverrideWillDelayOnSessionDestructionByTakeOver);
     REGISTER_FUNCTION(testDisabledWills);
     REGISTER_FUNCTION(testMqtt5DelayedWillsDisabled);
+    REGISTER_FUNCTION(test_config_suggestion);
     REGISTER_FUNCTION(testIncomingTopicAlias);
     REGISTER_FUNCTION(testOutgoingTopicAlias);
     REGISTER_FUNCTION(testOutgoingTopicAliasStoredPublishes);

@@ -61,7 +61,17 @@ inline bool fmq_compare(const char *c1, const char *c2, const char *actual, cons
     std::string s2(c2);
 
     std::ostringstream oss;
-    oss << s1 << " != " << s2;
+
+    if (s1.length() + s2.length() < 100)
+    {
+        // short form
+        oss << s1 << " != " << s2;
+    }
+    else
+    {
+        oss << "Actual:     " << s1 << std::endl;
+        oss << "Expected:   " << s2;
+    }
 
     return fmq_assert(s1 == s2, oss.str().c_str(), actual, expected, file, line);
 }

@@ -23,6 +23,7 @@ See LICENSE for license details.
 #include "exceptions.h"
 #include "utils.h"
 #include "globber.h"
+#include "edlib.h"
 
 /**
  * @brief Like std::stoi, but demands that the entire value is consumed
@@ -93,6 +94,32 @@ bool ConfigFileParser::testKeyValidity(const std::string &key, const std::string
     {
         std::ostringstream oss;
         oss << "Config key '" << key << "' is not valid (here).";
+
+        // Maybe the user made a typo
+        EdlibAlignConfig cmpcnf = edlibDefaultAlignConfig();
+        const std::string *alternative = nullptr;
+        int alternative_distance = INT_MAX;
+
+        for (const std::string &possible_key : validKeys)
+        {
+            EdlibAlignResult result = edlibAlign(key.c_str(), key.length(), possible_key.c_str(), key.length(), cmpcnf);
+            if (result.status == EDLIB_STATUS_OK)
+            {
+                // The mathemathical formula "x/y < 0.5"
+                // can be approximated with integers as "x*2/y < 1"
+                if ((result.editDistance * 2) / key.length() < 1 && result.editDistance < alternative_distance)
+                {
+                    alternative = &possible_key;
+                    alternative_distance = result.editDistance;
+                }
+            }
+            edlibFreeAlignResult(result);
+        }
+        if (alternative != nullptr)
+        {
+            oss << " Did you mean: " << alternative->c_str() << " ?";
+        }
+
         throw ConfigFileException(oss.str());
     }
 
