@@ -109,7 +109,7 @@ MainApp::MainApp(const std::string &configFilePath) :
         subscriptionStore->loadSessionsAndSubscriptions(settings.getSessionsDBFile());
     }
 
-    auto fSaveState = std::bind(&MainApp::saveStateInThread, this);
+    auto fSaveState = std::bind(&MainApp::queueSaveStateInThread, this);
     timer.addCallback(fSaveState, 900000, "Save state.");
 
     auto fSendPendingWills = std::bind(&MainApp::queueSendQueuedWills, this);
@@ -280,8 +280,18 @@ void MainApp::saveStateInThread()
 
     auto f = std::bind(&MainApp::saveState, this->settings, bridgeInfos, true);
     this->bgWorker.addTask(f);
+}
 
-
+/**
+ * @brief MainApp::queueSaveStateInThread is a wrapper to be called from another thread, to make sure saveStateInThread() is called
+ * on the main loop.
+ */
+void MainApp::queueSaveStateInThread()
+{
+    std::lock_guard<std::mutex> locker(eventMutex);
+    auto f = std::bind(&MainApp::saveStateInThread, this);
+    taskQueue.push_back(f);
+    wakeUpThread();
 }
 
 void MainApp::queueSendQueuedWills()

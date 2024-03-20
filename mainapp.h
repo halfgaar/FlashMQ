@@ -88,6 +88,7 @@ class MainApp
     static void saveBridgeInfo(const std::string &filePath, const std::list<BridgeInfoForSerializing> &bridgeInfos);
     void loadBridgeInfo();
     void saveStateInThread();
+    void queueSaveStateInThread();
     void queueSendQueuedWills();
     void waitForWillsQueued();
     void waitForDisconnectsInitiated();
