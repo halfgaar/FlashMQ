@@ -1230,7 +1230,7 @@ void MqttPacket::handleDisconnect()
 
     DisconnectData data = parseDisconnectData();
 
-    std::string disconnectReason = formatString("MQTT Disconnect received (code %d).", static_cast<uint8_t>(data.reasonCode));
+    std::string disconnectReason = "MQTT Disconnect received (reason '" + reasonCodeToString(data.reasonCode) + "').";
 
     if (!data.reasonString.empty())
         disconnectReason += data.reasonString;
