@@ -258,6 +258,7 @@ public:
     Publish& operator=(const Publish &other);
 
     const std::vector<std::string> &getSubtopics();
+    void resplitTopic();
 };
 
 class WillPublish : public Publish

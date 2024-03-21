@@ -664,6 +664,11 @@ void MainTests::testChangePublish()
         receiver.connectClient(version, false, 100);
         receiver.subscribe("#", 2);
 
+        FlashMQTestClient receiver_of_pattern;
+        receiver_of_pattern.start();
+        receiver_of_pattern.connectClient(version, false, 100);
+        receiver_of_pattern.subscribe("changed", 2);
+
         sender.publish("changeme", "hello", 1);
 
         receiver.waitForMessageCount(1);
@@ -672,6 +677,13 @@ void MainTests::testChangePublish()
         MYCASTCOMPARE(receiver.receivedPublishes.front().getTopic(), "changed");
         MYCASTCOMPARE(receiver.receivedPublishes.front().getPayloadCopy(), "hello");
         MYCASTCOMPARE(receiver.receivedPublishes.front().getQos(), 2);
+
+        receiver_of_pattern.waitForMessageCount(1);
+
+        MYCASTCOMPARE(receiver_of_pattern.receivedPublishes.size(), 1);
+        MYCASTCOMPARE(receiver_of_pattern.receivedPublishes.front().getTopic(), "changed");
+        MYCASTCOMPARE(receiver_of_pattern.receivedPublishes.front().getPayloadCopy(), "hello");
+        MYCASTCOMPARE(receiver_of_pattern.receivedPublishes.front().getQos(), 2);
     }
 }
 

@@ -1634,6 +1634,11 @@ void MqttPacket::handlePublish()
         this->alteredByPlugin = authentication.alterPublish(this->publishData.client_id, this->publishData.topic, this->publishData.getSubtopics(),
                                                             getPayloadView(), this->publishData.qos, this->publishData.retain, this->publishData.getUserProperties());
 
+        if (this->alteredByPlugin)
+        {
+            this->publishData.resplitTopic();
+        }
+
         if (authentication.aclCheck(this->publishData, getPayloadView()) == AuthResult::success)
         {
             if (publishData.retain && settings->retainedMessagesMode == RetainedMessagesMode::Enabled)

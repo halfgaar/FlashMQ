@@ -316,6 +316,11 @@ const std::vector<std::string> &Publish::getSubtopics()
     return subtopics;
 }
 
+void Publish::resplitTopic()
+{
+    subtopics = splitTopic(this->topic);
+}
+
 WillPublish::WillPublish(const Publish &other) :
     Publish(other)
 {
