@@ -2831,6 +2831,16 @@ void MainTests::testTopicMatchingInSubscriptionTree()
     testTopicMatchingInSubscriptionTreeHelper("+/one/+/+/", "/one/two/asdf/a", 0);
 }
 
+void MainTests::testStartsWith()
+{
+    FMQ_VERIFY(startsWith("", ""));
+    FMQ_VERIFY(startsWith("a", ""));
+    FMQ_VERIFY(startsWith("abcd", "abc"));
+    FMQ_VERIFY(startsWith("a", ""));
 
+    FMQ_VERIFY(!startsWith("abc", "abcd"));
+    FMQ_VERIFY(!startsWith("abcd", "bcd"));
+    FMQ_VERIFY(!startsWith("", "a"));
+}
 
 

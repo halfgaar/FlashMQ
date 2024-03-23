@@ -203,6 +203,8 @@ class MainTests
     void testWebsocketManyBigPingFrames();
     void testWebsocketClose();
 
+    void testStartsWith();
+
 
 public:
     MainTests();

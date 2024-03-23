@@ -283,6 +283,8 @@ MainTests::MainTests()
     REGISTER_FUNCTION(testWebsocketHugePing);
     REGISTER_FUNCTION(testWebsocketManyBigPingFrames);
     REGISTER_FUNCTION(testWebsocketClose);
+    REGISTER_FUNCTION(testStartsWith);
+
 }
 
 bool MainTests::test(const std::vector<std::string> &tests)

@@ -295,7 +295,17 @@ std::string &rtrim(std::string &s, unsigned char c)
 
 bool startsWith(const std::string &s, const std::string &needle)
 {
-    return s.find(needle) == 0;
+    if (s.length() < needle.length())
+        return false;
+
+    size_t i;
+    for (i = 0; i < needle.length(); i++)
+    {
+        if (s[i] != needle[i])
+            return false;
+    }
+
+    return i == needle.length();
 }
 
 std::string getSecureRandomString(const ssize_t len)
