@@ -1,0 +1,11 @@
+name: Checking code style
+on: [pull_request]
+jobs:
+  check_cpp_codestyle:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - run: sudo apt install -y clang-format-15
+      - run: git fetch origin "$GITHUB_BASE_REF" --depth 1  # Github CI only checks out a single commit, so we need to fetch what to compare against
+      - run: CHANGES=$(git diff -U0 --no-color "origin/$GITHUB_BASE_REF" | clang-format-diff-15 -p1); [[ -z "$CHANGES" ]] || { echo "Please fix the following C++ style issues:"; echo "$CHANGES"; exit 2; }
