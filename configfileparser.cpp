@@ -272,6 +272,8 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validBridgeKeys.insert("max_outgoing_topic_aliases");
     validBridgeKeys.insert("max_incoming_topic_aliases");
     validBridgeKeys.insert("tcp_nodelay");
+    validBridgeKeys.insert("local_prefix");
+    validBridgeKeys.insert("remote_prefix");
 }
 
 std::list<std::string> ConfigFileParser::readFileRecursively(const std::string &path) const
@@ -746,6 +748,26 @@ void ConfigFileParser::loadFile(bool test)
                 if (testKeyValidity(key, "tcp_nodelay", validBridgeKeys))
                 {
                     curBridge->tcpNoDelay = true;
+                }
+                if (testKeyValidity(key, "local_prefix", validBridgeKeys))
+                {
+                    if (value.empty())
+                        throw ConfigFileException("Option '" + key + "' can't be empty.");
+
+                    if (!endsWith(value, "/"))
+                        throw ConfigFileException("Option '" + key + "' must end in a '/'.");
+
+                    curBridge->local_prefix = value;
+                }
+                if (testKeyValidity(key, "remote_prefix", validBridgeKeys))
+                {
+                    if (value.empty())
+                        throw ConfigFileException("Option '" + key + "' can't be empty.");
+
+                    if (!endsWith(value, "/"))
+                        throw ConfigFileException("Option '" + key + "' must end in a '/'.");
+
+                    curBridge->remote_prefix = value;
                 }
 
                 testCorrectNumberOfValues(key, number_of_expected_values, values);

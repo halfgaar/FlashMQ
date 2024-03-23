@@ -165,6 +165,7 @@ void ltrim(std::string &s);
 void rtrim(std::string &s);
 void trim(std::string &s);
 bool startsWith(const std::string &s, const std::string &needle);
+bool endsWith(const std::string &s, const std::string &ending);
 std::string &rtrim(std::string &s, unsigned char c);
 
 std::string getSecureRandomString(const ssize_t len);

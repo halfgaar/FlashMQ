@@ -214,6 +214,13 @@ bool startsWith(const std::string &s, const std::string &needle)
     return i == needle.length();
 }
 
+bool endsWith(const std::string &s, const std::string &ending)
+{
+    if (ending.size() > s.size())
+        return false;
+    return std::equal(ending.rbegin(), ending.rend(), s.rbegin());
+}
+
 std::string getSecureRandomString(const ssize_t len)
 {
     std::vector<uint64_t> buf(len);

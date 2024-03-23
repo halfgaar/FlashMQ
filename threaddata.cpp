@@ -377,8 +377,12 @@ void ThreadData::bridgeReconnect()
             else
             {
                 std::shared_ptr<SubscriptionStore> subscriptionStore = MainApp::getMainApp()->getSubscriptionStore();
-                bridge->session = subscriptionStore->getBridgeSession(c);
+                session = subscriptionStore->getBridgeSession(c);
+                bridge->session = session;
             }
+
+            session->setLocalPrefix(bridge->c.local_prefix);
+            session->setRemotePrefix(bridge->c.remote_prefix);
 
             c->connectToBridgeTarget(addr);
         }

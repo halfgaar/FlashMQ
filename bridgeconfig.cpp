@@ -179,6 +179,12 @@ void BridgeConfig::isValid()
     if (protocolVersion <= ProtocolVersion::Mqtt311 && remote_password.has_value() && !remote_username.has_value())
         throw ConfigFileException("MQTT 3.1.1 and lower require a username when you set a password.");
 
+    if (local_prefix && !endsWith(local_prefix.value(), "/"))
+        throw ConfigFileException("Option 'local_prefix' must end in a '/'.");
+
+    if (remote_prefix && !endsWith(remote_prefix.value(), "/"))
+        throw ConfigFileException("Option 'remote_prefix' must end in a '/'.");
+
     setClientId();
 }
 
@@ -192,7 +198,8 @@ bool BridgeConfig::operator ==(const BridgeConfig &other) const
            && this->localCleanStart == other.localCleanStart && this->remoteSessionExpiryInterval == other.remoteSessionExpiryInterval
            && this->localSessionExpiryInterval == other.localSessionExpiryInterval && this->remoteRetainAvailable == other.remoteRetainAvailable
            && this->useSavedClientId == other.useSavedClientId && this->maxOutgoingTopicAliases == other.maxOutgoingTopicAliases
-           && this->maxIncomingTopicAliases == other.maxIncomingTopicAliases && this->tcpNoDelay == other.tcpNoDelay;
+           && this->maxIncomingTopicAliases == other.maxIncomingTopicAliases && this->tcpNoDelay == other.tcpNoDelay
+           && this->local_prefix == other.local_prefix && this->remote_prefix == other.remote_prefix;
 }
 
 bool BridgeConfig::operator !=(const BridgeConfig &other) const

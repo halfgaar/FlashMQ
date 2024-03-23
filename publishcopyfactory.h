@@ -43,7 +43,9 @@ public:
     PublishCopyFactory(const PublishCopyFactory &other) = delete;
     PublishCopyFactory(PublishCopyFactory &&other) = delete;
 
-    MqttPacket *getOptimumPacket(const uint8_t max_qos, const ProtocolVersion protocolVersion, uint16_t topic_alias, bool skip_topic, uint32_t subscriptionIdentifier);
+    MqttPacket *getOptimumPacket(
+        const uint8_t max_qos, const ProtocolVersion protocolVersion, uint16_t topic_alias, bool skip_topic, uint32_t subscriptionIdentifier,
+        const std::optional<std::string> &topic_override);
     uint8_t getEffectiveQos(uint8_t max_qos) const;
     bool getEffectiveRetain(bool retainAsPublished) const;
     const std::string &getTopic() const;

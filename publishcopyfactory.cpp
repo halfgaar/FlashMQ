@@ -31,7 +31,8 @@ PublishCopyFactory::PublishCopyFactory(Publish *publish) :
 }
 
 MqttPacket *PublishCopyFactory::getOptimumPacket(
-    const uint8_t max_qos, const ProtocolVersion protocolVersion, uint16_t topic_alias, bool skip_topic, uint32_t subscriptionIdentifier)
+    const uint8_t max_qos, const ProtocolVersion protocolVersion, uint16_t topic_alias, bool skip_topic, uint32_t subscriptionIdentifier,
+    const std::optional<std::string> &topic_override)
 {
     const uint8_t actualQos = getEffectiveQos(max_qos);
 
@@ -44,9 +45,9 @@ MqttPacket *PublishCopyFactory::getOptimumPacket(
         assert(packet->getPublishData().subscriptionIdentifier == 0);
 
         // When the packet contains an data specific to the receiver, we don't cache it.
-        if ((protocolVersion >= ProtocolVersion::Mqtt5 && topic_alias > 0) || subscriptionIdentifier > 0)
+        if (topic_override || (protocolVersion >= ProtocolVersion::Mqtt5 && topic_alias > 0) || subscriptionIdentifier > 0)
         {
-            this->oneShotPacket.emplace(protocolVersion, packet->getPublishData(), actualQos, topic_alias, skip_topic, subscriptionIdentifier);
+            this->oneShotPacket.emplace(protocolVersion, packet->getPublishData(), actualQos, topic_alias, skip_topic, subscriptionIdentifier, topic_override);
             return &*this->oneShotPacket;
         }
 
@@ -63,7 +64,8 @@ MqttPacket *PublishCopyFactory::getOptimumPacket(
 
         if (!cachedPack)
         {
-            cachedPack.emplace(protocolVersion, packet->getPublishData(), actualQos, 0, false, 0);
+            // Don't include arguments that are not part of the cache key.
+            cachedPack.emplace(protocolVersion, packet->getPublishData(), actualQos, 0, false, 0, std::optional<std::string>());
         }
 
         return &*cachedPack;
@@ -75,7 +77,7 @@ MqttPacket *PublishCopyFactory::getOptimumPacket(
     // The incoming topic alias is not relevant after initial conversion and it should not propagate.
     assert(publish->topicAlias == 0);
 
-    this->oneShotPacket.emplace(protocolVersion, *publish, actualQos, topic_alias, skip_topic, subscriptionIdentifier);
+    this->oneShotPacket.emplace(protocolVersion, *publish, actualQos, topic_alias, skip_topic, subscriptionIdentifier, topic_override);
     return &*this->oneShotPacket;
 }
 
@@ -221,6 +223,5 @@ int PublishCopyFactory::getPublishLayoutCompareKey(ProtocolVersion pv, uint8_t q
     key = (key * 10) + static_cast<bool>(qos);
     return key;
 }
-
 
 

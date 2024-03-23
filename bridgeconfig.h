@@ -60,6 +60,9 @@ public:
     bool queueForDelete = false;
     bool tcpNoDelay = false;
 
+    std::optional<std::string> local_prefix;
+    std::optional<std::string> remote_prefix;
+
     void setClientId(const std::string &prefix, const std::string &id);
     const std::string &getClientid() const;
     void isValid();

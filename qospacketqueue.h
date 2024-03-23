@@ -26,8 +26,11 @@ class QueuedPublish
 {
     Publish publish;
     uint16_t packet_id = 0;
+
+    // We store this separately because because we need to retain the original publish path for ACL checking upon resending.
+    std::optional<std::string> topic_override;
 public:
-    QueuedPublish(Publish &&publish, uint16_t packet_id);
+    QueuedPublish(Publish &&publish, uint16_t packet_id, const std::optional<std::string> &topic_override);
     QueuedPublish(const QueuedPublish &other) = delete;
 
     std::shared_ptr<QueuedPublish> prev;
@@ -36,6 +39,7 @@ public:
     size_t getApproximateMemoryFootprint() const;
     uint16_t getPacketId() const;
     Publish &getPublish();
+    const std::optional<std::string> &getTopicOverride() const;
 };
 
 class QoSPublishQueue
@@ -61,8 +65,10 @@ public:
     bool erase(const uint16_t packet_id);
     size_t size() const;
     size_t getByteSize() const;
-    void queuePublish(PublishCopyFactory &copyFactory, uint16_t id, uint8_t new_max_qos, bool retainAsPublished, const uint32_t subscriptionIdentifier);
-    void queuePublish(Publish &&pub, uint16_t id);
+    void queuePublish(
+        PublishCopyFactory &copyFactory, uint16_t id, uint8_t new_max_qos, bool retainAsPublished, const uint32_t subscriptionIdentifier,
+        const std::optional<std::string> &topic_override);
+    void queuePublish(Publish &&pub, uint16_t id, const std::optional<std::string> &topic_override);
     int clearExpiredMessages();
     const std::shared_ptr<QueuedPublish> &getTail() const;
     std::shared_ptr<QueuedPublish> popNext();

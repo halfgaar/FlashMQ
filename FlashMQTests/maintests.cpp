@@ -172,6 +172,14 @@ MainTests::MainTests()
      */
     REGISTER_FUNCTION(forkingTestForkingTestServer);
     REGISTER_FUNCTION(forkingTestSaveAndLoadDelayedWill);
+    REGISTER_FUNCTION(forkingTestBridgeWithLocalAndRemotePrefix);
+    REGISTER_FUNCTION(forkingTestBridgePrefixesOtherClientsUnaffected);
+    REGISTER_FUNCTION(forkingTestBridgeWithOnlyRemotePrefix);
+    REGISTER_FUNCTION(forkingTestBridgeWithOnlyLocalPrefix);
+    REGISTER_FUNCTION(forkingTestBridgeOutgoingTopicEqualsPrefix);
+    REGISTER_FUNCTION(forkingTestBridgeIncomingTopicEqualsPrefix);
+    REGISTER_FUNCTION(forkingTestBridgeWithLocalAndRemotePrefixQueuedQoS);
+    REGISTER_FUNCTION(forkingTestBridgeZWithLocalAndRemotePrefixRetained);
 
     REGISTER_FUNCTION(testDummy);
     REGISTER_FUNCTION3(test_circbuf);

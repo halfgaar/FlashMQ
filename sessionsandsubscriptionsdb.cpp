@@ -79,7 +79,7 @@ SessionsAndSubscriptionsDB::SessionsAndSubscriptionsDB(const std::string &filePa
 
 void SessionsAndSubscriptionsDB::openWrite()
 {
-    PersistenceFile::openWrite(MAGIC_STRING_SESSION_FILE_V6);
+    PersistenceFile::openWrite(MAGIC_STRING_SESSION_FILE_V7);
 }
 
 void SessionsAndSubscriptionsDB::openRead()
@@ -100,11 +100,13 @@ void SessionsAndSubscriptionsDB::openRead()
         readVersion = ReadVersion::v5;
     else if (detectedVersionString == current_magic_string)
         readVersion = ReadVersion::v6;
+    else if (detectedVersionString == MAGIC_STRING_SESSION_FILE_V7)
+        readVersion = ReadVersion::v7;
     else
         throw std::runtime_error("Unknown file version.");
 }
 
-SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV3V4V5V6()
+SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV3V4V5V6V7()
 {
     const Settings &settings = *ThreadGlobals::getSettings();
 
@@ -160,6 +162,10 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV3V4V5V6()
                     const std::string sender_clientid = readString(eofFound);
                     const std::string sender_username = readString(eofFound);
 
+                    std::optional<std::string> topic_override;
+                    if (readVersion >= ReadVersion::v7)
+                        topic_override = readOptionalString(eofFound);
+
                     assert(id > 0);
 
                     cirbuf.reset();
@@ -180,7 +186,7 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV3V4V5V6()
                         pub.expireInfo->createdAt = timepointFromAge(newPubAge);
 
                     logger->logf(LOG_DEBUG, "Loaded QoS %d message for topic '%s' for session '%s'.", pub.qos, pub.topic.c_str(), ses->getClientId().c_str());
-                    qos_locked->qosPacketQueue.queuePublish(std::move(pub), id);
+                    qos_locked->qosPacketQueue.queuePublish(std::move(pub), id, topic_override);
                 }
 
                 const uint32_t nrOfIncomingPacketIds = readUint32(eofFound);
@@ -330,11 +336,9 @@ void SessionsAndSubscriptionsDB::saveData(const std::vector<std::shared_ptr<Sess
             std::shared_ptr<QueuedPublish> qp = qos_locked->qosPacketQueue.getTail();
             while (qp)
             {
-                QueuedPublish &p = *qp;
-
                 qosPacketsCounted++;
 
-                Publish &pub = p.getPublish();
+                Publish &pub = qp->getPublish();
 
                 assert(!pub.skipTopic);
                 assert(pub.topicAlias == 0);
@@ -342,7 +346,7 @@ void SessionsAndSubscriptionsDB::saveData(const std::vector<std::shared_ptr<Sess
                 logger->logf(LOG_DEBUG, "Saving QoS %d message for topic '%s'.", pub.qos, pub.topic.c_str());
 
                 MqttPacket pack(ProtocolVersion::Mqtt5, pub);
-                pack.setPacketId(p.getPacketId());
+                pack.setPacketId(qp->getPacketId());
                 const uint32_t packSize = pack.getSizeIncludingNonPresentHeader();
                 cirbuf.reset();
                 cirbuf.ensureFreeSpace(packSize + 32);
@@ -351,11 +355,13 @@ void SessionsAndSubscriptionsDB::saveData(const std::vector<std::shared_ptr<Sess
                 const uint32_t pubAge = pub.expireInfo ? ageFromTimePoint(pub.expireInfo.value().createdAt) : 0;
 
                 writeUint16(pack.getFixedHeaderLength());
-                writeUint16(p.getPacketId());
+                writeUint16(qp->getPacketId());
                 writeUint32(pubAge);
                 writeUint32(packSize);
                 writeString(pub.client_id);
                 writeString(pub.username);
+                writeOptionalString(qp->getTopicOverride());
+
                 writeCheck(cirbuf.tailPtr(), 1, cirbuf.usedBytes(), f);
 
                 qp = qp->next;
@@ -460,7 +466,7 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readData()
     if (readVersion == ReadVersion::v2)
         logger->logf(LOG_WARNING, "File '%s' is version 2, an internal development version that was never finalized. Not reading.", getFilePath().c_str());
     if (readVersion >= ReadVersion::v3)
-        return readDataV3V4V5V6();
+        return readDataV3V4V5V6V7();
 
     return defaultResult;
 }

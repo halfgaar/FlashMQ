@@ -143,6 +143,23 @@ PacketDropReason Session::writePacket(PublishCopyFactory &copyFactory, const uin
 
     const std::shared_ptr<Client> c = makeSharedClient();
 
+    std::optional<std::string> topic_override;
+
+    {
+        // The size check is to prevent making "local/haha/" into "" when the local_prefix is "local/haha/"
+        if (local_prefix && startsWith(copyFactory.getTopic(), *local_prefix) && copyFactory.getTopic().size() > local_prefix->size())
+        {
+            topic_override = copyFactory.getTopic();
+            topic_override->erase(0, local_prefix->length());
+        }
+
+        if (remote_prefix)
+        {
+            const std::string &to_append = topic_override.value_or(copyFactory.getTopic());
+            topic_override = *remote_prefix + to_append;
+        }
+    }
+
     uint16_t pack_id = 0;
 
     if (__builtin_expect(effectiveQos > 0, 0))
@@ -183,7 +200,7 @@ PacketDropReason Session::writePacket(PublishCopyFactory &copyFactory, const uin
         pack_id = qos_locked->getNextPacketId();
 
         if (!destroyOnDisconnect)
-            qos_locked->qosPacketQueue.queuePublish(copyFactory, pack_id, effectiveQos, effectiveRetain, subscriptionIdentifier);
+            qos_locked->qosPacketQueue.queuePublish(copyFactory, pack_id, effectiveQos, effectiveRetain, subscriptionIdentifier, topic_override);
     }
 
     PacketDropReason return_value = PacketDropReason::ClientOffline;
@@ -193,7 +210,7 @@ PacketDropReason Session::writePacket(PublishCopyFactory &copyFactory, const uin
         if (!c->isRetainedAvailable())
             effectiveRetain = false;
 
-        return_value = c->writeMqttPacketAndBlameThisClient(copyFactory, effectiveQos, pack_id, effectiveRetain, subscriptionIdentifier);
+        return_value = c->writeMqttPacketAndBlameThisClient(copyFactory, effectiveQos, pack_id, effectiveRetain, subscriptionIdentifier, topic_override);
     }
 
     return return_value;
@@ -251,7 +268,7 @@ void Session::sendAllPendingQosData()
     std::shared_ptr<Client> c = makeSharedClient();
     if (c)
     {
-        std::vector<std::pair<Publish, uint16_t>> copiedPublishes;
+        std::vector<std::tuple<Publish, std::optional<std::string>, uint16_t>> copiedPublishes;
         std::vector<uint16_t> copiedQoS2Ids;
 
         {
@@ -280,7 +297,7 @@ void Session::sendAllPendingQosData()
 
                 qos_locked->flowControlQuota--;
 
-                copiedPublishes.emplace_back(pub, qp->getPacketId());
+                copiedPublishes.emplace_back(pub, qp->getTopicOverride(), qp->getPacketId());
             }
 
             for (const uint16_t packet_id : qos_locked->outgoingQoS2MessageIds)
@@ -289,11 +306,12 @@ void Session::sendAllPendingQosData()
             }
         }
 
-        for(std::pair<Publish, uint16_t> &p : copiedPublishes)
+        for(std::tuple<Publish, std::optional<std::string>, uint16_t> &p : copiedPublishes)
         {
-            PublishCopyFactory fac(&p.first);
-            const bool retain = !c->isRetainedAvailable() ? false : p.first.retain;
-            c->writeMqttPacketAndBlameThisClient(fac, p.first.qos, p.second, retain, p.first.subscriptionIdentifier);
+            Publish &pub = std::get<Publish>(p);
+            PublishCopyFactory fac(&pub);
+            const bool retain = !c->isRetainedAvailable() ? false : pub.retain;
+            c->writeMqttPacketAndBlameThisClient(fac, pub.qos, std::get<uint16_t>(p), retain, pub.subscriptionIdentifier, std::get<std::optional<std::string>>(p));
         }
 
         for(uint16_t id : copiedQoS2Ids)
@@ -462,5 +480,15 @@ uint32_t Session::getCurrentSessionExpiryInterval()
     const uint32_t ageInSeconds = age.count();
     const uint32_t result = ageInSeconds <= this->sessionExpiryInterval ? this->sessionExpiryInterval - age.count() : 0;
     return result;
+}
+
+void Session::setLocalPrefix(const std::optional<std::string> &s)
+{
+    this->local_prefix = s;
+}
+
+void Session::setRemotePrefix(const std::optional<std::string> &s)
+{
+    this->remote_prefix = s;
 }
 
