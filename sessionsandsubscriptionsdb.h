@@ -24,6 +24,7 @@ See LICENSE for license details.
 #define MAGIC_STRING_SESSION_FILE_V4 "FlashMQSessionDBv4"
 #define MAGIC_STRING_SESSION_FILE_V5 "FlashMQSessionDBv5"
 #define MAGIC_STRING_SESSION_FILE_V6 "FlashMQSessionDBv6"
+#define MAGIC_STRING_SESSION_FILE_V7 "FlashMQSessionDBv7"
 #define RESERVED_SPACE_SESSIONS_DB_V2 32
 
 /**
@@ -64,12 +65,13 @@ class SessionsAndSubscriptionsDB : private PersistenceFile
         v3,
         v4,
         v5,
-        v6
+        v6,
+        v7
     };
 
     ReadVersion readVersion = ReadVersion::unknown;
 
-    SessionsAndSubscriptionsResult readDataV3V4V5V6();
+    SessionsAndSubscriptionsResult readDataV3V4V5V6V7();
     void writeRowHeader();
 public:
     SessionsAndSubscriptionsDB(const std::string &filePath);

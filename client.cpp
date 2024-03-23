@@ -326,7 +326,8 @@ PacketDropReason Client::writeMqttPacket(const MqttPacket &packet)
 }
 
 PacketDropReason Client::writeMqttPacketAndBlameThisClient(
-    PublishCopyFactory &copyFactory, uint8_t max_qos, uint16_t packet_id, bool retain, uint32_t subscriptionIdentifier)
+    PublishCopyFactory &copyFactory, uint8_t max_qos, uint16_t packet_id, bool retain, uint32_t subscriptionIdentifier,
+    const std::optional<std::string> &topic_override)
 {
     uint16_t topic_alias = 0;
     uint16_t topic_alias_next = 0;
@@ -344,11 +345,13 @@ PacketDropReason Client::writeMqttPacketAndBlameThisClient(
      */
     std::unique_lock<std::mutex> aliasMutexExtended;
 
+    const std::string &topic = topic_override.value_or(copyFactory.getTopic());
+
     if (protocolVersion >= ProtocolVersion::Mqtt5 && this->maxOutgoingTopicAliasValue > 0)
     {
         std::unique_lock<std::mutex> aliasMutex(outgoingTopicAliasMutex);
 
-        auto alias_pos = this->outgoingTopicAliases.find(copyFactory.getTopic());
+        auto alias_pos = this->outgoingTopicAliases.find(topic);
 
         if (alias_pos != this->outgoingTopicAliases.end())
         {
@@ -364,7 +367,7 @@ PacketDropReason Client::writeMqttPacketAndBlameThisClient(
         }
     }
 
-    MqttPacket *p = copyFactory.getOptimumPacket(max_qos, this->protocolVersion, topic_alias, skip_topic, subscriptionIdentifier);
+    MqttPacket *p = copyFactory.getOptimumPacket(max_qos, this->protocolVersion, topic_alias, skip_topic, subscriptionIdentifier, topic_override);
 
     assert(static_cast<bool>(p->getQos()) == static_cast<bool>(max_qos));
     assert(PublishCopyFactory::getPublishLayoutCompareKey(this->protocolVersion, p->getQos()) ==
@@ -384,7 +387,7 @@ PacketDropReason Client::writeMqttPacketAndBlameThisClient(
 
     if (dropReason == PacketDropReason::Success && topic_alias_next > 0)
     {
-        this->outgoingTopicAliases[copyFactory.getTopic()] = topic_alias_next;
+        this->outgoingTopicAliases[topic] = topic_alias_next;
         this->curOutgoingTopicAlias = topic_alias_next;
     }
 
@@ -992,6 +995,22 @@ std::chrono::seconds Client::getSecondsTillKeepAliveAction() const
         return std::chrono::seconds(5);
 
     return secondsTillKillTime;
+}
+
+const std::optional<std::string> &Client::getLocalPrefix() const
+{
+    if (!this->session)
+        throw std::runtime_error("Client has no session in getSession(). It was probably meant to be discarded.");
+
+    return session->getLocalPrefix();
+}
+
+const std::optional<std::string> &Client::getRemotePrefix() const
+{
+    if (!this->session)
+        throw std::runtime_error("Client has no session in getSession(). It was probably meant to be discarded.");
+
+    return session->getRemotePrefix();
 }
 
 void Client::clearWill()

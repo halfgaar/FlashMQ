@@ -246,6 +246,11 @@ class MainTests
     void testSubscriptionIdChange();
     void testSubscriptionIdOverlappingSubscriptions();
 
+    void forkingTestBridgeWithLocalAndRemotePrefix();
+    void forkingTestBridgeWithOnlyRemotePrefix();
+    void forkingTestBridgeWithOnlyLocalPrefix();
+    void forkingTestBridgeWithLocalAndRemotePrefixRetained();
+    void forkingTestBridgeWithLocalAndRemotePrefixQueuedQoS();
 
 public:
     MainTests();

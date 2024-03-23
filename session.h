@@ -36,6 +36,8 @@ class Session
     LockedWeakPtr<Client> client;
     const std::string client_id;
     const std::string username;
+    std::optional<std::string> local_prefix;
+    std::optional<std::string> remote_prefix;
     QoSPublishQueue qosPacketQueue;
     std::set<uint16_t> incomingQoS2MessageIds;
     std::set<uint16_t> outgoingQoS2MessageIds;
@@ -104,6 +106,11 @@ public:
     void setQueuedRemovalAt();
     uint32_t getSessionExpiryInterval() const;
     uint32_t getCurrentSessionExpiryInterval();
+
+    void setLocalPrefix(const std::optional<std::string> &s);
+    void setRemotePrefix(const std::optional<std::string> &s);
+    const std::optional<std::string> &getLocalPrefix() const { return local_prefix; }
+    const std::optional<std::string> &getRemotePrefix() const { return remote_prefix; }
 };
 
 #endif // SESSION_H

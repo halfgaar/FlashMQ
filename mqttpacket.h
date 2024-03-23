@@ -117,7 +117,7 @@ public:
     MqttPacket(const UnsubAck &unsubAck);
     MqttPacket(const ProtocolVersion protocolVersion, const Publish &_publish);
     MqttPacket(const ProtocolVersion protocolVersion, const Publish &_publish, const uint8_t _qos, const uint16_t _topic_alias,
-               const bool _skip_topic, const uint32_t subscriptionIdentifier);
+               const bool _skip_topic, const uint32_t subscriptionIdentifier, const std::optional<std::string> &topic_override);
     MqttPacket(const PubResponse &pubAck);
     MqttPacket(const Disconnect &disconnect);
     MqttPacket(const Auth &auth);

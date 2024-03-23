@@ -107,7 +107,7 @@ MqttPacket::MqttPacket(const UnsubAck &unsubAck) :
 }
 
 MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, const Publish &_publish) :
-    MqttPacket(protocolVersion, _publish, _publish.qos, _publish.topicAlias, _publish.skipTopic, _publish.subscriptionIdentifier)
+    MqttPacket(protocolVersion, _publish, _publish.qos, _publish.topicAlias, _publish.skipTopic, _publish.subscriptionIdentifier, std::optional<std::string>())
 {
 
 }
@@ -124,13 +124,8 @@ MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, const Publish &_pu
  * if you just want the publish object's data.
  */
 MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, const Publish &_publish, const uint8_t _qos, const uint16_t _topic_alias,
-                       const bool _skip_topic, const uint32_t subscriptionIdentifier)
+                       const bool _skip_topic, const uint32_t subscriptionIdentifier, const std::optional<std::string> &topic_override)
 {
-    if (_publish.topic.length() > 0xFFFF)
-    {
-        throw ProtocolError("Topic path too long.", ReasonCodes::ProtocolError);
-    }
-
     this->protocolVersion = protocolVersion;
     this->publishData.client_id = _publish.client_id;
     this->publishData.username = _publish.username;
@@ -141,7 +136,12 @@ MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, const Publish &_pu
     this->packetType = PacketType::PUBLISH;
 
     if (!this->publishData.skipTopic)
-        this->publishData.topic = _publish.topic;
+        this->publishData.topic = topic_override.value_or(_publish.topic);
+
+    if (this->publishData.topic.length() > 0xFFFF)
+    {
+        throw ProtocolError("Topic path too long.", ReasonCodes::ProtocolError);
+    }
 
     first_byte = static_cast<char>(packetType) << 4;
     first_byte |= (this->publishData.qos << 1);
@@ -1946,6 +1946,35 @@ void MqttPacket::handlePublish(std::shared_ptr<Client> &sender)
 #endif
 
     ThreadGlobals::getThreadData()->receivedMessageCounter.inc();
+
+    /*
+     * Topic prefixing. Currently, remote prefix is removed and local prefixes is added before any ACL checks are
+     * done. I think that makes the most sense.
+     */
+    {
+        const std::optional<std::string> &remote_prefix = sender->getRemotePrefix();
+        const std::optional<std::string> &local_prefix = sender->getLocalPrefix();
+
+        bool resplit = false;
+
+        if (remote_prefix && startsWith(publishData.topic, *remote_prefix))
+        {
+            resplit = true;
+            publishData.topic.erase(0, remote_prefix->length());
+        }
+
+        if (local_prefix)
+        {
+            resplit = true;
+            publishData.topic = *local_prefix + publishData.topic;
+        }
+
+        if (resplit)
+        {
+            dontReuseBites = true;
+            publishData.resplitTopic();
+        }
+    }
 
     Authentication &authentication = *ThreadGlobals::getAuth();
     const Settings *settings = ThreadGlobals::getSettings();

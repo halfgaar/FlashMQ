@@ -14,9 +14,10 @@ See LICENSE for license details.
 
 #include "mqttpacket.h"
 
-QueuedPublish::QueuedPublish(Publish &&publish, uint16_t packet_id) :
+QueuedPublish::QueuedPublish(Publish &&publish, uint16_t packet_id, const std::optional<std::string> &topic_override) :
     publish(std::move(publish)),
-    packet_id(packet_id)
+    packet_id(packet_id),
+    topic_override(topic_override)
 {
 
 }
@@ -29,6 +30,11 @@ uint16_t QueuedPublish::getPacketId() const
 Publish &QueuedPublish::getPublish()
 {
     return publish;
+}
+
+const std::optional<std::string> &QueuedPublish::getTopicOverride() const
+{
+    return topic_override;
 }
 
 size_t QueuedPublish::getApproximateMemoryFootprint() const
@@ -139,24 +145,34 @@ void QoSPublishQueue::addToHeadOfLinkedList(std::shared_ptr<QueuedPublish> &qp)
  * subscribe, which an offline client can't do. However, MQTT5 introduces 'retained as published', so it becomes valid. Bridge
  * mode uses this as well.
  */
-void QoSPublishQueue::queuePublish(PublishCopyFactory &copyFactory, uint16_t id, uint8_t new_max_qos, bool retainAsPublished, const uint32_t subscriptionIdentifier)
+void QoSPublishQueue::queuePublish(
+    PublishCopyFactory &copyFactory, uint16_t id, uint8_t new_max_qos, bool retainAsPublished, const uint32_t subscriptionIdentifier,
+    const std::optional<std::string> &topic_override)
 {
     assert(new_max_qos > 0);
     assert(id > 0);
 
     Publish pub = copyFactory.getNewPublish(new_max_qos, retainAsPublished, subscriptionIdentifier);
-    std::shared_ptr<QueuedPublish> qp = std::make_shared<QueuedPublish>(std::move(pub), id);
+    std::shared_ptr<QueuedPublish> qp = std::make_shared<QueuedPublish>(std::move(pub), id, topic_override);
     addToHeadOfLinkedList(qp);
     qosQueueBytes += qp->getApproximateMemoryFootprint();
     addToExpirationQueue(qp);
     queue[id] = std::move(qp);
 }
 
-void QoSPublishQueue::queuePublish(Publish &&pub, uint16_t id)
+/**
+ * @brief QoSPublishQueue::queuePublish moves the publish into the queue.
+ * @param pub
+ * @param id
+ * @param topic_override could/should theoretically also have been an rvalue ref, but that required maintaining
+ * a various constructors of QueuedPublish with ref and rref arguments, which didn't seem worth it. So far, this
+ * function is only used for loading from disk, so not the hot path.
+ */
+void QoSPublishQueue::queuePublish(Publish &&pub, uint16_t id, const std::optional<std::string> &topic_override)
 {
     assert(id > 0);
 
-    std::shared_ptr<QueuedPublish> qp = std::make_shared<QueuedPublish>(std::move(pub), id);
+    std::shared_ptr<QueuedPublish> qp = std::make_shared<QueuedPublish>(std::move(pub), id, topic_override);
     addToHeadOfLinkedList(qp);
     qosQueueBytes += qp->getApproximateMemoryFootprint();
     addToExpirationQueue(qp);
