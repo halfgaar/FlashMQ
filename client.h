@@ -198,13 +198,17 @@ public:
     std::shared_ptr<Session> getSession();
     void setDisconnectReason(const std::string &reason);
     std::chrono::seconds getSecondsTillKeepAliveAction() const;
+    const std::optional<std::string> &getLocalPrefix() const;
+    const std::optional<std::string> &getRemotePrefix() const;
 
     void writeText(const std::string &text);
     void writePing();
     void writePingResp();
     void writeLoginPacket();
     PacketDropReason writeMqttPacket(const MqttPacket &packet);
-    PacketDropReason writeMqttPacketAndBlameThisClient(PublishCopyFactory &copyFactory, uint8_t max_qos, uint16_t packet_id, bool retain, uint32_t subscriptionIdentifier);
+    PacketDropReason writeMqttPacketAndBlameThisClient(
+        PublishCopyFactory &copyFactory, uint8_t max_qos, uint16_t packet_id, bool retain, uint32_t subscriptionIdentifier,
+        const std::optional<std::string> &topic_override);
     PacketDropReason writeMqttPacketAndBlameThisClient(const MqttPacket &packet);
     void writeBufIntoFd();
     DisconnectStage getDisconnectStage() const { return disconnectStage; }

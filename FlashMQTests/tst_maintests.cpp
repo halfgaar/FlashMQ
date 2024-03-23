@@ -2297,7 +2297,7 @@ void MainTests::testQoSPublishQueue()
 
     {
         Publish p1("one", "onepayload", 1);
-        q.queuePublish(std::move(p1), id++);
+        q.queuePublish(std::move(p1), id++, std::optional<std::string>());
 
         qp = q.popNext();
         QVERIFY(qp);
@@ -2310,8 +2310,8 @@ void MainTests::testQoSPublishQueue()
     {
         Publish p1("two", "asdf", 1);
         Publish p2("three", "wer", 1);
-        q.queuePublish(std::move(p1), id++);
-        q.queuePublish(std::move(p2), id++);
+        q.queuePublish(std::move(p1), id++, std::optional<std::string>());
+        q.queuePublish(std::move(p2), id++, std::optional<std::string>());
 
         qp = q.popNext();
         QCOMPARE(qp->getPublish().topic, "two");
@@ -2325,9 +2325,9 @@ void MainTests::testQoSPublishQueue()
         Publish p1("four", "asdf", 1);
         Publish p2("five", "wer", 1);
         Publish p3("six", "wer", 1);
-        q.queuePublish(std::move(p1), id++);
-        q.queuePublish(std::move(p2), id++);
-        q.queuePublish(std::move(p3), id++);
+        q.queuePublish(std::move(p1), id++, std::optional<std::string>());
+        q.queuePublish(std::move(p2), id++, std::optional<std::string>());
+        q.queuePublish(std::move(p3), id++, std::optional<std::string>());
 
         qp = q.popNext();
         QCOMPARE(qp->getPublish().topic, "four");
@@ -2346,15 +2346,15 @@ void MainTests::testQoSPublishQueue()
         Publish p1("seven", "asdf", 1);
         Publish p2("eight", "wer", 1);
         Publish p3("nine", "wer", 1);
-        q.queuePublish(std::move(p1), id++);
+        q.queuePublish(std::move(p1), id++, std::optional<std::string>());
         idToRemove = id;
-        q.queuePublish(std::move(p2), id++);
-        q.queuePublish(std::move(p3), id++);
+        q.queuePublish(std::move(p2), id++, std::optional<std::string>());
+        q.queuePublish(std::move(p3), id++, std::optional<std::string>());
 
         q.erase(idToRemove);
 
         Publish p4("tool2eW7", "wer", 1);
-        q.queuePublish(std::move(p4), id++);
+        q.queuePublish(std::move(p4), id++, std::optional<std::string>());
 
         qp = q.popNext();
         QCOMPARE(qp->getPublish().topic, "seven");
@@ -2374,14 +2374,14 @@ void MainTests::testQoSPublishQueue()
         Publish p2("eleven", "wer", 1);
         Publish p3("twelve", "wer", 1);
         idToRemove = id;
-        q.queuePublish(std::move(p1), id++);
-        q.queuePublish(std::move(p2), id++);
-        q.queuePublish(std::move(p3), id++);
+        q.queuePublish(std::move(p1), id++, std::optional<std::string>());
+        q.queuePublish(std::move(p2), id++, std::optional<std::string>());
+        q.queuePublish(std::move(p3), id++, std::optional<std::string>());
 
         q.erase(idToRemove);
 
         Publish p4("iew2Bie1", "wer", 1);
-        q.queuePublish(std::move(p4), id++);
+        q.queuePublish(std::move(p4), id++, std::optional<std::string>());
 
         qp = q.popNext();
         QCOMPARE(qp->getPublish().topic, "eleven");
@@ -2400,15 +2400,15 @@ void MainTests::testQoSPublishQueue()
         Publish p1("13", "asdf", 1);
         Publish p2("14", "wer", 1);
         Publish p3("15", "wer", 1);
-        q.queuePublish(std::move(p1), id++);
-        q.queuePublish(std::move(p2), id++);
+        q.queuePublish(std::move(p1), id++, std::optional<std::string>());
+        q.queuePublish(std::move(p2), id++, std::optional<std::string>());
         idToRemove = id;
-        q.queuePublish(std::move(p3), id++);
+        q.queuePublish(std::move(p3), id++, std::optional<std::string>());
 
         q.erase(idToRemove);
 
         Publish p4("16", "wer", 1);
-        q.queuePublish(std::move(p4), id++);
+        q.queuePublish(std::move(p4), id++, std::optional<std::string>());
 
         qp = q.popNext();
         QCOMPARE(qp->getPublish().topic, "13");

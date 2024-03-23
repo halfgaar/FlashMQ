@@ -66,6 +66,8 @@ class Session
     const std::string client_id;
     const std::string username;
     MutexOwned<QoSData> qos;
+    std::optional<std::string> local_prefix;
+    std::optional<std::string> remote_prefix;
     std::mutex clientSwitchMutex;
 
     uint32_t sessionExpiryInterval = 0;
@@ -114,6 +116,11 @@ public:
     void setQueuedRemovalAt();
     uint32_t getSessionExpiryInterval() const;
     uint32_t getCurrentSessionExpiryInterval();
+
+    void setLocalPrefix(const std::optional<std::string> &s);
+    void setRemotePrefix(const std::optional<std::string> &s);
+    const std::optional<std::string> &getLocalPrefix() const { return local_prefix; }
+    const std::optional<std::string> &getRemotePrefix() const { return remote_prefix; }
 };
 
 #endif // SESSION_H
