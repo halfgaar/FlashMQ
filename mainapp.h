@@ -36,6 +36,7 @@ class MainApp
 {
 #ifdef TESTING
     friend class MainAppInThread;
+    friend class MainAppAsFork;
 #endif
 
     static MainApp *instance;

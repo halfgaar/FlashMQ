@@ -550,10 +550,12 @@ MainApp *MainApp::getMainApp()
 void MainApp::start()
 {
 #ifndef NDEBUG
+#ifndef TESTING
     if (!getFuzzMode())
     {
         oneInstanceLock.lock();
     }
+#endif
 #endif
 
 #ifdef NDEBUG

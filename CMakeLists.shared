@@ -74,6 +74,7 @@ set(FLASHMQ_HEADERS
     ${RELPATH}bridgeinfodb.h
     ${RELPATH}x509manager.h
     ${RELPATH}backgroundworker.h
+    ${RELPATH}fmqmain.h
 )
 
 set(FLASHMQ_IMPLS
@@ -131,4 +132,5 @@ set(FLASHMQ_IMPLS
     ${RELPATH}globber.cpp
     ${RELPATH}x509manager.cpp
     ${RELPATH}backgroundworker.cpp
+    ${RELPATH}fmqmain.cpp
     )

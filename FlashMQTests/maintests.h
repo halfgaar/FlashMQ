@@ -204,6 +204,7 @@ class MainTests
     void testWebsocketClose();
 
     void testStartsWith();
+    void testForkingTestServer();
 
 
 public:

@@ -130,7 +130,9 @@ void MainTests::initBeforeEachTest()
 
 void MainTests::cleanupAfterEachTest()
 {
-    this->mainApp->stopApp();
+    if (this->mainApp)
+        this->mainApp->stopApp();
+    this->mainApp.reset();
 }
 
 void MainTests::registerFunction(const std::string &name, std::function<void ()> f)
@@ -284,6 +286,7 @@ MainTests::MainTests()
     REGISTER_FUNCTION(testWebsocketManyBigPingFrames);
     REGISTER_FUNCTION(testWebsocketClose);
     REGISTER_FUNCTION(testStartsWith);
+    REGISTER_FUNCTION(testForkingTestServer);
 
 }
 

@@ -62,6 +62,7 @@ add_executable(flashmq-tests
     willtests.cpp
     dnstests.cpp
     testinitializer.h testinitializer.cpp
+    mainappasfork.h mainappasfork.cpp
 
     )
 

@@ -17,6 +17,7 @@ See LICENSE for license details.
 #include "testhelpers.h"
 #include "flashmqtestclient.h"
 #include "conffiletemp.h"
+#include "mainappasfork.h"
 
 #include "threadglobals.h"
 #include "threadlocalutils.h"
@@ -2841,6 +2842,30 @@ void MainTests::testStartsWith()
     FMQ_VERIFY(!startsWith("abc", "abcd"));
     FMQ_VERIFY(!startsWith("abcd", "bcd"));
     FMQ_VERIFY(!startsWith("", "a"));
+}
+
+void MainTests::testForkingTestServer()
+{
+    cleanup();
+
+    MainAppAsFork app;
+    app.start();
+    app.waitForStarted();
+
+    FlashMQTestClient sender;
+    FlashMQTestClient receiver;
+
+    sender.start();
+    receiver.start();
+
+    receiver.connectClient(ProtocolVersion::Mqtt5);
+    receiver.subscribe("#", 0);
+
+    sender.connectClient(ProtocolVersion::Mqtt5);
+    sender.publish("bla", "payload", 0);
+
+    receiver.waitForMessageCount(1);
+    MYCASTCOMPARE(receiver.receivedPublishes.size(), 1);
 }
 
 
