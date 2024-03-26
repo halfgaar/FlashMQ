@@ -46,6 +46,14 @@ MainAppAsFork::~MainAppAsFork()
 
 void MainAppAsFork::start()
 {
+    // We must not have threads when we fork.
+    Logger::stopAndReset();
+
+    if (MainApp::instance)
+    {
+        throw std::runtime_error("You can only use the forking test server if the main app is not constructed already. Do cleanup() first.");
+    }
+
     pid_t pid = fork();
 
     if (pid < 0)
@@ -53,37 +61,42 @@ void MainAppAsFork::start()
 
     if (pid == 0)
     {
-        if (MainApp::instance)
+        try
         {
-            std::cerr << "You can only use the forking test server if the main app is not constructed already. Do cleanup() first." << std::endl;
-            ::exit(1);
+            std::list<std::vector<char>> argCopies;
+
+            const std::string programName = "FlashMQTests";
+            std::vector<char> programNameCopy(programName.size() + 1, 0);
+            std::copy(programName.begin(), programName.end(), programNameCopy.begin());
+            argCopies.push_back(std::move(programNameCopy));
+
+            for (const std::string &arg : args)
+            {
+                std::vector<char> copyArg(arg.size() + 1, 0);
+                std::copy(arg.begin(), arg.end(), copyArg.begin());
+                argCopies.push_back(std::move(copyArg));
+            }
+
+            char *argv[256];
+            memset(argv, 0, 256*sizeof (char*));
+
+            int i = 0;
+            for (std::vector<char> &copy : argCopies)
+            {
+                argv[i++] = copy.data();
+            }
+
+            int r = fmqmain(i, argv);
+            ::exit(r);
+        }
+        catch (std::exception &ex)
+        {
+            std::cout << "The forked process threw an exception: " << ex.what() << std::endl;
+            std::cerr << "The forked process threw an exception: " << ex.what() << std::endl;
         }
 
-        std::list<std::vector<char>> argCopies;
-
-        const std::string programName = "FlashMQTests";
-        std::vector<char> programNameCopy(programName.size() + 1, 0);
-        std::copy(programName.begin(), programName.end(), programNameCopy.begin());
-        argCopies.push_back(std::move(programNameCopy));
-
-        for (const std::string &arg : args)
-        {
-            std::vector<char> copyArg(arg.size() + 1, 0);
-            std::copy(arg.begin(), arg.end(), copyArg.begin());
-            argCopies.push_back(std::move(copyArg));
-        }
-
-        char *argv[256];
-        memset(argv, 0, 256*sizeof (char*));
-
-        int i = 0;
-        for (std::vector<char> &copy : argCopies)
-        {
-            argv[i++] = copy.data();
-        }
-
-        int r = fmqmain(i, argv);
-        ::exit(r);
+        // Does not call destructors.
+        abort();
     }
 
     this->child = pid;
