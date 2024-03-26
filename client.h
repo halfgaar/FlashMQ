@@ -103,6 +103,7 @@ class Client
 
     uint16_t curOutgoingTopicAlias = 0;
     std::unordered_map<std::string, uint16_t> outgoingTopicAliases;
+    std::mutex outgoingTopicAliasMutex;
 
     std::string extendedAuthenticationMethod;
     std::unique_ptr<ConnAck> stagedConnack;

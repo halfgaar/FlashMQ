@@ -319,16 +319,21 @@ PacketDropReason Client::writeMqttPacketAndBlameThisClient(PublishCopyFactory &c
     uint16_t topic_alias = 0;
     bool skip_topic = false;
 
-    if (protocolVersion >= ProtocolVersion::Mqtt5 && this->maxOutgoingTopicAliasValue > this->curOutgoingTopicAlias)
+    if (protocolVersion >= ProtocolVersion::Mqtt5 && this->maxOutgoingTopicAliasValue > 0)
     {
-        uint16_t &id = this->outgoingTopicAliases[copyFactory.getTopic()];
+        std::lock_guard<std::mutex> locker(outgoingTopicAliasMutex);
 
-        if (id > 0)
-            skip_topic = true;
-        else
-            id = ++this->curOutgoingTopicAlias;
+        if (this->maxOutgoingTopicAliasValue > this->curOutgoingTopicAlias)
+        {
+            uint16_t &id = this->outgoingTopicAliases[copyFactory.getTopic()];
 
-        topic_alias = id;
+            if (id > 0)
+                skip_topic = true;
+            else
+                id = ++this->curOutgoingTopicAlias;
+
+            topic_alias = id;
+        }
     }
 
     MqttPacket *p = copyFactory.getOptimumPacket(max_qos, this->protocolVersion, topic_alias, skip_topic);
