@@ -159,6 +159,12 @@ MainTests::MainTests()
     assert_count = 0;
     assert_fail_count = 0;
 
+    /*
+     * Forking tests need to be done first (by alphabet), otherwise you break everything with DNS. This is a limitation
+     * of getaddrinfo_a(). So, name them appropriately.
+     */
+    REGISTER_FUNCTION(forkingTestForkingTestServer);
+
     REGISTER_FUNCTION(testDummy);
     REGISTER_FUNCTION(test_circbuf);
     REGISTER_FUNCTION(test_circbuf_unwrapped_doubling);
@@ -286,7 +292,7 @@ MainTests::MainTests()
     REGISTER_FUNCTION(testWebsocketManyBigPingFrames);
     REGISTER_FUNCTION(testWebsocketClose);
     REGISTER_FUNCTION(testStartsWith);
-    REGISTER_FUNCTION(testForkingTestServer);
+
 
 }
 
@@ -297,8 +303,8 @@ bool MainTests::test(const std::vector<std::string> &tests)
     int testFailCount = 0;
     int testExceptionCount = 0;
 
-    std::unordered_map<std::string, std::function<void()>> *selectedTests = &this->testFunctions;
-    std::unordered_map<std::string, std::function<void()>> subset;
+    std::map<std::string, std::function<void()>> *selectedTests = &this->testFunctions;
+    std::map<std::string, std::function<void()>> subset;
 
     for(const std::string &test_name : tests)
     {

@@ -2844,7 +2844,7 @@ void MainTests::testStartsWith()
     FMQ_VERIFY(!startsWith("", "a"));
 }
 
-void MainTests::testForkingTestServer()
+void MainTests::forkingTestForkingTestServer()
 {
     cleanup();
 

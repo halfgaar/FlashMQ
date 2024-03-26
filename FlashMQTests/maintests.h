@@ -16,7 +16,7 @@ class MainTests
     std::unique_ptr<MainAppInThread> mainApp;
     std::shared_ptr<ThreadData> dummyThreadData;
 
-    std::unordered_map<std::string, std::function<void()>> testFunctions;
+    std::map<std::string, std::function<void()>> testFunctions;
 
     void testAsserts();
 
@@ -204,7 +204,8 @@ class MainTests
     void testWebsocketClose();
 
     void testStartsWith();
-    void testForkingTestServer();
+
+    void forkingTestForkingTestServer();
 
 
 public:
