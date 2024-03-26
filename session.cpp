@@ -241,34 +241,48 @@ void Session::sendAllPendingQosData()
     std::shared_ptr<Client> c = makeSharedClient();
     if (c)
     {
-        std::lock_guard<std::mutex> locker(qosQueueMutex);
+        std::vector<std::shared_ptr<QueuedPublish>> copiedPublishes;
+        std::vector<uint16_t> copiedQoS2Ids;
 
-        std::shared_ptr<QueuedPublish> qp_ = qosPacketQueue.getTail();;
-        while (qp_)
         {
-            std::shared_ptr<QueuedPublish> qp = qp_;
-            qp_ = qp_->next;
+            std::lock_guard<std::mutex> locker(qosQueueMutex);
 
-            QueuedPublish &queuedPublish = *qp;
-            Publish &pub = queuedPublish.getPublish();
-
-            if (pub.hasExpired() || (authentication.aclCheck(pub, pub.payload) != AuthResult::success))
+            std::shared_ptr<QueuedPublish> qp_ = qosPacketQueue.getTail();;
+            while (qp_)
             {
-                qosPacketQueue.erase(qp->getPacketId());
-                continue;
+                std::shared_ptr<QueuedPublish> qp = qp_;
+                qp_ = qp_->next;
+
+                Publish &pub = qp->getPublish();
+
+                if (pub.hasExpired() || (authentication.aclCheck(pub, pub.payload) != AuthResult::success))
+                {
+                    qosPacketQueue.erase(qp->getPacketId());
+                    continue;
+                }
+
+                if (flowControlQuota <= 0)
+                {
+                    logger->logf(LOG_WARNING, "Dropping QoS message(s) for client '%s', because it exceeds its receive maximum.", client_id.c_str());
+                    qosPacketQueue.erase(qp->getPacketId());
+                    continue;
+                }
+
+                flowControlQuota--;
+
+                copiedPublishes.push_back(qp);
             }
 
-            if (flowControlQuota <= 0)
+            for (const uint16_t packet_id : outgoingQoS2MessageIds)
             {
-                logger->logf(LOG_WARNING, "Dropping QoS message(s) for client '%s', because it exceeds its receive maximum.", client_id.c_str());
-                qosPacketQueue.erase(qp->getPacketId());
-                continue;
+                copiedQoS2Ids.push_back(packet_id);
             }
+        }
 
-            flowControlQuota--;
-
-            MqttPacket p(c->getProtocolVersion(), pub);
-            p.setPacketId(queuedPublish.getPacketId());
+        for(std::shared_ptr<QueuedPublish> &qp : copiedPublishes)
+        {
+            MqttPacket p(c->getProtocolVersion(), qp->getPublish());
+            p.setPacketId(qp->getPacketId());
             if (!c->isRetainedAvailable())
                 p.setRetain(false);
             //p.setDuplicate(); // TODO: this is wrong. Until we have a retransmission system, no packets can have the DUP bit set.
@@ -276,9 +290,9 @@ void Session::sendAllPendingQosData()
             c->writeMqttPacketAndBlameThisClient(p);
         }
 
-        for (const uint16_t packet_id : outgoingQoS2MessageIds)
+        for(uint16_t id : copiedQoS2Ids)
         {
-            PubResponse pubRel(c->getProtocolVersion(), PacketType::PUBREL, ReasonCodes::Success, packet_id);
+            PubResponse pubRel(c->getProtocolVersion(), PacketType::PUBREL, ReasonCodes::Success, id);
             MqttPacket packet(pubRel);
             c->writeMqttPacketAndBlameThisClient(packet);
         }
