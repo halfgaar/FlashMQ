@@ -42,6 +42,8 @@ MainAppInThread::MainAppInThread(const std::vector<std::string> &args)
 
 MainAppInThread::~MainAppInThread()
 {
+    stopApp();
+
     if (appInstance)
     {
         delete appInstance;
@@ -58,7 +60,8 @@ void MainAppInThread::start()
 
 void MainAppInThread::stopApp()
 {
-    this->appInstance->quit();
+    if (this->appInstance)
+        this->appInstance->quit();
 
     if (this->thread.joinable())
         this->thread.join();

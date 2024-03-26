@@ -48,6 +48,9 @@ void MainAppAsFork::start()
 {
     pid_t pid = fork();
 
+    if (pid < 0)
+        throw std::runtime_error("What the fork?");
+
     if (pid == 0)
     {
         if (MainApp::instance)
@@ -88,9 +91,14 @@ void MainAppAsFork::start()
 
 void MainAppAsFork::stop()
 {
+    if (this->child <= 0)
+        return;
+
     kill(this->child, SIGTERM);
     int status = 0;
     waitpid(this->child, &status, 0);
+
+    this->child = -1;
 }
 
 void MainAppAsFork::waitForStarted(int port)
