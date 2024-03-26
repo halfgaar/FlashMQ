@@ -281,13 +281,10 @@ void Session::sendAllPendingQosData()
 
         for(std::shared_ptr<QueuedPublish> &qp : copiedPublishes)
         {
-            MqttPacket p(c->getProtocolVersion(), qp->getPublish());
-            p.setPacketId(qp->getPacketId());
-            if (!c->isRetainedAvailable())
-                p.setRetain(false);
-            //p.setDuplicate(); // TODO: this is wrong. Until we have a retransmission system, no packets can have the DUP bit set.
-
-            c->writeMqttPacketAndBlameThisClient(p);
+            Publish &pub = qp->getPublish();
+            PublishCopyFactory fac(&pub);
+            const bool retain = !c->isRetainedAvailable() ? false : pub.retain;
+            c->writeMqttPacketAndBlameThisClient(fac, pub.qos, qp->getPacketId(), retain);
         }
 
         for(uint16_t id : copiedQoS2Ids)
