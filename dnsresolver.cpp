@@ -4,6 +4,7 @@
 #include <cstring>
 #include <signal.h>
 #include <stdexcept>
+#include <thread>
 #include "utils.h"
 
 FMQSockaddr_in6::FMQSockaddr_in6(sockaddr *addr)
@@ -96,6 +97,14 @@ DnsResolver::DnsResolver()
 
 DnsResolver::~DnsResolver()
 {
+    gai_cancel(&lookup);
+
+    int n = 0;
+    while (gai_error(&lookup) == EAI_INPROGRESS && n++ < 1000)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+
     freeStuff();
 }
 

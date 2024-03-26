@@ -26,6 +26,15 @@ public:
     int getFamily() const;
 };
 
+/**
+ * @brief The DnsResolver class does async DNS with getaddrinfo_a.
+ *
+ * Note that getaddrinfo_a uses threads. Had we known that, we would have probably rolled out our own. That
+ * would also have prevented the fork problem:
+ *
+ * It turns out that getaddrinfo_a is not compatible with fork(). If it's been used once, the forked process can't
+ * do DNS queries anymore. This is an issue for the test binary only at this point.
+ */
 class DnsResolver
 {
     struct gaicb lookup;
