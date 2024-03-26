@@ -64,6 +64,9 @@ public:
 
 class Logger
 {
+    static Logger *instance;
+    static std::mutex instanceMutex;
+
     std::string logPath;
     int curLogLevel = LOG_ERR | LOG_WARNING | LOG_NOTICE | LOG_INFO | LOG_SUBSCRIBE | LOG_UNSUBSCRIBE ;
     std::mutex logMutex;
@@ -83,6 +86,7 @@ class Logger
     static std::string getPrefix(int level);
 
 public:
+    static void stopAndReset();
     static Logger *getInstance();
     void logstring(int level, const std::string &str);
     void logf(int level, const char *str, va_list args);
