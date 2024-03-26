@@ -1653,6 +1653,56 @@ void MainTests::testOutgoingTopicAlias()
     });
 }
 
+void MainTests::testOutgoingTopicAliasBeyondMax()
+{
+    FlashMQTestClient receiver1;
+    receiver1.start();
+    receiver1.connectClient(ProtocolVersion::Mqtt5, true, 300, [](Connect &connect){
+        connect.propertyBuilder->writeMaxTopicAliases(5);
+    });
+    receiver1.subscribe("+/bottles/of/beer/on/the/wall/take/one/down/pass/it/around", 0);
+
+    FlashMQTestClient sender;
+    sender.start();
+    sender.connectClient(ProtocolVersion::Mqtt311);
+
+    // Set all the aliases with first publishes.
+    for (int i = 0; i < 7; i++)
+    {
+        sender.publish(std::to_string(i) + "/bottles/of/beer/on/the/wall/take/one/down/pass/it/around", "ABCDEF", 0);
+    }
+
+    receiver1.waitForMessageCount(7);
+
+    for (int i = 0; i < 7; i++)
+    {
+        auto &packet = receiver1.receivedPublishes.at(i);
+        FMQ_COMPARE(packet.getTopic(), std::to_string(i) + "/bottles/of/beer/on/the/wall/take/one/down/pass/it/around");
+        size_t expected_size = i < 5 ? 72 : 69; // The ones with a topic alias in them are slightly bigger.
+        FMQ_COMPARE(packet.bites.size(), expected_size);
+    }
+
+    receiver1.clearReceivedLists();
+
+    // Now again, which means the aliases should be used for the known topics.
+    for (int i = 0; i < 7; i++)
+    {
+        sender.publish(std::to_string(i) + "/bottles/of/beer/on/the/wall/take/one/down/pass/it/around", "ABCDEF", 0);
+    }
+
+    receiver1.waitForMessageCount(7);
+
+    // Now the first give should be smaller, and the last two normal (no topic alias property and the topic string included).
+    for (int i = 0; i < 7; i++)
+    {
+        auto &packet = receiver1.receivedPublishes.at(i);
+        FMQ_COMPARE(packet.getTopic(), std::to_string(i) + "/bottles/of/beer/on/the/wall/take/one/down/pass/it/around");
+        size_t expected_size = i < 5 ? 14 : 69;
+        FMQ_COMPARE(packet.bites.size(), expected_size);
+    }
+
+}
+
 void MainTests::testOutgoingTopicAliasStoredPublishes()
 {
     std::unique_ptr<FlashMQTestClient> sender = std::make_unique<FlashMQTestClient>();

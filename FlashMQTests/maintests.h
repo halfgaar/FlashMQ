@@ -124,6 +124,7 @@ class MainTests
 
     void testIncomingTopicAlias();
     void testOutgoingTopicAlias();
+    void testOutgoingTopicAliasBeyondMax();
     void testOutgoingTopicAliasStoredPublishes();
 
     void testReceivingRetainedMessageWithQoS();

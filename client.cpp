@@ -323,7 +323,8 @@ PacketDropReason Client::writeMqttPacketAndBlameThisClient(PublishCopyFactory &c
     {
         std::lock_guard<std::mutex> locker(outgoingTopicAliasMutex);
 
-        if (this->maxOutgoingTopicAliasValue > this->curOutgoingTopicAlias)
+        // We do the auto-constructing method if we know for sure we have room. Saves double hashing.
+        if (this->curOutgoingTopicAlias < this->maxOutgoingTopicAliasValue)
         {
             uint16_t &id = this->outgoingTopicAliases[copyFactory.getTopic()];
 
@@ -333,6 +334,16 @@ PacketDropReason Client::writeMqttPacketAndBlameThisClient(PublishCopyFactory &c
                 id = ++this->curOutgoingTopicAlias;
 
             topic_alias = id;
+        }
+        else
+        {
+            auto alias_pos = this->outgoingTopicAliases.find(copyFactory.getTopic());
+
+            if (alias_pos != this->outgoingTopicAliases.end())
+            {
+                topic_alias = alias_pos->second;
+                skip_topic = true;
+            }
         }
     }
 
