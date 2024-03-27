@@ -1536,6 +1536,10 @@ void MqttPacket::parsePublishData()
                     break;
 
                 const uint16_t alias_id = readTwoBytesToUInt16();
+
+                if (alias_id == 0)
+                    throw ProtocolError("Topic alias ID 0 is invalid.", ReasonCodes::TopicAliasInvalid);
+
                 this->hasTopicAlias = true;
                 this->publishData.topicAlias = alias_id;
 

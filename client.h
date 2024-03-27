@@ -187,7 +187,7 @@ public:
     void resetBuffersIfEligible();
 
     void setTopicAlias(const uint16_t alias_id, const std::string &topic);
-    const std::string &getTopicAlias(const uint16_t id);
+    const std::string &getTopicAlias(const uint16_t id) const;
 
     uint32_t getMaxIncomingPacketSize() const;
     uint16_t getMaxIncomingTopicAliasValue() const;

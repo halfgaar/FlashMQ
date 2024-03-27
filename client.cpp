@@ -537,9 +537,14 @@ void Client::setTopicAlias(const uint16_t alias_id, const std::string &topic)
     this->incomingTopicAliases[alias_id] = topic;
 }
 
-const std::string &Client::getTopicAlias(const uint16_t id)
+const std::string &Client::getTopicAlias(const uint16_t id) const
 {
-    return this->incomingTopicAliases[id];
+    auto pos = this->incomingTopicAliases.find(id);
+
+    if (pos == this->incomingTopicAliases.end())
+        throw ProtocolError("Requesting topic alias ID (" + std::to_string(id) + ") that wasn't set before.", ReasonCodes::TopicAliasInvalid);
+
+    return pos->second;
 }
 
 /**
