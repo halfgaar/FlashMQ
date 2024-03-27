@@ -317,33 +317,38 @@ PacketDropReason Client::writeMqttPacket(const MqttPacket &packet)
 PacketDropReason Client::writeMqttPacketAndBlameThisClient(PublishCopyFactory &copyFactory, uint8_t max_qos, uint16_t packet_id, bool retain)
 {
     uint16_t topic_alias = 0;
+    uint16_t topic_alias_next = 0;
     bool skip_topic = false;
+
+    /*
+     * Required for two reasons:
+     *
+     * 1) Upon first use of an alias, we need to hold the lock until we know the packet is actually not dropped.
+     * 2) Upon first use of an alias, we need to make sure another sender using the same topic won't get
+     *    their packet sent first.
+     *
+     * I'm not fully happy that by doing this, we'll be holding two mutexes at the same time: this one and the buffer
+     * write mutex, but it's OK for now. They are never locked in opposite order, so deadlocks shouldn't happen.
+     */
+    std::unique_lock<std::mutex> aliasMutexExtended;
 
     if (protocolVersion >= ProtocolVersion::Mqtt5 && this->maxOutgoingTopicAliasValue > 0)
     {
-        std::lock_guard<std::mutex> locker(outgoingTopicAliasMutex);
+        std::unique_lock<std::mutex> aliasMutex(outgoingTopicAliasMutex);
 
-        // We do the auto-constructing method if we know for sure we have room. Saves double hashing.
-        if (this->curOutgoingTopicAlias < this->maxOutgoingTopicAliasValue)
+        auto alias_pos = this->outgoingTopicAliases.find(copyFactory.getTopic());
+
+        if (alias_pos != this->outgoingTopicAliases.end())
         {
-            uint16_t &id = this->outgoingTopicAliases[copyFactory.getTopic()];
-
-            if (id > 0)
-                skip_topic = true;
-            else
-                id = ++this->curOutgoingTopicAlias;
-
-            topic_alias = id;
+            topic_alias = alias_pos->second;
+            skip_topic = true;
         }
-        else
+        else if (this->curOutgoingTopicAlias < this->maxOutgoingTopicAliasValue)
         {
-            auto alias_pos = this->outgoingTopicAliases.find(copyFactory.getTopic());
+            topic_alias_next = this->curOutgoingTopicAlias + 1;
+            topic_alias = topic_alias_next;
 
-            if (alias_pos != this->outgoingTopicAliases.end())
-            {
-                topic_alias = alias_pos->second;
-                skip_topic = true;
-            }
+            aliasMutexExtended = std::move(aliasMutex);
         }
     }
 
@@ -361,7 +366,15 @@ PacketDropReason Client::writeMqttPacketAndBlameThisClient(PublishCopyFactory &c
 
     p->setRetain(retain);
 
-    return writeMqttPacketAndBlameThisClient(*p);
+    PacketDropReason dropReason = writeMqttPacketAndBlameThisClient(*p);
+
+    if (dropReason == PacketDropReason::Success && topic_alias_next > 0)
+    {
+        this->outgoingTopicAliases[copyFactory.getTopic()] = topic_alias_next;
+        this->curOutgoingTopicAlias = topic_alias_next;
+    }
+
+    return dropReason;
 }
 
 // Helper method to avoid the exception ending up at the sender of messages, which would then get disconnected.
