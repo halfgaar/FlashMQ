@@ -5,7 +5,7 @@
 \\$2 \(la\\$1\(ra\\$3
 ..
 .if \n(.g .mso www.tmac
-.TH flashmq.conf 5 "17 March 2024" "" ""
+.TH flashmq.conf 5 "21 April 2024" "" ""
 .SH NAME
 flashmq.conf \- FlashMQ configuration file format
 .SH SYNOPSIS
@@ -387,6 +387,8 @@ listen {
 .fi
 .SH "BRIDGE CONFIGURATION"
 Bridges can be defined inside \*(T<bridge { }\*(T> blocks. A bridge is essentially just an outgoing connection to another server with loop-detection and retain flag relaying. It is not a form of clustering. Also note that one bridge is one connection, and because FlashMQ's threading model is that clients are serviced by one selected thread only, a bridge has the potential to saturate a thread, if it's heavily loaded. You could work around that by defining multiple bridges to the same server, for various topic paths. A future version of FlashMQ will likely improve upon this.
+.PP
+Bridges are dynamically created, removed or changed upon config reload. When a bridge configuration changes, it will disconnect and reconnect.
 .TP 
 \*(T<\fBaddress\fR\*(T> \fIaddress\fR 
 The DNS name, IPv4 or IPv6 address of the server you want to connect to.
