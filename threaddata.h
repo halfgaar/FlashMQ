@@ -30,6 +30,7 @@ See LICENSE for license details.
 #include "queuedtasks.h"
 #include "settings.h"
 #include "bridgeconfig.h"
+#include "driftcounter.h"
 
 typedef void (*thread_f)(ThreadData *);
 
@@ -107,6 +108,7 @@ public:
     std::mutex taskQueueMutex;
     std::list<std::function<void()>> taskQueue;
     QueuedTasks delayedTasks;
+    DriftCounter driftCounter;
     std::unordered_map<int, std::weak_ptr<void>> externalFds;
 
     DerivableCounter receivedMessageCounter;
@@ -158,6 +160,7 @@ public:
 
     void queueSendWills();
     void queueSendDisconnects();
+    void queueInternalHeartbeat();
 
     void pollExternalFd(int fd, uint32_t events, const std::weak_ptr<void> &p);
     void pollExternalRemove(int fd);

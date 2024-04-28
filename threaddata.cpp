@@ -510,6 +510,9 @@ void ThreadData::publishStatsOnDollarTopic(std::vector<std::shared_ptr<ThreadDat
 
         aclRegisterWillChecksPerSecond += thread->aclRegisterWillChecks.getPerSecond();
         aclRegisterWillCheckCount += thread->aclRegisterWillChecks.get();
+
+        publishStat("$SYS/broker/threads/" + std::to_string(thread->threadnr) + "/drift/latest__ms", thread->driftCounter.getDrift().count());
+        publishStat("$SYS/broker/threads/" + std::to_string(thread->threadnr) + "/drift/moving_avg__ms", thread->driftCounter.getAvgDrift().count());
     }
 
     GlobalStats *globalStats = GlobalStats::getInstance();
@@ -794,6 +797,24 @@ void ThreadData::removeBridge(std::shared_ptr<BridgeConfig> bridgeConfig, const 
 
     publishBridgeState(bridge, false);
     removeClientQueued(client);
+}
+
+void ThreadData::queueInternalHeartbeat()
+{
+    auto f = [this](std::chrono::time_point<std::chrono::steady_clock> t){
+        this->driftCounter.update(t);
+
+        if (this->driftCounter.getDrift() > settingsLocalCopy.maxEventLoopDrift)
+            Logger::getInstance()->log(LOG_WARNING) << "Thread " << threadnr << " drift is: " << this->driftCounter.getDrift().count() << " ms";
+    };
+
+    {
+        auto bound = std::bind(f, std::chrono::steady_clock::now());
+        std::lock_guard<std::mutex> locker(taskQueueMutex);
+        taskQueue.push_back(bound);
+    }
+
+    wakeUpThread();
 }
 
 std::shared_ptr<Client> ThreadData::getClient(int fd)

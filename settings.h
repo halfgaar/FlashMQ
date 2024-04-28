@@ -22,6 +22,8 @@ See LICENSE for license details.
 #include "bridgeconfig.h"
 
 #define ABSOLUTE_MAX_PACKET_SIZE 268435455
+#define HEARTBEAT_INTERVAL 1000
+#define OVERLOAD_LOGS_MUTE_AFTER_LINES 5000
 
 enum class RetainedMessagesMode
 {
@@ -41,6 +43,12 @@ enum class WildcardSubscriptionDenyMode
 {
     DenyAll,
     DenyRetainedOnly
+};
+
+enum class OverloadMode
+{
+    Log,
+    CloseNewClients
 };
 
 class Settings
@@ -95,6 +103,8 @@ public:
     uint16_t minimumWildcardSubscriptionDepth = 0;
     WildcardSubscriptionDenyMode wildcardSubscriptionDenyMode = WildcardSubscriptionDenyMode::DenyAll;
     bool zeroByteUsernameIsAnonymous = false;
+    std::chrono::milliseconds maxEventLoopDrift = std::chrono::milliseconds(2000);
+    OverloadMode overloadMode = OverloadMode::Log;
     std::list<std::shared_ptr<Listener>> listeners; // Default one is created later, when none are defined.
 
     std::list<Network> setRealIpFrom;

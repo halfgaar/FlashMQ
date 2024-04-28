@@ -31,6 +31,7 @@ See LICENSE for license details.
 #include "oneinstancelock.h"
 #include "bridgeinfodb.h"
 #include "backgroundworker.h"
+#include "driftcounter.h"
 
 class MainApp
 {
@@ -56,6 +57,10 @@ class MainApp
     bool doMemoryTrim = false;
     std::mutex eventMutex;
     Timer timer;
+
+    uint overloadLogCounter = 0;
+    DriftCounter drift;
+    std::chrono::milliseconds medianThreadDrift = std::chrono::milliseconds(0);
 
     Settings settings;
 
@@ -97,6 +102,7 @@ class MainApp
     void sendBridgesToThreads();
     void queueSendBridgesToThreads();
     void queueBridgeReconnectAllThreads(bool alsoQueueNexts);
+    void queueInternalHeartbeat();
 
     MainApp(const std::string &configFilePath);
 public:

@@ -114,6 +114,9 @@ MainApp::MainApp(const std::string &configFilePath) :
 
     auto fSendPendingWills = std::bind(&MainApp::queueSendQueuedWills, this);
     timer.addCallback(fSendPendingWills, 2000, "Publish pending wills.");
+
+    auto fInternalHeartbeat = std::bind(&MainApp::queueInternalHeartbeat, this);
+    timer.addCallback(fInternalHeartbeat, HEARTBEAT_INTERVAL, "Internal heartbeat.");
 }
 
 MainApp::~MainApp()
@@ -403,6 +406,49 @@ void MainApp::queueBridgeReconnectAllThreads(bool alsoQueueNexts)
     {
         auto fReconnectBridges = std::bind(&MainApp::queueBridgeReconnectAllThreads, this, false);
         timer.addCallback(fReconnectBridges, 5000, "Reconnect bridges.");
+    }
+}
+
+void MainApp::queueInternalHeartbeat()
+{
+    if (threads.empty())
+        return;
+
+    auto set_drift = [this](std::chrono::time_point<std::chrono::steady_clock> queue_time) {
+        const std::chrono::milliseconds main_loop_drift = drift.getDrift();
+        if (main_loop_drift > settings.maxEventLoopDrift)
+        {
+            Logger::getInstance()->log(LOG_WARNING) << "Main loop thread drift is " << main_loop_drift.count() << " ms.";
+        }
+        if (this->medianThreadDrift > settings.maxEventLoopDrift)
+        {
+            Logger::getInstance()->log(LOG_WARNING) << "Median thread drift is " << this->medianThreadDrift.count() << " ms.";
+        }
+
+        drift.update(queue_time);
+
+        std::vector<std::chrono::milliseconds> drifts(threads.size());
+
+        std::transform(threads.begin(), threads.end(), drifts.begin(), [] (const std::shared_ptr<const ThreadData> &t) {
+            return t->driftCounter.getDrift();
+        });
+
+        const size_t n = drifts.size() / 2;
+        std::nth_element(drifts.begin(), drifts.begin() + n, drifts.end());
+        this->medianThreadDrift = drifts.at(n);
+    };
+
+    {
+        auto call_set_drift = std::bind(set_drift, std::chrono::steady_clock::now());
+        std::lock_guard<std::mutex> locker(eventMutex);
+        taskQueue.push_back(call_set_drift);
+    }
+
+    wakeUpThread();
+
+    for (std::shared_ptr<ThreadData> &thread : threads)
+    {
+        thread->queueInternalHeartbeat();
     }
 }
 
@@ -756,6 +802,57 @@ void MainApp::start()
                     socklen_t len = sizeof(struct sockaddr_in6);
                     memset(addr, 0, len);
                     int fd = check<std::runtime_error>(accept(cur_fd, addr, &len));
+
+                    /*
+                     * I decided to not use a delayed close mechanism. It has been observed that under overload and clients in a reconnect loop,
+                     * you can collect open files up to (a) million(s). By accepting and closing, the hope is we can keep clients at bay from
+                     * the thread loops well enough.
+                     */
+                    if (this->medianThreadDrift > settings.maxEventLoopDrift || this->drift.getDrift() > settings.maxEventLoopDrift)
+                    {
+                        const std::string addr_s = sockaddrToString(addr);
+                        bool do_close = false;
+
+                        if (settings.overloadMode == OverloadMode::CloseNewClients)
+                        {
+                            if (overloadLogCounter <= OVERLOAD_LOGS_MUTE_AFTER_LINES)
+                            {
+                                overloadLogCounter++;
+                                logger->log(LOG_ERROR) << "[OVERLOAD] FlashMQ seems to be overloaded while accepting new connection(s) from '"
+                                                       << addr_s << ". Closing socket. See 'overload_mode' and 'max_event_loop_drift'.";
+                            }
+                            do_close = true;
+                        }
+                        else if (settings.overloadMode == OverloadMode::Log)
+                        {
+                            if (overloadLogCounter <= OVERLOAD_LOGS_MUTE_AFTER_LINES)
+                            {
+                                overloadLogCounter++;
+                                logger->log(LOG_WARNING) << "[OVERLOAD] FlashMQ seems to be overloaded while accepting new connection(s) from '"
+                                                         << addr_s << ". See 'overload_mode' and 'max_event_loop_drift'.";
+                            }
+                        }
+                        else
+                        {
+                            throw std::runtime_error("Unimplemented OverloadMode");
+                        }
+
+                        if (overloadLogCounter > OVERLOAD_LOGS_MUTE_AFTER_LINES && overloadLogCounter < OVERLOAD_LOGS_MUTE_AFTER_LINES * 2)
+                        {
+                            overloadLogCounter = OVERLOAD_LOGS_MUTE_AFTER_LINES * 5;
+                            logger->log(LOG_WARNING) << "[OVERLOAD] Muting overload logging until it recovers, to avoid log spam and extra load.";
+                        }
+
+                        if (do_close)
+                        {
+                            close(fd);
+                            continue;
+                        }
+                    }
+                    else
+                    {
+                        overloadLogCounter = 0;
+                    }
 
                     SSL *clientSSL = nullptr;
                     if (listener->isSsl())

@@ -208,6 +208,8 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validKeys.insert("minimum_wildcard_subscription_depth");
     validKeys.insert("wildcard_subscription_deny_mode");
     validKeys.insert("zero_byte_username_is_anonymous");
+    validKeys.insert("overload_mode");
+    validKeys.insert("max_event_loop_drift");
 
     validListenKeys.insert("port");
     validListenKeys.insert("protocol");
@@ -1024,6 +1026,30 @@ void ConfigFileParser::loadFile(bool test)
                 if (testKeyValidity(key, "zero_byte_username_is_anonymous", validKeys))
                 {
                     tmpSettings.zeroByteUsernameIsAnonymous = stringTruthiness(value);
+                }
+
+                if (testKeyValidity(key, "overload_mode", validKeys))
+                {
+                    const std::string _val = str_tolower(value);
+
+                    if (_val == "log")
+                        tmpSettings.overloadMode = OverloadMode::Log;
+                    else if (_val == "close_new_clients")
+                        tmpSettings.overloadMode = OverloadMode::CloseNewClients;
+                    else
+                        throw ConfigFileException(formatString("Value '%s' for '%s' is invalid.", value.c_str(), key.c_str()));
+                }
+
+                if (testKeyValidity(key, "max_event_loop_drift", validKeys))
+                {
+                    const int val = full_stoi(key, value);
+
+                    if (val < 500)
+                    {
+                        throw ConfigFileException("Option '" + key + "' must be higher than 500 ms.");
+                    }
+
+                    tmpSettings.maxEventLoopDrift = std::chrono::milliseconds(val);
                 }
             }
         }
