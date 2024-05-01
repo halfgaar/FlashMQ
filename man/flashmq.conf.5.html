@@ -574,6 +574,42 @@
       
 
       
+        <dt id="overload_mode"><code class="option">overload_mode</code> <code class="replaceable">log/close_new_clients</code><a class="hash-anchor" href="#overload_mode">#</a></dt>
+        <dd>
+          <p>
+            Define the action to perform when the value defined with <code class="option">max_event_loop_drift</code> is exceeded.
+          </p>
+          <p>
+            When a server is (re)started, and hundreds of thousands of clients connect, the SSL handshaking and authenticating can be so heavy that it doesn't get to clients in time. They will then reconnect and try again, and get stuck in a loop. This option is to mitigate that. With <code class="literal">close_new_clients</code>, new clients will be closed immediately after connecting while the server is overloaded. This will allow the worker threads to process the new clients in a controlled manner.
+          </p>
+          <p>
+              For really large deployments, this can be augmented with extra rate limiting in iptables, or other firewalls. A stateless method is preferred, like: <code class="literal">iptables -I INPUT -p tcp -m multiport --dports 8883,1883 --syn -m hashlimit --hashlimit-name newmqttconns --hashlimit-above 10000/second --hashlimit-burst 15000 -j DROP</code>
+          </p>
+          <p>
+            The current default is <code class="literal">log</code>, but that will likely change in the future.
+          </p>
+          <p>
+            Default: <code class="literal">log</code>
+          </p>
+        </dd>
+      
+
+      
+        <dt id="max_event_loop_drift"><code class="option">max_event_loop_drift</code> <code class="replaceable">milliseconds</code><a class="hash-anchor" href="#max_event_loop_drift">#</a></dt>
+        <dd>
+          <p>
+            For <code class="option">overload_mode</code>, the maximum permissible thread drift before the overload action is taken.
+          </p>
+          <p>
+            The drift values considered are those of the main loop, in which clients are accepted, and the median of all worker threads.
+          </p>
+          <p>
+            Default: <code class="literal">2000</code>
+          </p>
+        </dd>
+      
+
+      
         <dt id="include_dir"><code class="option">include_dir</code> <code class="replaceable">/path/to/dir</code><a class="hash-anchor" href="#include_dir">#</a></dt>
         <dd>
           <p>

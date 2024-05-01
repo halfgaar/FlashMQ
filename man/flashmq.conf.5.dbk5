@@ -518,6 +518,42 @@
         </listitem>
       </varlistentry>
 
+      <varlistentry xml:id="overload_mode">
+        <term><option>overload_mode</option> <replaceable>log/close_new_clients</replaceable></term>
+        <listitem>
+          <para>
+            Define the action to perform when the value defined with <option>max_event_loop_drift</option> is exceeded.
+          </para>
+          <para>
+            When a server is (re)started, and hundreds of thousands of clients connect, the SSL handshaking and authenticating can be so heavy that it doesn't get to clients in time. They will then reconnect and try again, and get stuck in a loop. This option is to mitigate that. With <literal>close_new_clients</literal>, new clients will be closed immediately after connecting while the server is overloaded. This will allow the worker threads to process the new clients in a controlled manner.
+          </para>
+          <para>
+              For really large deployments, this can be augmented with extra rate limiting in iptables, or other firewalls. A stateless method is preferred, like: <literal>iptables -I INPUT -p tcp -m multiport --dports 8883,1883 --syn -m hashlimit --hashlimit-name newmqttconns --hashlimit-above 10000/second --hashlimit-burst 15000 -j DROP</literal>
+          </para>
+          <para>
+            The current default is <literal>log</literal>, but that will likely change in the future.
+          </para>
+          <para>
+            Default: <literal>log</literal>
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry xml:id="max_event_loop_drift">
+        <term><option>max_event_loop_drift</option> <replaceable>milliseconds</replaceable></term>
+        <listitem>
+          <para>
+            For <option>overload_mode</option>, the maximum permissible thread drift before the overload action is taken.
+          </para>
+          <para>
+            The drift values considered are those of the main loop, in which clients are accepted, and the median of all worker threads.
+          </para>
+          <para>
+            Default: <literal>2000</literal>
+          </para>
+        </listitem>
+      </varlistentry>
+
       <varlistentry xml:id="include_dir">
         <term><option>include_dir</option> <replaceable>/path/to/dir</replaceable></term>
         <listitem>
