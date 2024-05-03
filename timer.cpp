@@ -50,8 +50,11 @@ Timer::Timer()
 
 Timer::~Timer()
 {
-    close(fd);
-    close(epollfd);
+    if (fd >= 0)
+        close(fd);
+
+    if (epollfd >= 0)
+        close(epollfd);
 }
 
 void Timer::start()

@@ -121,7 +121,10 @@ MainApp::MainApp(const std::string &configFilePath) :
 
 MainApp::~MainApp()
 {
-    if (epollFdAccept > 0)
+    if (taskEventFd >= 0)
+        close(taskEventFd);
+
+    if (epollFdAccept >= 0)
         close(epollFdAccept);
 }
 

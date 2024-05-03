@@ -36,8 +36,8 @@ struct CallbackEntry
 class Timer
 {
     std::thread t;
-    int epollfd = 0;
-    int fd = 0;
+    int epollfd = -1;
+    int fd = -1;
     uint64_t sleeptime = 1000;
     int running = false;
     Logger *logger = Logger::getInstance();

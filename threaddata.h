@@ -103,8 +103,8 @@ public:
     bool allDisconnectsSent = false;
     std::thread thread;
     int threadnr = 0;
-    int epollfd = 0;
-    int taskEventFd = 0;
+    int epollfd = -1;
+    int taskEventFd = -1;
     std::mutex taskQueueMutex;
     std::list<std::function<void()>> taskQueue;
     QueuedTasks delayedTasks;
@@ -122,6 +122,7 @@ public:
     ThreadData(int threadnr, const Settings &settings, const PluginLoader &pluginLoader);
     ThreadData(const ThreadData &other) = delete;
     ThreadData(ThreadData &&other) = delete;
+    ~ThreadData();
 
     void start(thread_f f);
 

@@ -54,6 +54,15 @@ ThreadData::ThreadData(int threadnr, const Settings &settings, const PluginLoade
     check<std::runtime_error>(epoll_ctl(this->epollfd, EPOLL_CTL_ADD, taskEventFd, &ev));
 }
 
+ThreadData::~ThreadData()
+{
+    if (taskEventFd >= 0)
+        close(taskEventFd);
+
+    if (epollfd >= 0)
+        close(epollfd);
+}
+
 void ThreadData::start(thread_f f)
 {
     this->thread = std::thread(f, this);
