@@ -15,6 +15,7 @@ class MainTests
 
     std::unique_ptr<MainAppInThread> mainApp;
     std::shared_ptr<ThreadData> dummyThreadData;
+    Settings settings;
 
     std::map<std::string, std::function<void()>> testFunctions;
 
