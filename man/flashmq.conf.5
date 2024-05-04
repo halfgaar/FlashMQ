@@ -5,7 +5,7 @@
 \\$2 \(la\\$1\(ra\\$3
 ..
 .if \n(.g .mso www.tmac
-.TH flashmq.conf 5 "3 May 2024" "" ""
+.TH flashmq.conf 5 "10 May 2024" "" ""
 .SH NAME
 flashmq.conf \- FlashMQ configuration file format
 .SH SYNOPSIS
@@ -357,6 +357,15 @@ As a side note about using a proxy on your listener; you can only have an absolu
 See 
 .URL http://www.haproxy.org/ haproxy.org
 \&.
+.TP 
+\*(T<\fBtcp_nodelay\fR\*(T> \fItrue/false\fR 
+\*(T<\fBtcp_nodelay\fR\*(T> will cause the \*(T<TCP_NODELAY\*(T> option to be set for the listener's socket(s), and therefore for all clients accepted on that listener.
+
+\*(T<TCP_NODELAY\*(T> is a OS TCP-layer option that will cause messages written by FlashMQ to the socket to be flushed immediately, without letting Nagle's algorithm (the default) collect small outgoing TCP packets into bigger packets.
+
+Foregoing Nagle's algorithm by setting \*(T<\fBtcp_nodelay\fR\*(T> to \fItrue\fR\ \fImay\fR decrease latency, at the likely cost of some network efficiency.
+
+Default: \fIfalse\fR
 .SH "EXAMPLE LISTENERS"
 .nf
 listen {

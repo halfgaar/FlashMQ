@@ -18,6 +18,7 @@ See LICENSE for license details.
 #include <arpa/inet.h>
 #include <memory>
 #include <malloc.h>
+#include <netinet/tcp.h>
 
 #include <openssl/ssl.h>
 #include <openssl/err.h>
@@ -196,6 +197,12 @@ std::list<ScopedSocket> MainApp::createListenSocket(const std::shared_ptr<Listen
             // Not needed for now. Maybe I will make multiple accept threads later, with SO_REUSEPORT.
             int optval = 1;
             check<std::runtime_error>(setsockopt(uniqueListenFd.get(), SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &optval, sizeof(optval)));
+
+            if (listener->isTcpNoDelay())
+            {
+                int tcp_nodelay_optval = 1;
+                check<std::runtime_error>(setsockopt(uniqueListenFd.get(), IPPROTO_TCP, TCP_NODELAY, &tcp_nodelay_optval, sizeof(tcp_nodelay_optval)));
+            }
 
             int flags = fcntl(uniqueListenFd.get(), F_GETFL);
             check<std::runtime_error>(fcntl(uniqueListenFd.get(), F_SETFL, flags | O_NONBLOCK ));

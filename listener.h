@@ -31,6 +31,7 @@ struct Listener
     std::string inet6BindAddress;
     int port = 0;
     bool websocket = false;
+    bool tcpNoDelay = false;
     bool haproxy = false;
     std::string sslFullchain;
     std::string sslPrivkey;
@@ -43,6 +44,7 @@ struct Listener
     void isValid();
     bool isSsl() const;
     bool isHaProxy() const;
+    bool isTcpNoDelay() const;
     std::string getProtocolName() const;
     void loadCertAndKeyFromConfig();
     X509ClientVerification getX509ClientVerficationMode() const;
