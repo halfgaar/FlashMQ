@@ -791,6 +791,24 @@
           </p>
         </dd>
       
+
+      
+        <dt id="tcp_nodelay"><code class="option">tcp_nodelay</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#tcp_nodelay">#</a></dt>
+        <dd>
+          <p>
+            Default: <code class="replaceable">false</code>
+          </p>
+          <p>
+            <code class="option">tcp_nodelay</code> will cause the <code class="literal">TCP_NODELAY</code> option to be set for the listener's socket(s).
+          </p>
+          <p>
+            <code class="literal">TCP_NODELAY</code> is a OS TCP-layer option that will cause messages written by FlashMQ to the socket to be flushed immediately, without letting Nagle's algorithm (the default) collect small outgoing TCP packets into bigger packets.
+          </p>
+          <p>
+            Foregoing Nagle's algorithm by setting <code class="option">tcp_nodelay</code> to <code class="replaceable">true</code> <em>may</em> decrease latency, at the likely cost of some network efficiency.
+          </p>
+        </dd>
+      
     </dl>
   </section><section class="refsect1" id="example_config">
     <header><h2>Example listeners<a class="hash-anchor" href="#example_config">#</a></h2></header>

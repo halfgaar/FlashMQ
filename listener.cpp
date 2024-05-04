@@ -58,6 +58,11 @@ bool Listener::isSsl() const
     return (!sslFullchain.empty() || !sslPrivkey.empty());
 }
 
+bool Listener::isTcpNoDelay() const
+{
+    return this->tcpNoDelay;
+}
+
 bool Listener::isHaProxy() const
 {
     return this->haproxy;
