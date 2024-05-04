@@ -1,4 +1,4 @@
-TARGETS := flashmq.1 flashmq.conf.5 flashmq.1.html flashmq.conf.5.html
+TARGETS := flashmq.1 flashmq.conf.5 flashmq.1.html flashmq.conf.5.html flashmq.vim
 
 all: $(TARGETS)
 
@@ -29,3 +29,6 @@ clean:
 
 %.html: docbook5-to-html5/docbook5-to-html5.xsl %.dbk5
 	xsltproc --xinclude --stringparam dbk5.reference $(CURDIR)/reference.dbk5 $^ > $@
+
+%.vim: flashmq.conf.5.dbk5
+	vim/syntax.generate.sh vim/syntax.template.vim flashmq.conf.5.dbk5 > $@
