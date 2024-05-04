@@ -15,7 +15,8 @@ See LICENSE for license details.
 #include <functional>
 #include <mutex>
 
-#include "exceptions.h"
+#include "threaddata.h"
+#include "threadglobals.h"
 #include "utils.h"
 
 Logger* Logger::instance = nullptr;
@@ -310,9 +311,20 @@ void Logger::writeLog()
 
 std::string Logger::getPrefix(int level)
 {
+    int threadnr = -1;
+    const ThreadData *td = ThreadGlobals::getThreadData();
+    if (td)
+        threadnr = td->threadnr;
+
     std::ostringstream oss;
     const std::string stamp = timestampWithMillis();
     oss << "[" << stamp << "] [" << getLogLevelString(level) << "] ";
+
+    if (threadnr == -1)
+        oss << "[main] ";
+    else
+        oss << "[T " << threadnr << "] ";
+
     std::string result = oss.str();
     return result;
 }
