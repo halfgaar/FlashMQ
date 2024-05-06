@@ -1094,6 +1094,21 @@ listen {
         </listitem>
       </varlistentry>
 
+      <varlistentry xml:id="bridge__tcp_nodelay">
+        <term><option>tcp_nodelay</option> <replaceable>true/false</replaceable></term>
+        <listitem>
+          <para>
+            Default: <replaceable>false</replaceable>
+          </para>
+          <para>
+            <option>tcp_nodelay</option> will cause the <literal>TCP_NODELAY</literal> option to be set for the client socket that is used to connect to the other end of the bridge.
+          </para>
+          <para>
+            See the documentation for the <link xlink:href="#tcp_nodelay"><option>tcp_nodelay</option></link> <emphasis>listener</emphasis> parameter for further elaboration.
+          </para>
+        </listitem>
+      </varlistentry>
+
     </variablelist>
   </refsect1>
 

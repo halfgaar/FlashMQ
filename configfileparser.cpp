@@ -257,6 +257,7 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validBridgeKeys.insert("keepalive");
     validBridgeKeys.insert("max_outgoing_topic_aliases");
     validBridgeKeys.insert("max_incoming_topic_aliases");
+    validBridgeKeys.insert("tcp_nodelay");
 }
 
 std::list<std::string> ConfigFileParser::readFileRecursively(const std::string &path) const
@@ -725,6 +726,10 @@ void ConfigFileParser::loadFile(bool test)
                 if (testKeyValidity(key, "remote_retain_available", validBridgeKeys))
                 {
                     curBridge->remoteRetainAvailable = stringTruthiness(value);
+                }
+                if (testKeyValidity(key, "tcp_nodelay", validBridgeKeys))
+                {
+                    curBridge->tcpNoDelay = true;
                 }
 
                 testCorrectNumberOfValues(key, number_of_expected_values, matches);

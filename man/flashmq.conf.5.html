@@ -1143,6 +1143,21 @@ listen {
         </dd>
       
 
+      
+        <dt id="bridge__tcp_nodelay"><code class="option">tcp_nodelay</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#bridge__tcp_nodelay">#</a></dt>
+        <dd>
+          <p>
+            Default: <code class="replaceable">false</code>
+          </p>
+          <p>
+            <code class="option">tcp_nodelay</code> will cause the <code class="literal">TCP_NODELAY</code> option to be set for the client socket that is used to connect to the other end of the bridge.
+          </p>
+          <p>
+            See the documentation for the <a href="#tcp_nodelay"><code class="option">tcp_nodelay</code></a> <em>listener</em> parameter for further elaboration.
+          </p>
+        </dd>
+      
+
     </dl>
   </section><section class="refsect1" id="example_bridge">
     <header><h2>Example bridge<a class="hash-anchor" href="#example_bridge">#</a></h2></header>
