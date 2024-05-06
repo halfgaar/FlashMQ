@@ -58,6 +58,7 @@ public:
     std::vector<BridgeTopicPath> publishes;
     std::weak_ptr<ThreadData> owner;
     bool queueForDelete = false;
+    bool tcpNoDelay = false;
 
     void setClientId(const std::string &prefix, const std::string &id);
     const std::string &getClientid() const;

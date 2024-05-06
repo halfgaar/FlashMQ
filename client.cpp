@@ -15,6 +15,7 @@ See LICENSE for license details.
 #include <iostream>
 #include <cassert>
 #include <chrono>
+#include <netinet/tcp.h>
 
 #include "logger.h"
 #include "utils.h"
@@ -158,6 +159,12 @@ void Client::connectToBridgeTarget(FMQSockaddr_in6 addr)
 
     this->outgoingConnection = true;
 
+    if (bridge->c.tcpNoDelay)
+    {
+        int tcp_nodelay_optval = 1;
+        check<std::runtime_error>(setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &tcp_nodelay_optval, sizeof(tcp_nodelay_optval)));
+    }
+
     addr.setPort(bridge->c.port);
     int rc = connect(fd, addr.getSockaddr(), addr.getSize());
 
@@ -167,11 +174,9 @@ void Client::connectToBridgeTarget(FMQSockaddr_in6 addr)
            logger->logf(LOG_ERR, "Client connect error: %s", strerror(errno));
         return;
     }
+    assert(rc == 0);
 
-    if (rc == 0)
-    {
-        setBridgeConnected();
-    }
+    setBridgeConnected();
 }
 
 void Client::startOrContinueSslHandshake()

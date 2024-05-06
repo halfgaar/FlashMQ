@@ -539,6 +539,15 @@ Default: \*(T<0\*(T>
 If you want to accept topic aliases for this bridge, set this to a non-zero value. The value is set in the CONNECT packet to inform the remote side of the wish. It's not guaranteed that the other side will actually make aliases.
 
 Default: \*(T<0\*(T>
+.TP 
+\*(T<\fBtcp_nodelay\fR\*(T> \fItrue/false\fR 
+\*(T<\fBtcp_nodelay\fR\*(T> will cause the \*(T<TCP_NODELAY\*(T> option to be set for the client socket that is used to connect to the other end of the bridge.
+
+See the documentation for the 
+.URL #tcp_nodelay tcp_nodelay
+\fIlistener\fR parameter for further elaboration.
+
+Default: \fIfalse\fR
 .SH "EXAMPLE BRIDGE"
 .nf
 bridge {
