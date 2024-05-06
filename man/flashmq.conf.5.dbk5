@@ -34,7 +34,7 @@
       When setting boolean values, <literal>yes/no</literal>, <literal>true/false</literal> and <literal>on/off</literal> can all be used.
     </para>
     <para>
-      To configure the listeners, use <option>listen</option> blocks, defined by { and }. See EXAMPLE LISTENERS for details.
+      To configure the listeners, use <option>listen</option> blocks, defined by <literal>{</literal> and <literal>}</literal>. See <link xlink:href="#example_listeners">EXAMPLE LISTENERS</link> for details.
     </para>
     <para>
       Lines beginning with the hash character (“<literal>#</literal>”) and empty lines are ignored. Thus, a line can be commented out by prepending a “<literal>#</literal>” to it.
@@ -759,7 +759,7 @@
     </variablelist>
   </refsect1>
 
-  <refsect1 xml:id="example_config">
+  <refsect1 xml:id="example_listeners">
     <title>Example listeners</title>
 
     <literallayout class="monospaced"><![CDATA[listen {
