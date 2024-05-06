@@ -746,7 +746,7 @@
             Default: <replaceable>false</replaceable>
           </para>
           <para>
-            <option>tcp_nodelay</option> will cause the <literal>TCP_NODELAY</literal> option to be set for the listener's socket(s).
+            <option>tcp_nodelay</option> will cause the <literal>TCP_NODELAY</literal> option to be set for the listener's socket(s), and therefore for all clients accepted on that listener.
           </para>
           <para>
             <literal>TCP_NODELAY</literal> is a OS TCP-layer option that will cause messages written by FlashMQ to the socket to be flushed immediately, without letting Nagle's algorithm (the default) collect small outgoing TCP packets into bigger packets.
