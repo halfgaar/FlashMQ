@@ -62,7 +62,7 @@
       <term><option>SIGHUP</option></term>
       <listitem>
         <para>
-          Reload config file and reopen log files. Listeners are recreated. Bridge configuration is currently not subject to dynamic configuration change.
+          Reload config file and reopen log files. Listeners are recreated. Bridges are reconnected (when their config has changed), added or removed as necessary.
         </para>
       </listitem>
     </varlistentry>
