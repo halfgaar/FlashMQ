@@ -212,6 +212,11 @@ class MainTests
 
     void forkingTestForkingTestServer();
 
+    void testStringValuesParsing();
+    void testStringValuesParsingEscaping();
+    void testStringValuesFuzz();
+    void testStringValuesInvalid();
+
 
 public:
     MainTests();

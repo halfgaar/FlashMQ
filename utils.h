@@ -181,4 +181,85 @@ std::string reasonCodeToString(ReasonCodes code);
 std::string packetTypeToString(PacketType ptype);
 
 
+/**
+ * @brief parseValuesWithOptionalQuoting parses argument lists space encoded, with quote and escaping support.
+ * @param s
+ * @return
+ *
+ * So, like
+ *
+ *  "hallo" "you": becomes a vector with those two strings, but without the quote.
+ *  hallo  you: is the same as above.
+ *  "hallo" you: is the same as above.
+ *  "hallo you": is a vector with one element.
+ *  "I quote you with \"" is: I quote you with "
+ *  'I quote you with "'  is: I quote you with "
+ */
+template<typename ex>
+std::vector<std::string> parseValuesWithOptionalQuoting(std::string s)
+{
+    trim(s);
+    std::vector<std::string> result;
+
+    char quote = 0;
+    std::string cur;
+    bool escape = false;
+
+    for (char c : s)
+    {
+        if (escape)
+        {
+            if (!(c == '"' || c == '\'' || c == '\\'))
+                throw ex("Invalid escape");
+
+            cur.push_back(c);
+            escape = false;
+        }
+        else if (c == '\\')
+        {
+            escape = true;
+        }
+        else if (std::isspace(c))
+        {
+            if (quote)
+                cur.push_back(c);
+            else if (!cur.empty())
+            {
+                result.push_back(cur);
+                cur.clear();
+            }
+        }
+        else if (c == '"' || c == '\'')
+        {
+            if (quote == 0)
+            {
+                quote = c;
+            }
+            else if (quote == c)
+            {
+                result.push_back(cur);
+                cur.clear();
+                quote = 0;
+            }
+            else
+            {
+                cur.push_back(c);
+            }
+        }
+        else
+        {
+            cur.push_back(c);
+        }
+    }
+
+    if (!cur.empty())
+        result.push_back(cur);
+
+    if (quote)
+        throw ex("Unterminated quote");
+
+    return result;
+}
+
+
 #endif // UTILS_H

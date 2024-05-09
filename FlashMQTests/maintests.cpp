@@ -296,6 +296,10 @@ MainTests::MainTests()
     REGISTER_FUNCTION(testWebsocketManyBigPingFrames);
     REGISTER_FUNCTION(testWebsocketClose);
     REGISTER_FUNCTION(testStartsWith);
+    REGISTER_FUNCTION(testStringValuesParsing);
+    REGISTER_FUNCTION(testStringValuesParsingEscaping);
+    REGISTER_FUNCTION(testStringValuesFuzz);
+    REGISTER_FUNCTION(testStringValuesInvalid);
 
 
 }
