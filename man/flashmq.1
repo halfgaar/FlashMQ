@@ -5,7 +5,7 @@
 \\$2 \(la\\$1\(ra\\$3
 ..
 .if \n(.g .mso www.tmac
-.TH flashmq 1 "8 May 2024" "" ""
+.TH flashmq 1 "13 May 2024" "" ""
 .SH NAME
 flashmq \- A fast light-weight scalable MQTT server
 .SH SYNOPSIS
@@ -15,12 +15,31 @@ flashmq \- A fast light-weight scalable MQTT server
 \fBflashmq\fR \kx
 .if (\nx>(\n(.l/2)) .nr x (\n(.l/5)
 'in \n(.iu+\nxu
-[-h | --help] [-v | --version] [-l | --license]
 .br
 [
--c | --config-file 
+-c
+| 
+--config-file
 \fIconfig_file_path\fR
-] [-t | --test-config]
+]
+[
+-t
+| 
+--test-config
+]
+| | [ | 
+-h
+| 
+--help
+] | | [ | 
+-v
+| 
+--version
+] | | [
+-l
+| 
+--license
+] 
 'in \n(.iu-\nxu
 .ad b
 'hy
@@ -37,11 +56,31 @@ Reopen log files. Use this in log rotation.
 \*(T<\fBSIGUSR2\fR\*(T> 
 It has been observed that certain implementations of malloc have a high memory use while still having many free blocks. See for instance the libc mailing list discussion 
 .URL https://sourceware.org/pipermail/libc-help/2020-September/005457.html "Abnormal memory usage with glibc 2.31 related to thread cache and trimming strategy"
-\&. This can be exacerbated by continuous thread recreation, because of how "memory arenas" are managed. FlashMQ has a fixed number of threads, but that may not be true for loaded plugins. Sending a SIGUSR2 will cause FlashMQ to call 'malloc_trim(0)', possibly resulting in it giving memory back to the operating system.
+\&. This can be exacerbated by continuous thread recreation, because of how "memory arenas" are managed. FlashMQ has a fixed number of threads, but that may not be true for loaded plugins. Sending a \*(T<SIGUSR2\*(T> will cause FlashMQ to call \*(T<malloc_trim(0)\*(T>, possibly resulting in it giving memory back to the operating system.
 
 The action is mostly pretty fast, but if not, the main loop will block during the operation, blocking the ability to accept new connections. The worker threads themselves will keep running and keep serving clients.
 
 Use, or need, of this feature on a regular basis is questionable, but at least it can help in a pinch.
+.SH "COMMAND-LINE ARGUMENTS"
+.TP 
+\*(T<\fB\-\-help\fR\*(T> | \*(T<\fB\-h\fR\*(T>
+Print help with synopsis.
+.TP 
+\*(T<\fB\-\-version\fR\*(T> | \*(T<\fB\-v\fR\*(T>
+Print FlashMQ version details.
+.TP 
+\*(T<\fB\-\-license\fR\*(T> | \*(T<\fB\-l\fR\*(T>
+Print FlashMQ license.
+.TP 
+\*(T<\fB\-\-config\-file\fR\*(T> | \*(T<\fB\-c\fR\*(T>\0\0\fIconfig_file_path\fR
+\*(T<flashmq\*(T> will read the config file from the given \fIconfig_file_path\fR.
+
+Without this option, the default \fIconfig_file_path\fR is \*(T<\fI/etc/flashmq/flashmq.conf\fR\*(T>.
+
+See the \fBflashmq.conf\fR(5) manual page for the format of this file.
+.TP 
+\*(T<\fB\-\-test\-config\fR\*(T> | \*(T<\fB\-t\fR\*(T>
+Test the configuration, without starting the daemon.
 .SH AUTHOR
 Wiebe Cazemier <\*(T<contact@flashmq.org\*(T>>.
 .SH "SEE ALSO"

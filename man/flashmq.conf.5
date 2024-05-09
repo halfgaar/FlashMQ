@@ -9,7 +9,13 @@
 .SH NAME
 flashmq.conf \- FlashMQ configuration file format
 .SH SYNOPSIS
-The \*(T<\fIflashmq.conf\fR\*(T> file is the configuration used for configuring the FlashMQ MQTT broker. It doesn't necessarily have to be called \*(T<\fIflashmq.conf\fR\*(T>; the \fBflashmq\fR daemon program sports a \*(T<\fB\-\-config\-file\fR\*(T> parameter.
+The \*(T<\fIflashmq.conf\fR\*(T> file is the configuration used for configuring the FlashMQ MQTT broker.
+.SH "CONFIG LOCATION"
+By default, the \fBflashmq\fR daemon expects to find its configuration file at \*(T<\fI/etc/flashmq/flashmq.conf\fR\*(T>, but this can be overriden using the \*(T<\fB\-\-config\-file\fR\*(T> command-line argument; see the \fBflashmq\fR(1) man page for details.
+.PP
+Using the 
+.URL #include_dir include_dir
+parameter in your config file, you can load all the \*(T<\fI*.conf\fR\*(T> files from the given directory.
 .SH "FILE FORMAT"
 To set a parameter, its name must appear on a single line, followed by whitespace, followed by the parameter value.
 .PP

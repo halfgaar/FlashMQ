@@ -363,6 +363,14 @@
     </strong>
   </xsl:template>
 
+  <xsl:template match="dbk:citetitle">
+    <cite>
+      <xsl:apply-templates select="@* | node()"/>
+    </cite>
+  </xsl:template>
+
+  <xsl:template match="dbk:citetitle/@pubwork"/>
+
   <xsl:template match="dbk:filename | dbk:command | dbk:literal | dbk:systemitem | dbk:property | dbk:function | dbk:userinput | dbk:code | dbk:replaceable | dbk:option" name="monospace">
     <code>
       <xsl:attribute name="class">

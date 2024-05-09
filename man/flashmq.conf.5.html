@@ -77,7 +77,15 @@
         }
       </style></head><body><article id="flashmq.conf"><header><h1>flashmq.conf<code class="manvolnum"> (5)</code></h1><h2 class="refpurpose">FlashMQ configuration file format</h2></header><section class="refsynopsisdiv" id="synopsis"><header><h2>Synopsis</h2></header>
     <p>
-      The <code class="filename">flashmq.conf</code> file is the configuration used for configuring the FlashMQ MQTT broker. It doesn't necessarily have to be called <code class="filename">flashmq.conf</code>; the <code class="command">flashmq</code> daemon program sports a <code class="option">--config-file</code> parameter.
+       The <code class="filename">flashmq.conf</code> file is the configuration used for configuring the FlashMQ MQTT broker.
+    </p>
+  </section><section class="refsect1" id="config-location">
+    <header><h2>Config location<a class="hash-anchor" href="#config-location">#</a></h2></header>
+    <p>
+      By default, the <code class="command">flashmq</code> daemon expects to find its configuration file at <code class="filename">/etc/flashmq/flashmq.conf</code>, but this can be overriden using the <code class="option">--config-file</code> command-line argument; see the <cite class="citerefentry"><span class="refentrytitle">flashmq</span><span class="manvolnum">(1)</span></cite> man page for details.
+    </p>
+    <p>
+      Using the <a href="#include_dir"><code class="option">include_dir</code></a> parameter in your config file, you can load all the <code class="filename">*.conf</code> files from the given directory.
     </p>
   </section><section class="refsect1" id="file-format">
     <header><h2>File format<a class="hash-anchor" href="#file-format">#</a></h2></header>
