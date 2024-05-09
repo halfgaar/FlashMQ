@@ -17,33 +17,38 @@
   </refnamediv>
 
   <refsynopsisdiv>
-    <!-- https://tdg.docbook.org/tdg/5.2/cmdsynopsis.html -->
-    <cmdsynopsis>
+    <cmdsynopsis><!-- https://tdg.docbook.org/tdg/5.2/cmdsynopsis.html -->
       <command>flashmq</command>
-      <!-- https://tdg.docbook.org/tdg/5.2/group.html -->
-      <group>
-        <arg choice="plain">-h</arg>
-        <arg choice="plain">--help</arg>
-      </group>
-      <group>
-        <arg choice="plain">-v</arg>
-        <arg choice="plain">--version</arg>
-      </group>
-      <group>
-        <arg choice="plain">-l</arg>
-        <arg choice="plain">--license</arg>
-      </group>
       <sbr/>
-      <arg>
-        <group choice="plain">
-          <arg choice="plain">-c</arg>
-          <arg choice="plain">--config-file</arg>
+      <group choice="plain">
+        <arg choice="plain">
+          <arg>
+            <group choice="plain">
+              <arg choice="plain"><link xlink:href="#config-file">-c</link></arg>
+              <arg choice="plain"><link xlink:href="#config-file">--config-file</link></arg>
+            </group>
+            <replaceable>config_file_path</replaceable>
+          </arg>
+          <group>
+            <arg choice="plain"><link xlink:href="#test-config">-t</link></arg>
+            <arg choice="plain"><link xlink:href="#test-config">--test-config</link></arg>
+          </group>
+        </arg>
+        <sbr/>
+        <group><!-- https://tdg.docbook.org/tdg/5.2/group.html -->
+          <arg choice="plain"><link xlink:href="#help">-h</link></arg>
+          <arg choice="plain"><link xlink:href="#help">--help</link></arg>
         </group>
-        <replaceable>config_file_path</replaceable>
-      </arg>
-      <group>
-        <arg choice="plain">-t</arg>
-        <arg choice="plain">--test-config</arg>
+        <sbr/>
+        <group><!-- https://tdg.docbook.org/tdg/5.2/group.html -->
+          <arg choice="plain"><link xlink:href="#version">-v</link></arg>
+          <arg choice="plain"><link xlink:href="#version">--version</link></arg>
+        </group>
+        <sbr/>
+        <group>
+          <arg choice="plain"><link xlink:href="#license">-l</link></arg>
+          <arg choice="plain"><link xlink:href="#license">--license</link></arg>
+        </group>
       </group>
     </cmdsynopsis>
   </refsynopsisdiv>
@@ -55,42 +60,100 @@
     </para>
   </refsect1>
 
-  <refsect1>
+  <refsect1 xml:id="signals">
     <title>Signals</title>
 
-    <varlistentry xml:id="SIGHUP">
-      <term><option>SIGHUP</option></term>
-      <listitem>
-        <para>
-          Reload config file and reopen log files. Listeners are recreated. Bridges are reconnected (when their config has changed), added or removed as necessary.
-        </para>
-      </listitem>
-    </varlistentry>
+    <variablelist>
+      <varlistentry xml:id="SIGHUP">
+        <term><option>SIGHUP</option></term>
+        <listitem>
+          <para>
+            Reload config file and reopen log files. Listeners are recreated. Bridges are reconnected (when their config has changed), added or removed as necessary.
+          </para>
+        </listitem>
+      </varlistentry>
 
-    <varlistentry xml:id="SIGUSR1">
-      <term><option>SIGUSR1</option></term>
-      <listitem>
-        <para>
-          Reopen log files. Use this in log rotation.
-        </para>
-      </listitem>
-    </varlistentry>
+      <varlistentry xml:id="SIGUSR1">
+        <term><option>SIGUSR1</option></term>
+        <listitem>
+          <para>
+            Reopen log files. Use this in log rotation.
+          </para>
+        </listitem>
+      </varlistentry>
 
-    <varlistentry xml:id="SIGUSR2">
-      <term><option>SIGUSR2</option></term>
-      <listitem>
-        <para>
-          It has been observed that certain implementations of malloc have a high memory use while still having many free blocks. See for instance the libc mailing list discussion <link xlink:href="https://sourceware.org/pipermail/libc-help/2020-September/005457.html">Abnormal memory usage with glibc 2.31 related to thread cache and trimming strategy</link>. This can be exacerbated by continuous thread recreation, because of how "memory arenas" are managed. FlashMQ has a fixed number of threads, but that may not be true for loaded plugins. Sending a SIGUSR2 will cause FlashMQ to call 'malloc_trim(0)', possibly resulting in it giving memory back to the operating system.
-        </para>
-        <para>
-          The action is mostly pretty fast, but if not, the main loop will block during the operation, blocking the ability to accept new connections. The worker threads themselves will keep running and keep serving clients.
-        </para>
-        <para>
-          Use, or need, of this feature on a regular basis is questionable, but at least it can help in a pinch.
-        </para>
-      </listitem>
-    </varlistentry>
+      <varlistentry xml:id="SIGUSR2">
+        <term><option>SIGUSR2</option></term>
+        <listitem>
+          <para>
+            It has been observed that certain implementations of malloc have a high memory use while still having many free blocks. See for instance the libc mailing list discussion <link xlink:href="https://sourceware.org/pipermail/libc-help/2020-September/005457.html"><citetitle pubwork="emailmessage">Abnormal memory usage with glibc 2.31 related to thread cache and trimming strategy</citetitle></link>. This can be exacerbated by continuous thread recreation, because of how "memory arenas" are managed. FlashMQ has a fixed number of threads, but that may not be true for loaded plugins. Sending a <literal>SIGUSR2</literal> will cause FlashMQ to call <literal>malloc_trim(0)</literal>, possibly resulting in it giving memory back to the operating system.
+          </para>
+          <para>
+            The action is mostly pretty fast, but if not, the main loop will block during the operation, blocking the ability to accept new connections. The worker threads themselves will keep running and keep serving clients.
+          </para>
+          <para>
+            Use, or need, of this feature on a regular basis is questionable, but at least it can help in a pinch.
+          </para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
 
+  <refsect1 xml:id="args">
+    <title>Command-line arguments</title>
+
+    <variablelist>
+      <varlistentry xml:id="help">
+        <term><option>--help</option> | <option>-h</option></term>
+        <listitem>
+          <para>
+            Print help with synopsis.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry xml:id="version">
+        <term><option>--version</option> | <option>-v</option></term>
+        <listitem>
+          <para>
+            Print FlashMQ version details.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry xml:id="license">
+        <term><option>--license</option> | <option>-l</option></term>
+        <listitem>
+          <para>
+            Print FlashMQ license.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry xml:id="config-file">
+        <term><option>--config-file</option> | <option>-c</option>&#8195;<replaceable>config_file_path</replaceable></term>
+        <listitem>
+          <para>
+            <literal>flashmq</literal> will read the config file from the given <replaceable>config_file_path</replaceable>.
+          </para>
+          <para>
+            Without this option, the default  <replaceable>config_file_path</replaceable> is <filename>/etc/flashmq/flashmq.conf</filename>.
+          </para>
+          <para>
+            See the <citerefentry><refentrytitle>flashmq.conf</refentrytitle><manvolnum>5</manvolnum></citerefentry> manual page for the format of this file.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry xml:id="test-config">
+        <term><option>--test-config</option> | <option>-t</option></term>
+        <listitem>
+          <para>
+            Test the configuration, without starting the daemon.
+          </para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
   </refsect1>
 
   <refsect1>

@@ -18,9 +18,19 @@
 
   <refsynopsisdiv xml:id="synopsis">
     <para>
-      The <filename>flashmq.conf</filename> file is the configuration used for configuring the FlashMQ MQTT broker. It doesn't necessarily have to be called <filename>flashmq.conf</filename>; the <command>flashmq</command> daemon program sports a <option>--config-file</option> parameter.
+       The <filename>flashmq.conf</filename> file is the configuration used for configuring the FlashMQ MQTT broker.
     </para>
   </refsynopsisdiv>
+
+  <refsect1 xml:id="config-location">
+    <title>Config location</title>
+    <para>
+      By default, the <command>flashmq</command> daemon expects to find its configuration file at <filename>/etc/flashmq/flashmq.conf</filename>, but this can be overriden using the <option>--config-file</option> command-line argument; see the <citerefentry><refentrytitle>flashmq</refentrytitle><manvolnum>1</manvolnum></citerefentry> man page for details.<!-- TODO: link -->
+    </para>
+    <para>
+      Using the <link xlink:href="#include_dir"><option>include_dir</option></link> parameter in your config file, you can load all the <filename>*.conf</filename> files from the given directory.
+    </para>
+  </refsect1>
 
   <refsect1 xml:id="file-format">
     <title>File format</title>
