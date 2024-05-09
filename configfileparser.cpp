@@ -58,22 +58,30 @@ unsigned long full_stoul(const std::string &key, const std::string &value)
     return newVal;
 }
 
-void ConfigFileParser::testCorrectNumberOfValues(const std::string &key, size_t expected_values, const std::smatch &matches)
+void ConfigFileParser::testCorrectNumberOfValues(const std::string &key, size_t expected_values, const std::vector<std::string> &values)
 {
-    if (!matches.ready())
+    if (values.size() != expected_values)
     {
-        throw std::runtime_error("It appears the programmer made a mistake: please provide a ready() smatch object");
-    }
-    size_t encountered_values = matches.size() - 2; // 0 = full line, 1 = key, 2 = first value, 3 = second value etc.
-    if (encountered_values != expected_values)
-    {
-        const std::string &rest = matches[expected_values + 2];
-        if (!rest.empty())
+        std::ostringstream oss;
+        oss << "Option " << key << " expected " << expected_values << ", got " << values.size() << " arguments";
+
+        if (values.size() > expected_values)
         {
-            std::ostringstream oss;
-            oss << "Option " << key << " expected " << expected_values << ", got " << encountered_values << " arguments (" << rest << " ...)";
-            throw ConfigFileException(oss.str());
+            oss << ". Superflous ones: ";
+
+            for (size_t i = expected_values; i < values.size(); i++)
+            {
+                const std::string &rest = values.at(i);
+                oss << rest;
+
+                if (i + 1 >= values.size())
+                    oss << ".";
+                else
+                    oss << ", ";
+            }
         }
+
+        throw ConfigFileException(oss.str());
     }
 }
 
@@ -444,7 +452,9 @@ void ConfigFileParser::loadFile(bool test)
         std::regex_match(line, matches, key_value_regex);
 
         std::string key = matches[1].str();
-        const std::string value = matches[2].str();
+        const std::string value_unparsed = matches[2].str();
+        const std::vector<std::string> values = parseValuesWithOptionalQuoting<ConfigFileException>(value_unparsed);
+        const std::string &value = values.at(0);
         size_t number_of_expected_values = 1; // Most lines only accept 1 argument, a select few 2.
         std::string valueTrimmed = value;
         trim(valueTrimmed);
@@ -523,7 +533,7 @@ void ConfigFileParser::loadFile(bool test)
                     curListener->tcpNoDelay = val;
                 }
 
-                testCorrectNumberOfValues(key, number_of_expected_values, matches);
+                testCorrectNumberOfValues(key, number_of_expected_values, values);
                 continue;
             }
             else if (curParseLevel == ConfigParseLevel::Bridge)
@@ -573,10 +583,10 @@ void ConfigFileParser::loadFile(bool test)
 
                     BridgeTopicPath topicPath;
 
-                    if (matches.size() == 4)
+                    if (values.size() >= 2)
                     {
                         number_of_expected_values = 2;
-                        const std::string &qosstr = matches[3];
+                        const std::string &qosstr = values.at(1);
 
                         if (!qosstr.empty())
                         {
@@ -597,10 +607,10 @@ void ConfigFileParser::loadFile(bool test)
 
                     BridgeTopicPath topicPath;
 
-                    if (matches.size() == 4)
+                    if (values.size() >= 2)
                     {
                         number_of_expected_values = 2;
-                        const std::string &qosstr = matches[3];
+                        const std::string &qosstr = values.at(1);
 
                         if (!qosstr.empty())
                         {
@@ -732,7 +742,7 @@ void ConfigFileParser::loadFile(bool test)
                     curBridge->tcpNoDelay = true;
                 }
 
-                testCorrectNumberOfValues(key, number_of_expected_values, matches);
+                testCorrectNumberOfValues(key, number_of_expected_values, values);
                 continue;
             }
 
@@ -1090,7 +1100,7 @@ void ConfigFileParser::loadFile(bool test)
             throw ConfigFileException(ex.what());
         }
 
-        testCorrectNumberOfValues(key, number_of_expected_values, matches);
+        testCorrectNumberOfValues(key, number_of_expected_values, values);
     }
 
     tmpSettings.checkUniqueBridgeNames();

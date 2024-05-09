@@ -216,6 +216,7 @@ class MainTests
     void testStringValuesParsingEscaping();
     void testStringValuesFuzz();
     void testStringValuesInvalid();
+    void testPreviouslyValidConfigFile();
 
 
 public:

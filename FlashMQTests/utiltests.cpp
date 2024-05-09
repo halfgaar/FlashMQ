@@ -5,7 +5,7 @@
 
 #include "utils.h"
 #include "exceptions.h"
-
+#include "conffiletemp.h"
 
 void MainTests::testStringValuesParsing()
 {
@@ -231,7 +231,49 @@ void MainTests::testStringValuesInvalid()
     }
 }
 
+/**
+ * @brief MainTests::testPreviouslyValidConfigFile tests a config file that worked before the new parser. It uses as many of
+ * the allowed syntax as possible.
+ */
+void MainTests::testPreviouslyValidConfigFile()
+{
+    // Base64 is required because my editor starts interferring with the content, like leading tabs on lines.
+    const std::string b64(
+        "I3RocmVhZF9jb3VudCA2NAoKI2xvZ19maWxlIC90bXAvYm9lMy5sb2cnCgojIComXigqXiooJl4K"
+        "IykoKikoKgogICAgICAjICkoKikoCgkjIHRoaXMgaXMgYSB0YWIKCiMgVGhpcyBsaW5lIGNvbnRh"
+        "aW5zIGEgdGFiCglhbGxvd19hbm9ueW1vdXMgdHJ1ZQoKI292ZXJsb2FkX21vZGUgY2xvc2VfbmV3"
+        "X2NsaWVudHMKCnBsdWdpbl9vcHRfb25lICAgICAgYWJjY2M5YyNjZGVmQUVCRjRfLS86KysrCgog"
+        "ICAgcGx1Z2luX3RpbWVyX3BlcmlvZCAgICAgNDAwMAoKbG9nX2xldmVsIG5vdGljZSAgIAoKd2Vi"
+        "c29ja2V0X3NldF9yZWFsX2lwX2Zyb20gICAgICAgIDJhOjMzOjozMzowMC82NAoKbGlzdGVuIHsK"
+        "ICBwcm90b2NvbCBtcXR0CiAgcG9ydCAxODgzCiAgdGNwX25vZGVsYXkgZmFsc2UKCn0KCmxpc3Rl"
+        "biB7CiAgcHJvdG9jb2wgbXF0dAogIHBvcnQgODA3MAoKfQoKYnJpZGdlIHsKICBsb2NhbF91c2Vy"
+        "bmFtZSBhYmNkZSNmQUVCRjRfLS86KwogIGFkZHJlc3MgZGVtby5mbGFzaG1xLm9yZwogIGNsaWVu"
+        "dGlkX3ByZWZpeCBCckQKICBwdWJsaXNoIGZpdmUgMgogIHN1YnNjcmliZSBhc2RmYXNkZmVlL3dl"
+        "ci8rIDIKICBzdWJzY3JpYmUgX19fNDQvd2VyLyMgMQogIGNsaWVudGlkX3ByZWZpeCB6SDUzXy06"
+        "Ol8KICB0Y3Bfbm9kZWxheSB0cnVlCn0K");
 
+    const std::vector<char> b64_bytes = base64Decode(b64);
+    const std::string b64_string = std::string(b64_bytes.data(), b64_bytes.size());
+
+    ConfFileTemp config;
+    config.writeLine(b64_string);
+    config.closeFile();
+
+    ConfigFileParser parser(config.getFilePath());
+    parser.loadFile(false);
+
+    Settings settings = parser.getSettings();
+
+    std::list<std::shared_ptr<BridgeConfig>> bridges = settings.stealBridges();
+    MYCASTCOMPARE(bridges.size(), 1);
+
+    std::shared_ptr<BridgeConfig> &bridge = bridges.front();
+
+    FMQ_COMPARE(bridge->subscribes.at(0).topic, "asdfasdfee/wer/+");
+    FMQ_COMPARE(bridge->subscribes.at(0).qos, (uint8_t)2);
+    FMQ_COMPARE(bridge->local_username, "abcde#fAEBF4_-/:+");
+    FMQ_COMPARE(bridge->clientidPrefix, "zH53_-::_");
+}
 
 
 

@@ -36,13 +36,13 @@ class ConfigFileParser
     std::set<std::string> validListenKeys;
     std::set<std::string> validBridgeKeys;
 
-    const std::regex key_value_regex = std::regex("^([a-zA-Z0-9_\\-]+) +([a-zA-Z0-9_\\-/.:#+]+) *([a-zA-Z0-9_\\-/.:#+]+)?$");
+    const std::regex key_value_regex = std::regex("^([\\w\\-]+)\\s+(.+)$");
     const std::regex block_regex_start = std::regex("^([a-zA-Z0-9_\\-]+) *\\{$");
     const std::regex block_regex_end = std::regex("^\\}$");
 
     Settings settings;
 
-    void static testCorrectNumberOfValues(const std::string &key, size_t expected_values, const std::smatch &matches);
+    void static testCorrectNumberOfValues(const std::string &key, size_t expected_values, const std::vector<std::string> &values);
     bool testKeyValidity(const std::string &key, const std::string &matchKey, const std::set<std::string> &validKeys) const;
     void static checkFileExistsAndReadable(const std::string &key, const std::string &pathToCheck, ssize_t max_size = std::numeric_limits<ssize_t>::max());
     void static checkFileOrItsDirWritable(const std::string &filepath);

@@ -300,8 +300,7 @@ MainTests::MainTests()
     REGISTER_FUNCTION(testStringValuesParsingEscaping);
     REGISTER_FUNCTION(testStringValuesFuzz);
     REGISTER_FUNCTION(testStringValuesInvalid);
-
-
+    REGISTER_FUNCTION(testPreviouslyValidConfigFile);
 }
 
 bool MainTests::test(const std::vector<std::string> &tests)
