@@ -159,6 +159,13 @@ void Client::connectToBridgeTarget(FMQSockaddr_in6 addr)
 
     this->outgoingConnection = true;
 
+
+    if (bridge->c.tcpNoDelay)
+    {
+        int tcp_nodelay_optval = 1;
+        check<std::runtime_error>(setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &tcp_nodelay_optval, sizeof(tcp_nodelay_optval)));
+    }
+
     addr.setPort(bridge->c.port);
     int rc = connect(fd, addr.getSockaddr(), addr.getSize());
 
@@ -171,12 +178,6 @@ void Client::connectToBridgeTarget(FMQSockaddr_in6 addr)
     assert(rc == 0);
 
     setBridgeConnected();
-
-    if (bridge->c.tcpNoDelay)
-    {
-        int tcp_nodelay_optval = 1;
-        check<std::runtime_error>(setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &tcp_nodelay_optval, sizeof(tcp_nodelay_optval)));
-    }
 }
 
 void Client::startOrContinueSslHandshake()
