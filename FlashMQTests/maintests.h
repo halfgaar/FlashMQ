@@ -91,6 +91,7 @@ class MainTests
     void testSavingSessions();
 
     void testParsePacket();
+    void testbufferToMqttPacketsFuzz();
 
     void testDowngradeQoSOnSubscribeQos2to2();
     void testDowngradeQoSOnSubscribeQos2to1();

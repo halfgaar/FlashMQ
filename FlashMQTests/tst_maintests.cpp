@@ -12,6 +12,7 @@ See LICENSE for license details.
 #include <unordered_map>
 #include <sys/sysinfo.h>
 #include <fstream>
+#include <random>
 
 #include "maintests.h"
 #include "testhelpers.h"
@@ -23,6 +24,7 @@ See LICENSE for license details.
 #include "threadlocalutils.h"
 #include "retainedmessagesdb.h"
 #include "utils.h"
+#include "exceptions.h"
 
 void MainTests::test_circbuf()
 {
@@ -1123,6 +1125,78 @@ void MainTests::testParsePacket()
         testParsePacketHelper("Sarah/Connor", 2, retain);
         testParsePacketHelper("Susan/Mayer", 2, retain);
     }
+}
+
+/**
+ * @brief MainTests::testbufferToMqttPacketsFuzz perform a quick fuzz on parsing MQTT packets.
+ *
+ * There was some chatter about this function maybe crashing, so this test was added. Nothing
+ * could be reproduced, not even when running for hours.
+ */
+void MainTests::testbufferToMqttPacketsFuzz()
+{
+    Logger::getInstance()->setFlags(LogLevel::None, false);
+
+    Settings settings;
+    settings.logLevel = LogLevel::Info;
+    std::shared_ptr<SubscriptionStore> store(new SubscriptionStore());
+    PluginLoader pluginLoader;
+    std::shared_ptr<ThreadData> t(new ThreadData(0, settings, pluginLoader));
+
+    // Kind of a hack...
+    Authentication auth(settings);
+    ThreadGlobals::assign(&auth);
+
+    settings.maxPacketSize = 32768;
+
+    std::shared_ptr<Client> dummyClient(new Client(0, t, nullptr, false, false, nullptr, settings, false));
+    dummyClient->setClientProperties(ProtocolVersion::Mqtt311, "dummy", "user1", true, 60);
+    store->registerClientAndKickExistingOne(dummyClient, false, 512, 120);
+
+    // To avoid the restriction on packet size for unauthenticated clients.
+    dummyClient->setAuthenticated(true);
+
+    // To avoid writing random MQTT headers that happen to say 'packet is 100 MB big' and will result in the parser
+    // thinking we are supposed to get more bytes, which will make it get stuck.
+    const ssize_t len = settings.maxPacketSize * 2;
+
+    std::vector<uint8_t> randombuf(len);
+
+    CirBuf stagingBuf(len);
+
+    size_t protocol_error_count = 0;
+    size_t parsed_packet_count = 0;
+
+    const auto then = std::chrono::steady_clock::now() + std::chrono::seconds(4);
+    for (auto now = std::chrono::steady_clock::now(); now < then; now = std::chrono::steady_clock::now())
+    {
+        if (getrandom(randombuf.data(), len, 0) != len)
+            throw std::runtime_error("Random error");
+
+        std::vector<MqttPacket> parsedPackets;
+        stagingBuf.ensureFreeSpace(len);
+        stagingBuf.write(randombuf.data(), len);
+
+        try
+        {
+            MqttPacket::bufferToMqttPackets(stagingBuf, parsedPackets, dummyClient);
+            parsed_packet_count += parsedPackets.size();
+            FMQ_VERIFY(true);
+        }
+        catch (ProtocolError&)
+        {
+            stagingBuf.reset();
+            protocol_error_count++;
+            FMQ_VERIFY(true);
+        }
+        catch (std::exception&)
+        {
+            FMQ_VERIFY(false);
+        }
+    }
+
+    std::cout << std::endl << "Flash-fuzzing bufferToMqttPackets done. Parsed packets: "
+              << parsed_packet_count << ". Protocol errors: " << protocol_error_count << std::endl;
 }
 
 void testDowngradeQoSOnSubscribeHelper(const uint8_t pub_qos, const uint8_t sub_qos)

@@ -210,6 +210,7 @@ MainTests::MainTests()
     REGISTER_FUNCTION(testRetainedMessageDBEmptyList);
     REGISTER_FUNCTION(testSavingSessions);
     REGISTER_FUNCTION(testParsePacket);
+    REGISTER_FUNCTION(testbufferToMqttPacketsFuzz);
     REGISTER_FUNCTION(testDowngradeQoSOnSubscribeQos2to2);
     REGISTER_FUNCTION(testDowngradeQoSOnSubscribeQos2to1);
     REGISTER_FUNCTION(testDowngradeQoSOnSubscribeQos2to0);
