@@ -95,6 +95,8 @@ https://docs.oracle.com/javase/8/docs/api/java/text/SimpleDateFormat.html
     <xsl:apply-templates select="node()"/>
   </xsl:template>
 
+  <xsl:template match="dbk:info"/>
+
   <xsl:template match="dbk:refmeta">
     <xsl:text>.TH</xsl:text>
     <xsl:text> </xsl:text>

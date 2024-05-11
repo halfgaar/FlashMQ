@@ -7,6 +7,10 @@
     xmlns:xlink="http://www.w3.org/1999/xlink"
     xmlns:xi="http://www.w3.org/2001/XInclude">
 
+  <info>
+    <biblioid class="uri">https://www.flashmq.org/man/flashmq.1</biblioid>
+  </info>
+
   <refmeta>
     <refentrytitle>flashmq</refentrytitle>
     <manvolnum>1</manvolnum>

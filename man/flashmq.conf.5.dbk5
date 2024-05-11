@@ -7,6 +7,10 @@
     xmlns:xlink="http://www.w3.org/1999/xlink"
     xmlns:xi="http://www.w3.org/2001/XInclude">
 
+  <info>
+    <biblioid class="uri">https://www.flashmq.org/man/flashmq.conf.5</biblioid>
+  </info>
+
   <refmeta>
     <refentrytitle>flashmq.conf</refentrytitle>
     <manvolnum>5</manvolnum>
@@ -26,7 +30,7 @@
   <refsect1 xml:id="config-location">
     <title>Config location</title>
     <para>
-      By default, the <command>flashmq</command> daemon expects to find its configuration file at <filename>/etc/flashmq/flashmq.conf</filename>, but this can be overriden using the <option>--config-file</option> command-line argument; see the <citerefentry><refentrytitle>flashmq</refentrytitle><manvolnum>1</manvolnum></citerefentry> man page for details.<!-- TODO: link -->
+      By default, the <command>flashmq</command> daemon expects to find its configuration file at <filename>/etc/flashmq/flashmq.conf</filename>, but this can be overriden using the <option>--config-file</option> command-line argument; see the <citerefentry><refentrytitle>flashmq</refentrytitle><manvolnum>1</manvolnum></citerefentry> man page for details.
     </para>
     <para>
       Using the <link xlink:href="#include_dir"><option>include_dir</option></link> parameter in your config file, you can load all the <filename>*.conf</filename> files from that given directory.
