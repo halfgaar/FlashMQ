@@ -1,10 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <refentry
-    xml:id="FlashMQ"
+    xml:id="flashmq.1"
     xml:lang="en"
     xmlns="http://docbook.org/ns/docbook"
     version="5.0"
     xmlns:xlink="http://www.w3.org/1999/xlink">
+
+  <info>
+    <biblioid class="uri">https://www.flashmq.org/man/flashmq.1</biblioid>
+  </info>
 
   <refmeta>
     <refentrytitle>flashmq</refentrytitle>
