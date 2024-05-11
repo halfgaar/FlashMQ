@@ -16,6 +16,10 @@
   encoding="UTF-8"
   indent="yes"/>
 
+  <xsl:param name="dbk5.reference"/>
+
+  <xsl:variable name="reference" select="document($dbk5.reference)/dbk:reference"/>
+
   <xsl:template match="/">
     <html>
       <xsl:apply-templates select="/dbk:*/@xml:lang"/>
@@ -401,6 +405,30 @@
   </xsl:template>
 
   <xsl:template match="dbk:citerefentry">
+    <xsl:variable name="refentry" select="$reference/dbk:refentry[dbk:refmeta/dbk:refentrytitle/text() = current()/dbk:refentrytitle/text() and dbk:refmeta/dbk:manvolnum/text()=current()/dbk:manvolnum/text()]"/>
+    <!--<xsl:variable name="refentry" select="$reference/dbk:refentry[dbk:refmeta/dbk:refname/text()=current()/dbk:refentrytitle/text()]"/>-->
+    <xsl:choose>
+      <xsl:when test="$refentry">
+        <xsl:if test="not($refentry/dbk:info/dbk:biblioid[@class='uri'])">
+          <xsl:message terminate="yes">
+            <xsl:text>refentry/info/biblioid[@class='uri'] missing in source DocBook for man:</xsl:text>
+            <xsl:value-of select="concat(dbk:refentrytitle, '(', dbk:manvolnum, ')')"/>
+          </xsl:message>
+        </xsl:if>
+        <a>
+          <xsl:attribute name="href">
+            <xsl:value-of select="$refentry/dbk:info/dbk:biblioid[@class='uri']"/>
+          </xsl:attribute>
+          <xsl:apply-templates select="." mode="content"/>
+        </a>
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:apply-templates select="." mode="content"/>
+      </xsl:otherwise>
+    </xsl:choose>
+  </xsl:template>
+
+  <xsl:template match="dbk:citerefentry" mode="content">
     <cite class="citerefentry">
       <span class="refentrytitle">
         <xsl:value-of select="dbk:refentrytitle"/>
