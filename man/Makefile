@@ -28,4 +28,4 @@ clean:
 	xsltproc db5to4/db5to4-withinfo.xsl $< > $@
 
 %.html: docbook5-to-html5/docbook5-to-html5.xsl %.dbk5
-	xsltproc $^ > $@
+	xsltproc --xinclude --stringparam dbk5.reference $(CURDIR)/reference.dbk5 $^ > $@

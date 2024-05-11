@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<reference
+    xml:lang="en"
+    xmlns="http://docbook.org/ns/docbook"
+    version="5.0"
+    xmlns:xi="http://www.w3.org/2001/XInclude">
+  <xi:include href="flashmq.1.dbk5"/>
+  <xi:include href="flashmq.conf.5.dbk5"/>
+</reference>
