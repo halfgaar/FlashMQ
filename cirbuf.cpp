@@ -25,6 +25,8 @@ CirBuf::CirBuf(size_t size) :
     if (size == 0)
         return;
 
+    assert(isPowerOfTwo(size));
+
     buf = (char*)malloc(size);
 
     if (buf == NULL)
