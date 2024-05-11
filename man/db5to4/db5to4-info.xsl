@@ -22,6 +22,7 @@
                       |d:partintro[d:info]
                       |d:preface[d:info]
                       |d:reference[d:info]
+                      |d:refentry[d:info]
                       |d:refsect1[d:info]
                       |d:refsect2[d:info]
                       |d:refsect3[d:info]
