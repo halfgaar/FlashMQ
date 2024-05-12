@@ -1,89 +1,68 @@
-'\" -*- coding: us-ascii -*-
 .if \n(.g .ds T< \\FC
 .if \n(.g .ds T> \\F[\n[.fam]]
+.color
 .de URL
 \\$2 \(la\\$1\(ra\\$3
 ..
 .if \n(.g .mso www.tmac
-.TH flashmq 1 "16 May 2024" "" ""
+.TH flashmq 1 "Jun 05 2024" "" ""
 .SH NAME
 flashmq \- A fast light-weight scalable MQTT server
 .SH SYNOPSIS
 'nh
 .fi
 .ad l
-\fBflashmq\fR \kx
+\fB\m[green]flashmq\m[]\fR \kx
 .if (\nx>(\n(.l/2)) .nr x (\n(.l/5)
 'in \n(.iu+\nxu
+[\fB-c\fR | \fB--config-file\fR \fI\m[green]config_file_path\m[]\fR] | [\fB-t\fR | \fB--test-config\fR] | 
 .br
-[
--c
-| 
---config-file
-\fIconfig_file_path\fR
-]
-[
--t
-| 
---test-config
-]
-| | [ | 
--h
-| 
---help
-] | | [ | 
--v
-| 
---version
-] | | [
--l
-| 
---license
-] 
-'in \n(.iu-\nxu
-.ad b
-'hy
+[\fB-h\fR | \fB--help\fR] | 
+.br
+[\fB-v\fR | \fB--version\fR] | 
+.br
+[\fB-l\fR | \fB--license\fR]
 .SH DESCRIPTION
 FlashMQ is a MQTT 3.1, 3.1.1 and 5 broker designed to be light-weight and handle millions of clients and/or messages.
 .SH SIGNALS
-.TP 
-\*(T<\fBSIGHUP\fR\*(T> 
+.TP
+\*(T<\fB\fB\m[red]SIGHUP\m[]\fR\fR\*(T>
 Reload config file and reopen log files. Listeners are recreated. Bridges are reconnected (when their config has changed), added or removed as necessary.
-.TP 
-\*(T<\fBSIGUSR1\fR\*(T> 
+.TP
+\*(T<\fB\fB\m[red]SIGUSR1\m[]\fR\fR\*(T>
 Reopen log files. Use this in log rotation.
-.TP 
-\*(T<\fBSIGUSR2\fR\*(T> 
-It has been observed that certain implementations of malloc have a high memory use while still having many free blocks. See for instance the libc mailing list discussion 
-.URL https://sourceware.org/pipermail/libc-help/2020-September/005457.html "Abnormal memory usage with glibc 2.31 related to thread cache and trimming strategy"
-\&. This can be exacerbated by continuous thread recreation, because of how "memory arenas" are managed. FlashMQ has a fixed number of threads, but that may not be true for loaded plugins. Sending a \*(T<SIGUSR2\*(T> will cause FlashMQ to call \*(T<malloc_trim(0)\*(T>, possibly resulting in it giving memory back to the operating system.
+.TP
+\*(T<\fB\fB\m[red]SIGUSR2\m[]\fR\fR\*(T>
+It has been observed that certain implementations of malloc have a high memory use while still having many free blocks. See for instance the libc mailing list discussion \m[blue]\[lq]Abnormal memory usage with glibc 2.31 related to thread cache and trimming strategy\[rq]\m[] \(lB\fI\m[blue]https://sourceware.org/pipermail/libc-help/2020-September/005457.html\m[]\fR\(rB. This can be exacerbated by continuous thread recreation, because of how "memory arenas" are managed. FlashMQ has a fixed number of threads, but that may not be true for loaded plugins. Sending a \fB\m[red]SIGUSR2\m[]\fR will cause FlashMQ to call \fImalloc_trim(0)\fR, possibly resulting in it giving memory back to the operating system.
 
 The action is mostly pretty fast, but if not, the main loop will block during the operation, blocking the ability to accept new connections. The worker threads themselves will keep running and keep serving clients.
 
 Use, or need, of this feature on a regular basis is questionable, but at least it can help in a pinch.
-.SH "COMMAND-LINE ARGUMENTS"
-.TP 
-\*(T<\fB\-\-help\fR\*(T> | \*(T<\fB\-h\fR\*(T>
+.SH COMMAND-LINE ARGUMENTS
+.TP
+\*(T<\fB\m[green]--help\m[] | \m[green]-h\m[]\fR\*(T>
 Print help with synopsis.
-.TP 
-\*(T<\fB\-\-version\fR\*(T> | \*(T<\fB\-v\fR\*(T>
+.TP
+\*(T<\fB\m[green]--version\m[] | \m[green]-v\m[]\fR\*(T>
 Print FlashMQ version details.
-.TP 
-\*(T<\fB\-\-license\fR\*(T> | \*(T<\fB\-l\fR\*(T>
+.TP
+\*(T<\fB\m[green]--license\m[] | \m[green]-l\m[]\fR\*(T>
 Print FlashMQ license.
-.TP 
-\*(T<\fB\-\-config\-file\fR\*(T> | \*(T<\fB\-c\fR\*(T>\0\0\fIconfig_file_path\fR
-\*(T<flashmq\*(T> will read the config file from the given \fIconfig_file_path\fR.
+.TP
+\*(T<\fB\m[green]--config-file\m[] | \m[green]-c\m[] \fI\m[cyan]config_file_path\m[]\fR\fR\*(T>
+\fB\m[green]flashmq\m[]\fR will read the config file from the given \fI\m[cyan]config_file_path\m[]\fR.
 
-Without this option, the default \fIconfig_file_path\fR is \*(T<\fI/etc/flashmq/flashmq.conf\fR\*(T>.
+Without this option, the default \fI\m[cyan]config_file_path\m[]\fR is \fI\m[blue]/etc/flashmq/flashmq.conf\m[]\fR.
 
-See the \fBflashmq.conf\fR(5) manual page for the format of this file.
-.TP 
-\*(T<\fB\-\-test\-config\fR\*(T> | \*(T<\fB\-t\fR\*(T>
+See the \m[blue]\fBflashmq.conf\fR(5)\m[] manual page for the format of this file.
+.TP
+\*(T<\fB\m[green]--test-config\m[] | \m[green]-t\m[]\fR\*(T>
 Test the configuration, without starting the daemon.
 .SH AUTHOR
-Wiebe Cazemier <\*(T<contact@flashmq.org\*(T>>.
-.SH "SEE ALSO"
-\fBflashmq.conf\fR(5)
-, 
-.URL https://www.flashmq.org/ www.flashmq.org
+Wiebe Cazemier <\m[blue]contact@flashmq.org\m[]>.
+.SH SEE ALSO
+\m[blue]man:flashmq.conf\fR(5)\m[], \m[blue]https://www.flashmq.org/\m[]
+.SH COLOPHON
+The sources for the FlashMQ manual pages are maintained in \m[blue]DocBook 5.2\m[] \(lB\fI\m[blue]https://tdg.docbook.org/tdg/5.2/\m[]\fR\(rB XML files.  The transformation to the multiple destination file formats is done using a bunch of XSLT 1.0 sheets, contributed to this project by Rowan van der Molen.
+
+The groff source of this man-page has ANSI-color support for the terminal.  However, Debian-derived Linux distributions turn off groff color support by default.  To override this, set the \fBGROFF_SGR\fR environment variable to \fI1\fR.

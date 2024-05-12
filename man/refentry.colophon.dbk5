@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<refsect1 xml:id="colophon"
+  xml:lang="en"
+  xmlns="http://docbook.org/ns/docbook"
+  xmlns:xlink="http://www.w3.org/1999/xlink"
+>
+  <title>Colophon</title>
+
+  <para>
+    The sources for the FlashMQ manual pages are maintained in <link xlink:href="https://tdg.docbook.org/tdg/5.2/">DocBook 5.2</link> XML files.  The transformation to the multiple destination file formats is done using a bunch of XSLT 1.0 sheets, contributed to this project by Rowan van der Molen.
+  </para>
+  <para outputformat="manpage">
+    The groff source of this man-page has ANSI-color support for the terminal.  However, Debian-derived Linux distributions turn off groff color support by default.  To override this, set the <envvar>GROFF_SGR</envvar> environment variable to <literal>1</literal>.
+  </para>
+</refsect1>
+<!-- vim: set expandtab shiftwidth=2 tabstop=2: -->

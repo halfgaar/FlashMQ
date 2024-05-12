@@ -28,7 +28,7 @@ jobs:
         uses: actions/checkout@v3
       - run: sudo apt update
       # Build prerequisites
-      - run: sudo apt install docbook2x
+      - run: sudo apt install -y xsltproc
       - run: sudo apt install -y cmake libssl-dev libcurl4-openssl-dev ${{ matrix.aptpkg }}
       # Build example plugin(s)
       - run: CXX="${{ matrix.CXX }}" ./examples/plugin_libcurl/build.sh "Release"

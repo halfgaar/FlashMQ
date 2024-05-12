@@ -1,187 +1,184 @@
-'\" -*- coding: us-ascii -*-
 .if \n(.g .ds T< \\FC
 .if \n(.g .ds T> \\F[\n[.fam]]
+.color
 .de URL
 \\$2 \(la\\$1\(ra\\$3
 ..
 .if \n(.g .mso www.tmac
-.TH flashmq.conf 5 "3 June 2024" "" ""
+.TH flashmq.conf 5 "Jun 05 2024" "" ""
 .SH NAME
 flashmq.conf \- FlashMQ configuration file format
 .SH SYNOPSIS
-The \*(T<\fIflashmq.conf\fR\*(T> file is the configuration used for configuring the FlashMQ MQTT broker.
-.SH "CONFIG LOCATION"
-By default, the \fBflashmq\fR daemon expects to find its configuration file at \*(T<\fI/etc/flashmq/flashmq.conf\fR\*(T>, but this can be overriden using the \*(T<\fB\-\-config\-file\fR\*(T> command-line argument; see the \fBflashmq\fR(1) man page for details.
-.PP
-Using the 
-.URL #include_dir include_dir
-parameter in your config file, you can load all the \*(T<\fI*.conf\fR\*(T> files from the given directory.
-.SH "FILE FORMAT"
+'nh
+.fi
+The \fI\m[blue]flashmq.conf\m[]\fR file is the configuration used for configuring the FlashMQ MQTT broker.
+.SH CONFIG LOCATION
+By default, the \fB\m[green]flashmq\m[]\fR daemon expects to find its configuration file at \fI\m[blue]/etc/flashmq/flashmq.conf\m[]\fR, but this can be overriden using the \fB\m[green]--config-file\fR\m[] command-line argument; see the \m[blue]\fBflashmq\fR(1)\m[] man page for details.
+
+Using the \fB\fB\m[green]include_dir\fR\m[]\fR parameter in your config file, you can load all the \fI\m[blue]*.conf\m[]\fR files from that given directory.
+.SH FILE FORMAT
 To set a parameter, its name must appear on a single line, followed by one or more potentially quoted arguments.
 .PP
 .nf
-parameter\-name1 parameter\-value
-parameter\-name2 'value with spaces'
-parameter\-name3 "escaped \e" quote"
-multi\-value\-param one 'two' "three" "with ' char"
-      
+.in +7
+\m[green]parameter-name1 \m[]\m[cyan]parameter-value\m[]
+\m[green]parameter-name2 \m[]\m[magenta]'value with spaces'\m[default]
+\m[green]parameter-name3 \m[]\m[magenta]\[dq]escaped \m[blue]\[rs]\[dq]\m[] quote\[dq]\m[default]
+\m[green]multi-value-param \m[]\m[cyan]one\m[] \m[magenta]'two'\m[default] \m[magenta]\[dq]three\[dq]\m[default] \m[magenta]\[dq]with ' char\[dq]\m[default]
+\m[green]\m[]      
+
+.in
 .fi
-.PP
+
 Quoted values are the same as unquoted values when they don't need it. They are necessary for when argument values have spaces, for instance.
-.PP
-When setting boolean values, \*(T<yes/no\*(T>, \*(T<true/false\*(T> and \*(T<on/off\*(T> can all be used.
-.PP
-To configure the listeners, use \*(T<\fBlisten\fR\*(T> blocks, defined by \*(T<{\*(T> and \*(T<}\*(T>. See 
-.URL #example_listeners "EXAMPLE LISTENERS"
-for details.
-.PP
-Lines beginning with the hash character (\(lq\*(T<#\*(T>\(rq) and empty lines are ignored. Thus, a line can be commented out by prepending a \(lq\*(T<#\*(T>\(rq to it.
-.SH "GLOBAL PARAMETERS"
-.TP 
-\*(T<\fBplugin\fR\*(T> \fI/path/to/plugin.so\fR 
-FlashMQ supports an ELF shared object (\*(T<\fI.so\fR\*(T> file) plugin interface to add functionality, authorization and authentication, because it\(cqs hard to provide a declarative mechanism that works for everybody. See \*(T<\fIflashmq_plugin.h\fR\*(T> for the API and its documentation. It\(cqs written in C++ for ease of passing FlashMQ internals without conversion to C, but you can basically just use a C++ compiler and program like it was C; the C++ constructs are simple.
 
-FlashMQ will auto-detect which plugin interface you\(cqre trying to load (Mosquitto version 2 or FlashMQ native). Keep in mind that each thread initializes the plugin, inline with multi-core programming (minimize shared data and interaction between threads). You could use static variables with thread synchronization if you really want to. And of course, any Mosquitto plugin that uses global and/or static variables instead of initializing memory in its \*(T<\fBinit()\fR\*(T> method, will not be thread-safe and won\(cqt work.
+When setting boolean values, \fIyes\fR/\fIno\fR, \fItrue\fR/\fIfalse\fR and \fIon\fR/\fIoff\fR can all be used.
 
-You can only have one plugin active, but you can combine it with 
-.URL #mosquitto_password_file mosquitto_password_file
-and 
-.URL #mosquitto_acl_file mosquitto_acl_file
-\&. The password and ACL file take precedence, and on a \(oqdeny\(cq, will not ask the plugin.
-.TP 
-\*(T<\fBplugin_opt_*\fR\*(T> \fIvalue\fR 
-Options passed to the plugin \*(T<\fBinit()\fR\*(T> function.
-.TP 
-\*(T<\fBplugin_serialize_init\fR\*(T> \fItrue/false\fR 
+To configure the listeners, use \fB\m[green]listen\fR\m[] blocks, defined by \fI{\fR and \fI}\fR. See \fBEXAMPLE LISTENERS\fR for details.
+
+Lines beginning with the hash character (“\fI#\fR”) and empty lines are ignored. Thus, a line can be commented out by prepending a “\fI#\fR” to it.
+.SH GLOBAL PARAMETERS
+.TP
+\*(T<\fB\m[green]plugin\m[] \fI\m[blue]/path/to/plugin.so\m[]\fR\fR\*(T>
+FlashMQ supports an ELF shared object (\fI\m[blue].so\m[]\fR file) plugin interface to add functionality, authorization and authentication, because it’s hard to provide a declarative mechanism that works for everybody. See \fI\m[blue]flashmq_plugin.h\m[]\fR for the API and its documentation. It’s written in C++ for ease of passing FlashMQ internals without conversion to C, but you can basically just use a C++ compiler and program like it was C; the C++ constructs are simple.
+
+FlashMQ will auto-detect which plugin interface you’re trying to load (Mosquitto version 2 or FlashMQ native). Keep in mind that each thread initializes the plugin, inline with multi-core programming (minimize shared data and interaction between threads). You could use static variables with thread synchronization if you really want to. And of course, any Mosquitto plugin that uses global and/or static variables instead of initializing memory in its \fBinit()\fR method, will not be thread-safe and won’t work.
+
+You can only have one plugin active, but you can combine it with \fB\fB\m[green]mosquitto_password_file\fR\m[]\fR and \fB\fB\m[green]mosquitto_acl_file\fR\m[]\fR. The password and ACL file take precedence, and on a ‘deny’, will not ask the plugin.
+.TP
+\*(T<\fB\m[green]plugin_opt_*\m[] \fI\m[cyan]value\m[]\fR\fR\*(T>
+Options passed to the plugin \fBinit()\fR function.
+.TP
+\*(T<\fB\m[green]plugin_serialize_init\m[] \fI\m[cyan]true/false\m[]\fR\fR\*(T>
 There could be circumstances where the plugin code is mostly thread-safe, but not on initialization. Libmysqlclient for instance, needs a one-time initialization. To add to the confusion, Qt hides that away.
 
 The plugin should preferrably be written with proper synchronization like that, but as a last resort, you can use this to synchronize initialization.
 
-Default value: \*(T<false\*(T>
-.TP 
-\*(T<\fBplugin_serialize_auth_checks\fR\*(T> \fItrue/false\fR 
-Like \*(T<\fBplugin_serialize_init\fR\*(T>, but then for all login and ACL checks.
+Default value: \fIfalse\fR
+.TP
+\*(T<\fB\m[green]plugin_serialize_auth_checks\m[] \fI\m[cyan]true/false\m[]\fR\fR\*(T>
+Like \fB\m[green]plugin_serialize_init\fR\m[], but then for all login and ACL checks.
 
 This option may be dropped at some point, because it negates much of the multi-core design. One may as well run with only one thread then.
 
-Default value: \*(T<false\*(T>
-.TP 
-\*(T<\fBplugin_timer_period\fR\*(T> \fIseconds\fR 
+Default value: \fIfalse\fR
+.TP
+\*(T<\fB\m[green]plugin_timer_period\m[] \fI\m[cyan]seconds\m[]\fR\fR\*(T>
 The FlashMQ auth plugin interface has a function that is called periodically this amount of seconds. This can be used to refresh state, commit data, etc.
 
-See \*(T<\fIflashmq_plugin.h\fR\*(T> for details.
+See \fI\m[blue]flashmq_plugin.h\m[]\fR for details.
 
-Default value: \*(T<60\*(T>
-.TP 
-\*(T<\fBlog_file\fR\*(T> \fI/path/to/flashmq.log\fR 
+Default value: \fI60\fR
+.TP
+\*(T<\fB\m[green]log_file\m[] \fI\m[blue]/path/to/flashmq.log\m[]\fR\fR\*(T>
 This configuration parameter sets the path to FlashMQ's log file. If you omit the, the output will go to stdout.
 
-Default value: \*(T<\fI/var/log/flashmq/flashmq.log\fR\*(T>
-.TP 
-\*(T<\fBlog_level\fR\*(T> \fIinfo/notice/warning/error/none\fR 
-Set the log level to specified level and above. That means \fInotice\fR will log \fInotice\fR, \fIwarning\fR and \fIerror\fR.
+Default value: \fI\m[blue]/var/log/flashmq/flashmq.log\m[]\fR
+.TP
+\*(T<\fB\m[green]log_level\m[] \fI\m[cyan]info/notice/warning/error/none\m[]\fR\fR\*(T>
+Set the log level to specified level and above. That means \fI\m[cyan]notice\m[]\fR will log \fI\m[cyan]notice\m[]\fR, \fI\m[cyan]warning\m[]\fR and \fI\m[cyan]error\m[]\fR.
 
-Use this setting over the deprecated \*(T<\fBlog_debug\fR\*(T> and \*(T<\fBquiet\fR\*(T>. If you do have those directives, they override the \*(T<\fBlog_level\fR\*(T>, for backwards compatability reasons.
+Use this setting over the deprecated \fB\m[green]log_debug\fR\m[] and \fB\m[green]quiet\fR\m[]. If you do have those directives, they override the \fB\m[green]log_level\fR\m[], for backwards compatability reasons.
 
-Default value: \*(T<info\*(T>.
-.TP 
-\*(T<\fBlog_debug\fR\*(T> \fItrue/false\fR 
+Default value: \fIinfo\fR.
+.TP
+\*(T<\fB\m[green]log_debug\m[] \fI\m[cyan]true/false\m[]\fR\fR\*(T>
 Debug logging obviously creates a lot of log noise, so should only be done to diagnose problems.
 
-Deprecated. Use \*(T<\fBlog_level\fR\*(T> instead.
+Deprecated. Use \fB\m[green]log_level\fR\m[] instead.
 
-Default value: \*(T<false\*(T>
-.TP 
-\*(T<\fBlog_subscriptions\fR\*(T> \fItrue/false\fR 
-Default value: \*(T<false\*(T>
-.TP 
-\*(T<\fBallow_unsafe_clientid_chars\fR\*(T> \fItrue/false\fR 
+Default value: \fIfalse\fR
+.TP
+\*(T<\fB\m[green]log_subscriptions\m[] \fI\m[cyan]true/false\m[]\fR\fR\*(T>
+Default value: \fIfalse\fR
+.TP
+\*(T<\fB\m[green]allow_unsafe_clientid_chars\m[] \fI\m[cyan]true/false\m[]\fR\fR\*(T>
 If you have topics with client IDs in it, people can possibly manipulate your ACL checking by saying their client ID is 'John+foobar'. Audit your security before you allow this.
 
-Default value: \*(T<false\*(T>
-.TP 
-\*(T<\fBallow_unsafe_username_chars\fR\*(T> \fItrue/false\fR 
+Default value: \fIfalse\fR
+.TP
+\*(T<\fB\m[green]allow_unsafe_username_chars\m[] \fI\m[cyan]true/false\m[]\fR\fR\*(T>
 If you have topics with usernames in it, people can possibly manipulate your ACL checking by saying their username is 'John+foobar'. Audit your security before you allow this.
 
-Default value: \*(T<false\*(T>
-.TP 
-\*(T<\fBmax_packet_size\fR\*(T> \fIbytes\fR 
+Default value: \fIfalse\fR
+.TP
+\*(T<\fB\m[green]max_packet_size\m[] \fI\m[cyan]bytes\m[]\fR\fR\*(T>
 MQTT packets have a maximum size of about 256 MB. This memory will (temporarily) be allocated upon arrival of such packets, so there may be cause to set it lower.
 
-This option works in conjunction with \*(T<\fBclient_max_write_buffer_size\fR\*(T> to limit memory use.
+This option works in conjunction with \fB\m[green]client_max_write_buffer_size\fR\m[] to limit memory use.
 
-Default value: \*(T<268435461\*(T>
-.TP 
-\*(T<\fBclient_max_write_buffer_size\fR\*(T> \fIbytes\fR 
-The client's write buffer is where packets are stored before the event loop has the chance to flush them out. Any time a client's connection is bad and bytes can't be flushed, this buffer fills. So, there's good reason to limit this to something sensible. A good indication is your average packet size (or better yet, a configured \*(T<\fBmax_packet_size\fR\*(T>) multiplied by the amount of packets you want to be able to buffer.
+Default value: \fI268435461\fR
+.TP
+\*(T<\fB\m[green]client_max_write_buffer_size\m[] \fI\m[cyan]bytes\m[]\fR\fR\*(T>
+The client's write buffer is where packets are stored before the event loop has the chance to flush them out. Any time a client's connection is bad and bytes can't be flushed, this buffer fills. So, there's good reason to limit this to something sensible. A good indication is your average packet size (or better yet, a configured \fB\m[green]max_packet_size\fR\m[]) multiplied by the amount of packets you want to be able to buffer.
 
-Note that it's an approximate value and not a hard limit. Buffer sizes only grow by powers of two, and buffers are always allowed to grow to make place for ping packets. Additionally, upon arrival of large packets (up to \*(T<\fBmax_packet_size\fR\*(T> bytes), room will be made up to twice their size. So, you may also want to reduce \*(T<\fBmax_packet_size\fR\*(T> from the default.
+Note that it's an approximate value and not a hard limit. Buffer sizes only grow by powers of two, and buffers are always allowed to grow to make place for ping packets. Additionally, upon arrival of large packets (up to \fB\m[green]max_packet_size\fR\m[] bytes), room will be made up to twice their size. So, you may also want to reduce \fB\m[green]max_packet_size\fR\m[] from the default.
 
-Default value is \*(T<1048576\*(T> (1 MB)
-.TP 
-\*(T<\fBclient_initial_buffer_size\fR\*(T> \fIbytes\fR 
+Default value is \fI1048576\fR (1 MB)
+.TP
+\*(T<\fB\m[green]client_initial_buffer_size\m[] \fI\m[cyan]bytes\m[]\fR\fR\*(T>
 The buffers for reading and writing, also for websockets when relevant, start out with a particular size and double when they need to grow. If you know your clients send bulks of a particular size, it helps to set this to match, to avoid constant memory reallocation. The default value is set conservatively, for scenario's with millions of clients.
 
 After buffers have grown, they are eventually reset to their original size when possible.
 
-Also see \*(T<\fBclient_max_write_buffer_size\fR\*(T> and \*(T<\fBmax_packet_size\fR\*(T>.
+Also see \fB\m[green]client_max_write_buffer_size\fR\m[] and \fB\m[green]max_packet_size\fR\m[].
 
 Value must be a power of two.
 
-Default value: \*(T<1024\*(T>
-.TP 
-\*(T<\fBmosquitto_password_file\fR\*(T> \fI/foo/bar/mosquitto_password_file\fR 
-File with usernames and hashed+salted passwords as generated by Mosquitto's \fBmosquitto_passwd\fR.
+Default value: \fI1024\fR
+.TP
+\*(T<\fB\m[green]mosquitto_password_file\m[] \fI\m[blue]/foo/bar/mosquitto_password_file\m[]\fR\fR\*(T>
+File with usernames and hashed+salted passwords as generated by Mosquitto's \fB\m[green]mosquitto_passwd\m[]\fR.
 
 Mosquitto up to version 1.6 uses the sha512 algorithm. Newer version use sha512-pbkdf2. Both are supported.
-.TP 
-\*(T<\fBmosquitto_acl_file\fR\*(T> \fI/foo/bar/mosquitto_acl_file\fR 
+.TP
+\*(T<\fB\m[green]mosquitto_acl_file\m[] \fI\m[blue]/foo/bar/mosquitto_acl_file\m[]\fR\fR\*(T>
 ACL (access control lists) for users, anonymous users and patterns expandable with %u (username) and %c (clientid). Format is Mosquitto's acl_file.
-.TP 
-\*(T<\fBallow_anonymous\fR\*(T> \fItrue/false\fR 
-This option can be overriden on a per-listener basis; see 
-.URL #listen__allow_anonymous listener.allow_anonymous
-\&.
+.TP
+\*(T<\fB\m[green]allow_anonymous\m[] \fI\m[cyan]true/false\m[]\fR\fR\*(T>
+This option can be overriden on a per-listener basis; see \fB\fB\m[green]listener.allow_anonymous\fR\m[]\fR.
 
-Default value: \*(T<false\*(T>
-.TP 
-\*(T<\fBzero_byte_username_is_anonymous\fR\*(T> \fItrue/false\fR 
+Default value: \fIfalse\fR
+.TP
+\*(T<\fB\m[green]zero_byte_username_is_anonymous\m[] \fI\m[cyan]true/false\m[]\fR\fR\*(T>
 The proper way to signal an anonymous client is by setting the 'username present' flag in the CONNECT packet to 0, which in MQTT3 also demands the absence of a password. However, there are also clients out there that set the 'username present' flag to 1 and then give an empty username. This is an undesirable situation, because it means there are two ways to identify an anonymous client.
 
-Anonymous clients are not authenticated against a loaded plugin when \*(T<\fBallow_anonymous\fR\*(T> is true. With this option enabled, that means users with empty string as usernames also aren't.
+Anonymous clients are not authenticated against a loaded plugin when \fB\m[green]allow_anonymous\fR\m[] is true. With this option enabled, that means users with empty string as usernames also aren't.
 
 With this option disabled, clients connecting with an empty username will be reject with 'bad username or password' as MQTT error code.
 
 The default is to be unambigious, but this can be overridden with this option.
 
-Default value: \*(T<false\*(T>
-.TP 
-\*(T<\fBrlimit_nofile\fR\*(T> \fInumber\fR 
-The general Linux default of \*(T<1024\*(T> can be overridden. Note: \*(T<systemd\*(T> blocks you from setting it, so it needs to be set on the unit. The default systemd unit file sets \*(T<\fBLimitNOFILE=infinity\fR\*(T>. You may also need to set \*(T<\fBsysctl \-w fs.file\-max=10000000\fR\*(T>
+Default value: \fIfalse\fR
+.TP
+\*(T<\fB\m[green]rlimit_nofile\m[] \fI\m[cyan]number\m[]\fR\fR\*(T>
+The general Linux default of \fI1024\fR can be overridden. Note: \fIsystemd\fR blocks you from setting it, so it needs to be set on the unit. The default systemd unit file sets \fB\m[green]LimitNOFILE=infinity\fR\m[]. You may also need to set \fB\m[green]sysctl -w fs.file-max=10000000\fR\m[]
 
-Default value: \*(T<1000000\*(T>
-.TP 
-\*(T<\fBexpire_sessions_after_seconds\fR\*(T> \fIseconds\fR 
+Default value: \fI1000000\fR
+.TP
+\*(T<\fB\m[green]expire_sessions_after_seconds\m[] \fI\m[cyan]seconds\m[]\fR\fR\*(T>
 Expire sessions after this time. Setting to 0 disables it and is (MQTT3) standard-compliant. But, existing sessions cause load on the server (because they cost memory and are still subscribers), so keeping sessions after any client that connects with a random ID doesn't make sense.
 
-Default value: \*(T<1209600\*(T>
-.TP 
-\*(T<\fBquiet\fR\*(T> \fItrue/false\fR 
+Default value: \fI1209600\fR
+.TP
+\*(T<\fB\m[green]quiet\m[] \fI\m[cyan]true/false\m[]\fR\fR\*(T>
 Don't log LOG_INFO and LOG_NOTICE. This is useful when you have a lot of foot traffic, because otherwise the log gets filled with connect/disconnect notices.
 
-Deprecated. Use \*(T<\fBlog_level\fR\*(T> instead.
+Deprecated. Use \fB\m[green]log_level\fR\m[] instead.
 
-Default value: \*(T<false\*(T>
-.TP 
-\*(T<\fBstorage_dir\fR\*(T> \fI/path/to/dir\fR 
+Default value: \fIfalse\fR
+.TP
+\*(T<\fB\m[green]storage_dir\m[] \fI\m[blue]/path/to/dir\m[]\fR\fR\*(T>
 Location to store sessions, subscriptions and retained messages.
-Not specifying this will turn off persistence.
-.TP 
-\*(T<\fBmax_qos_msg_pending_per_client\fR\*(T> , \*(T<\fBmax_qos_bytes_pending_per_client\fR\*(T> 
+            Not specifying this will turn off persistence.
+.TP
+\*(T<\fB\m[green]max_qos_msg_pending_per_client\m[]\fR\*(T>
+.TQ
+\*(T<\fB\m[green]max_qos_bytes_pending_per_client\m[]\fR\*(T>
 There is a limit to how many QoS packets can be stored in a session, so you can define a maximum amount of messages and bytes. If any of these is exceeded, the packet is dropped.
 
 Defaults:
-.RS 
+.RS
 .TP 0.2i
 \(bu
 max_qos_msg_pending_per_client 512
@@ -189,422 +186,405 @@ max_qos_msg_pending_per_client 512
 \(bu
 max_qos_bytes_pending_per_client 65536
 .RE
-.TP 
-\*(T<\fBmax_incoming_topic_alias_value\fR\*(T> \fInumber\fR 
+.TP
+\*(T<\fB\m[green]max_incoming_topic_alias_value\m[] \fI\m[cyan]number\m[]\fR\fR\*(T>
 Is communicated towards MQTT5 clients. It is then up to them to decide to set them or not.
 
 Changing this setting and reloading the config only has effect on new clients, because existing clients would otherwise exceed the limit they think applies.
 
-Default value: \*(T<65535\*(T>
-.TP 
-\*(T<\fBmax_outgoing_topic_alias_value\fR\*(T> \fInumber\fR 
-FlashMQ will make this many aliases per MQTT5 client, if they ask for aliases (with the connect property \*(T<\fBTopicAliasMaximum\fR\*(T>).
+Default value: \fI65535\fR
+.TP
+\*(T<\fB\m[green]max_outgoing_topic_alias_value\m[] \fI\m[cyan]number\m[]\fR\fR\*(T>
+FlashMQ will make this many aliases per MQTT5 client, if they ask for aliases (with the connect property \fB\m[green]TopicAliasMaximum\fR\m[]).
 
-Default value: \*(T<65535\*(T>
-.TP 
-\*(T<\fBthread_count\fR\*(T> \fInumber\fR 
+Default value: \fI65535\fR
+.TP
+\*(T<\fB\m[green]thread_count\m[] \fI\m[cyan]number\m[]\fR\fR\*(T>
 If you want to have a different amount of worker threads then CPUs, you can set this value. Typically you don't need to set this.
 
-Default value: \*(T<\fIauto\-detect\fR\*(T>
-.TP 
-\*(T<\fBwills_enabled\fR\*(T> \fItrue/false\fR 
+Default value: \fI\m[blue]auto-detect\m[]\fR
+.TP
+\*(T<\fB\m[green]wills_enabled\m[] \fI\m[cyan]true/false\m[]\fR\fR\*(T>
 When disabled, the server will not set last will and testament specified by connecting clients.
 
-Default value: \*(T<\fItrue\fR\*(T>
-.TP 
-\*(T<\fBretained_messages_mode\fR\*(T> \fIenabled/downgrade/drop/disconnect_with_error\fR 
+Default value: \fI\m[blue]true\m[]\fR
+.TP
+\*(T<\fB\m[green]retained_messages_mode\m[] \fI\m[cyan]enabled/downgrade/drop/disconnect_with_error\m[]\fR\fR\*(T>
 Retained messages can be a strain on the server you may not need. You can set various ways of dealing with them:
 
-\*(T<\fIenabled\fR\*(T>. This is normal operation.
+\fI\m[blue]enabled\m[]\fR. This is normal operation.
 
-\*(T<\fIdowngrade\fR\*(T>. The retain flag is removed and treated like a normal publish.
+\fI\m[blue]downgrade\m[]\fR. The retain flag is removed and treated like a normal publish.
 
-\*(T<\fIdrop\fR\*(T>. Messages with retain set are dropped.
+\fI\m[blue]drop\m[]\fR. Messages with retain set are dropped.
 
-\*(T<\fIdisconnect_with_error\fR\*(T>. Disconnect clients who try to set them.
+\fI\m[blue]disconnect_with_error\m[]\fR. Disconnect clients who try to set them.
 
-Default value: \*(T<\fIenabled\fR\*(T>
-.TP 
-\*(T<\fBexpire_retained_messages_after_seconds\fR\*(T> \fIseconds\fR 
+Default value: \fI\m[blue]enabled\m[]\fR
+.TP
+\*(T<\fB\m[green]expire_retained_messages_after_seconds\m[] \fI\m[cyan]seconds\m[]\fR\fR\*(T>
 Use this to limit the life time of retained messages. Without this, the amount of retained messages may never decrease.
 
-Default value: \*(T<\fI4294967296\fR\*(T>
-.TP 
-\*(T<\fBretained_messages_delivery_limit\fR\*(T> \fInumber\fR 
+Default value: \fI\m[blue]4294967296\m[]\fR
+.TP
+\*(T<\fB\m[green]retained_messages_delivery_limit\m[] \fI\m[cyan]number\m[]\fR\fR\*(T>
 Deprecated.
-.TP 
-\*(T<\fBretained_messages_node_limit\fR\*(T> \fInumber\fR 
-When clients place a subscription, they will get the retained messages matching that subscription. Even though traversing the retained message tree is deprioritized in favor of other traffic, it will still cause CPU load until it's done. If you have a tree with millions of nodes and clients subscribe to `#`, this is potentially unwanted. You can use this setting to limit how many nodes of the retrained tree are traversed. 
+.TP
+\*(T<\fB\m[green]retained_messages_node_limit\m[] \fI\m[cyan]number\m[]\fR\fR\*(T>
+When clients place a subscription, they will get the retained messages matching that subscription. Even though traversing the retained message tree is deprioritized in favor of other traffic, it will still cause CPU load until it's done. If you have a tree with millions of nodes and clients subscribe to `#`, this is potentially unwanted. You can use this setting to limit how many nodes of the retrained tree are traversed.
 
 Note that the topic `one/two/three` is three nodes, and each node doesn't necessarilly need to contain a message.
 
-Default value: \*(T<\fI4294967296\fR\*(T>
-.TP 
-\*(T<\fBset_retained_message_defer_timeout\fR\*(T> \fImilliseconds\fR 
+Default value: \fI\m[blue]4294967296\m[]\fR
+.TP
+\*(T<\fB\m[green]set_retained_message_defer_timeout\m[] \fI\m[cyan]milliseconds\m[]\fR\fR\*(T>
 The time after which FlashMQ will fall back to (b)locking vs queued mode for setting retained messages. 0, the default, disables queued mode altogether. It's disabled by default because it can incur some extra CPU and memory overhead.
 
-Each retained message lives in a node in a tree. The topic 'one/two/three' is three nodes. When a node in that tree does not exist yet, it needs to be created. This requires a write lock on the tree. At this point, other threads reading from or writing to the retained message tree need to wait. This can cause a compounding blocking effect, especially if many threads do it at once. 
+Each retained message lives in a node in a tree. The topic 'one/two/three' is three nodes. When a node in that tree does not exist yet, it needs to be created. This requires a write lock on the tree. At this point, other threads reading from or writing to the retained message tree need to wait. This can cause a compounding blocking effect, especially if many threads do it at once.
 
 This feature is to favor server responsiveness vs the speed at which retained messages become available in the server. It is primarily useful for when you have a lot of retained messages on different/changing topics. If at first a retained message can't be set, the action to do so will be retried in the event loop, asynchronously.
 
 This setting determines the maximum amount of time to defer setting a retained message, after which it will fall back to using locks.
 
-Also see \*(T<\fBset_retained_message_defer_timeout_spread\fR\*(T>
+Also see \fB\m[green]set_retained_message_defer_timeout_spread\fR\m[]
 
-Default value: \*(T<\fI0\fR\*(T>
-.TP 
-\*(T<\fBset_retained_message_defer_timeout_spread\fR\*(T> \fImilliseconds\fR 
-For \*(T<\fBset_retained_message_defer_timeout\fR\*(T>, the amount of random spread between 0 and this value for the timeout. This spreads out locking over time, reducing contention.
+Default value: \fI\m[blue]0\m[]\fR
+.TP
+\*(T<\fB\m[green]set_retained_message_defer_timeout_spread\m[] \fI\m[cyan]milliseconds\m[]\fR\fR\*(T>
+For \fB\m[green]set_retained_message_defer_timeout\fR\m[], the amount of random spread between 0 and this value for the timeout. This spreads out locking over time, reducing contention.
 
-Default value: \*(T<\fI1000\fR\*(T>
-.TP 
-\*(T<\fBretained_message_node_lifetime\fR\*(T> \fIseconds\fR 
+Default value: \fI\m[blue]1000\m[]\fR
+.TP
+\*(T<\fB\m[green]retained_message_node_lifetime\m[] \fI\m[cyan]seconds\m[]\fR\fR\*(T>
 The grace period after which a retained message node is eligible for deletion. The topic 'one/two/three' is three nodes, and if that topic had a message, it would be contained in 'three'.
 
 FlashMQ will periodically clear out retained message nodes that have no message anymore. This is required to save memory. But, when you receive retained messages on the same topics repeatedly, it may be beneficial to keep the nodes around, to avoid the need for locks to recreate them. If you know that retained messages come and go within a certain period, it's benificial to set this value so that no unnecessary node destruction and creation takes place.
 
-Default value: \*(T<\fI0\fR\*(T>
-.TP 
-\*(T<\fBwebsocket_set_real_ip_from\fR\*(T> \fIinet4_address/inet6_address\fR 
-HTTP proxies in front of the websocket listeners can set the \fIX-Real-IP\fR header to identify the original connecting client. With \*(T<\fBwebsocket_set_real_ip_from\fR\*(T> you can mark IP networks as trusted. By default, clients are not trusted, to avoid spoofing.
+Default value: \fI\m[blue]0\m[]\fR
+.TP
+\*(T<\fB\m[green]websocket_set_real_ip_from\m[] \fI\m[cyan]inet4_address/inet6_address\m[]\fR\fR\*(T>
+HTTP proxies in front of the websocket listeners can set the \fI\m[cyan]X-Real-IP\m[]\fR header to identify the original connecting client. With \fB\m[green]websocket_set_real_ip_from\fR\m[] you can mark IP networks as trusted. By default, clients are not trusted, to avoid spoofing.
 
-You can repeat the option to allow for multiple addresses. Valid notations are \fI1.2.3.4\fR, \fI1.2.3.4/16\fR, \fI1.2.0.0/16\fR, \fI2a01:1337::1\fR, \fI2a01:1337::1/64\fR, etc.
+You can repeat the option to allow for multiple addresses. Valid notations are \fI\m[cyan]1.2.3.4\m[]\fR, \fI\m[cyan]1.2.3.4/16\m[]\fR, \fI\m[cyan]1.2.0.0/16\m[]\fR, \fI\m[cyan]2a01:1337::1\m[]\fR, \fI\m[cyan]2a01:1337::1/64\m[]\fR, etc.
 
-The header \fIX-Forwarded-For\fR is not used, because that's designed to contain a list of addresses, if applicable.
+The header \fI\m[cyan]X-Forwarded-For\m[]\fR is not used, because that's designed to contain a list of addresses, if applicable.
 
 As a side note about using a proxy on your listener; you can only have an absolute max of 65535 connections to an IP+port combination (and the practical limit is lower). If you need more, you have to set up multiple listeners. This can be multiple IP addresses, or simply multiple ports.
-.TP 
-\*(T<\fBshared_subscription_targeting\fR\*(T> \fIround_robin/sender_hash\fR 
+.TP
+\*(T<\fB\m[green]shared_subscription_targeting\m[] \fI\m[cyan]round_robin/sender_hash\m[]\fR\fR\*(T>
 When having multiple subscribers on a shared subscription (like '$share/myshare/jane/doe'), select how the messages should be distributed over the subscribers.
 
-\fIround_robin\fR. Select the next subscriber for each message. There is still some amount of randomness to it because the counter for this is not thread safe. Using an atomic/mutexed counter for it would just be too slow to justify.
+\fI\m[cyan]round_robin\m[]\fR. Select the next subscriber for each message. There is still some amount of randomness to it because the counter for this is not thread safe. Using an atomic/mutexed counter for it would just be too slow to justify.
 
-\fIsender_hash\fR. Selects a receiver deterministically based on the hash of the client ID of the sender. The selected subscriber will depend on how many subscribers there are, so if some disconnect, the distribution will change. Moreover, the selection may also change when FlashMQ cleans up empty spaces in the list of shared subscribers.
+\fI\m[cyan]sender_hash\m[]\fR. Selects a receiver deterministically based on the hash of the client ID of the sender. The selected subscriber will depend on how many subscribers there are, so if some disconnect, the distribution will change. Moreover, the selection may also change when FlashMQ cleans up empty spaces in the list of shared subscribers.
 
-Default: \fIround_robin\fR
-.TP 
-\*(T<\fBminimum_wildcard_subscription_depth\fR\*(T> \fInumber\fR 
-Defines the minimum level of the first wildcard topic filter (\*(T<\fB#\fR\*(T> and \*(T<\fB+\fR\*(T>). In a topic filter like \*(T<\fBsensors/temperature/#\fR\*(T>, that is 2. If you specify 2, a subscription to \*(T<\fBsensors/#\fR\*(T> will be denied. Remember that only MQTT 3.1.1 and newer actually notify the client of the denial in the sub-ack packet.
+Default: \fI\m[cyan]round_robin\m[]\fR
+.TP
+\*(T<\fB\m[green]minimum_wildcard_subscription_depth\m[] \fI\m[cyan]number\m[]\fR\fR\*(T>
+Defines the minimum level of the first wildcard topic filter (\fB\m[green]#\fR\m[] and \fB\m[green]+\fR\m[]). In a topic filter like \fB\m[green]sensors/temperature/#\fR\m[], that is 2. If you specify 2, a subscription to \fB\m[green]sensors/#\fR\m[] will be denied. Remember that only MQTT 3.1.1 and newer actually notify the client of the denial in the sub-ack packet.
 
-The reason you may want to limit it, is performance. If you have a base message load of 100,000 messages per second, each client subscribing to \*(T<\fB#\fR\*(T> causes that many permission checks per second. If you have 100 clients doing that, there will be 10 million permission checks per second.
+The reason you may want to limit it, is performance. If you have a base message load of 100,000 messages per second, each client subscribing to \fB\m[green]#\fR\m[] causes that many permission checks per second. If you have 100 clients doing that, there will be 10 million permission checks per second.
 
-Default: \fI0\fR
-.TP 
-\*(T<\fBwildcard_subscription_deny_mode\fR\*(T> \fIdeny_all/deny_retained_only\fR 
-For \*(T<\fBminimum_wildcard_subscription_depth\fR\*(T>, specify what you want to deny. Trying to give a client all retained messages can cause quite some load, so only denying the retained messages upon receiving a broad wildcard subscription can be useful if you have a low enough general message volume, but a high number of retained messages. 
+Default: \fI\m[cyan]0\m[]\fR
+.TP
+\*(T<\fB\m[green]wildcard_subscription_deny_mode\m[] \fI\m[cyan]deny_all/deny_retained_only\m[]\fR\fR\*(T>
+For \fB\m[green]minimum_wildcard_subscription_depth\fR\m[], specify what you want to deny. Trying to give a client all retained messages can cause quite some load, so only denying the retained messages upon receiving a broad wildcard subscription can be useful if you have a low enough general message volume, but a high number of retained messages.
 
-Default: \*(T<deny_all\*(T>
-.TP 
-\*(T<\fBoverload_mode\fR\*(T> \fIlog/close_new_clients\fR 
-Define the action to perform when the value defined with \*(T<\fBmax_event_loop_drift\fR\*(T> is exceeded.
+Default: \fIdeny_all\fR
+.TP
+\*(T<\fB\m[green]overload_mode\m[] \fI\m[cyan]log/close_new_clients\m[]\fR\fR\*(T>
+Define the action to perform when the value defined with \fB\m[green]max_event_loop_drift\fR\m[] is exceeded.
 
-When a server is (re)started, and hundreds of thousands of clients connect, the SSL handshaking and authenticating can be so heavy that it doesn't get to clients in time. They will then reconnect and try again, and get stuck in a loop. This option is to mitigate that. With \*(T<close_new_clients\*(T>, new clients will be closed immediately after connecting while the server is overloaded. This will allow the worker threads to process the new clients in a controlled manner.
+When a server is (re)started, and hundreds of thousands of clients connect, the SSL handshaking and authenticating can be so heavy that it doesn't get to clients in time. They will then reconnect and try again, and get stuck in a loop. This option is to mitigate that. With \fIclose_new_clients\fR, new clients will be closed immediately after connecting while the server is overloaded. This will allow the worker threads to process the new clients in a controlled manner.
 
-For really large deployments, this can be augmented with extra rate limiting in iptables, or other firewalls. A stateless method is preferred, like: \*(T<iptables \-I INPUT \-p tcp \-m multiport \-\-dports 8883,1883 \-\-syn \-m hashlimit \-\-hashlimit\-name newmqttconns \-\-hashlimit\-above 10000/second \-\-hashlimit\-burst 15000 \-j DROP\*(T>
+For really large deployments, this can be augmented with extra rate limiting in iptables, or other firewalls. A stateless method is preferred, like: \fIiptables -I INPUT -p tcp -m multiport --dports 8883,1883 --syn -m hashlimit --hashlimit-name newmqttconns --hashlimit-above 10000/second --hashlimit-burst 15000 -j DROP\fR
 
-The current default is \*(T<log\*(T>, but that will likely change in the future.
+The current default is \fIlog\fR, but that will likely change in the future.
 
-Default: \*(T<log\*(T>
-.TP 
-\*(T<\fBmax_event_loop_drift\fR\*(T> \fImilliseconds\fR 
-For \*(T<\fBoverload_mode\fR\*(T>, the maximum permissible thread drift before the overload action is taken.
+Default: \fIlog\fR
+.TP
+\*(T<\fB\m[green]max_event_loop_drift\m[] \fI\m[cyan]milliseconds\m[]\fR\fR\*(T>
+For \fB\m[green]overload_mode\fR\m[], the maximum permissible thread drift before the overload action is taken.
 
 The drift values considered are those of the main loop, in which clients are accepted, and the median of all worker threads.
 
-Default: \*(T<2000\*(T>
-.TP 
-\*(T<\fBinclude_dir\fR\*(T> \fI/path/to/dir\fR 
+Default: \fI2000\fR
+.TP
+\*(T<\fB\m[green]include_dir\m[] \fI\m[cyan]/path/to/dir\m[]\fR\fR\*(T>
 Load *.conf files from the specified directory, to merge with the main configuration file.
 
 An error is generated when the directory is not there. This is to protect against running incorrect configurations by accident, when the dir has been renamed, for example.
-.SH "LISTEN PARAMETERS"
-Listen parameters can only be used within \*(T<listen { }\*(T> blocks.
-.TP 
-\*(T<\fBport\fR\*(T> 
-The default port depends on the \*(T<\fBprotocol\fR\*(T> parameter and whether or not \*(T<\fBfullchain\fR\*(T> and \*(T<\fBprivkey\fR\*(T> parameters are supplied:
-.RS 
+.SH LISTEN PARAMETERS
+Listen parameters can only be used within \fIlisten { }\fR blocks.
+.TP
+\*(T<\fB\m[green]port\m[]\fR\*(T>
+The default port depends on the \fB\m[green]protocol\fR\m[] parameter and whether or not \fB\m[green]fullchain\fR\m[] and \fB\m[green]privkey\fR\m[] parameters are supplied:
+.RS
 .TP 0.2i
 \(bu
-For unencrypted MQTT, the default port is \*(T<1883\*(T>
+For unencrypted MQTT, the default port is \fI1883\fR
 .TP 0.2i
 \(bu
-For encrypted MQTT, the default port is \*(T<8883\*(T>
+For encrypted MQTT, the default port is \fI8883\fR
 .TP 0.2i
 \(bu
-For plain HTTP websockets, the default port is \*(T<8080\*(T>
+For plain HTTP websockets, the default port is \fI8080\fR
 .TP 0.2i
 \(bu
-For encrypted HTTPS websockets, the default port is \*(T<4443\*(T>
+For encrypted HTTPS websockets, the default port is \fI4443\fR
 .RE
-.TP 
-\*(T<\fBprotocol\fR\*(T> 
-Valid values:
+.TP
+\*(T<\fB\m[green]protocol\m[]\fR\*(T>
+Valid values: \fImqtt\fR, \fIwebsockets\fR
+.TP
+\*(T<\fB\m[green]inet_protocol\m[]\fR\*(T>
+Valid values: \fIip4_ip6\fR, \fIip4\fR, \fIip6\fRDefault: ip4_ip6
 
-\*(T<mqtt\*(T>
-.br
-\*(T<websockets\*(T>
-.TP 
-\*(T<\fBinet_protocol\fR\*(T> 
-Valid values:
-
-\*(T<ip4_ip6\*(T>
-.br
-\*(T<ip4\*(T>
-.br
-\*(T<ip6\*(T>
-
-Default: ip4_ip6
-.TP 
-\*(T<\fBinet4_bind_address\fR\*(T> \fIinet4address\fR 
+.TP
+\*(T<\fB\m[green]inet4_bind_address\m[] \fI\m[cyan]inet4address\m[]\fR\fR\*(T>
 Default: 0.0.0.0
-.TP 
-\*(T<\fBinet6_bind_address\fR\*(T> \fIinet6address\fR 
+.TP
+\*(T<\fB\m[green]inet6_bind_address\m[] \fI\m[cyan]inet6address\m[]\fR\fR\*(T>
 Default: ::0
-.TP 
-\*(T<\fBfullchain\fR\*(T> \fI/foobar/server.crt\fR 
-Specifying a chain makes the listener SSL, and also requires the \*(T<\fBprivkey\fR\*(T> to be set.
-.TP 
-\*(T<\fBprivkey\fR\*(T> \fI/foobar/server.key\fR 
-Specifying a private key makes the listener SSL, and also requires the \*(T<\fBfullchain\fR\*(T> to be set.
-.TP 
-\*(T<\fBclient_verification_ca_file\fR\*(T> \fI/foobar/client_authority.crt\fR 
+.TP
+\*(T<\fB\m[green]fullchain\m[] \fI\m[cyan]/foobar/server.crt\m[]\fR\fR\*(T>
+Specifying a chain makes the listener SSL, and also requires the \fB\m[green]privkey\fR\m[] to be set.
+.TP
+\*(T<\fB\m[green]privkey\m[] \fI\m[cyan]/foobar/server.key\m[]\fR\fR\*(T>
+Specifying a private key makes the listener SSL, and also requires the \fB\m[green]fullchain\fR\m[] to be set.
+.TP
+\*(T<\fB\m[green]client_verification_ca_file\m[] \fI\m[cyan]/foobar/client_authority.crt\m[]\fR\fR\*(T>
 Clients can be authenticated using X509 certificates, and the username taken from the CN (common name) field. Use this directive to specify the certificate authority you trust.
 
-Specifying this or \*(T<\fBclient_verification_ca_dir\fR\*(T> will require the listener to be TLS.
-.TP 
-\*(T<\fBclient_verification_ca_dir\fR\*(T> \fI/foobar/dir_with_certificates\fR 
+Specifying this or \fB\m[green]client_verification_ca_dir\fR\m[] will require the listener to be TLS.
+.TP
+\*(T<\fB\m[green]client_verification_ca_dir\m[] \fI\m[cyan]/foobar/dir_with_certificates\m[]\fR\fR\*(T>
 Clients can be authenticated using X509 certificates, and the username taken from the CN (common name) field. Use this directive to specify the dir containing certificate authorities you trust.
 
-Note that the filename requirements are dictated by OpenSSL. Use the utility \fBopenssl rehash /path/to/dir\fR.
+Note that the filename requirements are dictated by OpenSSL. Use the utility \fB\m[green]openssl rehash /path/to/dir\m[]\fR.
 
-Specifying this or \*(T<\fBclient_verification_ca_file\fR\*(T> will require the listener to be TLS.
-.TP 
-\*(T<\fBclient_verification_still_do_authn\fR\*(T> \fItrue/false\fR 
-When using X509 client authentication with \*(T<\fBclient_verification_ca_file\fR\*(T> or \*(T<\fBclient_verification_ca_dir\fR\*(T>, the username will not be checked with a user database or a plugin by default. Set this option to \*(T<true\*(T> to override that.
-.TP 
-\*(T<\fBallow_anonymous\fR\*(T> \fItrue/false\fR 
-This allows you to override the 
-.URL #allow_anonymous "global allow_anonymous"
-setting on the listener level.
-.TP 
-\*(T<\fBhaproxy\fR\*(T> \fItrue/false\fR 
+Specifying this or \fB\m[green]client_verification_ca_file\fR\m[] will require the listener to be TLS.
+.TP
+\*(T<\fB\m[green]client_verification_still_do_authn\m[] \fI\m[cyan]true/false\m[]\fR\fR\*(T>
+When using X509 client authentication with \fB\m[green]client_verification_ca_file\fR\m[] or \fB\m[green]client_verification_ca_dir\fR\m[], the username will not be checked with a user database or a plugin by default. Set this option to \fItrue\fR to override that.
+.TP
+\*(T<\fB\m[green]allow_anonymous\m[] \fI\m[cyan]true/false\m[]\fR\fR\*(T>
+This allows you to override the \fBglobal \fB\m[green]allow_anonymous\fR\m[]\fR setting on the listener level.
+.TP
+\*(T<\fB\m[green]haproxy\m[] \fI\m[cyan]true/false\m[]\fR\fR\*(T>
 Setting the listener to haproxy makes it expect the PROXY protocol and set client source address to the original client. Make sure this listener is private / firewalled, otherwise anybody can set a different source address.
 
 Note that HAProxy's server health checks only started using the 'local' specifier as of version 2.4. This means earlier version will pretend to be a client and break the connection, causing log spam.
 
 As a side note about using a proxy on your listener; you can only have an absolute max of 65535 connections to an IP+port combination (and the practical limit is lower). If you need more, you have to set up multiple listeners. This can be multiple IP addresses, or simply multiple ports.
 
-See 
-.URL http://www.haproxy.org/ haproxy.org
-\&.
-.TP 
-\*(T<\fBtcp_nodelay\fR\*(T> \fItrue/false\fR 
-\*(T<\fBtcp_nodelay\fR\*(T> will cause the \*(T<TCP_NODELAY\*(T> option to be set for the listener's socket(s), and therefore for all clients accepted on that listener.
+See \m[blue]haproxy.org\m[] \(lB\fI\m[blue]http://www.haproxy.org/\m[]\fR\(rB.
+.TP
+\*(T<\fB\m[green]tcp_nodelay\m[] \fI\m[cyan]true/false\m[]\fR\fR\*(T>
+\fB\m[green]tcp_nodelay\fR\m[] will cause the \fITCP_NODELAY\fR option to be set for the listener's socket(s), and therefore for all clients accepted on that listener.
 
-\*(T<TCP_NODELAY\*(T> is a OS TCP-layer option that will cause messages written by FlashMQ to the socket to be flushed immediately, without letting Nagle's algorithm (the default) collect small outgoing TCP packets into bigger packets.
+\fITCP_NODELAY\fR is a OS TCP-layer option that will cause messages written by FlashMQ to the socket to be flushed immediately, without letting Nagle's algorithm (the default) collect small outgoing TCP packets into bigger packets.
 
-Foregoing Nagle's algorithm by setting \*(T<\fBtcp_nodelay\fR\*(T> to \fItrue\fR\ \fImay\fR decrease latency, at the likely cost of some network efficiency.
+Foregoing Nagle's algorithm by setting \fB\m[green]tcp_nodelay\fR\m[] to \fI\m[cyan]true\m[]\fR \fBmay\fR decrease latency, at the likely cost of some network efficiency.
 
-Default: \fIfalse\fR
-.SH "EXAMPLE LISTENERS"
-.nf
-listen {
-  protocol mqtt
-  inet_protocol ip4_ip6
-  inet4_bind_address 127.0.0.1
-  inet6_bind_address ::1
-  fullchain /foobar/server.crt
-  privkey /foobar/server.key
-
-  # default = 8883
-  port 8883
-}
-listen {
-  protocol mqtt
-  fullchain /foobar/server.crt
-  privkey /foobar/server.key
-  client_verification_ca_file /foobar/client_authority.crt
-  client_verification_still_do_authn false
-}
-listen {
-  protocol mqtt
-  inet_protocol ip4
-
-  # default = 1883
-  port 1883
-}
-listen {
-  protocol websockets
-  fullchain /foobar/server.crt
-  privkey /foobar/server.key
-
-  # default = 4443
-  port 4443
-}
-listen {
-  protocol websockets
-
-  # default = 8080
-  port 8080
-}
-listen {
-  port 2883
-  haproxy on
-}
-.fi
-.SH "BRIDGE CONFIGURATION"
-Bridges can be defined inside \*(T<bridge { }\*(T> blocks. A bridge is essentially just an outgoing connection to another server with loop-detection and retain flag relaying. It is not a form of clustering. Also note that one bridge is one connection, and because FlashMQ's threading model is that clients are serviced by one selected thread only, a bridge has the potential to saturate a thread, if it's heavily loaded. You could work around that by defining multiple bridges to the same server, for various topic paths. A future version of FlashMQ will likely improve upon this.
+Default: \fI\m[cyan]false\m[]\fR
+.SH EXAMPLE LISTENERS
 .PP
+.nf
+.in +7
+\m[yellow]listen \m[]{
+\m[green]  protocol \m[]\m[cyan]mqtt\m[]
+\m[green]  inet_protocol \m[]\m[cyan]ip4_ip6\m[]
+\m[green]  inet4_bind_address \m[]\m[cyan]127.0.0.1\m[]
+\m[green]  inet6_bind_address \m[]\m[cyan]::1\m[]
+\m[green]  fullchain \m[]\m[cyan]/foobar/server.crt\m[]
+\m[green]  privkey \m[]\m[cyan]/foobar/server.key\m[]
+\m[blue]  # default = 8883\m[]
+\m[green]  port \m[]\m[cyan]8883\m[]
+\m[green]\m[]}
+\m[yellow]listen \m[]{
+\m[green]  protocol \m[]\m[cyan]mqtt\m[]
+\m[green]  fullchain \m[]\m[cyan]/foobar/server.crt\m[]
+\m[green]  privkey \m[]\m[cyan]/foobar/server.key\m[]
+\m[green]  client_verification_ca_file \m[]\m[cyan]/foobar/client_authority.crt\m[]
+\m[green]  client_verification_still_do_authn \m[]\m[cyan]false\m[]
+\m[green]\m[]}
+\m[yellow]listen \m[]{
+\m[green]  protocol \m[]\m[cyan]mqtt\m[]
+\m[green]  inet_protocol \m[]\m[cyan]ip4\m[]
+\m[blue]  # default = 1883\m[]
+\m[green]  port \m[]\m[cyan]1883\m[]
+\m[green]\m[]}
+\m[yellow]listen \m[]{
+\m[green]  protocol \m[]\m[cyan]websockets\m[]
+\m[green]  fullchain \m[]\m[cyan]/foobar/server.crt\m[]
+\m[green]  privkey \m[]\m[cyan]/foobar/server.key\m[]
+\m[blue]  # default = 4443\m[]
+\m[green]  port \m[]\m[cyan]4443\m[]
+\m[green]\m[]}
+\m[yellow]listen \m[]{
+\m[green]  protocol \m[]\m[cyan]websockets\m[]
+\m[blue]  # default = 8080\m[]
+\m[green]  port \m[]\m[cyan]8080\m[]
+\m[green]\m[]}
+\m[yellow]listen \m[]{
+\m[green]  port \m[]\m[cyan]2883\m[]
+\m[green]  haproxy \m[]\m[cyan]on\m[]
+\m[green]\m[]}
+
+.in
+.fi
+.SH BRIDGE CONFIGURATION
+Bridges can be defined inside \fIbridge { }\fR blocks. A bridge is essentially just an outgoing connection to another server with loop-detection and retain flag relaying. It is not a form of clustering. Also note that one bridge is one connection, and because FlashMQ's threading model is that clients are serviced by one selected thread only, a bridge has the potential to saturate a thread, if it's heavily loaded. You could work around that by defining multiple bridges to the same server, for various topic paths. A future version of FlashMQ will likely improve upon this.
+
 Bridges are dynamically created, removed or changed upon config reload. When a bridge configuration changes, it will disconnect and reconnect.
-.TP 
-\*(T<\fBaddress\fR\*(T> \fIaddress\fR 
+.TP
+\*(T<\fB\m[green]address\m[] \fI\m[cyan]address\m[]\fR\fR\*(T>
 The DNS name, IPv4 or IPv6 address of the server you want to connect to.
-.TP 
-\*(T<\fBport\fR\*(T> \fInumber\fR 
-The default port depends on the \*(T<\fBtls\fR\*(T> option, either 1883 or 8883.
-.TP 
-\*(T<\fBinet_protocol\fR\*(T> \fIip4_ip6/ip4/ip6\fR 
-Default: \*(T<ip4_ip6\*(T>
-.TP 
-\*(T<\fBtls\fR\*(T> \fIoff/on/unverified\fR 
-Set TLS mode. The value \*(T<\fBunverified\fR\*(T> means the x509 chain is not verified.
-.TP 
-\*(T<\fBca_file\fR\*(T> \fIpath\fR 
+.TP
+\*(T<\fB\m[green]port\m[] \fI\m[cyan]number\m[]\fR\fR\*(T>
+The default port depends on the \fB\m[green]tls\fR\m[] option, either 1883 or 8883.
+.TP
+\*(T<\fB\m[green]inet_protocol\m[] \fI\m[cyan]ip4_ip6/ip4/ip6\m[]\fR\fR\*(T>
+Default: \fIip4_ip6\fR
+.TP
+\*(T<\fB\m[green]tls\m[] \fI\m[cyan]off/on/unverified\m[]\fR\fR\*(T>
+Set TLS mode. The value \fB\m[green]unverified\fR\m[] means the x509 chain is not verified.
+.TP
+\*(T<\fB\m[green]ca_file\m[] \fI\m[cyan]path\m[]\fR\fR\*(T>
 File to be used for x509 certificate chain validation.
-.TP 
-\*(T<\fBca_dir\fR\*(T> \fIpath\fR 
+.TP
+\*(T<\fB\m[green]ca_dir\m[] \fI\m[cyan]path\m[]\fR\fR\*(T>
 Directory containing certificates for x509 certificate chain validation.
-.TP 
-\*(T<\fBprotocol_version\fR\*(T> \fImqtt3.1/mqtt3.1.1/mqtt5\fR 
-Default: \*(T<mqtt3.1.1\*(T>
-.TP 
-\*(T<\fBbridge_protocol_bit\fR\*(T> \fItrue/false\fR 
+.TP
+\*(T<\fB\m[green]protocol_version\m[] \fI\m[cyan]mqtt3.1/mqtt3.1.1/mqtt5\m[]\fR\fR\*(T>
+Default: \fImqtt3.1.1\fR
+.TP
+\*(T<\fB\m[green]bridge_protocol_bit\m[] \fI\m[cyan]true/false\m[]\fR\fR\*(T>
 An unofficial standard is to set the most significant bit of the protocol version byte to 1 to signal the connection is a bridge. This allows the other side to alter its behavior slightly. However, this is not always supported, so you can disable this if you get disconnected for reporting an invalid protocol version.
 
 This setting has no effect when using MQTT5, because the behavior it influences is done with subscription options.
 
-Default: \*(T<true\*(T>
-.TP 
-\*(T<\fBkeepalive\fR\*(T> \fIseconds\fR 
+Default: \fItrue\fR
+.TP
+\*(T<\fB\m[green]keepalive\m[] \fI\m[cyan]seconds\m[]\fR\fR\*(T>
 The time between sending ping packets to the other side.
 
-Default: \*(T<60\*(T>
-.TP 
-\*(T<\fBclientid_prefix\fR\*(T> \fIprefix\fR 
-The prefix of the randomly generated client ID. Client IDs cannot be explicitely set for security reasons. See 
-.URL https://www.flashmq.org/2022/11/26/understanding-clean-session-and-clean-start/ "Understanding clean session and clean start"
-\&.
+Default: \fI60\fR
+.TP
+\*(T<\fB\m[green]clientid_prefix\m[] \fI\m[cyan]prefix\m[]\fR\fR\*(T>
+The prefix of the randomly generated client ID. Client IDs cannot be explicitely set for security reasons. See \m[blue]\[lq]Understanding clean session and clean start\[rq]\m[] \(lB\fI\m[blue]https://www.flashmq.org/2022/11/26/understanding-clean-session-and-clean-start/\m[]\fR\(rB.
 
-Default: \*(T<fmqbridge\*(T>
-.TP 
-\*(T<\fBpublish\fR\*(T> \fIfilter\fR \fIqos\fR 
-Messages matching this filter will be published to the other side. Examples: \*(T<#\*(T> or \*(T<sport/tennis/#\*(T>. This option can be repeated several times.
+Default: \fIfmqbridge\fR
+.TP
+\*(T<\fB\m[green]publish\m[] \fI\m[cyan]filter\m[]\fR \fI\m[cyan]qos\m[]\fR\fR\*(T>
+Messages matching this filter will be published to the other side. Examples: \fI#\fR or \fIsport/tennis/#\fR. This option can be repeated several times.
 
 The QoS value should be seen as the QoS value of the internal subscription causing outgoing messages. Messages that are relayed have this QoS level at most.
 
-Default: \*(T<0\*(T>
-.TP 
-\*(T<\fBsubscribe\fR\*(T> \fIfilter\fR \fIqos\fR 
-Subscriptions for this filter is placed at the other side. Examples: \*(T<#\*(T> or \*(T<sport/tennis/#\*(T>. This option can be repeated several times.
+Default: \fI0\fR
+.TP
+\*(T<\fB\m[green]subscribe\m[] \fI\m[cyan]filter\m[]\fR \fI\m[cyan]qos\m[]\fR\fR\*(T>
+Subscriptions for this filter is placed at the other side. Examples: \fI#\fR or \fIsport/tennis/#\fR. This option can be repeated several times.
 
 The QoS value is like any subscription at a server. Messages received by the other end will be given this QoS level at most.
 
-Default: \*(T<0\*(T>
-.TP 
-\*(T<\fBlocal_username\fR\*(T> \fIusername\fR 
+Default: \fI0\fR
+.TP
+\*(T<\fB\m[green]local_username\m[] \fI\m[cyan]username\m[]\fR\fR\*(T>
 Username as seen by the local FlashMQ's plugin or ACL checks. This is not always necessary.
-.TP 
-\*(T<\fBremote_username\fR\*(T> \fIusername\fR 
+.TP
+\*(T<\fB\m[green]remote_username\m[] \fI\m[cyan]username\m[]\fR\fR\*(T>
 Username sent to the remote connection.
-.TP 
-\*(T<\fBremote_password\fR\*(T> \fIpassword\fR 
+.TP
+\*(T<\fB\m[green]remote_password\m[] \fI\m[cyan]password\m[]\fR\fR\*(T>
 Password sent to the remote connection.
-.TP 
-\*(T<\fBremote_clean_start\fR\*(T> \fItrue/false\fR 
-In MQTT3, this means 'clean session', meaning the remote server removes any existing session with the same ID on (re)connect, and destroys it immediately on disconnect. If you want reuseable sessions that survive disconnects, set this to false. If you also want to pick up remote sessions on FlashMQ restart, set \*(T<\fBuse_saved_clientid\fR\*(T> to true.
+.TP
+\*(T<\fB\m[green]remote_clean_start\m[] \fI\m[cyan]true/false\m[]\fR\fR\*(T>
+In MQTT3, this means 'clean session', meaning the remote server removes any existing session with the same ID on (re)connect, and destroys it immediately on disconnect. If you want reuseable sessions that survive disconnects, set this to false. If you also want to pick up remote sessions on FlashMQ restart, set \fB\m[green]use_saved_clientid\fR\m[] to true.
 
-In MQTT5, this option only influences reconnection behavior. It essentially has no effect on the first connect, because the client ID is random and will always be new (except when you set \*(T<\fBuse_saved_clientid\fR\*(T>). But when set to true, any reconnects, which do use the already generated client ID, will destroy the session and in-flight messages will be lost.
+In MQTT5, this option only influences reconnection behavior. It essentially has no effect on the first connect, because the client ID is random and will always be new (except when you set \fB\m[green]use_saved_clientid\fR\m[]). But when set to true, any reconnects, which do use the already generated client ID, will destroy the session and in-flight messages will be lost.
 
-Also see 
-.URL https://www.flashmq.org/2022/11/26/understanding-clean-session-and-clean-start/ "understanding clean session and clean start"
-\&.
+Also see \m[blue]understanding clean session and clean start\m[] \(lB\fI\m[blue]https://www.flashmq.org/2022/11/26/understanding-clean-session-and-clean-start/\m[]\fR\(rB.
 
-Default value: \*(T<true\*(T>
-.TP 
-\*(T<\fBlocal_clean_start\fR\*(T> \fItrue/false\fR 
-In MQTT3 mode, this means 'clean session' and means the session is removed upon disconnect. If you want to reuse sessions on reconnect, set this to false. Any new start of FlashMQ will give you a new client ID so will always be a fresh session, except if you set \*(T<\fBuse_saved_clientid\fR\*(T>.
+Default value: \fItrue\fR
+.TP
+\*(T<\fB\m[green]local_clean_start\m[] \fI\m[cyan]true/false\m[]\fR\fR\*(T>
+In MQTT3 mode, this means 'clean session' and means the session is removed upon disconnect. If you want to reuse sessions on reconnect, set this to false. Any new start of FlashMQ will give you a new client ID so will always be a fresh session, except if you set \fB\m[green]use_saved_clientid\fR\m[].
 
-In MQTT5 mode, this has no effect. If you want the session to be removed immediately on disconnect, use \*(T<\fBlocal_session_expiry_interval\fR\*(T> to 0.
+In MQTT5 mode, this has no effect. If you want the session to be removed immediately on disconnect, use \fB\m[green]local_session_expiry_interval\fR\m[] to 0.
 
-Also see 
-.URL https://www.flashmq.org/2022/11/26/understanding-clean-session-and-clean-start/ "understanding clean session and clean start"
-\&.
+Also see \m[blue]understanding clean session and clean start\m[] \(lB\fI\m[blue]https://www.flashmq.org/2022/11/26/understanding-clean-session-and-clean-start/\m[]\fR\(rB.
 
-Default value: \*(T<true\*(T>
-.TP 
-\*(T<\fBremote_session_expiry_interval\fR\*(T> \fIseconds\fR 
+Default value: \fItrue\fR
+.TP
+\*(T<\fB\m[green]remote_session_expiry_interval\m[] \fI\m[cyan]seconds\m[]\fR\fR\*(T>
 Is only used in MQTT5 mode and determines the amount of seconds after which the session can be removed from the remote server.
 
-Default value: \*(T<0\*(T>
-.TP 
-\*(T<\fBlocal_session_expiry_interval\fR\*(T> \fIseconds\fR 
-Determines when a local session without an active client will be removed, in both MQTT3 and MQTT5 mode. Note that in MQTT3 mode, the session is removed on disconnect when \*(T<\fBlocal_clean_start\fR\*(T> is true.
+Default value: \fI0\fR
+.TP
+\*(T<\fB\m[green]local_session_expiry_interval\m[] \fI\m[cyan]seconds\m[]\fR\fR\*(T>
+Determines when a local session without an active client will be removed, in both MQTT3 and MQTT5 mode. Note that in MQTT3 mode, the session is removed on disconnect when \fB\m[green]local_clean_start\fR\m[] is true.
 
-Default value: \*(T<0\*(T>
-.TP 
-\*(T<\fBremote_retain_available\fR\*(T> \fItrue/false\fR 
+Default value: \fI0\fR
+.TP
+\*(T<\fB\m[green]remote_retain_available\m[] \fI\m[cyan]true/false\m[]\fR\fR\*(T>
 MQTT5 allows a server to tell a client it doesn't support retained messages, or has it disabled. When using MQTT3, use this option to achieve the same.
 
 Messages will not be relayed with 'retained as published' and the retained messages that are normally sent on matching subscription, are not sent.
 
-Default value: \*(T<true\*(T>
-.TP 
-\*(T<\fBuse_saved_clientid\fR\*(T> \fItrue/false\fR 
-When you want your bridges to resume local and remote sessions after restart, set this to true and set \*(T<\fBremote_clean_start\fR\*(T>, \*(T<\fBlocal_clean_start\fR\*(T>, \*(T<\fBremote_session_expiry_interval\fR\*(T> and \*(T<\fBlocal_session_expiry_interval\fR\*(T> accordingly. It only has effect when you have set a \*(T<\fBstorage_dir\fR\*(T>.
+Default value: \fItrue\fR
+.TP
+\*(T<\fB\m[green]use_saved_clientid\m[] \fI\m[cyan]true/false\m[]\fR\fR\*(T>
+When you want your bridges to resume local and remote sessions after restart, set this to true and set \fB\m[green]remote_clean_start\fR\m[], \fB\m[green]local_clean_start\fR\m[], \fB\m[green]remote_session_expiry_interval\fR\m[] and \fB\m[green]local_session_expiry_interval\fR\m[] accordingly. It only has effect when you have set a \fB\m[green]storage_dir\fR\m[].
 
-It is important to fully understand the clean session / clean start behavior and the role the client ID plays in that. The primary goal of sessions is to survive link disconnects. Configuring a fixed client ID and use that each time an MQTT client starts, is often an anti-pattern, because most clients like actual IoT devices start fresh upon restart and don't store their sessions (with in-flight packets, etc) to disk. FlashMQ does store it on disk however, so it can be used legitamately. However, you can run into unexpected situations. For instance, you will get your existing subscriptions from the session too. So, if you remove a \*(T<\fBsubscribe\fR\*(T> line from your bridge configuration and restart, it will actually have no effect, because the server on the other side still has that subscription in the session.
+It is important to fully understand the clean session / clean start behavior and the role the client ID plays in that. The primary goal of sessions is to survive link disconnects. Configuring a fixed client ID and use that each time an MQTT client starts, is often an anti-pattern, because most clients like actual IoT devices start fresh upon restart and don't store their sessions (with in-flight packets, etc) to disk. FlashMQ does store it on disk however, so it can be used legitamately. However, you can run into unexpected situations. For instance, you will get your existing subscriptions from the session too. So, if you remove a \fB\m[green]subscribe\fR\m[] line from your bridge configuration and restart, it will actually have no effect, because the server on the other side still has that subscription in the session.
 
-See 
-.URL https://www.flashmq.org/2022/11/26/understanding-clean-session-and-clean-start/ "understanding clean session and clean start"
-for details.
+See \m[blue]understanding clean session and clean start\m[] \(lB\fI\m[blue]https://www.flashmq.org/2022/11/26/understanding-clean-session-and-clean-start/\m[]\fR\(rB for details.
 
-Default value: \*(T<false\*(T>
-.TP 
-\*(T<\fBmax_outgoing_topic_aliases\fR\*(T> \fIamount\fR 
+Default value: \fIfalse\fR
+.TP
+\*(T<\fB\m[green]max_outgoing_topic_aliases\m[] \fI\m[cyan]amount\m[]\fR\fR\*(T>
 If you want FlashMQ to initiate topic aliases for this bridge, set this to a non-zero value. Note that it's floored to the value the remote side gives in the CONNACK packet, so it only works if the other side permits it.
 
-Default: \*(T<0\*(T>
-.TP 
-\*(T<\fBmax_incoming_topic_aliases\fR\*(T> \fIamount\fR 
+Default: \fI0\fR
+.TP
+\*(T<\fB\m[green]max_incoming_topic_aliases\m[] \fI\m[cyan]amount\m[]\fR\fR\*(T>
 If you want to accept topic aliases for this bridge, set this to a non-zero value. The value is set in the CONNECT packet to inform the remote side of the wish. It's not guaranteed that the other side will actually make aliases.
 
-Default: \*(T<0\*(T>
-.TP 
-\*(T<\fBtcp_nodelay\fR\*(T> \fItrue/false\fR 
-\*(T<\fBtcp_nodelay\fR\*(T> will cause the \*(T<TCP_NODELAY\*(T> option to be set for the client socket that is used to connect to the other end of the bridge.
+Default: \fI0\fR
+.TP
+\*(T<\fB\m[green]tcp_nodelay\m[] \fI\m[cyan]true/false\m[]\fR\fR\*(T>
+\fB\m[green]tcp_nodelay\fR\m[] will cause the \fITCP_NODELAY\fR option to be set for the client socket that is used to connect to the other end of the bridge.
 
-See the documentation for the 
-.URL #tcp_nodelay tcp_nodelay
-\fIlistener\fR parameter for further elaboration.
+See the documentation for the \fB\fB\m[green]tcp_nodelay\fR\m[]\fR \fBlistener\fR parameter for further elaboration.
 
-Default: \fIfalse\fR
-.SH "EXAMPLE BRIDGE"
+Default: \fI\m[cyan]false\m[]\fR
+.SH EXAMPLE BRIDGE
+.PP
 .nf
-bridge {
-    address demo.flashmq.org
-    publish send/this
-    subscribe receive/this
-    local_username my_local_user
-    remote_username my_remote_user
-    remote_password my_remote_pass
-    bridge_protocol_bit false
-    tls on
-    ca_file /path/to/ca.crt
-}
+.in +7
+\m[yellow]bridge \m[]{
+\m[green]    address \m[]\m[cyan]demo.flashmq.org\m[]
+\m[green]    publish \m[]\m[cyan]send/this\m[]
+\m[green]    subscribe \m[]\m[cyan]receive/this\m[]
+\m[green]    local_username \m[]\m[cyan]my_local_user\m[]
+\m[green]    remote_username \m[]\m[cyan]my_remote_user\m[]
+\m[green]    remote_password \m[]\m[cyan]my_remote_pass\m[]
+\m[green]    bridge_protocol_bit \m[]\m[cyan]false\m[]
+\m[green]    tls \m[]\m[cyan]on\m[]
+\m[green]    ca_file \m[]\m[cyan]/path/to/ca.crt\m[]
+\m[green]\m[]}
+
+.in
 .fi
 .SH AUTHOR
-Wiebe Cazemier <\*(T<contact@flashmq.org\*(T>>.
-.SH "SEE ALSO"
-\fBflashmq\fR(1)
-.PP
-.URL https://www.flashmq.org/ www.flashmq.org
+Wiebe Cazemier <\m[blue]contact@flashmq.org\m[]>.
+.SH SEE ALSO
+\m[blue]man:flashmq\fR(1)\m[]
+
+\m[blue]https://www.flashmq.org/\m[]
+.SH COLOPHON
+The sources for the FlashMQ manual pages are maintained in \m[blue]DocBook 5.2\m[] \(lB\fI\m[blue]https://tdg.docbook.org/tdg/5.2/\m[]\fR\(rB XML files.  The transformation to the multiple destination file formats is done using a bunch of XSLT 1.0 sheets, contributed to this project by Rowan van der Molen.
+
+The groff source of this man-page has ANSI-color support for the terminal.  However, Debian-derived Linux distributions turn off groff color support by default.  To override this, set the \fBGROFF_SGR\fR environment variable to \fI1\fR.

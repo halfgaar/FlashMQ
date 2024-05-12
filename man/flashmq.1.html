@@ -76,8 +76,7 @@
           padding: 2em 2em;
         }
       </style></head><body><article id="flashmq.1"><header><h1>flashmq<code class="manvolnum"> (1)</code></h1><h2 class="refpurpose">A fast light-weight scalable MQTT server</h2></header><section class="refsynopsisdiv"><header><h2>Synopsis</h2></header>
-    <pre class="cmdsynopsis"><code class="command">flashmq</code>
-     [<a href="#config-file">-c</a> | <a href="#config-file">--config-file</a> <code class="replaceable">config_file_path</code>] [<a href="#test-config">-t</a> | <a href="#test-config">--test-config</a>] |
+    <pre class="cmdsynopsis"><code class="command">flashmq</code> [<a href="#config-file">-c</a> | <a href="#config-file">--config-file</a> <code class="replaceable">config_file_path</code>] [<a href="#test-config">-t</a> | <a href="#test-config">--test-config</a>] |
      [<a href="#help">-h</a> | <a href="#help">--help</a>] |
      [<a href="#version">-v</a> | <a href="#version">--version</a>] |
      [<a href="#license">-l</a> | <a href="#license">--license</a>]</pre>
@@ -91,7 +90,7 @@
 
     <dl>
       
-        <dt id="SIGHUP"><code class="option">SIGHUP</code><a class="hash-anchor" href="#SIGHUP">#</a></dt>
+        <dt id="SIGHUP"><code class="symbol">SIGHUP</code><a class="hash-anchor" href="#SIGHUP">#</a></dt>
         <dd>
           <p>
             Reload config file and reopen log files. Listeners are recreated. Bridges are reconnected (when their config has changed), added or removed as necessary.
@@ -100,7 +99,7 @@
       
 
       
-        <dt id="SIGUSR1"><code class="option">SIGUSR1</code><a class="hash-anchor" href="#SIGUSR1">#</a></dt>
+        <dt id="SIGUSR1"><code class="symbol">SIGUSR1</code><a class="hash-anchor" href="#SIGUSR1">#</a></dt>
         <dd>
           <p>
             Reopen log files. Use this in log rotation.
@@ -109,10 +108,10 @@
       
 
       
-        <dt id="SIGUSR2"><code class="option">SIGUSR2</code><a class="hash-anchor" href="#SIGUSR2">#</a></dt>
+        <dt id="SIGUSR2"><code class="symbol">SIGUSR2</code><a class="hash-anchor" href="#SIGUSR2">#</a></dt>
         <dd>
           <p>
-            It has been observed that certain implementations of malloc have a high memory use while still having many free blocks. See for instance the libc mailing list discussion <a href="https://sourceware.org/pipermail/libc-help/2020-September/005457.html"><cite>Abnormal memory usage with glibc 2.31 related to thread cache and trimming strategy</cite></a>. This can be exacerbated by continuous thread recreation, because of how "memory arenas" are managed. FlashMQ has a fixed number of threads, but that may not be true for loaded plugins. Sending a <code class="literal">SIGUSR2</code> will cause FlashMQ to call <code class="literal">malloc_trim(0)</code>, possibly resulting in it giving memory back to the operating system.
+            It has been observed that certain implementations of malloc have a high memory use while still having many free blocks. See for instance the libc mailing list discussion <a href="https://sourceware.org/pipermail/libc-help/2020-September/005457.html"><cite>Abnormal memory usage with glibc 2.31 related to thread cache and trimming strategy</cite></a>. This can be exacerbated by continuous thread recreation, because of how "memory arenas" are managed. FlashMQ has a fixed number of threads, but that may not be true for loaded plugins. Sending a <code class="symbol">SIGUSR2</code> will cause FlashMQ to call <code class="literal">malloc_trim(0)</code>, possibly resulting in it giving memory back to the operating system.
           </p>
           <p>
             The action is mostly pretty fast, but if not, the main loop will block during the operation, blocking the ability to accept new connections. The worker threads themselves will keep running and keep serving clients.
@@ -158,7 +157,7 @@
         <dt id="config-file"><code class="option">--config-file</code> | <code class="option">-c</code> <code class="replaceable">config_file_path</code><a class="hash-anchor" href="#config-file">#</a></dt>
         <dd>
           <p>
-            <code class="literal">flashmq</code> will read the config file from the given <code class="replaceable">config_file_path</code>.
+            <code class="command">flashmq</code> will read the config file from the given <code class="replaceable">config_file_path</code>.
           </p>
           <p>
             Without this option, the default  <code class="replaceable">config_file_path</code> is <code class="filename">/etc/flashmq/flashmq.conf</code>.
@@ -181,7 +180,7 @@
   </section><section class="refsect1">
     <header><h2>Author</h2></header>
     <p>
-        Wiebe Cazemier <a href="mailto:contact@flashmq.org">contact@flashmq.org</a>.
+      Wiebe Cazemier <a href="mailto:contact@flashmq.org">contact@flashmq.org</a>.
     </p>
   </section><section class="refsect1">
     <header><h2>See also</h2></header>
@@ -192,8 +191,15 @@
           <cite class="citerefentry"><span class="refentrytitle">flashmq.conf</span><span class="manvolnum">(5)</span></cite>
         </span>
         <span class="member-sep">, </span><span class="member">
-          <a href="https://www.flashmq.org/">www.flashmq.org</a>
+          <a href="https://www.flashmq.org/">https://www.flashmq.org/</a>
         </span>
       </span>
     </p>
-  </section></article></body></html>
+  </section><section class="refsect1" id="colophon" lang="en">
+  <header><h2>Colophon<a class="hash-anchor" href="#colophon">#</a></h2></header>
+
+  <p>
+    The sources for the FlashMQ manual pages are maintained in <a href="https://tdg.docbook.org/tdg/5.2/">DocBook 5.2</a> XML files.  The transformation to the multiple destination file formats is done using a bunch of XSLT 1.0 sheets, contributed to this project by Rowan van der Molen.
+  </p>
+  
+</section></article></body></html>

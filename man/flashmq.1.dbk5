@@ -3,8 +3,9 @@
     xml:id="flashmq.1"
     xml:lang="en"
     xmlns="http://docbook.org/ns/docbook"
-    version="5.0"
-    xmlns:xlink="http://www.w3.org/1999/xlink">
+    version="5.2"
+    xmlns:xlink="http://www.w3.org/1999/xlink"
+    xmlns:xi="http://www.w3.org/2001/XInclude">
 
   <refmeta>
     <refentrytitle>flashmq</refentrytitle>
@@ -19,7 +20,6 @@
   <refsynopsisdiv>
     <cmdsynopsis><!-- https://tdg.docbook.org/tdg/5.2/cmdsynopsis.html -->
       <command>flashmq</command>
-      <sbr/>
       <group choice="plain">
         <arg choice="plain">
           <arg>
@@ -65,7 +65,7 @@
 
     <variablelist>
       <varlistentry xml:id="SIGHUP">
-        <term><option>SIGHUP</option></term>
+        <term><symbol>SIGHUP</symbol></term>
         <listitem>
           <para>
             Reload config file and reopen log files. Listeners are recreated. Bridges are reconnected (when their config has changed), added or removed as necessary.
@@ -74,7 +74,7 @@
       </varlistentry>
 
       <varlistentry xml:id="SIGUSR1">
-        <term><option>SIGUSR1</option></term>
+        <term><symbol>SIGUSR1</symbol></term>
         <listitem>
           <para>
             Reopen log files. Use this in log rotation.
@@ -83,10 +83,10 @@
       </varlistentry>
 
       <varlistentry xml:id="SIGUSR2">
-        <term><option>SIGUSR2</option></term>
+        <term><symbol>SIGUSR2</symbol></term>
         <listitem>
           <para>
-            It has been observed that certain implementations of malloc have a high memory use while still having many free blocks. See for instance the libc mailing list discussion <link xlink:href="https://sourceware.org/pipermail/libc-help/2020-September/005457.html"><citetitle pubwork="emailmessage">Abnormal memory usage with glibc 2.31 related to thread cache and trimming strategy</citetitle></link>. This can be exacerbated by continuous thread recreation, because of how "memory arenas" are managed. FlashMQ has a fixed number of threads, but that may not be true for loaded plugins. Sending a <literal>SIGUSR2</literal> will cause FlashMQ to call <literal>malloc_trim(0)</literal>, possibly resulting in it giving memory back to the operating system.
+            It has been observed that certain implementations of malloc have a high memory use while still having many free blocks. See for instance the libc mailing list discussion <link xlink:href="https://sourceware.org/pipermail/libc-help/2020-September/005457.html"><citetitle pubwork="emailmessage">Abnormal memory usage with glibc 2.31 related to thread cache and trimming strategy</citetitle></link>. This can be exacerbated by continuous thread recreation, because of how "memory arenas" are managed. FlashMQ has a fixed number of threads, but that may not be true for loaded plugins. Sending a <symbol>SIGUSR2</symbol> will cause FlashMQ to call <literal>malloc_trim(0)</literal>, possibly resulting in it giving memory back to the operating system.
           </para>
           <para>
             The action is mostly pretty fast, but if not, the main loop will block during the operation, blocking the ability to accept new connections. The worker threads themselves will keep running and keep serving clients.
@@ -134,7 +134,7 @@
         <term><option>--config-file</option> | <option>-c</option>&#8195;<replaceable>config_file_path</replaceable></term>
         <listitem>
           <para>
-            <literal>flashmq</literal> will read the config file from the given <replaceable>config_file_path</replaceable>.
+            <command>flashmq</command> will read the config file from the given <replaceable>config_file_path</replaceable>.
           </para>
           <para>
             Without this option, the default  <replaceable>config_file_path</replaceable> is <filename>/etc/flashmq/flashmq.conf</filename>.
@@ -159,7 +159,7 @@
   <refsect1>
     <title>Author</title>
     <para>
-        Wiebe Cazemier <email>contact@flashmq.org</email>.
+      Wiebe Cazemier <email>contact@flashmq.org</email>.
     </para>
   </refsect1>
 
@@ -175,10 +175,12 @@
           </citerefentry>
         </member>
         <member>
-          <link xlink:href="https://www.flashmq.org/">www.flashmq.org</link>
+          <link xlink:href="https://www.flashmq.org/">https://www.flashmq.org/</link>
         </member>
       </simplelist>
     </para>
   </refsect1>
+
+  <xi:include href="refentry.colophon.dbk5"/>
 </refentry>
 <!-- vim: set expandtab shiftwidth=2 tabstop=2: -->

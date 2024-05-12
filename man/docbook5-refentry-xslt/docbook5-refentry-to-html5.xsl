@@ -303,7 +303,7 @@
           <xsl:value-of select="@role"/>
         </xsl:if>
       </xsl:attribute>
-      <xsl:apply-templates select="@*[local-name() != 'class'] | node()"/>
+      <xsl:apply-templates select="text()"/>
     </pre>
   </xsl:template>
 
@@ -371,7 +371,7 @@
 
   <xsl:template match="dbk:citetitle/@pubwork"/>
 
-  <xsl:template match="dbk:filename | dbk:command | dbk:literal | dbk:systemitem | dbk:property | dbk:function | dbk:userinput | dbk:code | dbk:replaceable | dbk:option" name="monospace">
+  <xsl:template match="dbk:filename | dbk:command | dbk:literal | dbk:systemitem | dbk:property | dbk:function | dbk:userinput | dbk:code | dbk:replaceable | dbk:option | dbk:symbol | dbk:envvar" name="monospace">
     <code>
       <xsl:attribute name="class">
         <xsl:value-of select="local-name(.)"/>
@@ -413,7 +413,19 @@
     </cite>
   </xsl:template>
 
-  <xsl:template match="dbk:simplelist[@type='inline']">
+  <xsl:template match="dbk:itemizedlist | dbk:simplelist[@type='vert' or not(@type)]">
+    <ul>
+      <xsl:apply-templates select="node()"/>
+    </ul>
+  </xsl:template>
+
+  <xsl:template match="dbk:itemizedlist/dbk:listitem | dbk:simplelist[@type='vert' or not(@type)]/dbk:member">
+    <li>
+      <xsl:apply-templates select="node()"/>
+    </li>
+  </xsl:template>
+
+  <xsl:template match="dbk:simplelist[@type='inline' or @type='horiz']">
     <span class="simplelist inline">
       <xsl:apply-templates select="@*[local-name != 'inline']"/>
       <xsl:apply-templates select="node()"/>
@@ -429,5 +441,15 @@
     <span class="member">
       <xsl:apply-templates select="node()"/>
     </span>
+  </xsl:template>
+
+  <xsl:template match="dbk:*[@outputformat][not(@outputformat='html')]"/>
+
+  <xsl:template match="dbk:*">
+    <xsl:message terminate="no">
+      <xsl:text>DocBook element unrecognized by XSLT: &lt;</xsl:text>
+      <xsl:value-of select="name(.)"/>
+      <xsl:text>&gt;</xsl:text>
+    </xsl:message>
   </xsl:template>
 </xsl:stylesheet>
