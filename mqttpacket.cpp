@@ -673,6 +673,11 @@ ConnectData MqttPacket::parseConnectData()
 
         result.willpublish.topic = readBytesToString(true, true);
 
+        if (result.willpublish.topic.empty())
+        {
+            throw ProtocolError("Empty will topic is not allowed", ReasonCodes::ProtocolError);
+        }
+
         uint16_t will_payload_length = readTwoBytesToUInt16();
         result.willpublish.payload = std::string(readBytes(will_payload_length), will_payload_length);
     }
