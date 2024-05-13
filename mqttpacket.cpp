@@ -1761,7 +1761,7 @@ void MqttPacket::handlePubRec()
 void MqttPacket::parsePubRelData()
 {
     // MQTT-3.6.1-1, but why do we care, and only care for certain control packets?
-    if (first_byte & 0b1101)
+    if ((first_byte & 0b00001111) != 0b00000010)
         throw ProtocolError("PUBREL first byte LSB must be 0010.", ReasonCodes::MalformedPacket);
 
     setPosToDataStart();
