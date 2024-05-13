@@ -429,9 +429,12 @@ void MqttPacket::handle()
         }
 
         if (!(packetType == PacketType::CONNECT || packetType == PacketType::AUTH || packetType == PacketType::DISCONNECT ||
-              packetType == PacketType::PINGREQ || packetType == PacketType::PINGRESP || packetType == PacketType::CONNACK))
+              packetType == PacketType::CONNACK))
         {
             exceptionOnNonMqtt(this->bites);
+
+            if (sender->preAuthPacketCounter++ > 200)
+                throw ProtocolError("Too many pre-auth packets dropped", ReasonCodes::ProtocolError);
 
             logger->log(LOG_WARNING) << "Unapproved packet type (" << packetTypeToString(packetType)
                                      << ") from non-authenticated client " << sender->repr() << ". Dropping packet.";
