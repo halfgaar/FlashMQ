@@ -588,6 +588,9 @@ ConnectData MqttPacket::parseConnectData()
         }
     }
 
+    if (result.authenticationMethod.empty() && !result.authenticationData.empty())
+        throw ProtocolError("Including authentication data when there is no authentication method is not allowed", ReasonCodes::ProtocolError);
+
     if (result.client_receive_max == 0 || result.max_outgoing_packet_size == 0)
     {
         throw ProtocolError("Receive max or max outgoing packet size can't be 0.", ReasonCodes::ProtocolError);
@@ -1135,6 +1138,9 @@ AuthPacketData MqttPacket::parseAuthData()
             }
         }
     }
+
+    if (result.method.empty() && !result.data.empty())
+        throw ProtocolError("Including authentication data when there is no authentication method is not allowed", ReasonCodes::ProtocolError);
 
     return result;
 }
