@@ -1702,6 +1702,9 @@ void MqttPacket::parsePubAckData()
     this->publishData.qos = 1;
     this->packet_id = readTwoBytesToUInt16();
 
+    // TODO: if we ever parse the reason code and use it to make decisions, check for validity. But, as of yet,
+    // checking validity would just add overhead for no reason.
+
     if (this->packet_id == 0)
         throw ProtocolError("QoS packets must have packet ID > 0.", ReasonCodes::ProtocolError);
 }
