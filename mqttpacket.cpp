@@ -676,6 +676,14 @@ ConnectData MqttPacket::parseConnectData()
         uint16_t will_payload_length = readTwoBytesToUInt16();
         result.willpublish.payload = std::string(readBytes(will_payload_length), will_payload_length);
     }
+    else
+    {
+        if (result.will_retain)
+            throw ProtocolError("Will retain bit can't be set without will.", ReasonCodes::ProtocolError);
+
+        if (result.will_qos != 0)
+            throw ProtocolError("Will QoS must be 0 when there is no will.", ReasonCodes::ProtocolError);
+    }
 
     if (user_name_flag)
     {
