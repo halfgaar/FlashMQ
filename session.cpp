@@ -127,7 +127,7 @@ PacketDropReason Session::writePacket(PublishCopyFactory &copyFactory, const uin
     const std::shared_ptr<Client> c = makeSharedClient();
 
     const uint8_t effectiveQos = copyFactory.getEffectiveQos(max_qos);
-    retainAsPublished = retainAsPublished || bridge;
+    retainAsPublished = retainAsPublished || clientType == ClientType::Mqtt3DefactoBridge;
     bool effectiveRetain = copyFactory.getEffectiveRetain(retainAsPublished);
 
     if (c && !c->isRetainedAvailable())
@@ -316,9 +316,9 @@ void Session::setWill(WillPublish &&pub)
     this->willPublish = std::make_shared<WillPublish>(std::move(pub));
 }
 
-void Session::setBridge(bool val)
+void Session::setClientType(ClientType val)
 {
-    this->bridge = val;
+    this->clientType = val;
 }
 
 void Session::addIncomingQoS2MessageId(uint16_t packet_id)

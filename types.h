@@ -145,6 +145,18 @@ enum class ReasonCodes
     WildcardSubscriptionsNotSupported = 162
 };
 
+/**
+ * What is primarily important to know, is that in MQTT3 there is a defacto standard that the MSB in the
+ * protocol version byte signifies the client is a bridge. This helps in loop prevention. MQTT5 no longer
+ * does that, because it has 'subscription options' for that.
+ */
+enum class ClientType : uint8_t
+{
+    Normal,
+    Mqtt3DefactoBridge,
+    LocalBridge
+};
+
 struct SubscriptionOptionsByte
 {
     const uint8_t b = 0;

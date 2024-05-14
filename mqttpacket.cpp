@@ -842,7 +842,7 @@ void MqttPacket::handleConnect()
     sender->setHasConnectPacketSeen();
     sender->setProtocolVersion(this->protocolVersion);
 
-    sender->setBridge(connectData.bridge);
+    sender->setClientType(connectData.bridge ? ClientType::Mqtt3DefactoBridge : ClientType::Normal);
 
     if (this->protocolVersion == ProtocolVersion::None)
     {
@@ -1326,8 +1326,9 @@ void MqttPacket::handleSubscribe()
 
         uint8_t qos = options.getQos();
 
-        const bool noLocal = sender->isBridge() || options.getNoLocal();
-        const bool retainedAsPublished = sender->isBridge() || options.getRetainAsPublished();
+        const bool mqtt3bridge = sender->getClientType() == ClientType::Mqtt3DefactoBridge;
+        const bool noLocal = mqtt3bridge || options.getNoLocal();
+        const bool retainedAsPublished = mqtt3bridge || options.getRetainAsPublished();
 
         std::vector<std::string> subtopics = splitTopic(topic);
 

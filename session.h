@@ -52,7 +52,7 @@ class Session
     bool destroyOnDisconnect = false;
     std::shared_ptr<WillPublish> willPublish;
     bool removalQueued = false;
-    bool bridge = false;
+    ClientType clientType = ClientType::Normal;
     std::chrono::time_point<std::chrono::steady_clock> removalQueuedAt;
     Logger *logger = Logger::getInstance();
 
@@ -80,8 +80,8 @@ public:
     void clearWill();
     std::shared_ptr<WillPublish> &getWill();
     void setWill(WillPublish &&pub);
-    bool getBridge() const { return bridge; }
-    void setBridge(bool val);
+    ClientType getClientType() const { return clientType; }
+    void setClientType(ClientType val);
 
     void addIncomingQoS2MessageId(uint16_t packet_id);
     bool incomingQoS2MessageIdInTransit(uint16_t packet_id);

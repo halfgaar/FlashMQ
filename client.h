@@ -78,7 +78,7 @@ class Client
     bool disconnecting = false;
     bool outgoingConnection = false;
     bool outgoingConnectionEstablished = false;
-    bool bridge = false;
+    ClientType clientType = ClientType::Normal;
     bool supportsRetained = true; // Interestingly, only SERVERS can tell CLIENTS they don't support it (in CONNACK). The CONNECT packet has no field for it.
     std::string disconnectReason;
     std::chrono::time_point<std::chrono::steady_clock> lastActivity = std::chrono::steady_clock::now();
@@ -216,8 +216,8 @@ public:
     std::shared_ptr<BridgeState> getBridgeState();
     void setBridgeConnected();
     bool getOutgoingConnectionEstablished() const;
-    bool isBridge() const { return bridge; }
-    void setBridge(bool val);
+    ClientType getClientType() const { return clientType; }
+    void setClientType(ClientType val);
     bool isRetainedAvailable() const {return supportsRetained; };
 
 #ifdef TESTING

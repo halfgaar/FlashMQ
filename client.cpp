@@ -482,7 +482,12 @@ const sockaddr *Client::getAddr() const
 
 std::string Client::repr()
 {
-    const std::string bridge = isBridge() ? "Bridge " : "";
+    std::string bridge;
+
+    if (clientType == ClientType::Mqtt3DefactoBridge)
+        bridge = "Mqtt3Bridge ";
+    else if (clientType == ClientType::LocalBridge)
+        bridge = "LocalBridge ";
 
     std::string s = formatString("[%sClientID='%s', username='%s', fd=%d, keepalive=%ds, transport='%s', address='%s', prot=%s, clean=%d]",
                                  bridge.c_str(), clientid.c_str(), username.c_str(), fd, keepalive, this->transportStr.c_str(), this->address.c_str(),
@@ -718,7 +723,7 @@ void Client::setBridgeState(std::shared_ptr<BridgeState> bridgeState)
 {
     this->bridgeState = bridgeState;
     this->outgoingConnection = true;
-    setBridge(true);
+    this->clientType = ClientType::LocalBridge;
 
     if (bridgeState)
     {
@@ -772,14 +777,14 @@ bool Client::getOutgoingConnectionEstablished() const
     return this->outgoingConnectionEstablished;
 }
 
-void Client::setBridge(bool val)
+void Client::setClientType(ClientType val)
 {
-    this->bridge = val;
+    this->clientType = val;
 
     if (!session)
         return;
 
-    session->setBridge(val);
+    session->setClientType(val);
 }
 
 #ifndef NDEBUG
