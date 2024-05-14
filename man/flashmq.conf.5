@@ -5,7 +5,7 @@
 \\$2 \(la\\$1\(ra\\$3
 ..
 .if \n(.g .mso www.tmac
-.TH flashmq.conf 5 "11 May 2024" "" ""
+.TH flashmq.conf 5 "15 May 2024" "" ""
 .SH NAME
 flashmq.conf \- FlashMQ configuration file format
 .SH SYNOPSIS
@@ -17,10 +17,17 @@ Using the
 .URL #include_dir include_dir
 parameter in your config file, you can load all the \*(T<\fI*.conf\fR\*(T> files from the given directory.
 .SH "FILE FORMAT"
-To set a parameter, its name must appear on a single line, followed by whitespace, followed by the parameter value.
+To set a parameter, its name must appear on a single line, followed by one or more potentially quoted arguments.
 .PP
-\*(T<\fBparameter\-name\fR\*(T>
-\fIparameter-value\fR
+.nf
+parameter\-name1 parameter\-value
+parameter\-name2 'value with spaces'
+parameter\-name3 "escaped \e" quote"
+multi\-value\-param one 'two' "three" "with ' char"
+      
+.fi
+.PP
+Quoted values are the same as unquoted values when they don't need it. They are necessary for when argument values have spaces, for instance.
 .PP
 When setting boolean values, \*(T<yes/no\*(T>, \*(T<true/false\*(T> and \*(T<on/off\*(T> can all be used.
 .PP

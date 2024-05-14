@@ -90,10 +90,17 @@
   </section><section class="refsect1" id="file-format">
     <header><h2>File format<a class="hash-anchor" href="#file-format">#</a></h2></header>
     <p>
-      To set a parameter, its name must appear on a single line, followed by whitespace, followed by the parameter value.
+      To set a parameter, its name must appear on a single line, followed by one or more potentially quoted arguments.
     </p>
+
+    <pre class="literallayout monospaced">parameter-name1 parameter-value
+parameter-name2 'value with spaces'
+parameter-name3 "escaped \" quote"
+multi-value-param one 'two' "three" "with ' char"
+      </pre>
+
     <p>
-      <code class="option">parameter-name</code> <code class="replaceable">parameter-value</code>
+      Quoted values are the same as unquoted values when they don't need it. They are necessary for when argument values have spaces, for instance.
     </p>
     <p>
       When setting boolean values, <code class="literal">yes/no</code>, <code class="literal">true/false</code> and <code class="literal">on/off</code> can all be used.

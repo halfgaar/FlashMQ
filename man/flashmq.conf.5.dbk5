@@ -39,10 +39,17 @@
   <refsect1 xml:id="file-format">
     <title>File format</title>
     <para>
-      To set a parameter, its name must appear on a single line, followed by whitespace, followed by the parameter value.
+      To set a parameter, its name must appear on a single line, followed by one or more potentially quoted arguments.
     </para>
+
+    <literallayout class="monospaced"><![CDATA[parameter-name1 parameter-value
+parameter-name2 'value with spaces'
+parameter-name3 "escaped \" quote"
+multi-value-param one 'two' "three" "with ' char"
+      ]]></literallayout>
+
     <para>
-      <option>parameter-name</option> <replaceable>parameter-value</replaceable>
+      Quoted values are the same as unquoted values when they don't need it. They are necessary for when argument values have spaces, for instance.
     </para>
     <para>
       When setting boolean values, <literal>yes/no</literal>, <literal>true/false</literal> and <literal>on/off</literal> can all be used.
