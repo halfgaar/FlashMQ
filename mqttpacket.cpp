@@ -1596,6 +1596,9 @@ void MqttPacket::parsePublishData()
             }
             case Mqtt5Properties::SubscriptionIdentifier:
             {
+                if (sender->getClientType() != ClientType::LocalBridge)
+                    throw ProtocolError("Subscription identifiers cannot be sent to servers.", ReasonCodes::ProtocolError);
+
                 decodeVariableByteIntAtPos();
                 break;
             }
