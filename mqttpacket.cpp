@@ -1053,8 +1053,6 @@ void MqttPacket::handleConnAck()
     sender->setClientProperties(true, keepalive, data.max_outgoing_packet_size, effectiveMaxOutgoingTopicAliases, realRetainedAvailable);
     session->setSessionProperties(data.client_receive_max, bridgeState->c.localSessionExpiryInterval, bridgeState->c.localCleanStart, bridgeState->c.protocolVersion);
 
-    ThreadGlobals::getThreadData()->queueClientNextKeepAliveCheckLocked(sender, true);
-
     // This resubscribes also when there is already a session with subscriptions remotely, but that is required when you change QoS levels, for instance. It
     // will not unsubscribe, so it will add to the existing subscriptions.
     // Note that this will also get you retained messages again.

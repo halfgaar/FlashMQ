@@ -975,14 +975,14 @@ void Client::setDisconnectReason(const std::string &reason)
  */
 std::chrono::seconds Client::getSecondsTillKeepAliveAction() const
 {
+    if (isOutgoingConnection())
+        return std::chrono::seconds(this->keepalive);
+
     if (!this->authenticated)
         return std::chrono::seconds(30);
 
     if (this->keepalive == 0)
         return std::chrono::seconds(0);
-
-    if (isOutgoingConnection())
-        return std::chrono::seconds(this->keepalive);
 
     const uint32_t timeOfSilenceMeansKill = this->keepalive + (this->keepalive / 2) + 2;
     std::chrono::time_point<std::chrono::steady_clock> killTime = this->lastActivity + std::chrono::seconds(timeOfSilenceMeansKill);

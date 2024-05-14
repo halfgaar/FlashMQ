@@ -371,8 +371,7 @@ void ThreadData::bridgeReconnect()
             ev.events = EPOLLIN | EPOLLOUT;
             check<std::runtime_error>(epoll_ctl(epollfd, EPOLL_CTL_ADD, sockfd, &ev));
 
-            // Perform one keep-alive check, for the pre-auth stage. The repeating once are done in processing the connack.
-            queueClientNextKeepAliveCheckLocked(c, false);
+            queueClientNextKeepAliveCheckLocked(c, true);
 
             if (session)
             {
@@ -721,6 +720,7 @@ void ThreadData::giveClient(std::shared_ptr<Client> &&client)
 {
     const int fd = client->getFd();
 
+    // A non-repeating keep-alive check is for when clients do a TCP connect and then nothing else.
     queueClientNextKeepAliveCheckLocked(client, false);
 
     {
@@ -1078,7 +1078,7 @@ void ThreadData::doKeepAliveCheck()
                     {
                         clientsChecked++;
 
-                        if (client->isOutgoingConnection())
+                        if (client->isOutgoingConnection() && client->getAuthenticated())
                         {
                             client->writePing();
                         }
