@@ -1090,6 +1090,74 @@ std::string packetTypeToString(PacketType ptype)
 }
 
 
+std::string propertyToString(Mqtt5Properties p)
+{
+    switch (p)
+    {
+    case (Mqtt5Properties::None):
+        return "None";
+    case (Mqtt5Properties::PayloadFormatIndicator):
+        return "PayloadFormatIndicator";
+    case (Mqtt5Properties::MessageExpiryInterval):
+        return "MessageExpiryInterval";
+    case (Mqtt5Properties::ContentType):
+        return "ContentType";
+    case (Mqtt5Properties::ResponseTopic):
+        return "ResponseTopic";
+    case (Mqtt5Properties::CorrelationData):
+        return "CorrelationData";
+    case (Mqtt5Properties::SubscriptionIdentifier):
+        return "SubscriptionIdentifier";
+    case (Mqtt5Properties::SessionExpiryInterval):
+        return "SessionExpiryInterval";
+    case (Mqtt5Properties::AssignedClientIdentifier):
+        return "AssignedClientIdentifier";
+    case (Mqtt5Properties::ServerKeepAlive):
+        return "ServerKeepAlive";
+    case (Mqtt5Properties::AuthenticationMethod):
+        return "AuthenticationMethod";
+    case (Mqtt5Properties::AuthenticationData):
+        return "AuthenticationData";
+    case (Mqtt5Properties::RequestProblemInformation):
+        return "RequestProblemInformation";
+    case (Mqtt5Properties::WillDelayInterval):
+        return "WillDelayInterval";
+    case (Mqtt5Properties::RequestResponseInformation):
+        return "RequestResponseInformation";
+    case (Mqtt5Properties::ResponseInformation):
+        return "ResponseInformation";
+    case (Mqtt5Properties::ServerReference):
+        return "ServerReference";
+    case (Mqtt5Properties::ReasonString):
+        return "ReasonString";
+    case (Mqtt5Properties::ReceiveMaximum):
+        return "ReceiveMaximum";
+    case (Mqtt5Properties::TopicAliasMaximum):
+        return "TopicAliasMaximum";
+    case (Mqtt5Properties::TopicAlias):
+        return "TopicAlias";
+    case (Mqtt5Properties::MaximumQoS):
+        return "MaximumQoS";
+    case (Mqtt5Properties::RetainAvailable):
+        return "RetainAvailable";
+    case (Mqtt5Properties::UserProperty):
+        return "UserProperty";
+    case (Mqtt5Properties::MaximumPacketSize):
+        return "MaximumPacketSize";
+    case (Mqtt5Properties::WildcardSubscriptionAvailable):
+        return "WildcardSubscriptionAvailable";
+    case (Mqtt5Properties::SubscriptionIdentifierAvailable):
+        return "SubscriptionIdentifierAvailable";
+    case (Mqtt5Properties::SharedSubscriptionAvailable):
+        return "SharedSubscriptionAvailable";
+    default:
+        break;
+    }
+
+    std::ostringstream oss;
+    oss << static_cast<int>(p);
+    return oss.str();
+}
 
 
 
