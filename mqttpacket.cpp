@@ -579,17 +579,31 @@ ConnectData MqttPacket::parseConnectData()
                 result.max_outgoing_topic_aliases = std::min<uint16_t>(readTwoBytesToUInt16(), settings.maxOutgoingTopicAliasValue);
                 break;
             case Mqtt5Properties::RequestResponseInformation:
+            {
                 if (pcounts[4]++ > 0)
                     throw ProtocolError("Can't specify " + propertyToString(prop) + " more than once", ReasonCodes::ProtocolError);
 
-                result.request_response_information = !!readByte();
+                const uint8_t x = readUint8();
+
+                if (x > 1)
+                    throw ProtocolError(propertyToString(prop) + " must be 0 or 1", ReasonCodes::ProtocolError);
+
+                result.request_response_information = static_cast<bool>(x);
                 break;
+            }
             case Mqtt5Properties::RequestProblemInformation:
+            {
                 if (pcounts[5]++ > 0)
                     throw ProtocolError("Can't specify " + propertyToString(prop) + " more than once", ReasonCodes::ProtocolError);
 
-                result.request_problem_information = !!readByte();
+                const uint8_t x = readUint8();
+
+                if (x > 1)
+                    throw ProtocolError(propertyToString(prop) + " must be 0 or 1", ReasonCodes::ProtocolError);
+
+                result.request_problem_information = static_cast<bool>(x);
                 break;
+            }
             case Mqtt5Properties::UserProperty:
                 readUserProperty();
                 break;
