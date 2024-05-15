@@ -596,7 +596,7 @@ multi-value-param one 'two' "three" "with ' char"
        Listen parameters can only be used within <literal>listen { }</literal> blocks.
     </para>
     <variablelist>
-      <varlistentry xml:id="port">
+      <varlistentry xml:id="listen__port">
         <term><option>port</option></term>
         <listitem>
           <para>
@@ -626,7 +626,7 @@ multi-value-param one 'two' "three" "with ' char"
           </itemizedlist>
         </listitem>
       </varlistentry>
-      <varlistentry xml:id="protocol">
+      <varlistentry xml:id="listen__protocol">
         <term><option>protocol</option></term>
         <listitem>
           <para>
@@ -642,7 +642,7 @@ multi-value-param one 'two' "three" "with ' char"
           </para>
         </listitem>
       </varlistentry>
-      <varlistentry xml:id="inet_protocol">
+      <varlistentry xml:id="listen__inet_protocol">
         <term><option>inet_protocol</option></term>
         <listitem>
           <para>
@@ -664,7 +664,7 @@ multi-value-param one 'two' "three" "with ' char"
           </para>
         </listitem>
       </varlistentry>
-      <varlistentry xml:id="inet4_bind_address">
+      <varlistentry xml:id="listen__inet4_bind_address">
         <term><option>inet4_bind_address</option> <replaceable>inet4address</replaceable></term>
         <listitem>
           <para>
@@ -672,7 +672,7 @@ multi-value-param one 'two' "three" "with ' char"
           </para>
         </listitem>
       </varlistentry>
-      <varlistentry xml:id="inet6_bind_address">
+      <varlistentry xml:id="listen__inet6_bind_address">
         <term><option>inet6_bind_address</option> <replaceable>inet6address</replaceable></term>
         <listitem>
           <para>
@@ -680,7 +680,7 @@ multi-value-param one 'two' "three" "with ' char"
           </para>
         </listitem>
       </varlistentry>
-      <varlistentry xml:id="fullchain">
+      <varlistentry xml:id="listen__fullchain">
         <term><option>fullchain</option> <replaceable>/foobar/server.crt</replaceable></term>
         <listitem>
           <para>
@@ -688,7 +688,7 @@ multi-value-param one 'two' "three" "with ' char"
           </para>
         </listitem>
       </varlistentry>
-      <varlistentry xml:id="privkey">
+      <varlistentry xml:id="listen__privkey">
         <term><option>privkey</option> <replaceable>/foobar/server.key</replaceable></term>
         <listitem>
           <para>
@@ -697,7 +697,7 @@ multi-value-param one 'two' "three" "with ' char"
         </listitem>
       </varlistentry>
 
-      <varlistentry xml:id="client_verification_ca_file">
+      <varlistentry xml:id="listen__client_verification_ca_file">
         <term><option>client_verification_ca_file</option> <replaceable>/foobar/client_authority.crt</replaceable></term>
         <listitem>
           <para>
@@ -709,7 +709,7 @@ multi-value-param one 'two' "three" "with ' char"
         </listitem>
       </varlistentry>
 
-      <varlistentry xml:id="client_verification_ca_dir">
+      <varlistentry xml:id="listen__client_verification_ca_dir">
         <term><option>client_verification_ca_dir</option> <replaceable>/foobar/dir_with_certificates</replaceable></term>
         <listitem>
           <para>
@@ -724,7 +724,7 @@ multi-value-param one 'two' "three" "with ' char"
         </listitem>
       </varlistentry>
 
-      <varlistentry xml:id="client_verification_still_do_authn">
+      <varlistentry xml:id="listen__client_verification_still_do_authn">
         <term><option>client_verification_still_do_authn</option> <replaceable>true/false</replaceable></term>
         <listitem>
           <para>
@@ -742,7 +742,7 @@ multi-value-param one 'two' "three" "with ' char"
         </listitem>
       </varlistentry>
 
-      <varlistentry xml:id="haproxy">
+      <varlistentry xml:id="listen__haproxy">
         <term><option>haproxy</option> <replaceable>true/false</replaceable></term>
         <listitem>
           <para>
@@ -760,7 +760,7 @@ multi-value-param one 'two' "three" "with ' char"
         </listitem>
       </varlistentry>
 
-      <varlistentry xml:id="tcp_nodelay">
+      <varlistentry xml:id="listen__tcp_nodelay">
         <term><option>tcp_nodelay</option> <replaceable>true/false</replaceable></term>
         <listitem>
           <para>
