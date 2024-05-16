@@ -743,7 +743,8 @@ ConnectData MqttPacket::parseConnectData()
 
         if (result.willpublish.topic.empty())
         {
-            throw ProtocolError("Empty will topic is not allowed", ReasonCodes::ProtocolError);
+            logger->log(LOG_WARNING) << "Empty will topic is not allowed. Dropping will for client " << sender->repr() << ".";
+            result.will_flag = false;
         }
 
         uint16_t will_payload_length = readTwoBytesToUInt16();
