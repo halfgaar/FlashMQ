@@ -6,10 +6,6 @@
     version="5.0"
     xmlns:xlink="http://www.w3.org/1999/xlink">
 
-  <info>
-    <biblioid class="uri">https://www.flashmq.org/man/flashmq.conf.5</biblioid>
-  </info>
-
   <refmeta>
     <refentrytitle>flashmq.conf</refentrytitle>
     <manvolnum>5</manvolnum>
