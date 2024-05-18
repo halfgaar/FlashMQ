@@ -135,9 +135,12 @@ void MainTests::cleanupAfterEachTest()
     this->mainApp.reset();
 }
 
-void MainTests::registerFunction(const std::string &name, std::function<void ()> f)
+void MainTests::registerFunction(const std::string &name, std::function<void ()> f, bool requiresServer, bool requiresInternet)
 {
-    this->testFunctions[name] = f;
+    TestFunction &tf = testFunctions[name];
+    tf.f = f;
+    tf.requiresServer = requiresServer;
+    tf.requiresInternet = requiresInternet;
 }
 
 void MainTests::testDummy()
@@ -277,7 +280,7 @@ MainTests::MainTests()
     REGISTER_FUNCTION(testPublishByPlugin);
     REGISTER_FUNCTION(testWillDenialByPlugin);
     REGISTER_FUNCTION(testPluginMainInit);
-    REGISTER_FUNCTION(testAsyncCurl);
+    REGISTER_FUNCTION2(testAsyncCurl, true, true);
     REGISTER_FUNCTION(testSubscribeWithoutRetainedDelivery);
     REGISTER_FUNCTION(testDontUpgradeWildcardDenyMode);
     REGISTER_FUNCTION(testAlsoDontApproveOnErrorInPluginWithWildcardDenyMode);
@@ -285,10 +288,10 @@ MainTests::MainTests()
     REGISTER_FUNCTION(testPublishToItself);
     REGISTER_FUNCTION(testNoLocalPublishToItself);
     REGISTER_FUNCTION(testTopicMatchingInSubscriptionTree);
-    REGISTER_FUNCTION(testDnsResolver);
-    REGISTER_FUNCTION(testDnsResolverDontCancel);
-    REGISTER_FUNCTION(testDnsResolverSecondQuery);
-    REGISTER_FUNCTION(testDnsResolverInvalid);
+    REGISTER_FUNCTION2(testDnsResolver, false, true);
+    REGISTER_FUNCTION2(testDnsResolverDontCancel, false, true);
+    REGISTER_FUNCTION2(testDnsResolverSecondQuery, false, true);
+    REGISTER_FUNCTION2(testDnsResolverInvalid, false, true);
     REGISTER_FUNCTION(testGetResultWhenThereIsNone);
     REGISTER_FUNCTION(testWebsocketPing);
     REGISTER_FUNCTION(testWebsocketCorruptLengthFrame);
@@ -303,15 +306,15 @@ MainTests::MainTests()
     REGISTER_FUNCTION(testPreviouslyValidConfigFile);
 }
 
-bool MainTests::test(const std::vector<std::string> &tests)
+bool MainTests::test(bool skip_tests_with_internet, const std::vector<std::string> &tests)
 {
     int testCount = 0;
     int testPassCount = 0;
     int testFailCount = 0;
     int testExceptionCount = 0;
 
-    std::map<std::string, std::function<void()>> *selectedTests = &this->testFunctions;
-    std::map<std::string, std::function<void()>> subset;
+    std::map<std::string, TestFunction> *selectedTests = &this->testFunctions;
+    std::map<std::string, TestFunction> subset;
 
     for(const std::string &test_name : tests)
     {
@@ -335,6 +338,11 @@ bool MainTests::test(const std::vector<std::string> &tests)
 
     for (const auto &pair : *selectedTests)
     {
+        const TestFunction &tf = pair.second;
+
+        if (skip_tests_with_internet && tf.requiresInternet)
+            continue;
+
         testCount++;
 
         try
@@ -348,7 +356,7 @@ bool MainTests::test(const std::vector<std::string> &tests)
             const int assertCountBefore = assert_count;
 
             std::cout << CYAN << "RUN" << COLOR_END << ": " << pair.first << std::endl;
-            pair.second();
+            tf.f();
 
             const int failCountAfter = assert_fail_count;
             const int assertCountAfter = assert_count;
@@ -393,7 +401,12 @@ bool MainTests::test(const std::vector<std::string> &tests)
 
     std::cout << std::endl << std::endl;
 
-    if (assert_fail_count == 0 && testFailCount == 0)
+    if (testCount == 0)
+    {
+        std::cout << std::endl << RED << "No tests ran." << COLOR_END << std::endl;
+        return false;
+    }
+    else if (assert_fail_count == 0 && testFailCount == 0)
     {
         std::cout << std::endl << GREEN << "TESTS PASSED" << COLOR_END << std::endl;
         return true;

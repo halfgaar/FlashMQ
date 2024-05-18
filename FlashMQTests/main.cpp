@@ -3,17 +3,45 @@
 
 #include "maintests.h"
 
+void printHelp(const std::string &arg0)
+{
+    std::cout << std::endl;
+    std::cout << "Usage: " << arg0 << " [ --skip-tests-with-internet ] " << " <tests> " << std::endl;
+}
+
 int main(int argc, char *argv[])
 {
+    bool skip_tests_with_internet = false;
     std::vector<std::string> tests;
+    bool option_list_terminated = false;
 
     for (int i = 1; i < argc ; i++)
     {
-        tests.push_back(std::string(argv[i]));
+        const std::string name(argv[i]);
+
+        if (option_list_terminated)
+            tests.push_back(name);
+        else if (name == "--")
+            option_list_terminated = true;
+        else if (name == "--help")
+        {
+            printHelp(argv[0]);
+            return 1;
+        }
+        else if (name == "--skip-tests-with-internet")
+            skip_tests_with_internet = true;
+        else if (name.find("--") == 0)
+        {
+            std::cerr << "Unknown argument " << name << std::endl;
+            printHelp(argv[0]);
+            return 1;
+        }
+        else
+            tests.push_back(name);
     }
 
     MainTests maintests;
-    if (!maintests.test(tests))
+    if (!maintests.test(skip_tests_with_internet, tests))
         return 1;
 
     return 0;

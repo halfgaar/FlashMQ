@@ -8,6 +8,14 @@
 #include "mainappinthread.h"
 
 #define REGISTER_FUNCTION(name) registerFunction(#name, std::bind(&MainTests::name, this))
+#define REGISTER_FUNCTION2(name, server, internet) registerFunction(#name, std::bind(&MainTests::name, this), server, internet)
+
+struct TestFunction
+{
+    std::function<void()> f;
+    bool requiresServer = true;
+    bool requiresInternet = false;
+};
 
 class MainTests
 {
@@ -17,14 +25,14 @@ class MainTests
     std::shared_ptr<ThreadData> dummyThreadData;
     Settings settings;
 
-    std::map<std::string, std::function<void()>> testFunctions;
+    std::map<std::string, TestFunction> testFunctions;
 
     void testAsserts();
 
     void initBeforeEachTest(const std::vector<std::string> &args);
     void initBeforeEachTest();
     void cleanupAfterEachTest();
-    void registerFunction(const std::string &name, std::function<void()> f);
+    void registerFunction(const std::string &name, std::function<void ()> f, bool requiresServer=true, bool requiresInternet=false);
 
     // Compatability for porting the tests away from Qt. The function names are too vague so want to phase them out.
     void init(const std::vector<std::string> &args) { initBeforeEachTest(args);}
@@ -222,7 +230,7 @@ class MainTests
 public:
     MainTests();
 
-    bool test(const std::vector<std::string> &tests);
+    bool test(bool skip_tests_with_internet, const std::vector<std::string> &tests);
 };
 
 #endif // MAINTESTS_H
