@@ -18,7 +18,7 @@ public:
     TestInitializer(TestInitializer &&other) = delete;
     TestInitializer &operator=(const TestInitializer &other) = delete;
 
-    void init();
+    void init(bool startServer);
     void cleanup();
 };
 

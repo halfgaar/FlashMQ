@@ -9,6 +9,7 @@
 
 #define REGISTER_FUNCTION(name) registerFunction(#name, std::bind(&MainTests::name, this))
 #define REGISTER_FUNCTION2(name, server, internet) registerFunction(#name, std::bind(&MainTests::name, this), server, internet)
+#define REGISTER_FUNCTION3(name) registerFunction(#name, std::bind(&MainTests::name, this), false, false)
 
 struct TestFunction
 {
@@ -29,8 +30,8 @@ class MainTests
 
     void testAsserts();
 
-    void initBeforeEachTest(const std::vector<std::string> &args);
-    void initBeforeEachTest();
+    void initBeforeEachTest(const std::vector<std::string> &args, bool startServer=true);
+    void initBeforeEachTest(bool startServer=true);
     void cleanupAfterEachTest();
     void registerFunction(const std::string &name, std::function<void ()> f, bool requiresServer=true, bool requiresInternet=false);
 
@@ -230,7 +231,7 @@ class MainTests
 public:
     MainTests();
 
-    bool test(bool skip_tests_with_internet, const std::vector<std::string> &tests);
+    bool test(bool skip_tests_with_internet, bool skip_server_tests, const std::vector<std::string> &tests);
 };
 
 #endif // MAINTESTS_H

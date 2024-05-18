@@ -6,12 +6,13 @@
 void printHelp(const std::string &arg0)
 {
     std::cout << std::endl;
-    std::cout << "Usage: " << arg0 << " [ --skip-tests-with-internet ] " << " <tests> " << std::endl;
+    std::cout << "Usage: " << arg0 << " [ --skip-tests-with-internet ] [ --skip-server-tests ] " << " <tests> " << std::endl;
 }
 
 int main(int argc, char *argv[])
 {
     bool skip_tests_with_internet = false;
+    bool skip_server_tests = false;
     std::vector<std::string> tests;
     bool option_list_terminated = false;
 
@@ -30,6 +31,8 @@ int main(int argc, char *argv[])
         }
         else if (name == "--skip-tests-with-internet")
             skip_tests_with_internet = true;
+        else if (name == "--skip-server-tests")
+            skip_server_tests = true;
         else if (name.find("--") == 0)
         {
             std::cerr << "Unknown argument " << name << std::endl;
@@ -41,7 +44,7 @@ int main(int argc, char *argv[])
     }
 
     MainTests maintests;
-    if (!maintests.test(skip_tests_with_internet, tests))
+    if (!maintests.test(skip_tests_with_internet, skip_server_tests, tests))
         return 1;
 
     return 0;

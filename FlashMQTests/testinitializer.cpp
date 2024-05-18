@@ -6,12 +6,12 @@ TestInitializer::TestInitializer(MainTests *tests) :
 
 }
 
-void TestInitializer::init()
+void TestInitializer::init(bool startServer)
 {
     if (!tests)
         return;
 
-    tests->initBeforeEachTest();
+    tests->initBeforeEachTest(startServer);
 }
 
 void TestInitializer::cleanup()
