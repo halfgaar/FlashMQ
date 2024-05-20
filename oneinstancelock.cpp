@@ -58,7 +58,7 @@ void OneInstanceLock::unlock()
         {
             if (unlink(lockFilePath.c_str()) < 0)
             {
-                logger->logf(LOG_ERR, "Can't delete '%': %s", lockFilePath.c_str(), strerror(errno));
+                logger->log(LOG_ERR) << "Can't delete '" << lockFilePath << "': " << strerror(errno);
             }
             lockFilePath.clear();
         }
