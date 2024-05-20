@@ -1135,7 +1135,8 @@ void MqttPacket::handleConnAck()
 
     if (data.reasonCode != ReasonCodes::Success)
     {
-        throw std::runtime_error(formatString("Client '%s' connection failed. Reason code: %d", sender->repr().c_str(), data.reasonCode));
+        const std::string err = "Client '" + sender->repr() + "' connection failed. Reason: " + reasonCodeToString(data.reasonCode) ;
+        throw std::runtime_error(err);
     }
 
     if (!settings->allowUnsafeClientidChars && containsDangerousCharacters(data.assigned_client_id))
