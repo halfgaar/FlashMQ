@@ -245,7 +245,7 @@ void do_thread_work(ThreadData *threadData)
             catch(std::exception &ex)
             {
                 client->setDisconnectReason(ex.what());
-                logger->logf(LOG_ERR, "Packet read/write error: %s. Removing client.", ex.what());
+                logger->log(LOG_ERR) << "Packet read/write error: " << ex.what() << ". Removing client " << client->repr();
                 threadData->removeClient(client);
             }
         }
