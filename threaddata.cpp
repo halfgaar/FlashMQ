@@ -904,10 +904,15 @@ void ThreadData::removeClient(std::shared_ptr<Client> client)
     // This function is only for same-thread calling.
     assert(pthread_self() == thread.native_handle());
 
+    if (!client)
+        return;
+
     client->markAsDisconnecting();
 
     std::lock_guard<std::mutex> lck(clients_by_fd_mutex);
-    clients_by_fd.erase(client->getFd());
+    auto pos = clients_by_fd.find(client->getFd());
+    if (pos != clients_by_fd.end() && pos->second == client)
+        clients_by_fd.erase(pos);
 }
 
 void ThreadData::queueDoKeepAliveCheck()
