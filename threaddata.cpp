@@ -710,8 +710,12 @@ void ThreadData::removeQueuedClients()
         std::lock_guard<std::mutex> lck(clients_by_fd_mutex);
         for(const std::shared_ptr<Client> &client : clients)
         {
-            int fd = client->getFd();
-            clients_by_fd.erase(fd);
+            const int fd = client->getFd();
+            auto pos = clients_by_fd.find(fd);
+            if (pos != clients_by_fd.end() && pos->second == client)
+            {
+                clients_by_fd.erase(pos);
+            }
         }
     }
 }
