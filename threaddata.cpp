@@ -840,6 +840,10 @@ std::shared_ptr<Client> ThreadData::getClient(int fd)
 
 void ThreadData::removeClientQueued(const std::shared_ptr<Client> &client)
 {
+    // This is for same-thread calling, to avoid the calling thread to be slower and ending up with
+    // the last reference on the shared pointer to client.
+    assert(pthread_self() == thread.native_handle());
+
     bool wakeUpNeeded = true;
 
     {
@@ -877,7 +881,7 @@ void ThreadData::removeClientQueued(int fd)
         {
             std::lock_guard<std::mutex> locker(clientsToRemoveMutex);
             wakeUpNeeded = clientsQueuedForRemoving.empty();
-            clientsQueuedForRemoving.push_front(clientFound);
+            clientsQueuedForRemoving.push_front(std::move(clientFound));
         }
 
         if (wakeUpNeeded)
