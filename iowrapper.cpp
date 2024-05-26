@@ -999,7 +999,7 @@ ssize_t IoWrapper::writeWebsocketAndOrSsl(int fd, const void *buf, size_t nbytes
 
             if (n > 0)
                 websocketWriteRemainder.advanceTail(n);
-            if (n < 0)
+            else
                 break;
         }
 
