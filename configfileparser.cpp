@@ -213,6 +213,7 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validKeys.insert("retained_messages_mode");
     validKeys.insert("retained_messages_node_limit");
     validKeys.insert("expire_retained_messages_after_seconds");
+    validKeys.insert("retained_message_node_lifetime");
     validKeys.insert("expire_retained_messages_time_budget_ms");
     validKeys.insert("websocket_set_real_ip_from");
     validKeys.insert("shared_subscription_targeting");
@@ -994,6 +995,16 @@ void ConfigFileParser::loadFile(bool test)
                         throw ConfigFileException(formatString("expire_retained_messages_after_seconds value '%d' is invalid. Valid values are between 1 and 4294967296.", newVal));
                     }
                     tmpSettings.expireRetainedMessagesAfterSeconds = newVal;
+                }
+
+                if (testKeyValidity(key, "retained_message_node_lifetime", validKeys))
+                {
+                    const int val = full_stoi(key, value);
+
+                    if (val < 0)
+                        throw ConfigFileException("Option '" + key + "' must 0 or higher.");
+
+                    tmpSettings.retainedMessageNodeLifetime = std::chrono::seconds(val);
                 }
 
                 if (testKeyValidity(key, "expire_retained_messages_time_budget_ms", validKeys))

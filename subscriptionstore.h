@@ -69,10 +69,12 @@ class RetainedMessageNode
     std::unordered_map<std::string, std::shared_ptr<RetainedMessageNode>> children;
     std::mutex messageSetMutex;
     std::unique_ptr<RetainedMessage> message;
+    std::chrono::time_point<std::chrono::steady_clock> messageSetAt;
 
     void addPayload(const Publish &publish, int64_t &totalCount);
     std::shared_ptr<RetainedMessageNode> getChildren(const std::string &subtopic) const;
     bool isOrphaned() const;
+    const std::chrono::time_point<std::chrono::steady_clock> getMessageSetAt() const;
 };
 
 class QueuedWill

@@ -1438,7 +1438,9 @@ void SubscriptionStore::expireRetainedMessages(RetainedMessageNode *this_node, c
 
         if (child->isOrphaned())
         {
-            this_node->children.erase(cur);
+            const Settings *settings = ThreadGlobals::getSettings();
+            if (child->getMessageSetAt() + settings->retainedMessageNodeLifetime < std::chrono::steady_clock::now())
+                this_node->children.erase(cur);
         }
     }
 }
@@ -1609,6 +1611,7 @@ void RetainedMessageNode::addPayload(const Publish &publish, int64_t &totalCount
     RetainedMessage rm(publish);
     message = std::make_unique<RetainedMessage>(std::move(rm));
     totalCount += 1;
+    messageSetAt = std::chrono::steady_clock::now();
 }
 
 /**
@@ -1627,6 +1630,11 @@ std::shared_ptr<RetainedMessageNode> RetainedMessageNode::getChildren(const std:
 bool RetainedMessageNode::isOrphaned() const
 {
     return children.empty() && !message;
+}
+
+const std::chrono::time_point<std::chrono::steady_clock> RetainedMessageNode::getMessageSetAt() const
+{
+    return this->messageSetAt;
 }
 
 QueuedWill::QueuedWill(const std::shared_ptr<WillPublish> &will, const std::shared_ptr<Session> &session) :
