@@ -844,14 +844,38 @@ void SubscriptionStore::giveClientRetainedMessages(const std::shared_ptr<Session
     giveClientRetainedMessagesInitiateDeferred(ses, subscribeSubtopicsCopy, deferred, requeue_count, total_node_count, max_qos);
 }
 
-void SubscriptionStore::setRetainedMessage(const Publish &publish, const std::vector<std::string> &subtopics)
+/**
+ * @brief SubscriptionStore::trySetRetainedMessages queues setting of retained messages if not able to set directly.
+ * @param publish
+ * @param subtopics
+ */
+void SubscriptionStore::trySetRetainedMessages(const Publish &publish, const std::vector<std::string> &subtopics)
+{
+    const Settings *settings = ThreadGlobals::getSettings();
+    const bool try_lock_fail = settings->setRetainedMessageDeferTimeout.count() != 0;
+
+    ThreadData *td = ThreadGlobals::getThreadData();
+
+    if (!td)
+        return;
+
+    // Only do direct setting when there are none queued, to avoid out of order races, which would result in the wrong ultimate value.
+    if (td->queuedRetainedMessagesEmpty() && setRetainedMessage(publish, subtopics, try_lock_fail))
+        return;
+
+    const std::chrono::milliseconds spread(td->randomish() % settings->setRetainedMessageDeferTimeoutSpread.count());
+    std::chrono::time_point<std::chrono::steady_clock> limit = std::chrono::steady_clock::now() + settings->setRetainedMessageDeferTimeout + spread;
+    td->queueSettingRetainedMessage(publish, subtopics, limit);
+}
+
+bool SubscriptionStore::setRetainedMessage(const Publish &publish, const std::vector<std::string> &subtopics, bool try_lock_fail)
 {
     assert(!subtopics.empty());
 
     const Settings *settings = ThreadGlobals::getSettings();
 
     if (settings->retainedMessagesMode != RetainedMessagesMode::Enabled)
-        return;
+        return true;
 
     RetainedMessageNode *deepestNode = retainedMessagesRoot.get();
     if (!subtopics.empty() && !subtopics[0].empty() > 0 && subtopics[0][0] == '$')
@@ -863,7 +887,13 @@ void SubscriptionStore::setRetainedMessage(const Publish &publish, const std::ve
     // First do a read-only search for the node.
     {
         RWLockGuard locker(&retainedMessagesRwlock);
-        locker.rdlock();
+        if (try_lock_fail)
+        {
+            if (!locker.tryrdlock())
+                return false;
+        }
+        else
+            locker.rdlock();
 
         while(subtopic_pos != subtopics.end())
         {
@@ -897,7 +927,13 @@ void SubscriptionStore::setRetainedMessage(const Publish &publish, const std::ve
     if (needsWriteLock)
     {
         RWLockGuard locker(&retainedMessagesRwlock);
-        locker.wrlock();
+        if (try_lock_fail)
+        {
+            if (!locker.trywrlock())
+                return false;
+        }
+        else
+            locker.wrlock();
 
         while(subtopic_pos != subtopics.end())
         {
@@ -918,6 +954,8 @@ void SubscriptionStore::setRetainedMessage(const Publish &publish, const std::ve
             deepestNode->addPayload(publish, retainedMessageCount);
         }
     }
+
+    return true;
 }
 
 // Clean up the weak pointers to sessions and remove nodes that are empty.

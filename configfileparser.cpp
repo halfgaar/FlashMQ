@@ -227,6 +227,8 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validKeys.insert("zero_byte_username_is_anonymous");
     validKeys.insert("overload_mode");
     validKeys.insert("max_event_loop_drift");
+    validKeys.insert("set_retained_message_defer_timeout");
+    validKeys.insert("set_retained_message_defer_timeout_spread");
 
     validListenKeys.insert("port");
     validListenKeys.insert("protocol");
@@ -1092,6 +1094,26 @@ void ConfigFileParser::loadFile(bool test)
                     }
 
                     tmpSettings.maxEventLoopDrift = std::chrono::milliseconds(val);
+                }
+
+                if (testKeyValidity(key, "set_retained_message_defer_timeout", validKeys))
+                {
+                    const int val = full_stoi(key, value);
+
+                    if (val < 0)
+                        throw ConfigFileException("Option '" + key + "' must 0 or higher.");
+
+                    tmpSettings.setRetainedMessageDeferTimeout = std::chrono::milliseconds(val);
+                }
+
+                if (testKeyValidity(key, "set_retained_message_defer_timeout_spread", validKeys))
+                {
+                    const int val = full_stoi(key, value);
+
+                    if (val < 0)
+                        throw ConfigFileException("Option '" + key + "' must 0 or higher.");
+
+                    tmpSettings.setRetainedMessageDeferTimeoutSpread = std::chrono::milliseconds(val);
                 }
             }
         }

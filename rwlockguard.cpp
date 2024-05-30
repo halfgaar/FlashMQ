@@ -23,6 +23,20 @@ RWLockGuard::~RWLockGuard()
     unlock();
 }
 
+bool RWLockGuard::trywrlock()
+{
+    const int rc = pthread_rwlock_trywrlock(rwlock);
+
+    if (rc == 0)
+        return true;
+
+    if (rc == EINVAL)
+        throw std::runtime_error("Lock not initialized.");
+
+    rwlock = nullptr;
+    return false;
+}
+
 /**
  * @brief RWLockGuard::wrlock locks for writing i.e. exclusive lock.
  *
@@ -35,6 +49,20 @@ void RWLockGuard::wrlock()
 
     if (rc != 0)
         throw std::runtime_error("wrlock failed.");
+}
+
+bool RWLockGuard::tryrdlock()
+{
+    const int rc = pthread_rwlock_tryrdlock(rwlock);
+
+    if (rc == 0)
+        return true;
+
+    if (rc == EINVAL)
+        throw std::runtime_error("Lock not initialized.");
+
+    rwlock = nullptr;
+    return false;
 }
 
 /**

@@ -22,6 +22,7 @@ See LICENSE for license details.
 #include <functional>
 #include <chrono>
 #include <forward_list>
+#include <random>
 
 #include "client.h"
 #include "plugin.h"
@@ -53,6 +54,15 @@ public:
     AsyncAuth(std::weak_ptr<Client> client, AuthResult result, const std::string authMethod, const std::string &authData);
 };
 
+struct QueuedRetainedMessage
+{
+    const Publish p;
+    const std::vector<std::string> subtopics;
+    const std::chrono::time_point<std::chrono::steady_clock> limit;
+
+    QueuedRetainedMessage(const Publish &p, const std::vector<std::string> &subtopics, const std::chrono::time_point<std::chrono::steady_clock> limit);
+};
+
 class ThreadData
 {
     std::unordered_map<int, std::shared_ptr<Client>> clients_by_fd;
@@ -68,6 +78,8 @@ class ThreadData
 
     std::mutex queuedKeepAliveMutex;
     std::map<std::chrono::seconds, std::vector<KeepAliveCheck>> queuedKeepAliveChecks;
+
+    std::list<QueuedRetainedMessage> queuedRetainedMessages;
 
     const PluginLoader &pluginLoader;
 
@@ -118,6 +130,10 @@ public:
     DerivableCounter aclWriteChecks;
     DerivableCounter aclSubscribeChecks;
     DerivableCounter aclRegisterWillChecks;
+    DerivableCounter deferredRetainedMessagesSet;
+    DerivableCounter deferredRetainedMessagesSetTimeout;
+
+    std::minstd_rand randomish;
 
     ThreadData(int threadnr, const Settings &settings, const PluginLoader &pluginLoader);
     ThreadData(const ThreadData &other) = delete;
@@ -153,6 +169,10 @@ public:
                                       std::weak_ptr<BridgeState> &&bridgeState);
     void queueBridgeReconnect();
     void publishBridgeState(std::shared_ptr<BridgeState> bridge, bool connected);
+    void queueSettingRetainedMessage(const Publish &p, const std::vector<std::string> &subtopics, const std::chrono::time_point<std::chrono::steady_clock> limit);
+    void setQueuedRetainedMessages();
+    bool queuedRetainedMessagesEmpty() const;
+    void clearQueuedRetainedMessages();
 
     int getNrOfClients() const;
 

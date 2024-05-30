@@ -20,7 +20,9 @@ class RWLockGuard
 public:
     RWLockGuard(pthread_rwlock_t *rwlock);
     ~RWLockGuard();
+    bool trywrlock();
     void wrlock();
+    bool tryrdlock();
     void rdlock();
     void unlock();
 };

@@ -33,6 +33,14 @@ AsyncAuth::AsyncAuth(std::weak_ptr<Client> client, AuthResult result, const std:
 
 }
 
+QueuedRetainedMessage::QueuedRetainedMessage(const Publish &p, const std::vector<std::string> &subtopics, const std::chrono::time_point<std::chrono::steady_clock> limit) :
+    p(p),
+    subtopics(subtopics),
+    limit(limit)
+{
+
+}
+
 ThreadData::ThreadData(int threadnr, const Settings &settings, const PluginLoader &pluginLoader) :
     pluginLoader(pluginLoader),
     settingsLocalCopy(settings),
@@ -46,6 +54,8 @@ ThreadData::ThreadData(int threadnr, const Settings &settings, const PluginLoade
     taskEventFd = eventfd(0, EFD_NONBLOCK);
     if (taskEventFd < 0)
         throw std::runtime_error("Can't create eventfd.");
+
+    randomish.seed(get_random_int<unsigned long>());
 
     struct epoll_event ev;
     memset(&ev, 0, sizeof (struct epoll_event));
@@ -521,6 +531,11 @@ void ThreadData::publishStatsOnDollarTopic(std::vector<std::shared_ptr<ThreadDat
 
         publishStat("$SYS/broker/threads/" + std::to_string(thread->threadnr) + "/drift/latest__ms", thread->driftCounter.getDrift().count());
         publishStat("$SYS/broker/threads/" + std::to_string(thread->threadnr) + "/drift/moving_avg__ms", thread->driftCounter.getAvgDrift().count());
+
+        publishStat("$SYS/broker/threads/" + std::to_string(thread->threadnr) + "/retained_deferrals/count", thread->deferredRetainedMessagesSet.get());
+        publishStat("$SYS/broker/threads/" + std::to_string(thread->threadnr) + "/retained_deferrals/persecond", thread->deferredRetainedMessagesSet.getPerSecond());
+        publishStat("$SYS/broker/threads/" + std::to_string(thread->threadnr) + "/retained_deferrals/timeout/count", thread->deferredRetainedMessagesSetTimeout.get());
+        publishStat("$SYS/broker/threads/" + std::to_string(thread->threadnr) + "/retained_deferrals/timeout/persecond", thread->deferredRetainedMessagesSetTimeout.getPerSecond());
     }
 
     GlobalStats *globalStats = GlobalStats::getInstance();
@@ -589,6 +604,17 @@ void ThreadData::publishBridgeState(std::shared_ptr<BridgeState> bridge, bool co
 
     Publish p(topic, payload, 0);
     publishWithAcl(p, true);
+}
+
+void ThreadData::queueSettingRetainedMessage(const Publish &p, const std::vector<std::string> &subtopics, const std::chrono::time_point<std::chrono::steady_clock> limit)
+{
+    assert(pthread_self() == thread.native_handle());
+    const bool wakeup_required = this->queuedRetainedMessages.empty();
+    this->queuedRetainedMessages.emplace_front(p, subtopics, limit);
+    this->deferredRetainedMessagesSet.inc(1);
+
+    if (wakeup_required)
+        wakeUpThread();
 }
 
 void ThreadData::publishWithAcl(Publish &pub, bool setRetain)
@@ -810,6 +836,52 @@ void ThreadData::removeBridge(std::shared_ptr<BridgeConfig> bridgeConfig, const 
 
     publishBridgeState(bridge, false);
     removeClientQueued(client);
+}
+
+void ThreadData::setQueuedRetainedMessages()
+{
+    if (this->queuedRetainedMessages.empty())
+        return;
+
+    std::shared_ptr<SubscriptionStore> store = MainApp::getMainApp()->getSubscriptionStore();
+
+    if (!store)
+        return;
+
+    auto _pos = this->queuedRetainedMessages.begin();
+    while (_pos != this->queuedRetainedMessages.end())
+    {
+        auto cur = _pos;
+        _pos++;
+
+        const bool try_lock_fail = cur->limit > std::chrono::steady_clock::now();
+
+        if (!try_lock_fail)
+        {
+            deferredRetainedMessagesSetTimeout.inc(1);
+        }
+
+        if (store->setRetainedMessage(cur->p, cur->subtopics, try_lock_fail))
+        {
+            this->queuedRetainedMessages.erase(cur);
+            continue;
+        }
+        else
+        {
+            wakeUpThread();
+            return;
+        }
+    }
+}
+
+bool ThreadData::queuedRetainedMessagesEmpty() const
+{
+    return queuedRetainedMessages.empty();
+}
+
+void ThreadData::clearQueuedRetainedMessages()
+{
+    queuedRetainedMessages.clear();
 }
 
 void ThreadData::queueInternalHeartbeat()

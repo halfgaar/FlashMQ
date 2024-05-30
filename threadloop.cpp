@@ -95,6 +95,18 @@ void do_thread_work(ThreadData *threadData)
                     }
                 }
 
+                try
+                {
+                    threadData->setQueuedRetainedMessages();
+                }
+                catch (std::exception &ex)
+                {
+                    Logger *logger = Logger::getInstance();
+                    logger->log(LOG_ERR) << "Error in setting queued retained messages: " << ex.what() << ". This shouldn't "
+                                         << "happen and is likely a bug. Clearing the queue for safety.";
+                    threadData->clearQueuedRetainedMessages();
+                }
+
                 continue;
             }
 

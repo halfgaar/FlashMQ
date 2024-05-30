@@ -168,7 +168,8 @@ public:
                                                     std::shared_ptr<std::deque<DeferredRetainedMessageNodeDelivery>> deferred,
                                                     int &requeue_count, uint &total_node_count, uint8_t max_qos);
 
-    void setRetainedMessage(const Publish &publish, const std::vector<std::string> &subtopics);
+    void trySetRetainedMessages(const Publish &publish, const std::vector<std::string> &subtopics);
+    bool setRetainedMessage(const Publish &publish, const std::vector<std::string> &subtopics, bool try_lock_fail=false);
 
     void removeSession(const std::shared_ptr<Session> &session);
     void removeExpiredSessionsClients();

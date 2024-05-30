@@ -25,6 +25,7 @@ See LICENSE for license details.
 #include <sys/stat.h>
 #include <sys/random.h>
 #include <stdexcept>
+#include <cassert>
 
 #include "cirbuf.h"
 #include "bindaddr.h"
@@ -261,6 +262,24 @@ std::vector<std::string> parseValuesWithOptionalQuoting(std::string s)
 
     return result;
 }
+
+template<typename T>
+class DecrementGuard
+{
+    T &n;
+public:
+    DecrementGuard(T &n) :
+        n(n)
+    {
+
+    }
+
+    ~DecrementGuard()
+    {
+        n--;
+        assert(n >= 0);
+    }
+};
 
 
 #endif // UTILS_H

@@ -1834,7 +1834,7 @@ void MqttPacket::handlePublish()
             if (publishData.retain && settings->retainedMessagesMode == RetainedMessagesMode::Enabled)
             {
                 publishData.payload = getPayloadCopy();
-                MainApp::getMainApp()->getSubscriptionStore()->setRetainedMessage(publishData, publishData.getSubtopics());
+                MainApp::getMainApp()->getSubscriptionStore()->trySetRetainedMessages(publishData, publishData.getSubtopics());
             }
 
             if (!publishData.retain || settings->retainedMessagesMode <= RetainedMessagesMode::Downgrade)
