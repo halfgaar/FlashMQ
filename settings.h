@@ -98,7 +98,7 @@ public:
     bool willsEnabled = true;
     uint32_t retainedMessagesDeliveryLimit = 2048;
     uint32_t retainedMessagesNodeLimit = std::numeric_limits<uint32_t>::max();
-    std::chrono::seconds retainedMessageNodeLifetime = std::chrono::seconds(43200);
+    std::chrono::seconds retainedMessageNodeLifetime = std::chrono::seconds(0);
     RetainedMessagesMode retainedMessagesMode = RetainedMessagesMode::Enabled;
     SharedSubscriptionTargeting sharedSubscriptionTargeting = SharedSubscriptionTargeting::RoundRobin;
     uint16_t minimumWildcardSubscriptionDepth = 0;

@@ -526,6 +526,42 @@ multi-value-param one 'two' "three" "with ' char"
       
 
       
+        <dt id="set_retained_message_defer_timeout"><code class="option">set_retained_message_defer_timeout</code> <code class="replaceable">milliseconds</code><a class="hash-anchor" href="#set_retained_message_defer_timeout">#</a></dt>
+        <dd>
+          <p>
+            The time after which FlashMQ will fall back to (b)locking vs queued mode for setting retained messages. 0, the default, disables queued mode altogether. It's disabled by default because it can incur some extra CPU and memory overhead.
+          </p>
+          <p>
+            Each retained message lives in a node in a tree. The topic 'one/two/three' is three nodes. When a node in that tree does not exist yet, it needs to be created. This requires a write lock on the tree. At this point, other threads reading from or writing to the retained message tree need to wait. This can cause a compounding blocking effect, especially if many threads do it at once. 
+          </p>
+          <p>
+            This feature is to favor server responsiveness vs the speed at which retained messages become available in the server. It is primarily useful for when you have a lot of retained messages on different/changing topics. If at first a retained message can't be set, the action to do so will be retried in the event loop, asynchronously.
+          </p>
+          <p>
+            This setting determines the maximum amount of time to defer setting a retained message, after which it will fall back to using locks.
+          </p>
+          <p>
+            Also see <code class="option">set_retained_message_defer_timeout_spread</code>
+          </p>
+          <p>
+            Default value: <code class="filename">0</code>
+          </p>
+        </dd>
+      
+
+      
+        <dt id="set_retained_message_defer_timeout_spread"><code class="option">set_retained_message_defer_timeout_spread</code> <code class="replaceable">milliseconds</code><a class="hash-anchor" href="#set_retained_message_defer_timeout_spread">#</a></dt>
+        <dd>
+          <p>
+            For <code class="option">set_retained_message_defer_timeout</code>, the amount of random spread between 0 and this value for the timeout. This spreads out locking over time, reducing contention.
+          </p>
+          <p>
+            Default value: <code class="filename">1000</code>
+          </p>
+        </dd>
+      
+
+      
         <dt id="websocket_set_real_ip_from"><code class="option">websocket_set_real_ip_from</code> <code class="replaceable">inet4_address/inet6_address</code><a class="hash-anchor" href="#websocket_set_real_ip_from">#</a></dt>
         <dd>
           <p>
