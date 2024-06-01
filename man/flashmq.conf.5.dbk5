@@ -508,6 +508,21 @@ multi-value-param one 'two' "three" "with ' char"
         </listitem>
       </varlistentry>
 
+      <varlistentry xml:id="retained_message_node_lifetime">
+        <term><option>retained_message_node_lifetime</option> <replaceable>seconds</replaceable></term>
+        <listitem>
+          <para>
+            The grace period after which a retained message node is eligible for deletion. The topic 'one/two/three' is three nodes, and if that topic had a message, it would be contained in 'three'.
+          </para>
+          <para>
+            FlashMQ will periodically clear out retained message nodes that have no message anymore. This is required to save memory. But, when you receive retained messages on the same topics repeatedly, it may be beneficial to keep the nodes around, to avoid the need for locks to recreate them. If you know that retained messages come and go within a certain period, it's benificial to set this value so that no unnecessary node destruction and creation takes place.
+          </para>
+          <para>
+            Default value: <filename>0</filename>
+          </para>
+        </listitem>
+      </varlistentry>
+
       <varlistentry xml:id="websocket_set_real_ip_from">
         <term><option>websocket_set_real_ip_from</option> <replaceable>inet4_address/inet6_address</replaceable></term>
         <listitem>
