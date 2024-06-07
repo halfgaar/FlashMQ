@@ -214,7 +214,7 @@ void MainTests::test_retained_mode_downgrade()
             usleep(250000);
 
             receiver.waitForMessageCount(0);
-            QVERIFY2(receiver.receivedPublishes.empty(), "In downgrade mode, retained publishes should be stored as retained messages.");
+            QVERIFY2(receiver.receivedPublishes.empty(), "In downgrade mode, retained publishes should not be stored as retained messages.");
 
             receiver.clearReceivedLists();
 
