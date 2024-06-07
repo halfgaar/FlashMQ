@@ -10,17 +10,24 @@ void MainTests::testMqtt3will()
     std::shared_ptr<WillPublish> will = std::make_shared<WillPublish>();
     will->topic = "my/will";
     will->payload = "mypayload";
+    will->qos = 1;
     sender->setWill(will);
     sender->connectClient(ProtocolVersion::Mqtt311);
 
     FlashMQTestClient receiver;
     receiver.start();
-    receiver.connectClient(ProtocolVersion::Mqtt311);
+    receiver.connectClient(ProtocolVersion::Mqtt311, false, 300);
     receiver.subscribe("my/will", 0);
+
+    FlashMQTestClient receiver2;
+    receiver2.start();
+    receiver2.connectClient(ProtocolVersion::Mqtt311, false, 300);
+    receiver2.subscribe("my/will", 1);
 
     sender.reset();
 
     receiver.waitForMessageCount(1);
+    receiver2.waitForMessageCount(1);
 
     MqttPacket pubPack = receiver.receivedPublishes.front();
     pubPack.parsePublishData();
@@ -28,6 +35,15 @@ void MainTests::testMqtt3will()
     QCOMPARE(pubPack.getPublishData().topic, "my/will");
     QCOMPARE(pubPack.getPublishData().payload, "mypayload");
     QCOMPARE(pubPack.getPublishData().qos, 0);
+
+    // The second receiver subscribed at a QoS non-0, and we want to see if we actually get it, and that it wasn't demoted by the other subscriber.
+
+    MqttPacket pubPack2 = receiver2.receivedPublishes.front();
+    pubPack2.parsePublishData();
+
+    QCOMPARE(pubPack2.getPublishData().topic, "my/will");
+    QCOMPARE(pubPack2.getPublishData().payload, "mypayload");
+    QCOMPARE(pubPack2.getPublishData().qos, 1);
 }
 
 void MainTests::testMqtt3NoWillOnDisconnect()
