@@ -36,6 +36,9 @@ MqttPacket *PublishCopyFactory::getOptimumPacket(const uint8_t max_qos, const Pr
 
     if (packet)
     {
+        // The incoming topic alias is not relevant after initial conversion and it should not propagate.
+        assert(packet->getPublishData().topicAlias == 0);
+
         if (protocolVersion >= ProtocolVersion::Mqtt5 && (packet->containsClientSpecificProperties() || topic_alias > 0))
         {
             this->oneShotPacket = std::make_unique<MqttPacket>(protocolVersion, packet->getPublishData(), actualQos, topic_alias, skip_topic);
@@ -60,6 +63,9 @@ MqttPacket *PublishCopyFactory::getOptimumPacket(const uint8_t max_qos, const Pr
 
     // Getting an instance of a Publish object happens at least on retained messages, will messages and SYS topics. It's low traffic, anyway.
     assert(publish);
+
+    // The incoming topic alias is not relevant after initial conversion and it should not propagate.
+    assert(publish->topicAlias == 0);
 
     this->oneShotPacket = std::make_unique<MqttPacket>(protocolVersion, *publish, actualQos, topic_alias, skip_topic);
     return this->oneShotPacket.get();

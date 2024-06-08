@@ -1732,7 +1732,6 @@ void MqttPacket::parsePublishData()
                     throw ProtocolError("Topic alias ID 0 is invalid.", ReasonCodes::TopicAliasInvalid);
 
                 this->hasTopicAlias = true;
-                this->publishData.topicAlias = alias_id;
 
                 if (publishData.topic.empty())
                 {
