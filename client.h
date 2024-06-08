@@ -195,7 +195,6 @@ public:
     uint16_t getMaxIncomingTopicAliasValue() const;
 
     void sendOrQueueWill();
-    void serverInitiatedDisconnect(ReasonCodes reason);
 
     void setRegistrationData(bool clean_start, uint16_t client_receive_max, uint32_t sessionExpiryInterval);
     const std::unique_ptr<StowedClientRegistrationData> &getRegistrationData() const;

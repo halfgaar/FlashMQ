@@ -603,35 +603,6 @@ void Client::sendOrQueueWill()
 }
 
 /**
- * @brief Client::serverInitiatedDisconnect queues a disconnect packet and when the last bytes are written, the thread loop will disconnect it.
- * @param reason is an MQTT5 reason code.
- *
- * There is a chance that an client's TCP buffers are full (when the client is gone, for example) and epoll will not report the
- * fd as EPOLLOUT, which means the disconnect will not happen. It will then be up to the keep-alive mechanism to kick the client out.
- *
- * Sending clients disconnect packets is only supported by MQTT >= 5, so in case of MQTT3, just close the connection.
- */
-void Client::serverInitiatedDisconnect(ReasonCodes reason)
-{
-    setDisconnectReason("Server initiating disconnect with reason: " + reasonCodeToString(reason));
-
-    if (this->protocolVersion >= ProtocolVersion::Mqtt5)
-    {
-        setReadyForDisconnect();
-        Disconnect d(ProtocolVersion::Mqtt5, reason);
-        writeMqttPacket(d);
-    }
-    else
-    {
-        markAsDisconnecting();
-
-        std::shared_ptr<ThreadData> td = this->threadData.lock();
-        if (td)
-            td->removeClientQueued(fd);
-    }
-}
-
-/**
  * @brief Client::setRegistrationData sets parameters for the session to be registered. We set them as arguments here to
  * possibly use later, because with extended authentication, session registration doesn't happen on the first CONNECT packet.
  * @param clean_start
@@ -965,6 +936,16 @@ void Client::resetSession()
 
 void Client::setDisconnectReason(const std::string &reason)
 {
+#ifndef TESTING // Because of testing trickery, we can't assert this in testing.
+#ifndef NDEBUG
+    auto td = this->threadData.lock();
+    if (td)
+    {
+        assert(pthread_self() == td->thread.native_handle());
+    }
+#endif
+#endif
+
     if (!this->disconnectReason.empty())
         this->disconnectReason += ", ";
     this->disconnectReason.append(reason);

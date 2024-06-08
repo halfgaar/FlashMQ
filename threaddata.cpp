@@ -706,7 +706,7 @@ void ThreadData::sendAllDisconnects()
 
     for (std::shared_ptr<Client> &c : clientsFound)
     {
-        c->serverInitiatedDisconnect(ReasonCodes::ServerShuttingDown);
+        serverInitiatedDisconnect(c, ReasonCodes::ServerShuttingDown, "");
     }
 
     allDisconnectsSent = true;
@@ -985,6 +985,49 @@ void ThreadData::removeClient(std::shared_ptr<Client> client)
     auto pos = clients_by_fd.find(client->getFd());
     if (pos != clients_by_fd.end() && pos->second == client)
         clients_by_fd.erase(pos);
+}
+
+void ThreadData::serverInitiatedDisconnect(std::shared_ptr<Client> &&client, ReasonCodes reason, const std::string &reason_text)
+{
+    auto c = std::move(client);
+    serverInitiatedDisconnect(c, reason, reason_text);
+}
+
+/**
+ * @brief ThreadData::serverInitiatedDisconnect queues a disconnect packet and when the last bytes are written, the thread loop will disconnect it.
+ * @param client
+ * @param reason
+ * @param reason_text
+ *
+ * Sending clients disconnect packets is only supported by MQTT >= 5, so in case of MQTT3, just close the connection.
+ *
+ * There is a chance that an client's TCP buffers are full (when the client is gone, for example) and epoll will not report the
+ * fd as EPOLLOUT, which means the disconnect will not happen. It will then be up to the keep-alive mechanism to kick the client out.
+ */
+void ThreadData::serverInitiatedDisconnect(const std::shared_ptr<Client> &client, ReasonCodes reason, const std::string &reason_text)
+{
+    if (!client)
+        return;
+
+    auto f = [client, reason, reason_text, this]() {
+        if (!reason_text.empty())
+            client->setDisconnectReason(reason_text);
+        client->setDisconnectReason("Server initiating disconnect with reason: " + reasonCodeToString(reason));
+
+        if (client->getProtocolVersion() >= ProtocolVersion::Mqtt5)
+        {
+            client->setReadyForDisconnect();
+            Disconnect d(ProtocolVersion::Mqtt5, reason);
+            client->writeMqttPacket(d);
+        }
+        else
+        {
+            client->markAsDisconnecting();
+            removeClientQueued(client);
+        }
+    };
+
+    addImmediateTask(f);
 }
 
 void ThreadData::queueDoKeepAliveCheck()

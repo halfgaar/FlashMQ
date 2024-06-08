@@ -39,7 +39,12 @@ void flashmq_plugin_remove_client(const std::string &clientid, bool alsoSession,
         if (client)
         {
             ReasonCodes _code = static_cast<ReasonCodes>(reasonCode);
-            client->serverInitiatedDisconnect(_code);
+            std::shared_ptr<ThreadData> td = client->lockThreadData();
+
+            if (td)
+            {
+                td->serverInitiatedDisconnect(client, _code, "Removed from plugin");
+            }
         }
 
         if (alsoSession)

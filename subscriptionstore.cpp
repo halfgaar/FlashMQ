@@ -296,7 +296,6 @@ void SubscriptionStore::registerClientAndKickExistingOne(std::shared_ptr<Client>
 
     // These destructors need to be called outside the sessions lock, so placing here.
     std::shared_ptr<Session> session;
-    std::shared_ptr<Client> clientOfOtherSession;
 
     if (client->getClientId().empty())
         throw ProtocolError("Trying to store client without an ID.", ReasonCodes::ProtocolError);
@@ -312,13 +311,13 @@ void SubscriptionStore::registerClientAndKickExistingOne(std::shared_ptr<Client>
 
             if (session)
             {
-                clientOfOtherSession = session->makeSharedClient();
+                std::shared_ptr<Client> clientOfOtherSession = session->makeSharedClient();
 
                 if (clientOfOtherSession)
                 {
                     logger->logf(LOG_NOTICE, "Disconnecting existing client with id '%s'", clientOfOtherSession->getClientId().c_str());
-                    clientOfOtherSession->setDisconnectReason("Another client with this ID connected");
-                    clientOfOtherSession->serverInitiatedDisconnect(ReasonCodes::SessionTakenOver);
+                    std::shared_ptr<ThreadData> td = clientOfOtherSession->lockThreadData();
+                    td->serverInitiatedDisconnect(std::move(clientOfOtherSession), ReasonCodes::SessionTakenOver, "Another client with this ID connected");
                 }
 
             }

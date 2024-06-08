@@ -149,6 +149,8 @@ public:
     void removeClientQueued(const std::shared_ptr<Client> &client);
     void removeClientQueued(int fd);
     void removeClient(std::shared_ptr<Client> client);
+    void serverInitiatedDisconnect(std::shared_ptr<Client> &&client, ReasonCodes reason, const std::string &reason_text);
+    void serverInitiatedDisconnect(const std::shared_ptr<Client> &client, ReasonCodes reason, const std::string &reason_text);
 
     void initplugin();
     void cleanupplugin();
