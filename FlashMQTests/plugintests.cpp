@@ -1016,6 +1016,50 @@ void MainTests::testDenyWildcardSubscription()
     QVERIFY(suback_errored);
 }
 
+void MainTests::testUserPropertiesPresent()
+{
+    ConfFileTemp confFile;
+    confFile.writeLine("plugin plugins/libtest_plugin.so.0.0.1");
+    confFile.closeFile();
+
+    std::vector<std::string> args {"--config-file", confFile.getFilePath()};
+
+    cleanup();
+    init(args);
+
+    FlashMQTestClient sender;
+    FlashMQTestClient receiver;
+
+    sender.start();
+    receiver.start();
+
+    const std::string payload = "werwer payload";
+    const std::string topic = "test_user_property";
+
+    sender.connectClient(ProtocolVersion::Mqtt5);
+
+    receiver.connectClient(ProtocolVersion::Mqtt5, true, 0, [] (Connect &connect){
+        connect.clientid = "qq5HD9s9VDomlF2l";
+    });
+    receiver.subscribe(topic, 0);
+
+    Publish pub1(topic, payload, 0);
+    pub1.constructPropertyBuilder();
+    pub1.propertyBuilder->writeUserProperty("myprop", "myval");
+    sender.publish(pub1);
+
+    receiver.waitForMessageCount(1);
+
+    MYCASTCOMPARE(receiver.receivedPublishes.size(), 1);
+    QVERIFY(receiver.receivedPublishes.front().getPayloadView() == payload);
+    QVERIFY(receiver.receivedPublishes.front().getUserProperties() != nullptr);
+
+    auto props = receiver.receivedPublishes.front().getUserProperties();
+    QVERIFY(std::any_of(props->begin(), props->end(), [](std::pair<std::string, std::string> &p) {
+        return p.first == "myprop" && p.second == "myval";
+    }));
+}
+
 
 
 

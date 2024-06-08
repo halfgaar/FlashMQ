@@ -38,11 +38,7 @@ MqttPacket *PublishCopyFactory::getOptimumPacket(const uint8_t max_qos, const Pr
     {
         if (protocolVersion >= ProtocolVersion::Mqtt5 && (packet->containsClientSpecificProperties() || topic_alias > 0))
         {
-            Publish newPublish(packet->getPublishData());
-            newPublish.qos = actualQos;
-            newPublish.topicAlias = topic_alias;
-            newPublish.skipTopic = skip_topic;
-            this->oneShotPacket = std::make_unique<MqttPacket>(protocolVersion, newPublish);
+            this->oneShotPacket = std::make_unique<MqttPacket>(protocolVersion, packet->getPublishData(), actualQos, topic_alias, skip_topic);
             return this->oneShotPacket.get();
         }
 
@@ -56,9 +52,7 @@ MqttPacket *PublishCopyFactory::getOptimumPacket(const uint8_t max_qos, const Pr
 
         if (!cachedPack)
         {
-            Publish newPublish(packet->getPublishData());
-            newPublish.qos = actualQos;
-            cachedPack = std::make_unique<MqttPacket>(protocolVersion, newPublish);
+            cachedPack = std::make_unique<MqttPacket>(protocolVersion, packet->getPublishData(), actualQos, 0, false);
         }
 
         return cachedPack.get();
@@ -67,11 +61,7 @@ MqttPacket *PublishCopyFactory::getOptimumPacket(const uint8_t max_qos, const Pr
     // Getting an instance of a Publish object happens at least on retained messages, will messages and SYS topics. It's low traffic, anyway.
     assert(publish);
 
-    publish->qos = actualQos;
-    publish->topicAlias = topic_alias;
-    publish->skipTopic = skip_topic;
-
-    this->oneShotPacket = std::make_unique<MqttPacket>(protocolVersion, *publish);
+    this->oneShotPacket = std::make_unique<MqttPacket>(protocolVersion, *publish, actualQos, topic_alias, skip_topic);
     return this->oneShotPacket.get();
 }
 

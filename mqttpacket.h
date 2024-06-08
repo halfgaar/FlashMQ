@@ -69,6 +69,7 @@ class MqttPacket
     void writeUint16(uint16_t x);
     void writeBytes(const char *b, size_t len);
     void writeProperties(const std::shared_ptr<Mqtt5PropertyBuilder> &properties);
+    void joinAndWriteProperties(const std::shared_ptr<const Mqtt5PropertyBuilder> &properties);
     void writeVariableByteInt(const VariableByteInt &v);
     void writeString(const std::string &s);
     void writeString(std::string_view s);
@@ -97,13 +98,12 @@ public:
     MqttPacket(CirBuf &buf, size_t packet_len, size_t fixed_header_length, std::shared_ptr<Client> &sender); // Constructor for parsing incoming packets.
     MqttPacket(MqttPacket &&other) = default;
 
-    size_t setClientSpecificPropertiesAndGetRequiredSizeForPublish(const ProtocolVersion protocolVersion, Publish &publishData) const;
-
     // Constructor for outgoing packets. These may not allocate room for the fixed header, because we don't (always) know the length in advance.
     MqttPacket(const ConnAck &connAck);
     MqttPacket(const SubAck &subAck);
     MqttPacket(const UnsubAck &unsubAck);
-    MqttPacket(const ProtocolVersion protocolVersion, Publish &_publish);
+    MqttPacket(const ProtocolVersion protocolVersion, const Publish &_publish);
+    MqttPacket(const ProtocolVersion protocolVersion, const Publish &_publish, const uint8_t _qos, const uint16_t _topic_alias, const bool _skip_topic);
     MqttPacket(const PubResponse &pubAck);
     MqttPacket(const Disconnect &disconnect);
     MqttPacket(const Auth &auth);

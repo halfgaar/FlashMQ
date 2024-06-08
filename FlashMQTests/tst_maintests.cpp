@@ -1504,7 +1504,7 @@ void MainTests::testDontRemoveSessionGivenToNewClientWithSameId()
     {
         Publish pub("just/a/path", "AAAAA", 0);
         pub.constructPropertyBuilder();
-        pub.propertyBuilder->writeTopicAlias(1);
+        pub.topicAlias = 1;
         sender.publish(pub);
     }
 
@@ -1527,7 +1527,7 @@ void MainTests::testDontRemoveSessionGivenToNewClientWithSameId()
     {
         Publish pub("just/a/path", "AAAAA", 0);
         pub.constructPropertyBuilder();
-        pub.propertyBuilder->writeTopicAlias(1);
+        pub.topicAlias = 1;
         sender.publish(pub);
     }
 
@@ -1571,7 +1571,7 @@ void MainTests::testKeepSubscriptionOnKickingOutExistingClientWithCleanSessionFa
     {
         Publish pub("just/a/path", "AAAAA", 0);
         pub.constructPropertyBuilder();
-        pub.propertyBuilder->writeTopicAlias(1);
+        pub.topicAlias = 1;
         sender.publish(pub);
     }
 
@@ -1617,7 +1617,7 @@ void MainTests::testPickUpSessionWithSubscriptionsAfterDisconnect()
     {
         Publish pub("just/a/path", "AAAAAB", 0);
         pub.constructPropertyBuilder();
-        pub.propertyBuilder->writeTopicAlias(1);
+        pub.topicAlias = 1;
         sender.publish(pub);
     }
 
@@ -1653,14 +1653,14 @@ void MainTests::testIncomingTopicAlias()
     {
         Publish pub("just/a/path", "AAAAA", 0);
         pub.constructPropertyBuilder();
-        pub.propertyBuilder->writeTopicAlias(1);
+        pub.topicAlias = 1;
         sender.publish(pub);
     }
 
     {
         Publish pub2("", "BBBBB", 0);
         pub2.constructPropertyBuilder();
-        pub2.propertyBuilder->writeTopicAlias(1);
+        pub2.topicAlias = 1;
         sender.publish(pub2);
     }
 

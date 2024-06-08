@@ -223,6 +223,11 @@ AuthResult flashmq_plugin_acl_check(void *thread_data, const AclAccess access, c
         flashmq_publish_message(topic, 0, false, payload);
     }
 
+    if ((access == AclAccess::read || access == AclAccess::write) && topic == "test_user_property")
+    {
+        assert(userProperties);
+    }
+
     return AuthResult::success;
 }
 

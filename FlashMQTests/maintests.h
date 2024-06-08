@@ -199,6 +199,7 @@ class MainTests
     void testDontUpgradeWildcardDenyMode();
     void testAlsoDontApproveOnErrorInPluginWithWildcardDenyMode();
     void testDenyWildcardSubscription();
+    void testUserPropertiesPresent();
 
     void testPublishToItself();
     void testNoLocalPublishToItself();

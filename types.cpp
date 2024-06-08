@@ -176,8 +176,7 @@ size_t PublishBase::getLengthWithoutFixedHeader() const
 }
 
 /**
- * @brief Publish::setClientSpecificProperties generates the properties byte array for one client. You're supposed to call it before any publish.
- *
+ * @brief Publish::setClientSpecificProperties generates the properties byte array for properties that are unique to the receiver.
  */
 void PublishBase::setClientSpecificProperties()
 {
@@ -191,22 +190,11 @@ void PublishBase::setClientSpecificProperties()
 
     if (hasExpireInfo)
     {
-        auto now = std::chrono::steady_clock::now();
-        std::chrono::seconds delay = std::chrono::duration_cast<std::chrono::seconds>(now - createdAt);
-        std::chrono::seconds newExpireAfter = std::max(this->expiresAfter - delay, std::chrono::seconds(0));
-
-        this->expiresAfter = newExpireAfter;
-        propertyBuilder->writeMessageExpiryInterval(newExpireAfter.count());
+        propertyBuilder->writeMessageExpiryInterval(this->expiresAfter.count());
     }
 
     if (topicAlias > 0)
         propertyBuilder->writeTopicAlias(this->topicAlias);
-}
-
-void PublishBase::clearClientSpecificProperties()
-{
-    if (propertyBuilder)
-        propertyBuilder->clearClientSpecificBytes();
 }
 
 void PublishBase::constructPropertyBuilder()
@@ -244,7 +232,7 @@ std::chrono::time_point<std::chrono::steady_clock> PublishBase::expiresAt() cons
     return result;
 }
 
-std::vector<std::pair<std::string, std::string>> *PublishBase::getUserProperties()
+std::vector<std::pair<std::string, std::string>> *PublishBase::getUserProperties() const
 {
     if (this->propertyBuilder)
         return this->propertyBuilder->getUserProperties().get();
@@ -279,10 +267,14 @@ bool PublishBase::getHasExpireInfo() const
     return this->hasExpireInfo;
 }
 
-std::chrono::seconds PublishBase::getExpiresAfter() const
+std::chrono::seconds PublishBase::getCurrentTimeToExpire() const
 {
     assert(hasExpireInfo);
-    return this->expiresAfter;
+
+    const auto now = std::chrono::steady_clock::now();
+    std::chrono::seconds delay = std::chrono::duration_cast<std::chrono::seconds>(now - createdAt);
+    std::chrono::seconds newExpireAfter = std::max(this->expiresAfter - delay, std::chrono::seconds(0));
+    return newExpireAfter;
 }
 
 std::chrono::time_point<std::chrono::steady_clock> PublishBase::getCreatedAt() const

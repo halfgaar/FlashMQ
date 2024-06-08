@@ -107,17 +107,10 @@ MqttPacket::MqttPacket(const UnsubAck &unsubAck) :
     calculateRemainingLength();
 }
 
-size_t MqttPacket::setClientSpecificPropertiesAndGetRequiredSizeForPublish(const ProtocolVersion protocolVersion, Publish &publish) const
+MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, const Publish &_publish) :
+    MqttPacket(protocolVersion, _publish, _publish.qos, _publish.topicAlias, _publish.skipTopic)
 {
-    size_t result = publish.getLengthWithoutFixedHeader();
-    if (protocolVersion >= ProtocolVersion::Mqtt5)
-    {
-        publish.setClientSpecificProperties();
 
-        const size_t proplen = publish.propertyBuilder ? publish.propertyBuilder->getLength() : 1;
-        result += proplen;
-    }
-    return result;
 }
 
 /**
@@ -127,9 +120,11 @@ size_t MqttPacket::setClientSpecificPropertiesAndGetRequiredSizeForPublish(const
  *
  * Important to note here is that there are two concepts here: writing the byte array for sending to clients, and setting the data in publishData. The latter
  * will only have stuff important for internal logic. In other words, it won't contain the payload.
+ *
+ * The extra parameters are for overriding certain properties of the publish, because the receiving client wants it differently. Use the other overload
+ * if you just want the publish object's data.
  */
-MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, Publish &_publish) :
-    bites(setClientSpecificPropertiesAndGetRequiredSizeForPublish(protocolVersion, _publish))
+MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, const Publish &_publish, const uint8_t _qos, const uint16_t _topic_alias, const bool _skip_topic)
 {
     if (_publish.topic.length() > 0xFFFF)
     {
@@ -137,18 +132,62 @@ MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, Publish &_publish)
     }
 
     this->protocolVersion = protocolVersion;
-
     this->publishData.client_id = _publish.client_id;
     this->publishData.username = _publish.username;
+    this->publishData.skipTopic = _skip_topic;
+    this->publishData.qos = _qos;
+    this->publishData.topicAlias = _topic_alias;
+    this->packetType = PacketType::PUBLISH;
 
-    if (!_publish.skipTopic)
+    if (!this->publishData.skipTopic)
         this->publishData.topic = _publish.topic;
 
-    packetType = PacketType::PUBLISH;
-    this->publishData.qos = _publish.qos;
     first_byte = static_cast<char>(packetType) << 4;
-    first_byte |= (_publish.qos << 1);
+    first_byte |= (this->publishData.qos << 1);
     first_byte |= (static_cast<char>(_publish.retain) & 0b00000001);
+
+    if (protocolVersion >= ProtocolVersion::Mqtt5)
+    {
+        if (_publish.getHasExpireInfo())
+        {
+            this->publishData.setExpireAfter(_publish.getCurrentTimeToExpire().count());
+        }
+
+        publishData.setClientSpecificProperties();
+    }
+
+    size_t len = 0;
+
+    // Calculate length
+    {
+        len += 2; // topic string length field
+        if (!this->publishData.skipTopic)
+            len += this->publishData.topic.length();
+        len += _publish.payload.length();
+
+        if (this->publishData.qos)
+            len += 2;
+
+        if (protocolVersion >= ProtocolVersion::Mqtt5)
+        {
+            const uint32_t size_our_own_props = publishData.propertyBuilder ? publishData.propertyBuilder->getclientSpecificBytes().size() : 0;
+            const uint32_t size_injected_properties = _publish.propertyBuilder ? _publish.propertyBuilder->getGenericBytes().size() : 0;
+            const uint32_t size_total_props = size_our_own_props + size_injected_properties;
+
+            if (size_total_props == 0)
+            {
+                len += 1;
+            }
+            else
+            {
+                VariableByteInt proplen;
+                proplen = size_total_props;
+                len += proplen.getLen() + size_total_props;
+            }
+        }
+    }
+
+    bites.resize(len);
 
     writeString(publishData.topic);
 
@@ -156,33 +195,13 @@ MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, Publish &_publish)
     {
         // Reserve the space for the packet id, which will be assigned later.
         packet_id_pos = pos;
-#ifndef NDEBUG
         char zero[2] = {0,0};
         writeBytes(zero, 2);
-#else
-        advancePos(2);
-#endif
     }
 
     if (protocolVersion >= ProtocolVersion::Mqtt5)
     {
-        // Step 1: make certain properties available as objects, because FlashMQ needs access to them for internal logic (only ACL checking at this point).
-        if (_publish.hasUserProperties())
-        {
-            this->publishData.constructPropertyBuilder();
-            this->publishData.propertyBuilder->setNewUserProperties(_publish.propertyBuilder->getUserProperties());
-        }
-
-        // Step 2: this line will make sure the whole byte array containing all properties as flat bytes is present in the 'bites' vector,
-        // which is sent to the subscribers.
-        writeProperties(_publish.propertyBuilder);
-
-        // And again, even though the expiry info has been written in the byte array, we need to store them in the publish object too,
-        // in case we use that, like when queueing QoS packets.
-        if (_publish.getHasExpireInfo())
-        {
-            this->publishData.setExpireAfter(_publish.getExpiresAfter().count());
-        }
+        joinAndWriteProperties(_publish.propertyBuilder);
     }
 
     payloadStart = pos;
@@ -190,6 +209,7 @@ MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, Publish &_publish)
 
     writeBytes(_publish.payload.c_str(), _publish.payload.length());
     calculateRemainingLength();
+    assert(pos == bites.size());
 }
 
 MqttPacket::MqttPacket(const PubResponse &pubAck) :
@@ -2242,6 +2262,41 @@ void MqttPacket::writeProperties(const std::shared_ptr<Mqtt5PropertyBuilder> &pr
         writeBytes(b.data(), b.size());
         const std::vector<char> &b2 = properties->getclientSpecificBytes();
         writeBytes(b2.data(), b2.size());
+    }
+}
+
+/**
+ * @brief MqttPacket::joinAndWriteProperties write the properties by combining the fixed source ones and the new ones for our receiver.
+ * @param properties
+ *
+ * By using the source properties only here, it saves having to copy those to our own PublishData object.
+ */
+void MqttPacket::joinAndWriteProperties(const std::shared_ptr<const Mqtt5PropertyBuilder> &properties)
+{
+    const size_t size_our_own_props = publishData.propertyBuilder ? publishData.propertyBuilder->getclientSpecificBytes().size() : 0;
+    const size_t size_injected_properties = properties ? properties->getGenericBytes().size() : 0;
+    const size_t size_total = size_our_own_props + size_injected_properties;
+
+    if (size_total == 0)
+    {
+        writeByte(0);
+        return;
+    }
+
+    VariableByteInt len;
+    len = size_total;
+    writeVariableByteInt(len);
+
+    if (publishData.propertyBuilder)
+    {
+        const std::vector<char> &b = publishData.propertyBuilder->getclientSpecificBytes();
+        writeBytes(b.data(), b.size());
+    }
+
+    if (properties)
+    {
+        const std::vector<char> &b = properties->getGenericBytes();
+        writeBytes(b.data(), b.size());
     }
 }
 
