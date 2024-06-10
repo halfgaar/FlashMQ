@@ -27,13 +27,13 @@ void MainTests::testSharedSubscribersUnit()
     std::shared_ptr<Client> c3(new Client(0, t, nullptr, false, false, nullptr, settings, false));
     c3->setClientProperties(ProtocolVersion::Mqtt5, "clientid3", "user3", true, 60);
 
-    std::shared_ptr<Session> ses1 = std::make_shared<Session>();
+    std::shared_ptr<Session> ses1 = std::make_shared<Session>(c1->getClientId(), c1->getUsername());
     ses1->assignActiveConnection(c1);
 
-    std::shared_ptr<Session> ses2 = std::make_shared<Session>();
+    std::shared_ptr<Session> ses2 = std::make_shared<Session>(c2->getClientId(), c2->getUsername());
     ses2->assignActiveConnection(c2);
 
-    std::shared_ptr<Session> ses3 = std::make_shared<Session>();
+    std::shared_ptr<Session> ses3 = std::make_shared<Session>(c3->getClientId(), c3->getUsername());
     ses3->assignActiveConnection(c3);
 
     SharedSubscribers s;

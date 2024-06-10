@@ -257,13 +257,15 @@ void SubscriptionStore::removeSubscription(std::shared_ptr<Client> &client, cons
 
 std::shared_ptr<Session> SubscriptionStore::getBridgeSession(std::shared_ptr<Client> &client)
 {
+    const std::string &client_id = client->getClientId();
+
     RWLockGuard lock_guard(&sessionsAndSubscriptionsRwlock);
     lock_guard.wrlock();
 
-    std::shared_ptr<Session> session = std::make_shared<Session>();
+    std::shared_ptr<Session> session = std::make_shared<Session>(client_id, client->getUsername());
     session->assignActiveConnection(client);
     client->assignSession(session);
-    sessionsById[client->getClientId()] = session;
+    sessionsById[client_id] = session;
     return session;
 }
 
@@ -311,6 +313,9 @@ void SubscriptionStore::registerClientAndKickExistingOne(std::shared_ptr<Client>
 
             if (session)
             {
+                if (session->getUsername() != client->getUsername())
+                    throw ProtocolError("Cannot take over session with different username", ReasonCodes::NotAuthorized);
+
                 std::shared_ptr<Client> clientOfOtherSession = session->makeSharedClient();
 
                 if (clientOfOtherSession)
@@ -326,7 +331,7 @@ void SubscriptionStore::registerClientAndKickExistingOne(std::shared_ptr<Client>
         if (!session || session->getDestroyOnDisconnect() || clean_start)
         {
             // Don't use sdt::make_shared to avoid the weak pointers from retaining the size of session in the control block.
-            session = std::shared_ptr<Session>(new Session());
+            session = std::shared_ptr<Session>(new Session(client->getClientId(), client->getUsername()));
 
             sessionsById[client->getClientId()] = session;
         }
@@ -1073,7 +1078,7 @@ void SubscriptionStore::removeSession(const std::shared_ptr<Session> &session)
         if (!s)
             continue;
 
-        std::shared_ptr<WillPublish> &will = s->getWill();
+        std::shared_ptr<WillPublish> will = s->getWill();
         if (will)
         {
             queueWillMessage(will, clientid, s, true);

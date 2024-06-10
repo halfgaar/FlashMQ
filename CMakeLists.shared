@@ -77,6 +77,7 @@ set(FLASHMQ_HEADERS
     ${RELPATH}fmqmain.h
     ${RELPATH}driftcounter.h
     ${RELPATH}lockedweakptr.h
+    ${RELPATH}lockedsharedptr.h
 )
 
 set(FLASHMQ_IMPLS

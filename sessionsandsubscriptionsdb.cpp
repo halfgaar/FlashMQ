@@ -130,10 +130,8 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV3V4V5()
             std::string username = readString(eofFound);
             std::string clientId = readString(eofFound);
 
-            std::shared_ptr<Session> ses = std::make_shared<Session>();
+            std::shared_ptr<Session> ses = std::make_shared<Session>(clientId, username);
             result.sessions.push_back(ses);
-            ses->username = username;
-            ses->client_id = clientId;
 
             logger->logf(LOG_DEBUG, "Loading session '%s'.", ses->getClientId().c_str());
 
@@ -363,16 +361,16 @@ void SessionsAndSubscriptionsDB::saveData(const std::vector<std::shared_ptr<Sess
 
             writeUint32(ses->getCurrentSessionExpiryInterval());
 
-            const bool hasWillThatShouldSurviveRestart = ses->getWill().operator bool() && ses->getWill()->will_delay > 0;
+            std::shared_ptr<WillPublish> will = ses->getWill();
+            const bool hasWillThatShouldSurviveRestart = will.operator bool() && will->will_delay > 0;
             writeUint16(static_cast<uint16_t>(hasWillThatShouldSurviveRestart));
 
             if (hasWillThatShouldSurviveRestart)
             {
-                WillPublish &will = *ses->getWill().get();
-                MqttPacket willpacket(ProtocolVersion::Mqtt5, will);
+                MqttPacket willpacket(ProtocolVersion::Mqtt5, *will);
 
                 // Dummy, to please the parser on reading.
-                if (will.qos > 0)
+                if (will->qos > 0)
                     willpacket.setPacketId(666);
 
                 const uint32_t packSize = willpacket.getSizeIncludingNonPresentHeader();
@@ -381,11 +379,11 @@ void SessionsAndSubscriptionsDB::saveData(const std::vector<std::shared_ptr<Sess
                 willpacket.readIntoBuf(cirbuf);
 
                 writeUint16(willpacket.getFixedHeaderLength());
-                writeUint32(will.will_delay);
-                writeUint32(will.getQueuedAtAge());
+                writeUint32(will->will_delay);
+                writeUint32(will->getQueuedAtAge());
                 writeUint32(packSize);
-                writeString(will.client_id);
-                writeString(will.username);
+                writeString(will->client_id);
+                writeString(will->username);
                 writeCheck(cirbuf.tailPtr(), 1, cirbuf.usedBytes(), f);
             }
         }

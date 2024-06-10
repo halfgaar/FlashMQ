@@ -18,7 +18,9 @@ See LICENSE for license details.
 #include "plugin.h"
 #include "settings.h"
 
-Session::Session()
+Session::Session(const std::string &clientid, const std::string &username) :
+    client_id(clientid),
+    username(username)
 {
     const Settings &settings = *ThreadGlobals::getSettings();
 
@@ -106,8 +108,6 @@ std::shared_ptr<Client> Session::makeSharedClient()
 void Session::assignActiveConnection(const std::shared_ptr<Client> &client)
 {
     this->client = client;
-    this->client_id = client->getClientId();
-    this->username = client->getUsername();
     this->willPublish = client->getWill();
     this->removalQueued = false;
 }
@@ -118,6 +118,9 @@ void Session::assignActiveConnection(const std::shared_ptr<Session> &thisSession
     assert(this == thisSession.get());
 
     std::lock_guard<std::mutex> locker(this->clientSwitchMutex);
+
+    if (username != client->getUsername())
+        throw ProtocolError("Cannot take over session with different username", ReasonCodes::NotAuthorized);
 
     thisSession->assignActiveConnection(client);
     client->assignSession(thisSession);
@@ -314,9 +317,9 @@ void Session::clearWill()
     this->willPublish.reset();
 }
 
-std::shared_ptr<WillPublish> &Session::getWill()
+std::shared_ptr<WillPublish> Session::getWill()
 {
-    return this->willPublish;
+    return this->willPublish.getCopy();
 }
 
 void Session::setWill(WillPublish &&pub)

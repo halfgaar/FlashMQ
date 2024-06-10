@@ -23,6 +23,7 @@ See LICENSE for license details.
 #include "qospacketqueue.h"
 #include "publishcopyfactory.h"
 #include "lockedweakptr.h"
+#include "lockedsharedptr.h"
 
 class Session
 {
@@ -33,8 +34,8 @@ class Session
     friend class SessionsAndSubscriptionsDB;
 
     LockedWeakPtr<Client> client;
-    std::string client_id;
-    std::string username;
+    const std::string client_id;
+    const std::string username;
     QoSPublishQueue qosPacketQueue;
     std::set<uint16_t> incomingQoS2MessageIds;
     std::set<uint16_t> outgoingQoS2MessageIds;
@@ -53,7 +54,7 @@ class Session
     uint32_t sessionExpiryInterval = 0;
     uint16_t QoSLogPrintedAtId = 0;
     bool destroyOnDisconnect = false;
-    std::shared_ptr<WillPublish> willPublish;
+    LockedSharedPtr<WillPublish> willPublish;
     bool removalQueued = false;
     ClientType clientType = ClientType::Normal;
     std::chrono::time_point<std::chrono::steady_clock> removalQueuedAt;
@@ -68,12 +69,13 @@ class Session
 
     Session(const Session &other) = delete;
 public:
-    Session();
+    Session(const std::string &clientid, const std::string &username);
 
     Session(Session &&other) = delete;
     ~Session();
 
     const std::string &getClientId() const { return client_id; }
+    const std::string &getUsername() const { return username; }
     std::shared_ptr<Client> makeSharedClient();
     void assignActiveConnection(const std::shared_ptr<Client> &client);
     void assignActiveConnection(const std::shared_ptr<Session> &thisSession, const std::shared_ptr<Client> &client,
@@ -83,7 +85,7 @@ public:
     void sendAllPendingQosData();
     bool hasActiveClient();
     void clearWill();
-    std::shared_ptr<WillPublish> &getWill();
+    std::shared_ptr<WillPublish> getWill();
     void setWill(WillPublish &&pub);
     ClientType getClientType() const { return clientType; }
     void setClientType(ClientType val);
