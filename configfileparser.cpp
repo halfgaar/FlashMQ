@@ -977,6 +977,8 @@ void ConfigFileParser::loadFile(bool test)
 
                     if (_val == "enabled")
                         tmpSettings.retainedMessagesMode = RetainedMessagesMode::Enabled;
+                    else if (_val == "enabled_without_persistence")
+                        tmpSettings.retainedMessagesMode = RetainedMessagesMode::EnabledWithoutPersistence;
                     else if (_val == "downgrade")
                         tmpSettings.retainedMessagesMode = RetainedMessagesMode::Downgrade;
                     else if (_val == "drop")

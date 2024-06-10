@@ -1084,7 +1084,7 @@ void MqttPacket::handleConnect()
             connAck->propertyBuilder = std::make_shared<Mqtt5PropertyBuilder>();
             connAck->propertyBuilder->writeSessionExpiry(connectData.session_expire);
             connAck->propertyBuilder->writeReceiveMax(settings.maxQosMsgPendingPerClient);
-            connAck->propertyBuilder->writeRetainAvailable(settings.retainedMessagesMode == RetainedMessagesMode::Enabled);
+            connAck->propertyBuilder->writeRetainAvailable(settings.retainedMessagesMode <= RetainedMessagesMode::EnabledWithoutPersistence);
             connAck->propertyBuilder->writeMaxPacketSize(sender->getMaxIncomingPacketSize());
             if (clientIdGenerated)
                 connAck->propertyBuilder->writeAssignedClientId(connectData.client_id);
@@ -1856,7 +1856,7 @@ void MqttPacket::handlePublish()
 
         if (authentication.aclCheck(this->publishData, getPayloadView()) == AuthResult::success)
         {
-            if (publishData.retain && settings->retainedMessagesMode == RetainedMessagesMode::Enabled)
+            if (publishData.retain && settings->retainedMessagesMode <= RetainedMessagesMode::EnabledWithoutPersistence)
             {
                 publishData.payload = getPayloadCopy();
                 MainApp::getMainApp()->getSubscriptionStore()->trySetRetainedMessages(publishData, publishData.getSubtopics());

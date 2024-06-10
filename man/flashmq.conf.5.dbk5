@@ -418,13 +418,16 @@ multi-value-param one 'two' "three" "with ' char"
       </varlistentry>
 
       <varlistentry xml:id="retained_messages_mode">
-        <term><option>retained_messages_mode</option> <replaceable>enabled/downgrade/drop/disconnect_with_error</replaceable></term>
+        <term><option>retained_messages_mode</option> <replaceable>enabled/enabled_without_persistence/downgrade/drop/disconnect_with_error</replaceable></term>
         <listitem>
           <para>
             Retained messages can be a strain on the server you may not need. You can set various ways of dealing with them:
           </para>
           <para>
             <filename>enabled</filename>. This is normal operation.
+          </para>
+          <para>
+            <filename>enabled_without_persistence</filename>. Like 'normal', except it won't store them to disk if <option>storage_dir</option> is defined.
           </para>
           <para>
             <filename>downgrade</filename>. The retain flag is removed and treated like a normal publish.

@@ -28,6 +28,7 @@ See LICENSE for license details.
 enum class RetainedMessagesMode
 {
     Enabled,
+    EnabledWithoutPersistence,
     Downgrade,
     Drop,
     DisconnectWithError

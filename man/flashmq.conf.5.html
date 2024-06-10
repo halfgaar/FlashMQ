@@ -466,13 +466,16 @@ multi-value-param one 'two' "three" "with ' char"
       
 
       
-        <dt id="retained_messages_mode"><code class="option">retained_messages_mode</code> <code class="replaceable">enabled/downgrade/drop/disconnect_with_error</code><a class="hash-anchor" href="#retained_messages_mode">#</a></dt>
+        <dt id="retained_messages_mode"><code class="option">retained_messages_mode</code> <code class="replaceable">enabled/enabled_without_persistence/downgrade/drop/disconnect_with_error</code><a class="hash-anchor" href="#retained_messages_mode">#</a></dt>
         <dd>
           <p>
             Retained messages can be a strain on the server you may not need. You can set various ways of dealing with them:
           </p>
           <p>
             <code class="filename">enabled</code>. This is normal operation.
+          </p>
+          <p>
+            <code class="filename">enabled_without_persistence</code>. Like 'normal', except it won't store them to disk if <code class="option">storage_dir</code> is defined.
           </p>
           <p>
             <code class="filename">downgrade</code>. The retain flag is removed and treated like a normal publish.

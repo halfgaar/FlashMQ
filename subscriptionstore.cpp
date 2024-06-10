@@ -815,7 +815,7 @@ void SubscriptionStore::giveClientRetainedMessages(const std::shared_ptr<Session
 
     const Settings *settings = ThreadGlobals::getSettings();
 
-    if (settings->retainedMessagesMode != RetainedMessagesMode::Enabled)
+    if (settings->retainedMessagesMode > RetainedMessagesMode::EnabledWithoutPersistence)
         return;
 
     // The specs aren't clear whether retained messages should be dropped, or just have their retain flag stripped. I chose the former,
@@ -876,7 +876,7 @@ bool SubscriptionStore::setRetainedMessage(const Publish &publish, const std::ve
 
     const Settings *settings = ThreadGlobals::getSettings();
 
-    if (settings->retainedMessagesMode != RetainedMessagesMode::Enabled)
+    if (settings->retainedMessagesMode > RetainedMessagesMode::EnabledWithoutPersistence)
         return true;
 
     RetainedMessageNode *deepestNode = retainedMessagesRoot.get();

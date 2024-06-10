@@ -209,10 +209,12 @@ When disabled, the server will not set last will and testament specified by conn
 
 Default value: \fI\m[blue]true\m[]\fR
 .TP
-\*(T<\fB\m[green]retained_messages_mode\m[] \fI\m[cyan]enabled/downgrade/drop/disconnect_with_error\m[]\fR\fR\*(T>
+\*(T<\fB\m[green]retained_messages_mode\m[] \fI\m[cyan]enabled/enabled_without_persistence/downgrade/drop/disconnect_with_error\m[]\fR\fR\*(T>
 Retained messages can be a strain on the server you may not need. You can set various ways of dealing with them:
 
 \fI\m[blue]enabled\m[]\fR. This is normal operation.
+
+\fI\m[blue]enabled_without_persistence\m[]\fR. Like 'normal', except it won't store them to disk if \fB\m[green]storage_dir\fR\m[] is defined.
 
 \fI\m[blue]downgrade\m[]\fR. The retain flag is removed and treated like a normal publish.
 
