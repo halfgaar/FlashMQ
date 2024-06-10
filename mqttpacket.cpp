@@ -1840,13 +1840,19 @@ void MqttPacket::handlePublish()
         if (publishData.qos == 2)
             sender->getSession()->addIncomingQoS2MessageId(_packet_id);
 
-        this->alteredByPlugin = authentication.alterPublish(this->publishData.client_id, this->publishData.topic, this->publishData.getSubtopics(),
-                                                            getPayloadView(), this->publishData.qos, this->publishData.retain, this->publishData.getUserProperties());
+        const uint8_t qos_org = this->publishData.qos;
+        const bool retain_org = this->publishData.retain;
+        const bool altered = authentication.alterPublish(this->publishData.client_id, this->publishData.topic, this->publishData.getSubtopics(),
+                                                         getPayloadView(), this->publishData.qos, this->publishData.retain, this->publishData.getUserProperties());
 
-        if (this->alteredByPlugin)
-        {
+        if (altered)
             this->publishData.resplitTopic();
-        }
+
+        if (retain_org != publishData.retain)
+            setRetain(publishData.retain);
+
+        // Don't look at 'retain', because the above is enough.
+        this->alteredByPlugin = altered || qos_org != this->publishData.qos;
 
         if (authentication.aclCheck(this->publishData, getPayloadView()) == AuthResult::success)
         {
