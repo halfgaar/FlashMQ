@@ -252,7 +252,7 @@ void Session::sendAllPendingQosData()
     std::shared_ptr<Client> c = makeSharedClient();
     if (c)
     {
-        std::vector<std::shared_ptr<QueuedPublish>> copiedPublishes;
+        std::vector<std::pair<Publish, uint16_t>> copiedPublishes;
         std::vector<uint16_t> copiedQoS2Ids;
 
         {
@@ -281,7 +281,7 @@ void Session::sendAllPendingQosData()
 
                 flowControlQuota--;
 
-                copiedPublishes.push_back(qp);
+                copiedPublishes.emplace_back(pub, qp->getPacketId());
             }
 
             for (const uint16_t packet_id : outgoingQoS2MessageIds)
@@ -290,12 +290,11 @@ void Session::sendAllPendingQosData()
             }
         }
 
-        for(std::shared_ptr<QueuedPublish> &qp : copiedPublishes)
+        for(std::pair<Publish, uint16_t> &p : copiedPublishes)
         {
-            Publish &pub = qp->getPublish();
-            PublishCopyFactory fac(&pub);
-            const bool retain = !c->isRetainedAvailable() ? false : pub.retain;
-            c->writeMqttPacketAndBlameThisClient(fac, pub.qos, qp->getPacketId(), retain);
+            PublishCopyFactory fac(&p.first);
+            const bool retain = !c->isRetainedAvailable() ? false : p.first.retain;
+            c->writeMqttPacketAndBlameThisClient(fac, p.first.qos, p.second, retain);
         }
 
         for(uint16_t id : copiedQoS2Ids)
