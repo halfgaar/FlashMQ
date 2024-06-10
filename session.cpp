@@ -48,7 +48,7 @@ void Session::clearExpiredMessagesFromQueue()
     increaseFlowControlQuota(n);
 }
 
-bool Session::requiresQoSQueueing() const
+bool Session::requiresQoSQueueing()
 {
     const std::shared_ptr<Client> client = makeSharedClient();
 
@@ -98,18 +98,30 @@ Session::~Session()
  * typically, this method is called from other client's threads to perform writes, so you have to check validity after
  * obtaining the shared pointer.
  */
-std::shared_ptr<Client> Session::makeSharedClient() const
+std::shared_ptr<Client> Session::makeSharedClient()
 {
     return client.lock();
 }
 
-void Session::assignActiveConnection(std::shared_ptr<Client> &client)
+void Session::assignActiveConnection(const std::shared_ptr<Client> &client)
 {
     this->client = client;
     this->client_id = client->getClientId();
     this->username = client->getUsername();
     this->willPublish = client->getWill();
     this->removalQueued = false;
+}
+
+void Session::assignActiveConnection(const std::shared_ptr<Session> &thisSession, const std::shared_ptr<Client> &client,
+                                     uint16_t clientReceiveMax, uint32_t sessionExpiryInterval, bool clean_start, ProtocolVersion protocol_version)
+{
+    assert(this == thisSession.get());
+
+    std::lock_guard<std::mutex> locker(this->clientSwitchMutex);
+
+    thisSession->assignActiveConnection(client);
+    client->assignSession(thisSession);
+    thisSession->setSessionProperties(clientReceiveMax, sessionExpiryInterval, clean_start, client->getProtocolVersion());
 }
 
 /**
@@ -292,7 +304,7 @@ void Session::sendAllPendingQosData()
     }
 }
 
-bool Session::hasActiveClient() const
+bool Session::hasActiveClient()
 {
     return !client.expired();
 }
@@ -438,7 +450,7 @@ uint32_t Session::getSessionExpiryInterval() const
     return this->sessionExpiryInterval;
 }
 
-uint32_t Session::getCurrentSessionExpiryInterval() const
+uint32_t Session::getCurrentSessionExpiryInterval()
 {
     if (!this->removalQueued || hasActiveClient())
         return this->sessionExpiryInterval;

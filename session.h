@@ -14,6 +14,7 @@ See LICENSE for license details.
 #include <memory>
 #include <list>
 #include <mutex>
+#include <shared_mutex>
 #include <set>
 
 #include "forward_declarations.h"
@@ -21,6 +22,7 @@ See LICENSE for license details.
 #include "sessionsandsubscriptionsdb.h"
 #include "qospacketqueue.h"
 #include "publishcopyfactory.h"
+#include "lockedweakptr.h"
 
 class Session
 {
@@ -30,13 +32,14 @@ class Session
 
     friend class SessionsAndSubscriptionsDB;
 
-    std::weak_ptr<Client> client;
+    LockedWeakPtr<Client> client;
     std::string client_id;
     std::string username;
     QoSPublishQueue qosPacketQueue;
     std::set<uint16_t> incomingQoS2MessageIds;
     std::set<uint16_t> outgoingQoS2MessageIds;
     std::mutex qosQueueMutex;
+    std::mutex clientSwitchMutex;
     uint16_t nextPacketId = 0;
     std::chrono::time_point<std::chrono::steady_clock> lastExpiredMessagesAt = std::chrono::steady_clock::now();
 
@@ -60,7 +63,7 @@ class Session
 
     void increaseFlowControlQuota();
     void increaseFlowControlQuota(int n);
-    bool requiresQoSQueueing() const;
+    bool requiresQoSQueueing();
     uint16_t getNextPacketId();
 
     Session(const Session &other) = delete;
@@ -71,12 +74,14 @@ public:
     ~Session();
 
     const std::string &getClientId() const { return client_id; }
-    std::shared_ptr<Client> makeSharedClient() const;
-    void assignActiveConnection(std::shared_ptr<Client> &client);
+    std::shared_ptr<Client> makeSharedClient();
+    void assignActiveConnection(const std::shared_ptr<Client> &client);
+    void assignActiveConnection(const std::shared_ptr<Session> &thisSession, const std::shared_ptr<Client> &client,
+                                uint16_t clientReceiveMax, uint32_t sessionExpiryInterval, bool clean_start, ProtocolVersion protocol_version);
     PacketDropReason writePacket(PublishCopyFactory &copyFactory, const uint8_t max_qos, bool retainAsPublished);
     bool clearQosMessage(uint16_t packet_id, bool qosHandshakeEnds);
     void sendAllPendingQosData();
-    bool hasActiveClient() const;
+    bool hasActiveClient();
     void clearWill();
     std::shared_ptr<WillPublish> &getWill();
     void setWill(WillPublish &&pub);
@@ -97,7 +102,7 @@ public:
     void setSessionExpiryInterval(uint32_t newVal);
     void setQueuedRemovalAt();
     uint32_t getSessionExpiryInterval() const;
-    uint32_t getCurrentSessionExpiryInterval() const;
+    uint32_t getCurrentSessionExpiryInterval();
 };
 
 #endif // SESSION_H

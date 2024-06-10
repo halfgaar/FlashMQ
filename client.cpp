@@ -919,7 +919,7 @@ void Client::setWillFromStaged()
     this->willPublish = std::move(stagedWillPublish);
 }
 
-void Client::assignSession(std::shared_ptr<Session> &session)
+void Client::assignSession(const std::shared_ptr<Session> &session)
 {
     this->session = session;
 }

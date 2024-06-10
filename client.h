@@ -161,7 +161,7 @@ public:
     std::string &getMutableUsername();
     std::shared_ptr<WillPublish> &getWill() { return this->willPublish; }
     const std::shared_ptr<WillPublish> &getStagedWill() { return this->stagedWillPublish; }
-    void assignSession(std::shared_ptr<Session> &session);
+    void assignSession(const std::shared_ptr<Session> &session);
     std::shared_ptr<Session> getSession();
     void resetSession();
     void setDisconnectReason(const std::string &reason);
