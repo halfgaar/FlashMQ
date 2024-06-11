@@ -13,6 +13,7 @@ See LICENSE for license details.
 
 
 #include <pthread.h>
+#include <chrono>
 
 class RWLockGuard
 {
@@ -23,6 +24,7 @@ public:
     bool trywrlock();
     void wrlock();
     bool tryrdlock();
+    void tryfirstrdlock(std::chrono::time_point<std::chrono::steady_clock> limit, std::chrono::microseconds sleep_time);
     void rdlock();
     void unlock();
 };

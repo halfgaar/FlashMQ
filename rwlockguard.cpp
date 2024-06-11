@@ -11,6 +11,7 @@ See LICENSE for license details.
 #include "rwlockguard.h"
 #include "utils.h"
 #include <stdexcept>
+#include <thread>
 
 RWLockGuard::RWLockGuard(pthread_rwlock_t *rwlock) :
     rwlock(rwlock)
@@ -63,6 +64,32 @@ bool RWLockGuard::tryrdlock()
 
     rwlock = nullptr;
     return false;
+}
+
+/**
+ * @brief RWLockGuard::tryfirstrdlock is different than pthread_rwlock_timedrdlock. We try to avoid locking for periods.
+ * @param limit
+ * @param sleep_time
+ */
+void RWLockGuard::tryfirstrdlock(std::chrono::time_point<std::chrono::steady_clock> limit, std::chrono::microseconds sleep_time)
+{
+    while (std::chrono::steady_clock::now() < limit)
+    {
+        const int rc = pthread_rwlock_tryrdlock(rwlock);
+
+        if (rc == 0)
+            return;
+
+        if (rc == EINVAL || rc == EDEADLK)
+        {
+            rwlock = nullptr;
+            throw std::runtime_error("Lock not initialized or you already have a write lock.");
+        }
+
+        std::this_thread::sleep_for(sleep_time);
+    }
+
+    rdlock();
 }
 
 /**
