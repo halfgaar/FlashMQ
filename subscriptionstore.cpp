@@ -21,6 +21,7 @@ See LICENSE for license details.
 #include "plugin.h"
 #include "exceptions.h"
 #include "threaddata.h"
+#include "globals.h"
 #include <deque>
 
 DeferredGetSubscription::DeferredGetSubscription(const std::shared_ptr<SubscriptionNode> &node, const std::string &composedTopic, const bool root) :
@@ -1529,7 +1530,7 @@ void SubscriptionStore::saveRetainedMessages(const std::string &filePath, bool s
         }
 
         // Because we only do this operation in background threads or on exit, we don't have to requeue, so can just sleep.
-        if (sleep_after_limit && !deferred.empty())
+        if (!Globals::getInstance().quitting && sleep_after_limit && !deferred.empty())
             std::this_thread::sleep_for(std::chrono::microseconds(100));
     }
 

@@ -32,6 +32,7 @@ See LICENSE for license details.
 #include "utils.h"
 #include "bridgeconfig.h"
 #include "bridgeinfodb.h"
+#include "globals.h"
 
 MainApp *MainApp::instance = nullptr;
 
@@ -999,6 +1000,7 @@ void MainApp::start()
 
     pluginLoader.mainDeinit(settings.getFlashmqpluginOpts());
 
+    Globals::getInstance().quitting = true;
     this->bgWorker.waitForStop();
 
     std::list<BridgeInfoForSerializing> bridgeInfos = BridgeInfoForSerializing::getBridgeInfosForSerializing(this->bridgeConfigs);
