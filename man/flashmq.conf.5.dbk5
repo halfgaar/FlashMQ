@@ -347,6 +347,20 @@ multi-value-param one 'two' "three" "with ' char"
           </para>
         </listitem>
       </varlistentry>
+      <varlistentry xml:id="save_state_interval">
+        <term><option>save_state_interval</option> <replaceable>seconds</replaceable></term>
+        <listitem>
+          <para>
+            The interval at which the state is saved, if enabled with <option>storage_dir</option>.
+          </para>
+          <para>
+            This setting is currently not applied on reload.
+          </para>
+          <para>
+            Default: 3623
+          </para>
+        </listitem>
+      </varlistentry>
       <varlistentry>
         <term xml:id="max_qos_msg_pending_per_client"><option>max_qos_msg_pending_per_client</option></term>
         <term xml:id="max_qos_bytes_pending_per_client"><option>max_qos_bytes_pending_per_client</option></term>

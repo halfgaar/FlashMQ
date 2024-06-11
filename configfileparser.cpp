@@ -230,6 +230,7 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validKeys.insert("max_event_loop_drift");
     validKeys.insert("set_retained_message_defer_timeout");
     validKeys.insert("set_retained_message_defer_timeout_spread");
+    validKeys.insert("save_state_interval");
 
     validListenKeys.insert("port");
     validListenKeys.insert("protocol");
@@ -1127,6 +1128,16 @@ void ConfigFileParser::loadFile(bool test)
                         throw ConfigFileException("Option '" + key + "' must 0 or higher.");
 
                     tmpSettings.setRetainedMessageDeferTimeoutSpread = std::chrono::milliseconds(val);
+                }
+
+                if (testKeyValidity(key, "save_state_interval", validKeys))
+                {
+                    const int val = full_stoi(key, value);
+
+                    if (val < 300)
+                        throw ConfigFileException("Option '" + key + "' must 300 or higher.");
+
+                    tmpSettings.saveStateInterval = std::chrono::seconds(val);
                 }
             }
         }

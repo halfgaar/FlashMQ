@@ -112,7 +112,7 @@ MainApp::MainApp(const std::string &configFilePath) :
     }
 
     auto fSaveState = std::bind(&MainApp::queueSaveStateInThread, this);
-    timer.addCallback(fSaveState, 900000, "Save state.");
+    timer.addCallback(fSaveState, settings.saveStateInterval.count() * 1000, "Save state.");
 
     auto fSendPendingWills = std::bind(&MainApp::queueSendQueuedWills, this);
     timer.addCallback(fSendPendingWills, 2000, "Publish pending wills.");

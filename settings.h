@@ -109,6 +109,7 @@ public:
     OverloadMode overloadMode = OverloadMode::Log;
     std::chrono::milliseconds setRetainedMessageDeferTimeout = std::chrono::milliseconds(0);
     std::chrono::milliseconds setRetainedMessageDeferTimeoutSpread = std::chrono::milliseconds(1000);
+    std::chrono::seconds saveStateInterval = std::chrono::seconds(3623);
     std::list<std::shared_ptr<Listener>> listeners; // Default one is created later, when none are defined.
 
     std::list<Network> setRealIpFrom;

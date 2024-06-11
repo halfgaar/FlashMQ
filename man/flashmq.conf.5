@@ -5,7 +5,7 @@
 \\$2 \(la\\$1\(ra\\$3
 ..
 .if \n(.g .mso www.tmac
-.TH flashmq.conf 5 "Jun 05 2024" "" ""
+.TH flashmq.conf 5 "jun 11 2024" "" ""
 .SH NAME
 flashmq.conf \- FlashMQ configuration file format
 .SH SYNOPSIS
@@ -171,6 +171,13 @@ Default value: \fIfalse\fR
 \*(T<\fB\m[green]storage_dir\m[] \fI\m[blue]/path/to/dir\m[]\fR\fR\*(T>
 Location to store sessions, subscriptions and retained messages.
             Not specifying this will turn off persistence.
+.TP
+\*(T<\fB\m[green]save_state_interval\m[] \fI\m[cyan]seconds\m[]\fR\fR\*(T>
+The interval at which the state is saved, if enabled with \fB\m[green]storage_dir\fR\m[].
+
+This setting is currently not applied on reload.
+
+Default: 3623
 .TP
 \*(T<\fB\m[green]max_qos_msg_pending_per_client\m[]\fR\*(T>
 .TQ
