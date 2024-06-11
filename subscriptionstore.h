@@ -97,13 +97,22 @@ struct DeferredRetainedMessageNodeDelivery
     bool poundMode = false;
 };
 
+struct DeferredGetSubscription
+{
+    const std::weak_ptr<SubscriptionNode> node;
+    const std::string composedTopic;
+    const bool root = false;
+
+    DeferredGetSubscription(const std::shared_ptr<SubscriptionNode> &node, const std::string &composedTopic, const bool root);
+};
+
 class SubscriptionStore
 {
 #ifdef TESTING
     friend class MainTests;
 #endif
 
-    SubscriptionNode root;
+    const std::shared_ptr<SubscriptionNode> root = std::make_shared<SubscriptionNode>();
     SubscriptionNode rootDollar;
     pthread_rwlock_t sessionsAndSubscriptionsRwlock = PTHREAD_RWLOCK_INITIALIZER;
     std::unordered_map<std::string, std::shared_ptr<Session>> sessionsById;
@@ -142,7 +151,9 @@ class SubscriptionStore
                              const std::chrono::time_point<std::chrono::steady_clock> &limit,
                              std::deque<std::weak_ptr<RetainedMessageNode>> &deferred) const;
     void getSubscriptions(SubscriptionNode *this_node, const std::string &composedTopic, bool root,
-                          std::unordered_map<std::string, std::list<SubscriptionForSerializing>> &outputList) const;
+                          std::unordered_map<std::string, std::list<SubscriptionForSerializing>> &outputList,
+                          std::deque<DeferredGetSubscription> &deferred, const std::chrono::time_point<std::chrono::steady_clock> limit) const;
+    std::unordered_map<std::string, std::list<SubscriptionForSerializing>> getSubscriptions();
     void countSubscriptions(SubscriptionNode *this_node, int64_t &count) const;
     void expireRetainedMessages(RetainedMessageNode *this_node, const std::chrono::time_point<std::chrono::steady_clock> &limit,
                                 std::deque<std::weak_ptr<RetainedMessageNode>> &deferred);

@@ -23,6 +23,14 @@ See LICENSE for license details.
 #include "threaddata.h"
 #include <deque>
 
+DeferredGetSubscription::DeferredGetSubscription(const std::shared_ptr<SubscriptionNode> &node, const std::string &composedTopic, const bool root) :
+    node(node),
+    composedTopic(composedTopic),
+    root(root)
+{
+
+}
+
 ReceivingSubscriber::ReceivingSubscriber(const std::shared_ptr<Session> &ses, uint8_t qos, bool retainAsPublished) :
     session(ses),
     qos(qos),
@@ -115,8 +123,6 @@ SubscriptionNode *SubscriptionNode::getChildren(const std::string &subtopic) con
 
 
 SubscriptionStore::SubscriptionStore() :
-    root(),
-    rootDollar(),
     sessionsByIdConst(sessionsById)
 {
 
@@ -132,7 +138,7 @@ SubscriptionStore::SubscriptionStore() :
  */
 SubscriptionNode *SubscriptionStore::getDeepestNode(const std::vector<std::string> &subtopics)
 {
-    SubscriptionNode *deepestNode = &root;
+    SubscriptionNode *deepestNode = root.get();
     if (!subtopics.empty())
     {
         const std::string &first = subtopics.front();
@@ -206,7 +212,7 @@ void SubscriptionStore::removeSubscription(std::shared_ptr<Client> &client, cons
     std::string shareName;
     parseSubscriptionShare(subtopics, shareName);
 
-    SubscriptionNode *deepestNode = &root;
+    SubscriptionNode *deepestNode = root.get();
     if (!subtopics.empty())
     {
         const std::string &first = subtopics.front();
@@ -598,7 +604,7 @@ void SubscriptionStore::queuePacketAtSubscribers(PublishCopyFactory &copyFactory
         }
     }
 
-    SubscriptionNode *startNode = dollar ? &rootDollar : &root;
+    SubscriptionNode *startNode = dollar ? &rootDollar : root.get();
 
     std::forward_list<ReceivingSubscriber> subscriberSessions;
 
@@ -1193,7 +1199,7 @@ bool SubscriptionStore::purgeSubscriptionTree()
         lock_guard.wrlock();
 
         logger->logf(LOG_INFO, "Rebuilding subscription tree");
-        root.cleanSubscriptions(deferredSubscriptionLeafsForPurging);
+        root->cleanSubscriptions(deferredSubscriptionLeafsForPurging);
         logger->log(LOG_INFO) << "Rebuilding subscription tree done, with " << deferredSubscriptionLeafsForPurging.size() << " deferred direct leafs to check";
     }
 
@@ -1343,7 +1349,9 @@ void SubscriptionStore::getRetainedMessages(RetainedMessageNode *this_node, std:
  * @param outputList
  */
 void SubscriptionStore::getSubscriptions(SubscriptionNode *this_node, const std::string &composedTopic, bool root,
-                                         std::unordered_map<std::string, std::list<SubscriptionForSerializing>> &outputList) const
+                                         std::unordered_map<std::string, std::list<SubscriptionForSerializing>> &outputList,
+                                         std::deque<DeferredGetSubscription> &deferred,
+                                         const std::chrono::time_point<std::chrono::steady_clock> limit) const
 {
     for (auto &pair : this_node->getSubscribers())
     {
@@ -1366,20 +1374,65 @@ void SubscriptionStore::getSubscriptions(SubscriptionNode *this_node, const std:
     {
         SubscriptionNode *node = pair.second.get();
         const std::string topicAtNextLevel = root ? pair.first : composedTopic + "/" + pair.first;
-        getSubscriptions(node, topicAtNextLevel, false, outputList);
+        if (std::chrono::steady_clock::now() < limit)
+            getSubscriptions(node, topicAtNextLevel, false, outputList, deferred, limit);
+        else
+            deferred.emplace_back(pair.second, topicAtNextLevel, false);
     }
 
     if (this_node->childrenPlus)
     {
         const std::string topicAtNextLevel = root ? "+" : composedTopic + "/+";
-        getSubscriptions(this_node->childrenPlus.get(), topicAtNextLevel, false, outputList);
+        if (std::chrono::steady_clock::now() < limit)
+            getSubscriptions(this_node->childrenPlus.get(), topicAtNextLevel, false, outputList, deferred, limit);
+        else
+            deferred.emplace_back(this_node->childrenPlus, topicAtNextLevel, false);
     }
 
     if (this_node->childrenPound)
     {
         const std::string topicAtNextLevel = root ? "#" : composedTopic + "/#";
-        getSubscriptions(this_node->childrenPound.get(), topicAtNextLevel, false, outputList);
+        if (std::chrono::steady_clock::now() < limit)
+            getSubscriptions(this_node->childrenPound.get(), topicAtNextLevel, false, outputList, deferred, limit);
+        else
+            deferred.emplace_back(this_node->childrenPound, topicAtNextLevel, false);
     }
+}
+
+std::unordered_map<std::string, std::list<SubscriptionForSerializing>> SubscriptionStore::getSubscriptions()
+{
+    std::deque<DeferredGetSubscription> deferred;
+    std::unordered_map<std::string, std::list<SubscriptionForSerializing>> subscriptionCopies;
+
+    DeferredGetSubscription start(root, "", true);
+
+    deferred.push_front(std::move(start));
+
+    for (; !deferred.empty(); deferred.pop_front())
+    {
+        {
+            RWLockGuard locker(&sessionsAndSubscriptionsRwlock);
+
+            if (Globals::getInstance().quitting)
+                locker.rdlock();
+            else
+            {
+                const auto try_lock_timeout = std::chrono::steady_clock::now() + std::chrono::milliseconds(10);
+                locker.tryfirstrdlock(try_lock_timeout, std::chrono::microseconds(100));
+            }
+
+            DeferredGetSubscription &def = deferred.front();
+            std::shared_ptr<SubscriptionNode> node = def.node.lock();
+
+            if (!node)
+                continue;
+
+            const std::chrono::time_point<std::chrono::steady_clock> limit = std::chrono::steady_clock::now() + std::chrono::milliseconds(10);
+            getSubscriptions(node.get(), def.composedTopic, def.root, subscriptionCopies, deferred, limit);
+        }
+    }
+
+    return subscriptionCopies;
 }
 
 void SubscriptionStore::countSubscriptions(SubscriptionNode *this_node, int64_t &count) const
@@ -1528,15 +1581,15 @@ void SubscriptionStore::saveSessionsAndSubscriptions(const std::string &filePath
         {
             sessionPointers.push_back(pair.second);
         }
-
-        getSubscriptions(&root, "", true, subscriptionCopies);
     }
+
+    subscriptionCopies = getSubscriptions();
 
     const std::chrono::time_point<std::chrono::steady_clock> doneCopying = std::chrono::steady_clock::now();
 
     const std::chrono::milliseconds copyDuration = std::chrono::duration_cast<std::chrono::milliseconds>(doneCopying - start);
-    logger->log(LOG_DEBUG) << "Collected " << sessionPointers.size() << " sessions and " << subscriptionCopies.size()
-                           << " subscriptions to save, in " << copyDuration.count() << " ms.";
+    logger->log(LOG_INFO) << "Collected " << sessionPointers.size() << " sessions and " << subscriptionCopies.size()
+                           << " subscriptions to save, in " << copyDuration.count() << " ms (including defer time).";
 
     SessionsAndSubscriptionsDB db(filePath);
     db.openWrite();
