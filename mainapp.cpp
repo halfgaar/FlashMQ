@@ -293,7 +293,7 @@ void MainApp::saveStateInThread()
     std::list<BridgeInfoForSerializing> bridgeInfos = BridgeInfoForSerializing::getBridgeInfosForSerializing(this->bridgeConfigs);
 
     auto f = std::bind(&MainApp::saveState, this->settings, bridgeInfos, true);
-    this->bgWorker.addTask(f);
+    this->bgWorker.addTask(f, true);
 }
 
 /**

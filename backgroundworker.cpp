@@ -6,6 +6,8 @@ void BackgroundWorker::doWork()
 {
     while (running)
     {
+        executing_task = false;
+
         // TODO: semaphore/event/poll
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
@@ -28,6 +30,8 @@ void BackgroundWorker::doWork()
 
         for(auto &f : copied_tasks)
         {
+            executing_task = true;
+
             try
             {
                 f();
@@ -79,8 +83,11 @@ void BackgroundWorker::waitForStop()
         t.join();
 }
 
-void BackgroundWorker::addTask(std::function<void ()> f)
+void BackgroundWorker::addTask(std::function<void ()> f, bool only_if_idle)
 {
+    if (only_if_idle && executing_task)
+        return;
+
     std::lock_guard<std::mutex> locker(task_mutex);
     this->tasks.push_front(f);
 }
