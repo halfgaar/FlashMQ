@@ -868,6 +868,8 @@ void SubscriptionStore::trySetRetainedMessages(const Publish &publish, const std
     if (!td)
         return;
 
+    td->retainedMessageSet.inc(1);
+
     // Only do direct setting when there are none queued, to avoid out of order races, which would result in the wrong ultimate value.
     if (td->queuedRetainedMessagesEmpty() && setRetainedMessage(publish, subtopics, try_lock_fail))
         return;

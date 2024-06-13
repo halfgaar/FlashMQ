@@ -504,6 +504,9 @@ void ThreadData::publishStatsOnDollarTopic(std::vector<std::shared_ptr<ThreadDat
     double aclRegisterWillChecksPerSecond = 0;
     uint64_t aclRegisterWillCheckCount = 0;
 
+    double retainedMessagesSetPerSecond = 0;
+    uint64_t retainedMessagesSetCount = 0;
+
     for (const std::shared_ptr<ThreadData> &thread : threads)
     {
         nrOfClients += thread->getNrOfClients();
@@ -529,6 +532,9 @@ void ThreadData::publishStatsOnDollarTopic(std::vector<std::shared_ptr<ThreadDat
         aclRegisterWillChecksPerSecond += thread->aclRegisterWillChecks.getPerSecond();
         aclRegisterWillCheckCount += thread->aclRegisterWillChecks.get();
 
+        retainedMessagesSetPerSecond += thread->retainedMessageSet.getPerSecond();
+        retainedMessagesSetCount += thread->retainedMessageSet.get();
+
         publishStat("$SYS/broker/threads/" + std::to_string(thread->threadnr) + "/drift/latest__ms", thread->driftCounter.getDrift().count());
         publishStat("$SYS/broker/threads/" + std::to_string(thread->threadnr) + "/drift/moving_avg__ms", thread->driftCounter.getAvgDrift().count());
 
@@ -553,6 +559,9 @@ void ThreadData::publishStatsOnDollarTopic(std::vector<std::shared_ptr<ThreadDat
 
     publishStat("$SYS/broker/load/messages/sent/total", sentMessageCount);
     publishStat("$SYS/broker/load/messages/sent/persecond", sentMessageCountPerSecond);
+
+    publishStat("$SYS/broker/load/messages/set_retained/total", retainedMessagesSetCount);
+    publishStat("$SYS/broker/load/messages/set_retained/persecond", retainedMessagesSetPerSecond);
 
     publishStat("$SYS/broker/load/aclchecks/read/total", aclReadCheckCount);
     publishStat("$SYS/broker/load/aclchecks/read/persecond", aclReadChecksPerSecond);

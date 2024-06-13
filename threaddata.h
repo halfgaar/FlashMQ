@@ -132,6 +132,7 @@ public:
     DerivableCounter aclRegisterWillChecks;
     DerivableCounter deferredRetainedMessagesSet;
     DerivableCounter deferredRetainedMessagesSetTimeout;
+    DerivableCounter retainedMessageSet;
 
     std::minstd_rand randomish;
 
