@@ -1420,6 +1420,18 @@ void MainTests::testUnSubscribe()
     }));
 }
 
+void MainTests::testUnsubscribeNonExistingWildcard()
+{
+    FlashMQTestClient sender;
+
+    sender.start();
+    sender.connectClient(ProtocolVersion::Mqtt311);
+
+    sender.unsubscribe("#");
+
+    FMQ_VERIFY(true); // I just wanted to test asserts in the code
+}
+
 /**
  * @brief MainTests::testBasicsWithFlashMQTestClient was used to develop FlashMQTestClient.
  */

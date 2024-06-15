@@ -68,6 +68,8 @@ void SubscriptionNode::addSubscriber(const std::shared_ptr<Session> &subscriber,
 
     const std::string &client_id = subscriber->getClientId();
 
+    std::unique_lock locker(lock);
+
     if (shareName.empty())
     {
         subscribers[client_id] = sub;
@@ -87,6 +89,8 @@ void SubscriptionNode::removeSubscriber(const std::shared_ptr<Session> &subscrib
     sub.qos = 0;
 
     const std::string &clientId = subscriber->getClientId();
+
+    std::unique_lock locker(lock);
 
     if (shareName.empty())
     {
@@ -108,21 +112,6 @@ void SubscriptionNode::removeSubscriber(const std::shared_ptr<Session> &subscrib
     }
 }
 
-/**
- * @brief SubscriptionNode::getChildren gets children or null pointer. Const, so doesn't default-create node for
- *        non-existing children.
- * @param subtopic
- * @return
- */
-SubscriptionNode *SubscriptionNode::getChildren(const std::string &subtopic) const
-{
-    auto it = children.find(subtopic);
-    if (it != children.end())
-        return it->second.get();
-    return nullptr;
-}
-
-
 SubscriptionStore::SubscriptionStore() :
     sessionsByIdConst(sessionsById)
 {
@@ -134,12 +123,10 @@ SubscriptionStore::SubscriptionStore() :
  * @param topic
  * @param subtopics
  * @return
- *
- * caller is responsible for locking.
  */
-SubscriptionNode *SubscriptionStore::getDeepestNode(const std::vector<std::string> &subtopics)
+std::shared_ptr<SubscriptionNode> SubscriptionStore::getDeepestNode(const std::vector<std::string> &subtopics, bool abort_on_dead_end)
 {
-    SubscriptionNode *deepestNode = root.get();
+    const std::shared_ptr<SubscriptionNode> *deepestNode = &root;
     if (!subtopics.empty())
     {
         const std::string &first = subtopics.front();
@@ -147,28 +134,99 @@ SubscriptionNode *SubscriptionStore::getDeepestNode(const std::vector<std::strin
             deepestNode = &rootDollar;
     }
 
-    for(const std::string &subtopic : subtopics)
+    std::shared_ptr<SubscriptionNode> result;
+    auto subtopic_pos = subtopics.begin();
+    bool retry_mode = false;
+
+    for(int i = 0; i < 2; i++)
     {
-        std::shared_ptr<SubscriptionNode> *selectedChildren = nullptr;
+        assert(i < 1 || retry_mode);
 
-        if (subtopic == "#")
-            selectedChildren = &deepestNode->childrenPound;
-        else if (subtopic == "+")
-            selectedChildren = &deepestNode->childrenPlus;
-        else
-            selectedChildren = &deepestNode->children[subtopic];
+        std::shared_lock rlock(subscriptions_lock, std::defer_lock);
+        std::unique_lock wlock(subscriptions_lock, std::defer_lock);
 
-        std::shared_ptr<SubscriptionNode> &node = *selectedChildren;
-
-        if (!node)
+        if (retry_mode)
         {
-            node = std::make_shared<SubscriptionNode>();
+            assert(!abort_on_dead_end);
+            wlock.lock();
         }
-        deepestNode = node.get();
+        else
+            rlock.lock();
+
+        while(subtopic_pos != subtopics.end())
+        {
+            const std::string &subtopic = *subtopic_pos;
+            std::shared_ptr<SubscriptionNode> *selectedChildren = nullptr;
+
+            if (subtopic == "#")
+                selectedChildren = &(*deepestNode)->childrenPound;
+            else if (subtopic == "+")
+                selectedChildren = &(*deepestNode)->childrenPlus;
+            else
+            {
+                auto &children = (*deepestNode)->children;
+
+                if (retry_mode)
+                {
+                    assert(wlock.owns_lock());
+                    selectedChildren = &children[subtopic];
+                }
+                else // read-only path
+                {
+                    assert(rlock.owns_lock());
+                    auto child_pos = children.find(subtopic);
+
+                    if (child_pos == children.end())
+                    {
+                        if (abort_on_dead_end)
+                            return result;
+
+                        retry_mode = true;
+                        break;
+                    }
+                    else
+                    {
+                        selectedChildren = &child_pos->second;
+                    }
+                }
+            }
+
+            std::shared_ptr<SubscriptionNode> &node = *selectedChildren;
+
+            if (!node)
+            {
+                if (!retry_mode)
+                {
+                    assert(rlock.owns_lock());
+
+                    if (abort_on_dead_end)
+                        return result;
+
+                    retry_mode = true;
+                    break;
+                }
+
+                assert(retry_mode);
+                assert(wlock.owns_lock());
+                node = std::make_shared<SubscriptionNode>();
+            }
+
+            deepestNode = &node;
+            subtopic_pos++;
+        }
+
+        assert(deepestNode);
+        assert(*deepestNode);
+
+        if (retry_mode && subtopic_pos != subtopics.end())
+            continue;
+
+        result = *deepestNode;
+        assert(result);
+        return result;
     }
 
-    assert(deepestNode);
-    return deepestNode;
+    return result;
 }
 
 void SubscriptionStore::addSubscription(std::shared_ptr<Client> &client, const std::vector<std::string> &subtopics, uint8_t qos, bool noLocal, bool retainAsPublished)
@@ -180,26 +238,28 @@ void SubscriptionStore::addSubscription(std::shared_ptr<Client> &client, const s
 void SubscriptionStore::addSubscription(std::shared_ptr<Client> &client, const std::vector<std::string> &subtopics, uint8_t qos, bool noLocal, bool retainAsPublished,
                                         const std::string &shareName, AuthResult authResult)
 {
-    RWLockGuard lock_guard(&sessionsAndSubscriptionsRwlock);
-    lock_guard.wrlock();
-
-    SubscriptionNode *deepestNode = getDeepestNode(subtopics);
+    const std::shared_ptr<SubscriptionNode> deepestNode = getDeepestNode(subtopics);
 
     if (!deepestNode)
         return;
 
-    auto session_it = sessionsByIdConst.find(client->getClientId());
-    if (session_it == sessionsByIdConst.end())
-        return;
+    std::shared_ptr<Session> ses;
 
-    const std::shared_ptr<Session> ses = session_it->second;
+    {
+        std::shared_lock lock(sessions_lock);
 
-    if (!ses)
-        return;
+        auto session_it = sessionsByIdConst.find(client->getClientId());
+        if (session_it == sessionsByIdConst.end())
+            return;
+
+        ses = session_it->second;
+
+        if (!ses)
+            return;
+    }
 
     deepestNode->addSubscriber(ses, qos, noLocal, retainAsPublished, shareName);
     subscriptionCount++;
-    lock_guard.unlock();
 
     if (authResult == AuthResult::success && shareName.empty())
         giveClientRetainedMessages(ses, subtopics, qos);
@@ -213,61 +273,35 @@ void SubscriptionStore::removeSubscription(std::shared_ptr<Client> &client, cons
     std::string shareName;
     parseSubscriptionShare(subtopics, shareName);
 
-    SubscriptionNode *deepestNode = root.get();
-    if (!subtopics.empty())
+    std::shared_ptr<SubscriptionNode> node = getDeepestNode(subtopics, true);
+
+    if (!node)
+        return;
+
+    std::shared_ptr<Session> ses;
+
     {
-        const std::string &first = subtopics.front();
-        if (first.length() > 0 && first[0] == '$')
-            deepestNode = &rootDollar;
-    }
-
-    RWLockGuard lock_guard(&sessionsAndSubscriptionsRwlock);
-    lock_guard.wrlock();
-
-    // This code looks like that for addSubscription(), but it's specifically different in that we don't want to default-create non-existing
-    // nodes. We need to abort when that happens.
-    for(const std::string &subtopic : subtopics)
-    {
-        SubscriptionNode *selectedChildren = nullptr;
-
-        if (subtopic == "#")
-            selectedChildren = deepestNode->childrenPound.get();
-        else if (subtopic == "+")
-            selectedChildren = deepestNode->childrenPlus.get();
-        else
-            selectedChildren = deepestNode->getChildren(subtopic);
-
-        if (!selectedChildren)
-        {
-            return;
-        }
-        deepestNode = selectedChildren;
-    }
-
-    assert(deepestNode);
-
-    if (deepestNode)
-    {
+        std::shared_lock session_locker(sessions_lock);
         auto session_it = sessionsByIdConst.find(client->getClientId());
         if (session_it != sessionsByIdConst.end())
         {
-            const std::shared_ptr<Session> &ses = session_it->second;
-            deepestNode->removeSubscriber(ses, shareName);
+            ses = session_it->second;
             subscriptionCount--;
         }
     }
 
-    lock_guard.unlock();
+    if (!ses)
+        return;
 
-
+    node->removeSubscriber(ses, shareName);
+    subscriptionCount--;
 }
 
 std::shared_ptr<Session> SubscriptionStore::getBridgeSession(std::shared_ptr<Client> &client)
 {
     const std::string &client_id = client->getClientId();
 
-    RWLockGuard lock_guard(&sessionsAndSubscriptionsRwlock);
-    lock_guard.wrlock();
+    std::unique_lock locker(sessions_lock);
 
     std::shared_ptr<Session> session = std::make_shared<Session>(client_id, client->getUsername());
     session->assignActiveConnection(client);
@@ -310,8 +344,7 @@ void SubscriptionStore::registerClientAndKickExistingOne(std::shared_ptr<Client>
         throw ProtocolError("Trying to store client without an ID.", ReasonCodes::ProtocolError);
 
     {
-        RWLockGuard lock_guard(&sessionsAndSubscriptionsRwlock);
-        lock_guard.wrlock();
+        std::unique_lock ses_locker(sessions_lock);
 
         auto session_it = sessionsById.find(client->getClientId());
         if (session_it != sessionsById.end())
@@ -356,8 +389,7 @@ void SubscriptionStore::registerClientAndKickExistingOne(std::shared_ptr<Client>
  */
 std::shared_ptr<Session> SubscriptionStore::lockSession(const std::string &clientid)
 {
-    RWLockGuard lock_guard(&sessionsAndSubscriptionsRwlock);
-    lock_guard.rdlock();
+    std::shared_lock ses_locker(sessions_lock);
 
     auto it = sessionsByIdConst.find(clientid);
     if (it != sessionsByIdConst.end())
@@ -479,6 +511,8 @@ void SubscriptionStore::publishNonRecursively(SubscriptionNode *this_node, std::
                                               const std::string &senderClientId)
 {
     {
+        std::shared_lock locker(this_node->lock);
+
         const std::unordered_map<std::string, Subscription> &subscribers = this_node->getSubscribers();
 
         for (auto &pair : subscribers)
@@ -605,14 +639,13 @@ void SubscriptionStore::queuePacketAtSubscribers(PublishCopyFactory &copyFactory
         }
     }
 
-    SubscriptionNode *startNode = dollar ? &rootDollar : root.get();
+    SubscriptionNode *startNode = dollar ? rootDollar.get() : root.get();
 
     std::forward_list<ReceivingSubscriber> subscriberSessions;
 
     {
         const std::vector<std::string> &subtopics = copyFactory.getSubtopics();
-        RWLockGuard lock_guard(&sessionsAndSubscriptionsRwlock);
-        lock_guard.rdlock();
+        std::shared_lock locker(subscriptions_lock);
         publishRecursively(subtopics.begin(), subtopics.end(), startNode, subscriberSessions, copyFactory.getSharedSubscriptionHashKey(), senderClientId);
     }
 
@@ -1077,8 +1110,7 @@ void SubscriptionStore::removeSession(const std::shared_ptr<Session> &session)
     std::list<std::shared_ptr<Session>> sessionsToRemove;
 
     {
-        RWLockGuard lock_guard(&sessionsAndSubscriptionsRwlock);
-        lock_guard.wrlock();
+        std::unique_lock session_locker(sessions_lock);
 
         auto session_it = sessionsById.find(clientid);
         if (session_it != sessionsById.end() && session_it->second == session)
@@ -1167,8 +1199,7 @@ void SubscriptionStore::removeExpiredSessionsClients()
 
 bool SubscriptionStore::hasDeferredSubscriptionTreeNodesForPurging()
 {
-    RWLockGuard lock_guard(&sessionsAndSubscriptionsRwlock);
-    lock_guard.rdlock();
+    std::shared_lock locker(subscriptions_lock);
     return !deferredSubscriptionLeafsForPurging.empty();
 }
 
@@ -1178,8 +1209,7 @@ bool SubscriptionStore::purgeSubscriptionTree()
 
     if (deferredLeavesPresent)
     {
-        RWLockGuard lock_guard(&sessionsAndSubscriptionsRwlock);
-        lock_guard.wrlock();
+        std::unique_lock locker(subscriptions_lock);
 
         logger->log(LOG_INFO) << "Rebuilding subscription tree: we have " << deferredSubscriptionLeafsForPurging.size() << " deferred leafs to clean up. Doing some.";
 
@@ -1204,8 +1234,7 @@ bool SubscriptionStore::purgeSubscriptionTree()
     }
     else
     {
-        RWLockGuard lock_guard(&sessionsAndSubscriptionsRwlock);
-        lock_guard.wrlock();
+        std::unique_lock locker(subscriptions_lock);
 
         logger->logf(LOG_INFO, "Rebuilding subscription tree");
         root->cleanSubscriptions(deferredSubscriptionLeafsForPurging);
@@ -1362,6 +1391,11 @@ void SubscriptionStore::getSubscriptions(SubscriptionNode *this_node, const std:
                                          std::deque<DeferredGetSubscription> &deferred,
                                          const std::chrono::time_point<std::chrono::steady_clock> limit) const
 {
+    // No code should make dummy nodes that are null, but still protecting against it.
+    assert(this_node);
+    if (!this_node)
+        return;
+
     for (auto &pair : this_node->getSubscribers())
     {
         const Subscription &node = pair.second;
@@ -1419,26 +1453,37 @@ std::unordered_map<std::string, std::list<SubscriptionForSerializing>> Subscript
 
     for (; !deferred.empty(); deferred.pop_front())
     {
-        {
-            RWLockGuard locker(&sessionsAndSubscriptionsRwlock);
+        std::shared_lock locker(subscriptions_lock, std::defer_lock);
 
-            if (Globals::getInstance().quitting)
-                locker.rdlock();
-            else
+        if (Globals::getInstance().quitting)
+            locker.lock();
+        else
+        {
+            // TODO: C++ doesn't provide the non-portable pthread functions to avoid these try_lock read locks
+            // from jumping the queue over waiting write locks. But, I'm not quite sure if I want reader
+            // or writer starvation yet anyway...
+
+            const auto try_lock_timeout = std::chrono::steady_clock::now() + std::chrono::milliseconds(10);
+            while (std::chrono::steady_clock::now() < try_lock_timeout)
             {
-                const auto try_lock_timeout = std::chrono::steady_clock::now() + std::chrono::milliseconds(10);
-                locker.tryfirstrdlock(try_lock_timeout, std::chrono::microseconds(100));
+                if (locker.try_lock())
+                    break;
+
+                std::this_thread::sleep_for(std::chrono::microseconds(100));
             }
 
-            DeferredGetSubscription &def = deferred.front();
-            std::shared_ptr<SubscriptionNode> node = def.node.lock();
-
-            if (!node)
-                continue;
-
-            const std::chrono::time_point<std::chrono::steady_clock> limit = std::chrono::steady_clock::now() + std::chrono::milliseconds(10);
-            getSubscriptions(node.get(), def.composedTopic, def.root, subscriptionCopies, deferred, limit);
+            if (!locker.owns_lock())
+                locker.lock();
         }
+
+        DeferredGetSubscription &def = deferred.front();
+        std::shared_ptr<SubscriptionNode> node = def.node.lock();
+
+        if (!node)
+            continue;
+
+        const std::chrono::time_point<std::chrono::steady_clock> limit = std::chrono::steady_clock::now() + std::chrono::milliseconds(10);
+        getSubscriptions(node.get(), def.composedTopic, def.root, subscriptionCopies, deferred, limit);
     }
 
     return subscriptionCopies;
@@ -1581,8 +1626,7 @@ void SubscriptionStore::saveSessionsAndSubscriptions(const std::string &filePath
     std::unordered_map<std::string, std::list<SubscriptionForSerializing>> subscriptionCopies;
 
     {
-        RWLockGuard lock_guard(&sessionsAndSubscriptionsRwlock);
-        lock_guard.rdlock();
+        std::shared_lock session_locker(sessions_lock);
 
         sessionPointers.reserve(sessionsByIdConst.size());
 
@@ -1621,8 +1665,7 @@ void SubscriptionStore::loadSessionsAndSubscriptions(const std::string &filePath
         db.openRead();
         SessionsAndSubscriptionsResult loadedData = db.readData();
 
-        RWLockGuard locker(&sessionsAndSubscriptionsRwlock);
-        locker.wrlock();
+        std::unique_lock session_locker(sessions_lock);
 
         for (std::shared_ptr<Session> &session : loadedData.sessions)
         {
@@ -1638,7 +1681,7 @@ void SubscriptionStore::loadSessionsAndSubscriptions(const std::string &filePath
 
             for (const SubscriptionForSerializing &sub : subs)
             {
-                SubscriptionNode *subscriptionNode = getDeepestNode(splitTopic(topic));
+                std::shared_ptr<SubscriptionNode> subscriptionNode = getDeepestNode(splitTopic(topic));
 
                 auto session_it = sessionsByIdConst.find(sub.clientId);
                 if (session_it != sessionsByIdConst.end())

@@ -112,6 +112,7 @@ class MainTests
     void testNotMessingUpQosLevels();
 
     void testUnSubscribe();
+    void testUnsubscribeNonExistingWildcard();
 
     void testBasicsWithFlashMQTestClient();
 

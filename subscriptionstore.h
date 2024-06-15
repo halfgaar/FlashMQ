@@ -40,8 +40,11 @@ public:
 
 class SubscriptionNode
 {
+    friend class SubscriptionStore;
+
     std::unordered_map<std::string, Subscription> subscribers;
     std::unordered_map<std::string, SharedSubscribers> sharedSubscribers;
+    std::shared_mutex lock;
 
 public:
     SubscriptionNode();
@@ -55,8 +58,6 @@ public:
     std::unordered_map<std::string, std::shared_ptr<SubscriptionNode>> children;
     std::shared_ptr<SubscriptionNode> childrenPlus;
     std::shared_ptr<SubscriptionNode> childrenPound;
-
-    SubscriptionNode *getChildren(const std::string &subtopic) const;
 
     int cleanSubscriptions(std::deque<std::weak_ptr<SubscriptionNode>> &defferedLeafs);
     bool empty() const;
@@ -113,8 +114,9 @@ class SubscriptionStore
 #endif
 
     const std::shared_ptr<SubscriptionNode> root = std::make_shared<SubscriptionNode>();
-    SubscriptionNode rootDollar;
-    pthread_rwlock_t sessionsAndSubscriptionsRwlock = PTHREAD_RWLOCK_INITIALIZER;
+    const std::shared_ptr<SubscriptionNode> rootDollar = std::make_shared<SubscriptionNode>();
+    std::shared_mutex subscriptions_lock;
+    std::shared_mutex sessions_lock;
     std::unordered_map<std::string, std::shared_ptr<Session>> sessionsById;
     const std::unordered_map<std::string, std::shared_ptr<Session>> &sessionsByIdConst;
 
@@ -158,7 +160,7 @@ class SubscriptionStore
     void expireRetainedMessages(RetainedMessageNode *this_node, const std::chrono::time_point<std::chrono::steady_clock> &limit,
                                 std::deque<std::weak_ptr<RetainedMessageNode>> &deferred);
 
-    SubscriptionNode *getDeepestNode(const std::vector<std::string> &subtopics);
+    std::shared_ptr<SubscriptionNode> getDeepestNode(const std::vector<std::string> &subtopics, bool abort_on_dead_end=false);
 public:
     SubscriptionStore();
 
