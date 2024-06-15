@@ -888,12 +888,13 @@ bool SubscriptionStore::setRetainedMessage(const Publish &publish, const std::ve
     if (settings->retainedMessagesMode > RetainedMessagesMode::EnabledWithoutPersistence)
         return true;
 
-    RetainedMessageNode *deepestNode = retainedMessagesRoot.get();
+    const std::shared_ptr<RetainedMessageNode> *deepestNode = &retainedMessagesRoot;
     if (!subtopics.empty() && !subtopics[0].empty() > 0 && subtopics[0][0] == '$')
-        deepestNode = retainedMessagesRootDollar.get();
+        deepestNode = &retainedMessagesRootDollar;
 
     bool needsWriteLock = false;
     auto subtopic_pos = subtopics.begin();
+    std::shared_ptr<RetainedMessageNode> selected_node;
 
     // First do a read-only search for the node.
     {
@@ -908,9 +909,9 @@ bool SubscriptionStore::setRetainedMessage(const Publish &publish, const std::ve
 
         while(subtopic_pos != subtopics.end())
         {
-            auto pos = deepestNode->children.find(*subtopic_pos);
+            auto pos = (*deepestNode)->children.find(*subtopic_pos);
 
-            if (pos == deepestNode->children.end())
+            if (pos == (*deepestNode)->children.end())
             {
                 needsWriteLock = true;
                 break;
@@ -923,7 +924,7 @@ bool SubscriptionStore::setRetainedMessage(const Publish &publish, const std::ve
                 needsWriteLock = true;
                 break;
             }
-            deepestNode = selectedChildren.get();
+            deepestNode = &selectedChildren;
             subtopic_pos++;
         }
 
@@ -931,7 +932,7 @@ bool SubscriptionStore::setRetainedMessage(const Publish &publish, const std::ve
 
         if (!needsWriteLock && deepestNode)
         {
-            deepestNode->addPayload(publish, retainedMessageCount);
+            selected_node = *deepestNode;
         }
     }
 
@@ -948,13 +949,13 @@ bool SubscriptionStore::setRetainedMessage(const Publish &publish, const std::ve
 
         while(subtopic_pos != subtopics.end())
         {
-            std::shared_ptr<RetainedMessageNode> &selectedChildren = deepestNode->children[*subtopic_pos];
+            std::shared_ptr<RetainedMessageNode> &selectedChildren = (*deepestNode)->children[*subtopic_pos];
 
             if (!selectedChildren)
             {
                 selectedChildren = std::make_shared<RetainedMessageNode>();
             }
-            deepestNode = selectedChildren.get();
+            deepestNode = &selectedChildren;
             subtopic_pos++;
         }
 
@@ -962,8 +963,13 @@ bool SubscriptionStore::setRetainedMessage(const Publish &publish, const std::ve
 
         if (deepestNode)
         {
-            deepestNode->addPayload(publish, retainedMessageCount);
+            selected_node = *deepestNode;
         }
+    }
+
+    if (selected_node)
+    {
+        selected_node->addPayload(publish, retainedMessageCount);
     }
 
     return true;
