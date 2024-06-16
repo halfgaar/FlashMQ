@@ -594,6 +594,21 @@ multi-value-param one 'two' "three" "with ' char"
       
 
       
+        <dt id="subscription_node_lifetime"><code class="option">subscription_node_lifetime</code> <code class="replaceable">seconds</code><a class="hash-anchor" href="#subscription_node_lifetime">#</a></dt>
+        <dd>
+          <p>
+            The grace period after which a subscription node is eligible for deletion. The subscription 'one/two/three' is three nodes.
+          </p>
+          <p>
+            FlashMQ will periodically clear our nodes in the subscription tree that have no entries anymore. This is required to save memory. But, when clients place the same subscriptions repeatedly, it may be beneficial to keep the nodes around, to avoid the need for locks to recreate them. If you know that certain subscription patterns come and go within a certain period, it's benificial to set this value so that no unnecessary node destruction and creation takes place.
+          </p>
+          <p>
+            Default value: <code class="filename">3600</code>
+          </p>
+        </dd>
+      
+
+      
         <dt id="websocket_set_real_ip_from"><code class="option">websocket_set_real_ip_from</code> <code class="replaceable">inet4_address/inet6_address</code><a class="hash-anchor" href="#websocket_set_real_ip_from">#</a></dt>
         <dd>
           <p>

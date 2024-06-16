@@ -70,6 +70,8 @@ void SubscriptionNode::addSubscriber(const std::shared_ptr<Session> &subscriber,
 
     std::unique_lock locker(lock);
 
+    lastUpdate = std::chrono::steady_clock::now();
+
     if (shareName.empty())
     {
         subscribers[client_id] = sub;
@@ -91,6 +93,8 @@ void SubscriptionNode::removeSubscriber(const std::shared_ptr<Session> &subscrib
     const std::string &clientId = subscriber->getClientId();
 
     std::unique_lock locker(lock);
+
+    lastUpdate = std::chrono::steady_clock::now();
 
     if (shareName.empty())
     {
@@ -1091,7 +1095,10 @@ int SubscriptionNode::cleanSubscriptions(std::deque<std::weak_ptr<SubscriptionNo
         }
     }
 
-    return subscribers.size() + sharedSubscribers.size() + subscribersLeftInChildren;
+    const Settings *settings = ThreadGlobals::getSettings();
+    const bool grace_period_expired = lastUpdate + settings->subscriptionNodeLifetime < std::chrono::steady_clock::now();
+    const int grace_period_fake = static_cast<int>(!grace_period_expired);
+    return subscribers.size() + sharedSubscribers.size() + subscribersLeftInChildren + grace_period_fake;
 }
 
 bool SubscriptionNode::empty() const

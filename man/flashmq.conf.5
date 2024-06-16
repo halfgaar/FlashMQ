@@ -5,7 +5,7 @@
 \\$2 \(la\\$1\(ra\\$3
 ..
 .if \n(.g .mso www.tmac
-.TH flashmq.conf 5 "jun 11 2024" "" ""
+.TH flashmq.conf 5 "jun 16 2024" "" ""
 .SH NAME
 flashmq.conf \- FlashMQ configuration file format
 .SH SYNOPSIS
@@ -270,6 +270,13 @@ The grace period after which a retained message node is eligible for deletion. T
 FlashMQ will periodically clear out retained message nodes that have no message anymore. This is required to save memory. But, when you receive retained messages on the same topics repeatedly, it may be beneficial to keep the nodes around, to avoid the need for locks to recreate them. If you know that retained messages come and go within a certain period, it's benificial to set this value so that no unnecessary node destruction and creation takes place.
 
 Default value: \fI\m[blue]0\m[]\fR
+.TP
+\*(T<\fB\m[green]subscription_node_lifetime\m[] \fI\m[cyan]seconds\m[]\fR\fR\*(T>
+The grace period after which a subscription node is eligible for deletion. The subscription 'one/two/three' is three nodes.
+
+FlashMQ will periodically clear our nodes in the subscription tree that have no entries anymore. This is required to save memory. But, when clients place the same subscriptions repeatedly, it may be beneficial to keep the nodes around, to avoid the need for locks to recreate them. If you know that certain subscription patterns come and go within a certain period, it's benificial to set this value so that no unnecessary node destruction and creation takes place.
+
+Default value: \fI\m[blue]3600\m[]\fR
 .TP
 \*(T<\fB\m[green]websocket_set_real_ip_from\m[] \fI\m[cyan]inet4_address/inet6_address\m[]\fR\fR\*(T>
 HTTP proxies in front of the websocket listeners can set the \fI\m[cyan]X-Real-IP\m[]\fR header to identify the original connecting client. With \fB\m[green]websocket_set_real_ip_from\fR\m[] you can mark IP networks as trusted. By default, clients are not trusted, to avoid spoofing.

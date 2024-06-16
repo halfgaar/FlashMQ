@@ -46,6 +46,8 @@ class SubscriptionNode
     std::unordered_map<std::string, SharedSubscribers> sharedSubscribers;
     std::shared_mutex lock;
 
+    std::chrono::time_point<std::chrono::steady_clock> lastUpdate;
+
 public:
     SubscriptionNode();
     SubscriptionNode(const SubscriptionNode &node) = delete;

@@ -98,6 +98,7 @@ public:
     uint maxQosBytesPendingPerClient = 65536;
     bool willsEnabled = true;
     uint32_t retainedMessagesDeliveryLimit = 2048;
+    std::chrono::seconds subscriptionNodeLifetime = std::chrono::seconds(3600);
     uint32_t retainedMessagesNodeLimit = std::numeric_limits<uint32_t>::max();
     std::chrono::seconds retainedMessageNodeLifetime = std::chrono::seconds(0);
     RetainedMessagesMode retainedMessagesMode = RetainedMessagesMode::Enabled;
