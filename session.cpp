@@ -50,28 +50,6 @@ void Session::clearExpiredMessagesFromQueue()
     increaseFlowControlQuota(n);
 }
 
-bool Session::requiresQoSQueueing()
-{
-    const std::shared_ptr<Client> client = makeSharedClient();
-
-    if (!client)
-        return true;
-
-    /*
-     * MQTT 3.1: "Brokers, however, should retry any unacknowledged message."
-     * MQTT 3.1.1: "This [reconnecting] is the only circumstance where a Client or Server is REQUIRED to redeliver messages."
-     *
-     * I disabled it, because MQTT 3.1 retransmission has not been implemented on purpose, because it's a legacy idea that
-     * doesn't work well in practice.
-     */
-    /*
-    if (client->getProtocolVersion() < ProtocolVersion::Mqtt311)
-        return true;
-    */
-
-    return !destroyOnDisconnect;
-}
-
 /**
  * @brief get next packet ID and decrease the flow control counter. Remember to increase the flow control counter in the proper places.
  * @return
@@ -189,7 +167,7 @@ PacketDropReason Session::writePacket(PublishCopyFactory &copyFactory, const uin
 
         pack_id = getNextPacketId();
 
-        if (requiresQoSQueueing())
+        if (!destroyOnDisconnect)
             qosPacketQueue.queuePublish(copyFactory, pack_id, effectiveQos, effectiveRetain);
     }
 
@@ -221,7 +199,7 @@ bool Session::clearQosMessage(uint16_t packet_id, bool qosHandshakeEnds)
     bool result = false;
 
     std::lock_guard<std::mutex> locker(qosQueueMutex);
-    if (requiresQoSQueueing())
+    if (!destroyOnDisconnect)
         result = qosPacketQueue.erase(packet_id);
     else
     {

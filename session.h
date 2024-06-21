@@ -64,7 +64,6 @@ class Session
 
     void increaseFlowControlQuota();
     void increaseFlowControlQuota(int n);
-    bool requiresQoSQueueing();
     uint16_t getNextPacketId();
 
     Session(const Session &other) = delete;
