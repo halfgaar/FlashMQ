@@ -633,14 +633,9 @@ void SubscriptionStore::queuePacketAtSubscribers(PublishCopyFactory &copyFactory
      * We still accept them, but just decide to do nothing with them. Only the FlashMQ internals are allowed to publish
      * on dollar topics.
      */
-    if (!dollar)
+    if (!dollar && copyFactory.getTopic()[0] == '$') // String is always 0-terminated, so we can access first element.
     {
-        const std::string &topic = copyFactory.getTopic();
-
-        if (!topic.empty() && topic[0] == '$')
-        {
-            return;
-        }
+        return;
     }
 
     SubscriptionNode *startNode = dollar ? rootDollar.get() : root.get();
