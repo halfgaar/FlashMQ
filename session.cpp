@@ -137,18 +137,17 @@ void Session::assignActiveConnection(const std::shared_ptr<Session> &thisSession
  */
 PacketDropReason Session::writePacket(PublishCopyFactory &copyFactory, const uint8_t max_qos, bool retainAsPublished)
 {
-    assert(max_qos <= 2);
+    /*
+     * We want to do as little as possible before the ACL check, because it's code that's called
+     * exponentially for subscribers that don't have access to topics, like wildcard subscribers.
+     */
 
-    const std::shared_ptr<Client> c = makeSharedClient();
+    assert(max_qos <= 2);
 
     const uint8_t effectiveQos = copyFactory.getEffectiveQos(max_qos);
     retainAsPublished = retainAsPublished || clientType == ClientType::Mqtt3DefactoBridge;
     bool effectiveRetain = copyFactory.getEffectiveRetain(retainAsPublished);
 
-    if (c && !c->isRetainedAvailable())
-        effectiveRetain = false;
-
-    const Settings *settings = ThreadGlobals::getSettings();
     Authentication *auth = ThreadGlobals::getAuth();
     assert(auth);
 
@@ -160,10 +159,13 @@ PacketDropReason Session::writePacket(PublishCopyFactory &copyFactory, const uin
         return PacketDropReason::AuthDenied;
     }
 
+    const std::shared_ptr<Client> c = makeSharedClient();
+
     uint16_t pack_id = 0;
 
     if (__builtin_expect(effectiveQos > 0, 0))
     {
+        const Settings *settings = ThreadGlobals::getSettings();
         std::unique_lock<std::mutex> locker(qosQueueMutex);
 
         // We don't clear expired messages for online clients. It would slow down the 'happy flow' and those packets are already in the output
@@ -195,6 +197,9 @@ PacketDropReason Session::writePacket(PublishCopyFactory &copyFactory, const uin
 
     if (c)
     {
+        if (!c->isRetainedAvailable())
+            effectiveRetain = false;
+
         return_value = c->writeMqttPacketAndBlameThisClient(copyFactory, effectiveQos, pack_id, effectiveRetain);
     }
 
