@@ -35,7 +35,7 @@ struct ReceivingSubscriber
     const bool retainAsPublished;
 
 public:
-    ReceivingSubscriber(const std::shared_ptr<Session> &ses, uint8_t qos, bool retainAsPublished);
+    ReceivingSubscriber(const std::weak_ptr<Session> &ses, uint8_t qos, bool retainAsPublished);
 };
 
 class SubscriptionNode

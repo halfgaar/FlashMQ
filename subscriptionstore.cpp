@@ -32,8 +32,8 @@ DeferredGetSubscription::DeferredGetSubscription(const std::shared_ptr<Subscript
 
 }
 
-ReceivingSubscriber::ReceivingSubscriber(const std::shared_ptr<Session> &ses, uint8_t qos, bool retainAsPublished) :
-    session(ses),
+ReceivingSubscriber::ReceivingSubscriber(const std::weak_ptr<Session> &ses, uint8_t qos, bool retainAsPublished) :
+    session(ses.lock()),
     qos(qos),
     retainAsPublished(retainAsPublished)
 {
@@ -514,55 +514,63 @@ void SubscriptionStore::queueWillMessage(const std::shared_ptr<WillPublish> &wil
 void SubscriptionStore::publishNonRecursively(SubscriptionNode *this_node, std::forward_list<ReceivingSubscriber> &targetSessions, size_t distributionHash,
                                               const std::string &senderClientId)
 {
+    std::shared_lock locker(this_node->lock);
+
+    for (auto &pair : this_node->subscribers)
     {
-        std::shared_lock locker(this_node->lock);
+        const Subscription &sub = pair.second;
+        targetSessions.emplace_front(sub.session, sub.qos, sub.retainAsPublished);
 
-        const std::unordered_map<std::string, Subscription> &subscribers = this_node->getSubscribers();
-
-        for (auto &pair : subscribers)
+        /*
+         * Shared pointer expires when session has been cleaned by 'clean session' disconnect.
+         *
+         * By not using a tempory locked shared_ptr<Session> for checks, doing an optimistic insertion instead, we avoid
+         * unnecessary copies. The only extra overhead this causes is the list pop when we decice to remove it.
+         */
+        if (!targetSessions.front().session)
         {
-            const Subscription &sub = pair.second;
+            targetSessions.pop_front();
+            continue;
+        }
 
-            const std::shared_ptr<Session> session = sub.session.lock();
-            if (session) // Shared pointer expires when session has been cleaned by 'clean session' connect.
-            {
-                const std::string &receiverClientId = session->getClientId();
-
-                if (sub.noLocal && receiverClientId == senderClientId)
-                    continue;
-
-                targetSessions.emplace_front(session, sub.qos, sub.retainAsPublished);
-            }
+        if (sub.noLocal && targetSessions.front().session->getClientId() == senderClientId)
+        {
+            targetSessions.pop_front();
+            continue;
         }
     }
 
+    if (this_node->sharedSubscribers.empty())
+        return;
+
+    const Settings *settings = ThreadGlobals::getSettings();
+
+    for(auto &pair : this_node->sharedSubscribers)
     {
-        std::unordered_map<std::string, SharedSubscribers> &sharedSubscribers = this_node->getSharedSubscribers();
+        SharedSubscribers &subscribers = pair.second;
 
-        if (!sharedSubscribers.empty())
+        const Subscription *sub = nullptr;
+
+        if (settings->sharedSubscriptionTargeting == SharedSubscriptionTargeting::SenderHash)
+            sub = subscribers.getNext(distributionHash);
+        else
+            sub = subscribers.getNext();
+
+        if (sub == nullptr)
+            continue;
+
+        // Same comment about duplicate copies as above.
+        targetSessions.emplace_front(sub->session, sub->qos, sub->retainAsPublished);
+        if (!targetSessions.front().session)
         {
-            const Settings *settings = ThreadGlobals::getSettings();
+            targetSessions.pop_front();
+            continue;
+        }
 
-            for(auto &pair : sharedSubscribers)
-            {
-                SharedSubscribers &subscribers = pair.second;
-
-                const Subscription *sub = nullptr;
-
-                if (settings->sharedSubscriptionTargeting == SharedSubscriptionTargeting::SenderHash)
-                    sub = subscribers.getNext(distributionHash);
-                else
-                    sub = subscribers.getNext();
-
-                if (sub == nullptr)
-                    continue;
-
-                const std::shared_ptr<Session> session = sub->session.lock();
-                if (session) // Shared pointer expires when session has been cleaned by 'clean session' connect.
-                {
-                    targetSessions.emplace_front(session, sub->qos, sub->retainAsPublished);
-                }
-            }
+        if (sub->noLocal && targetSessions.front().session->getClientId() == senderClientId)
+        {
+            targetSessions.pop_front();
+            continue;
         }
     }
 }
