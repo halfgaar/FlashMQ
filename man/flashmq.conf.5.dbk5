@@ -136,10 +136,7 @@ multi-value-param one 'two' "three" "with ' char"
         <term><option>log_file</option> <filename>/path/to/flashmq.log</filename></term>
         <listitem>
           <para>
-            This configuration parameter sets the path to FlashMQ's log file. If you omit the, the output will go to stdout.
-          </para>
-          <para>
-            Default value: <filename>/var/log/flashmq/flashmq.log</filename>
+            This configuration parameter sets the path to FlashMQ's log file. If you omit this option from the config file, the output will go to stdout.
           </para>
         </listitem>
       </varlistentry>

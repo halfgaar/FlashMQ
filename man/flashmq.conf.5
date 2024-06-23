@@ -5,7 +5,7 @@
 \\$2 \(la\\$1\(ra\\$3
 ..
 .if \n(.g .mso www.tmac
-.TH flashmq.conf 5 "jun 16 2024" "" ""
+.TH flashmq.conf 5 "jun 23 2024" "" ""
 .SH NAME
 flashmq.conf \- FlashMQ configuration file format
 .SH SYNOPSIS
@@ -71,9 +71,7 @@ See \fI\m[blue]flashmq_plugin.h\m[]\fR for details.
 Default value: \fI60\fR
 .TP
 \*(T<\fB\m[green]log_file\m[] \fI\m[blue]/path/to/flashmq.log\m[]\fR\fR\*(T>
-This configuration parameter sets the path to FlashMQ's log file. If you omit the, the output will go to stdout.
-
-Default value: \fI\m[blue]/var/log/flashmq/flashmq.log\m[]\fR
+This configuration parameter sets the path to FlashMQ's log file. If you omit this option from the config file, the output will go to stdout.
 .TP
 \*(T<\fB\m[green]log_level\m[] \fI\m[cyan]info/notice/warning/error/none\m[]\fR\fR\*(T>
 Set the log level to specified level and above. That means \fI\m[cyan]notice\m[]\fR will log \fI\m[cyan]notice\m[]\fR, \fI\m[cyan]warning\m[]\fR and \fI\m[cyan]error\m[]\fR.
