@@ -339,8 +339,7 @@ multi-value-param one 'two' "three" "with ' char"
         <term><option>storage_dir</option> <filename>/path/to/dir</filename></term>
         <listitem>
           <para>
-            Location to store sessions, subscriptions and retained messages.
-            Not specifying this will turn off persistence.
+            Location to store sessions, subscriptions and retained messages. Not specifying this will turn off persistence.
           </para>
         </listitem>
       </varlistentry>
