@@ -937,6 +937,7 @@ bool SubscriptionStore::setRetainedMessage(const Publish &publish, const std::ve
     bool needsWriteLock = false;
     auto subtopic_pos = subtopics.begin();
     std::shared_ptr<RetainedMessageNode> selected_node;
+    std::shared_ptr<RetainedMessageNode> retry_point;
 
     // First do a read-only search for the node.
     {
@@ -956,6 +957,7 @@ bool SubscriptionStore::setRetainedMessage(const Publish &publish, const std::ve
             if (pos == (*deepestNode)->children.end())
             {
                 needsWriteLock = true;
+                retry_point = *deepestNode;
                 break;
             }
 
@@ -964,6 +966,7 @@ bool SubscriptionStore::setRetainedMessage(const Publish &publish, const std::ve
             if (!selectedChildren)
             {
                 needsWriteLock = true;
+                retry_point = *deepestNode;
                 break;
             }
             deepestNode = &selectedChildren;
@@ -988,6 +991,8 @@ bool SubscriptionStore::setRetainedMessage(const Publish &publish, const std::ve
         }
         else
             locker.wrlock();
+
+        deepestNode = &retry_point;
 
         while(subtopic_pos != subtopics.end())
         {
