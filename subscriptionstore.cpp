@@ -130,16 +130,15 @@ SubscriptionStore::SubscriptionStore() :
  */
 std::shared_ptr<SubscriptionNode> SubscriptionStore::getDeepestNode(const std::vector<std::string> &subtopics, bool abort_on_dead_end)
 {
-    const std::shared_ptr<SubscriptionNode> *deepestNode = &root;
+    const std::shared_ptr<SubscriptionNode> *start = &root;
     if (!subtopics.empty())
     {
         const std::string &first = subtopics.front();
         if (first.length() > 0 && first[0] == '$')
-            deepestNode = &rootDollar;
+            start = &rootDollar;
     }
 
     std::shared_ptr<SubscriptionNode> result;
-    auto subtopic_pos = subtopics.begin();
     bool retry_mode = false;
 
     for(int i = 0; i < 2; i++)
@@ -156,6 +155,9 @@ std::shared_ptr<SubscriptionNode> SubscriptionStore::getDeepestNode(const std::v
         }
         else
             rlock.lock();
+
+        auto subtopic_pos = subtopics.begin();
+        const std::shared_ptr<SubscriptionNode> *deepestNode = start;
 
         while(subtopic_pos != subtopics.end())
         {
