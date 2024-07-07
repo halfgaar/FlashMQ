@@ -25,6 +25,7 @@ See LICENSE for license details.
 #include "retainedmessagesdb.h"
 #include "utils.h"
 #include "exceptions.h"
+#include "flashmqtempdir.h"
 
 void MainTests::test_circbuf()
 {
@@ -761,7 +762,8 @@ void MainTests::test_utf8_compare_implementation()
 
     // Just something to look at. It prefixes lines with a red cross when the checker returns false. Note that this means you
     // don't see the difference between invalid UTF8 and valid but invalid for MQTT.
-    std::ofstream outfile("/tmp/flashmq_utf8_test_result.txt", std::ios::binary);
+    FlashMQTempDir tmpdir;
+    std::ofstream outfile(tmpdir.getPath() / "flashmq_utf8_test_result.txt", std::ios::binary);
 
     int line_count = 0;
     std::ifstream infile("UTF-8-test.txt", std::ios::binary);
@@ -831,12 +833,14 @@ void MainTests::testRetainedMessageDB()
             rm.publish.username = formatString("Username__%d", usernameCount++);
         }
 
-        RetainedMessagesDB db("/tmp/flashmqtests_retained.db");
+        FlashMQTempDir tmpdir;
+        auto dbpath = tmpdir.getPath() / "flashmqtests_retained.db";
+        RetainedMessagesDB db(dbpath);
         db.openWrite();
         db.saveData(messages);
         db.closeFile();
 
-        RetainedMessagesDB db2("/tmp/flashmqtests_retained.db");
+        RetainedMessagesDB db2(dbpath);
         db2.openRead();
         std::list<RetainedMessage> messagesLoaded = db2.readData();
         db2.closeFile();
@@ -874,7 +878,8 @@ void MainTests::testRetainedMessageDBNotPresent()
 {
     try
     {
-        RetainedMessagesDB db2("/tmp/flashmqtests_asdfasdfasdf.db");
+        FlashMQTempDir tmpdir;
+        RetainedMessagesDB db2(tmpdir.getPath() / "flashmqtests_asdfasdfasdf.db");
         db2.openRead();
         std::list<RetainedMessage> messagesLoaded = db2.readData();
         db2.closeFile();
@@ -898,13 +903,15 @@ void MainTests::testRetainedMessageDBEmptyList()
     try
     {
         std::vector<RetainedMessage> messages;
+        FlashMQTempDir tmpdir;
+        std::string dbpath = tmpdir.getPath() / "flashmqtests_retained.db";
 
-        RetainedMessagesDB db("/tmp/flashmqtests_retained.db");
+        RetainedMessagesDB db(dbpath);
         db.openWrite();
         db.saveData(messages);
         db.closeFile();
 
-        RetainedMessagesDB db2("/tmp/flashmqtests_retained.db");
+        RetainedMessagesDB db2(dbpath);
         db2.openRead();
         std::list<RetainedMessage> messagesLoaded = db2.readData();
         db2.closeFile();
@@ -975,12 +982,15 @@ void MainTests::testSavingSessions()
         PublishCopyFactory fac(&publishPacket);
         c1ses->writePacket(fac, 1, false);
 
-        store->saveSessionsAndSubscriptions("/tmp/flashmqtests_sessions.db");
+        FlashMQTempDir tmpdir;
+        auto dbpath = tmpdir.getPath() / "flashmqtests_sessions.db";
+
+        store->saveSessionsAndSubscriptions(dbpath);
 
         usleep(1000000);
 
         std::shared_ptr<SubscriptionStore> store2(new SubscriptionStore());
-        store2->loadSessionsAndSubscriptions("/tmp/flashmqtests_sessions.db");
+        store2->loadSessionsAndSubscriptions(dbpath);
 
         MYCASTCOMPARE(store->sessionsById.size(), 2);
         MYCASTCOMPARE(store2->sessionsById.size(), 2);
