@@ -229,6 +229,8 @@ class MainTests
     void testStringValuesInvalid();
     void testPreviouslyValidConfigFile();
 
+    void forkingTestSaveAndLoadDelayedWill();
+
 
 public:
     MainTests();

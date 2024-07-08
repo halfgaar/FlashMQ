@@ -1,7 +1,11 @@
+#include <stdlib.h>
+
 #include "maintests.h"
 #include "testhelpers.h"
 #include "flashmqtestclient.h"
 #include "conffiletemp.h"
+#include "mainappasfork.h"
+
 
 void MainTests::testMqtt3will()
 {
@@ -338,4 +342,87 @@ void MainTests::testMqtt5DelayedWillsDisabled()
 
     usleep(250000);
     QVERIFY(receiver.receivedPackets.empty());
+}
+
+/**
+ * @brief Test saving sessions and reloading delays wills, that have reached a delay time of zero. These are loaded in the main thread
+ * on start-up, so don't have normal thread data / event loops available to them.
+ *
+ * It tests the bug that FlashMQ crashes on sending wills immediately on loading them from disk on start-up.
+ */
+void MainTests::forkingTestSaveAndLoadDelayedWill()
+{
+    // TODO: auto-delete temp dir.
+    char dir_template[255] = "/tmp/forkingTestSaveAndLoadDelayedWill_XXXXXXX";
+    mkdtemp(dir_template);
+    const std::string tempdir(dir_template);
+
+    cleanup();
+
+    ConfFileTemp confFile;
+    confFile.writeLine(R"(
+allow_anonymous true
+log_level debug
+)");
+    confFile.writeLine("storage_dir " + tempdir);
+    confFile.closeFile();
+
+    const std::vector<std::string> args {"--config-file", confFile.getFilePath()};
+
+    MainAppAsFork app(args);
+    app.start();
+    app.waitForStarted();
+
+    FlashMQTestClient sender;
+    sender.start();
+
+    sender.connectClient(ProtocolVersion::Mqtt5, false, 120, [](Connect &c) {
+        Publish pub("my/delayed/will/topic", "my delayed will payload", 0);
+
+        c.will = std::make_shared<WillPublish>(pub);
+        c.will->will_delay = 1;
+
+        // This is not the proper way, but as of yet, the relevant constructor for MqttPacket doesn't generate them from members.
+        c.will->constructPropertyBuilder();
+        c.will->propertyBuilder->writeWillDelay(1);
+    });
+
+    sender.disconnect(ReasonCodes::DisconnectWithWill);
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+    app.stop();
+
+    std::cerr << "Waiting with starting a new server to allow will delay to expire..." << std::endl;
+    std::this_thread::sleep_for(std::chrono::seconds(3));
+    std::cerr << "Starting new server..." << std::endl;
+
+    MainAppAsFork app2(args);
+    app2.start();
+    app2.waitForStarted();
+
+    // Is the new server really running? See header doc.
+    try
+    {
+
+        FlashMQTestClient receiver;
+        receiver.start();
+        receiver.connectClient(ProtocolVersion::Mqtt5, false, 0);
+
+        FlashMQTestClient sender;
+        sender.start();
+        sender.connectClient(ProtocolVersion::Mqtt5, false, 0);
+
+        receiver.subscribe("pukapuka/boo", 0);
+        sender.publish("pukapuka/boo", "haha", 0);
+        receiver.waitForMessageCount(1);
+        FMQ_COMPARE(receiver.receivedPublishes.front().getTopic(), "pukapuka/boo");
+    }
+    catch (std::exception &ex)
+    {
+        std::string msg = "We did not get a response. The server did not start perhaps? Check dmesg. Exception msg: ";
+        msg += ex.what();
+        FMQ_VERIFY2(false, msg.c_str());
+    }
+
+    app2.stop();
 }

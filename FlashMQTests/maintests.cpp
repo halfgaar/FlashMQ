@@ -171,6 +171,7 @@ MainTests::MainTests()
      * of getaddrinfo_a(). So, name them appropriately.
      */
     REGISTER_FUNCTION(forkingTestForkingTestServer);
+    REGISTER_FUNCTION(forkingTestSaveAndLoadDelayedWill);
 
     REGISTER_FUNCTION(testDummy);
     REGISTER_FUNCTION3(test_circbuf);
