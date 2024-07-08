@@ -464,15 +464,9 @@ void SubscriptionStore::sendQueuedWillMessages()
     }
 }
 
-/**
- * @brief SubscriptionStore::queueWillMessage queues the will message in a sorted map.
- * @param willMessage
- * @param forceNow
- *
- * The queued will is only valid for that time. Should a new will be placed in the map for a session, the original shared_ptr
- * will be cleared and the previously queued entry is void (but still there, so it needs to be checked).
- */
-void SubscriptionStore::queueWillMessage(const std::shared_ptr<WillPublish> &willMessage, const std::string &senderClientId, const std::shared_ptr<Session> &session, bool forceNow)
+void SubscriptionStore::queueOrSendWillMessage(
+    const std::shared_ptr<WillPublish> &willMessage, const std::string &senderClientId, const std::shared_ptr<Session> &session,
+    bool forceNow)
 {
     if (!willMessage)
         return;
@@ -480,28 +474,44 @@ void SubscriptionStore::queueWillMessage(const std::shared_ptr<WillPublish> &wil
     Authentication &auth = *ThreadGlobals::getAuth();
     Settings *settings = ThreadGlobals::getSettings();
 
-    const int delay = forceNow ? 0 : willMessage->will_delay;
-    logger->logf(LOG_DEBUG, "Queueing will on topic '%s', with delay %d seconds.", willMessage->topic.c_str(), delay );
+    const uint32_t delay = forceNow ? 0 : willMessage->will_delay;
 
-    if (delay == 0)
+    if (delay > 0)
     {
-        if (settings->willsEnabled && auth.aclCheck(*willMessage, willMessage->payload) == AuthResult::success)
-        {
-            PublishCopyFactory factory(willMessage.get());
-            queuePacketAtSubscribers(factory, senderClientId);
-
-            if (willMessage->retain)
-                setRetainedMessage(*willMessage.get(), (*willMessage).getSubtopics());
-        }
-
-        // Avoid sending two immediate wills when a session is destroyed with the client disconnect.
-        // Session is null when you're destroying a client before a session is assigned, or
-        // when an old client has no session anymore after a client with the same ID connects.
-        if (session)
-            session->clearWill();
-
+        queueWillMessage(willMessage, session);
         return;
     }
+
+    logger->log(LOG_DEBUG) << "Sending immediate will on topic '" << willMessage->topic << "'.";
+
+    if (settings->willsEnabled && auth.aclCheck(*willMessage, willMessage->payload) == AuthResult::success)
+    {
+        PublishCopyFactory factory(willMessage.get());
+        queuePacketAtSubscribers(factory, senderClientId);
+
+        if (willMessage->retain)
+            setRetainedMessage(*willMessage.get(), (*willMessage).getSubtopics());
+    }
+
+    // Avoid sending two immediate wills when a session is destroyed with the client disconnect.
+    // Session is null when you're destroying a client before a session is assigned, or
+    // when an old client has no session anymore after a client with the same ID connects.
+    if (session)
+        session->clearWill();
+}
+
+/**
+ * @brief SubscriptionStore::queueWillMessage queues the will message in a sorted map.
+ *
+ * The queued will is only valid for that time. Should a new will be placed in the map for a session, the original shared_ptr
+ * will be cleared and the previously queued entry is void (but still there, so it needs to be checked).
+ */
+void SubscriptionStore::queueWillMessage(const std::shared_ptr<WillPublish> &willMessage, const std::shared_ptr<Session> &session)
+{
+    if (!willMessage)
+        return;
+
+    logger->log(LOG_DEBUG) << "Queueing will on topic '" << willMessage->topic << "', with delay of " << willMessage->will_delay << " seconds.";
 
     willMessage->setQueuedAt();
 
@@ -1145,7 +1155,7 @@ void SubscriptionStore::removeSession(const std::shared_ptr<Session> &session)
         std::shared_ptr<WillPublish> will = s->getWill();
         if (will)
         {
-            queueWillMessage(will, clientid, s, true);
+            queueOrSendWillMessage(will, clientid, s, true);
         }
 
         s.reset();
@@ -1688,7 +1698,7 @@ void SubscriptionStore::loadSessionsAndSubscriptions(const std::string &filePath
         {
             sessionsById[session->getClientId()] = session;
             queueSessionRemoval(session);
-            queueWillMessage(session->getWill(), session->getClientId(), session);
+            queueWillMessage(session->getWill(), session);
         }
 
         for (auto &pair : loadedData.subscriptions)

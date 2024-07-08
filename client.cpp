@@ -598,7 +598,7 @@ void Client::sendOrQueueWill()
         return;
 
     std::shared_ptr<SubscriptionStore> store = MainApp::getMainApp()->getSubscriptionStore();
-    store->queueWillMessage(willPublish, clientid, session);
+    store->queueOrSendWillMessage(willPublish, clientid, session);
     this->willPublish.reset();
 }
 
