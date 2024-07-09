@@ -682,7 +682,12 @@ void ThreadData::removeExpiredRetainedMessages()
     if (!done)
     {
         auto f = std::bind(&ThreadData::removeExpiredRetainedMessages, this);
+
+#ifdef TESTING
+        addImmediateTask(f);
+#else
         addDelayedTask(f, 100);
+#endif
     }
 }
 
