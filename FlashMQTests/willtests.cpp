@@ -5,6 +5,7 @@
 #include "flashmqtestclient.h"
 #include "conffiletemp.h"
 #include "mainappasfork.h"
+#include "flashmqtempdir.h"
 
 
 void MainTests::testMqtt3will()
@@ -352,10 +353,7 @@ void MainTests::testMqtt5DelayedWillsDisabled()
  */
 void MainTests::forkingTestSaveAndLoadDelayedWill()
 {
-    // TODO: auto-delete temp dir.
-    char dir_template[255] = "/tmp/forkingTestSaveAndLoadDelayedWill_XXXXXXX";
-    mkdtemp(dir_template);
-    const std::string tempdir(dir_template);
+    FlashMQTempDir tmpdir;
 
     cleanup();
 
@@ -364,7 +362,7 @@ void MainTests::forkingTestSaveAndLoadDelayedWill()
 allow_anonymous true
 log_level debug
 )");
-    confFile.writeLine("storage_dir " + tempdir);
+    confFile.writeLine("storage_dir " + tmpdir.getPath().string());
     confFile.closeFile();
 
     const std::vector<std::string> args {"--config-file", confFile.getFilePath()};
