@@ -523,7 +523,7 @@ void SubscriptionStore::queueWillMessage(const std::shared_ptr<WillPublish> &wil
     this->pendingWillMessages[secondsSinceEpoch].push_back(queuedWill);
 }
 
-void SubscriptionStore::publishNonRecursively(SubscriptionNode *this_node, std::forward_list<ReceivingSubscriber> &targetSessions, size_t distributionHash,
+void SubscriptionStore::publishNonRecursively(SubscriptionNode *this_node, std::vector<ReceivingSubscriber> &targetSessions, size_t distributionHash,
                                               const std::string &senderClientId)
 {
     std::shared_lock locker(this_node->lock);
@@ -531,7 +531,7 @@ void SubscriptionStore::publishNonRecursively(SubscriptionNode *this_node, std::
     for (auto &pair : this_node->subscribers)
     {
         const Subscription &sub = pair.second;
-        targetSessions.emplace_front(sub.session, sub.qos, sub.retainAsPublished);
+        targetSessions.emplace_back(sub.session, sub.qos, sub.retainAsPublished);
 
         /*
          * Shared pointer expires when session has been cleaned by 'clean session' disconnect.
@@ -539,15 +539,15 @@ void SubscriptionStore::publishNonRecursively(SubscriptionNode *this_node, std::
          * By not using a tempory locked shared_ptr<Session> for checks, doing an optimistic insertion instead, we avoid
          * unnecessary copies. The only extra overhead this causes is the list pop when we decice to remove it.
          */
-        if (!targetSessions.front().session)
+        if (!targetSessions.back().session)
         {
-            targetSessions.pop_front();
+            targetSessions.pop_back();
             continue;
         }
 
-        if (sub.noLocal && targetSessions.front().session->getClientId() == senderClientId)
+        if (sub.noLocal && targetSessions.back().session->getClientId() == senderClientId)
         {
-            targetSessions.pop_front();
+            targetSessions.pop_back();
             continue;
         }
     }
@@ -572,10 +572,10 @@ void SubscriptionStore::publishNonRecursively(SubscriptionNode *this_node, std::
             continue;
 
         // Same comment about duplicate copies as above.
-        targetSessions.emplace_front(sub->session, sub->qos, sub->retainAsPublished);
-        if (!targetSessions.front().session)
+        targetSessions.emplace_back(sub->session, sub->qos, sub->retainAsPublished);
+        if (!targetSessions.back().session)
         {
-            targetSessions.pop_front();
+            targetSessions.pop_back();
             continue;
         }
 
@@ -599,7 +599,7 @@ void SubscriptionStore::publishNonRecursively(SubscriptionNode *this_node, std::
  * look at objdump --disassemble --demangle to see how many calls (not jumps) to itself are made and compare.
  */
 void SubscriptionStore::publishRecursively(std::vector<std::string>::const_iterator cur_subtopic_it, std::vector<std::string>::const_iterator end,
-                                           SubscriptionNode *this_node, std::forward_list<ReceivingSubscriber> &targetSessions, size_t distributionHash,
+                                           SubscriptionNode *this_node, std::vector<ReceivingSubscriber> &targetSessions, size_t distributionHash,
                                            const std::string &senderClientId)
 {
     if (cur_subtopic_it == end) // This is the end of the topic path, so look for subscribers here.
@@ -660,13 +660,18 @@ void SubscriptionStore::queuePacketAtSubscribers(PublishCopyFactory &copyFactory
 
     SubscriptionNode *startNode = dollar ? rootDollar.get() : root.get();
 
-    std::forward_list<ReceivingSubscriber> subscriberSessions;
+    const size_t reserve = this->subscriber_reserve.load(std::memory_order_relaxed);
+    std::vector<ReceivingSubscriber> subscriberSessions;
+    subscriberSessions.reserve(reserve);
 
     {
         const std::vector<std::string> &subtopics = copyFactory.getSubtopics();
         std::shared_lock locker(subscriptions_lock);
         publishRecursively(subtopics.begin(), subtopics.end(), startNode, subscriberSessions, copyFactory.getSharedSubscriptionHashKey(), senderClientId);
     }
+
+    if (subscriberSessions.size() > reserve && subscriberSessions.size() <= 1048576)
+        this->subscriber_reserve.store(reserve, std::memory_order_relaxed);
 
     for(const ReceivingSubscriber &x : subscriberSessions)
     {

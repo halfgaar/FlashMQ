@@ -19,6 +19,7 @@ See LICENSE for license details.
 #include <vector>
 #include <pthread.h>
 #include <optional>
+#include <atomic>
 
 #include "client.h"
 #include "session.h"
@@ -117,6 +118,7 @@ class SubscriptionStore
 
     const std::shared_ptr<SubscriptionNode> root = std::make_shared<SubscriptionNode>();
     const std::shared_ptr<SubscriptionNode> rootDollar = std::make_shared<SubscriptionNode>();
+    std::atomic<size_t> subscriber_reserve = 1024;
     std::shared_mutex subscriptions_lock;
     std::shared_mutex sessions_lock;
     std::unordered_map<std::string, std::shared_ptr<Session>> sessionsById;
@@ -142,9 +144,9 @@ class SubscriptionStore
     Logger *logger = Logger::getInstance();
 
     static void publishNonRecursively(SubscriptionNode *this_node,
-                                      std::forward_list<ReceivingSubscriber> &targetSessions, size_t distributionHash, const std::string &senderClientId);
+                                      std::vector<ReceivingSubscriber> &targetSessions, size_t distributionHash, const std::string &senderClientId);
     static void publishRecursively(std::vector<std::string>::const_iterator cur_subtopic_it, std::vector<std::string>::const_iterator end,
-                            SubscriptionNode *this_node, std::forward_list<ReceivingSubscriber> &targetSessions, size_t distributionHash, const std::string &senderClientId);
+                            SubscriptionNode *this_node, std::vector<ReceivingSubscriber> &targetSessions, size_t distributionHash, const std::string &senderClientId);
     static void giveClientRetainedMessagesRecursively(std::vector<std::string>::const_iterator cur_subtopic_it,
                                                       std::vector<std::string>::const_iterator end, const std::shared_ptr<RetainedMessageNode> &this_node, bool poundMode,
                                                       const std::shared_ptr<Session> &session, const uint8_t max_qos,
