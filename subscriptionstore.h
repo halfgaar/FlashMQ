@@ -143,10 +143,12 @@ class SubscriptionStore
 
     Logger *logger = Logger::getInstance();
 
-    static void publishNonRecursively(SubscriptionNode *this_node,
-                                      std::vector<ReceivingSubscriber> &targetSessions, size_t distributionHash, const std::string &senderClientId);
-    static void publishRecursively(std::vector<std::string>::const_iterator cur_subtopic_it, std::vector<std::string>::const_iterator end,
-                            SubscriptionNode *this_node, std::vector<ReceivingSubscriber> &targetSessions, size_t distributionHash, const std::string &senderClientId);
+    static void publishNonRecursively(
+        SubscriptionNode *this_node, std::vector<ReceivingSubscriber> &targetSessions, size_t distributionHash,
+        const std::string &senderClientId) noexcept;
+    static void publishRecursively(
+        std::vector<std::string>::const_iterator cur_subtopic_it, std::vector<std::string>::const_iterator end,
+        SubscriptionNode *this_node, std::vector<ReceivingSubscriber> &targetSessions, size_t distributionHash, const std::string &senderClientId) noexcept;
     static void giveClientRetainedMessagesRecursively(std::vector<std::string>::const_iterator cur_subtopic_it,
                                                       std::vector<std::string>::const_iterator end, const std::shared_ptr<RetainedMessageNode> &this_node, bool poundMode,
                                                       const std::shared_ptr<Session> &session, const uint8_t max_qos,

@@ -523,8 +523,9 @@ void SubscriptionStore::queueWillMessage(const std::shared_ptr<WillPublish> &wil
     this->pendingWillMessages[secondsSinceEpoch].push_back(queuedWill);
 }
 
-void SubscriptionStore::publishNonRecursively(SubscriptionNode *this_node, std::vector<ReceivingSubscriber> &targetSessions, size_t distributionHash,
-                                              const std::string &senderClientId)
+void SubscriptionStore::publishNonRecursively(
+    SubscriptionNode *this_node, std::vector<ReceivingSubscriber> &targetSessions, size_t distributionHash,
+    const std::string &senderClientId) noexcept
 {
     std::shared_lock locker(this_node->lock);
 
@@ -598,9 +599,10 @@ void SubscriptionStore::publishNonRecursively(SubscriptionNode *this_node, std::
  * As noted in the params section, this method was written so that it could be (somewhat) optimized for tail recursion by the compiler. If you refactor this,
  * look at objdump --disassemble --demangle to see how many calls (not jumps) to itself are made and compare.
  */
-void SubscriptionStore::publishRecursively(std::vector<std::string>::const_iterator cur_subtopic_it, std::vector<std::string>::const_iterator end,
-                                           SubscriptionNode *this_node, std::vector<ReceivingSubscriber> &targetSessions, size_t distributionHash,
-                                           const std::string &senderClientId)
+void SubscriptionStore::publishRecursively(
+    std::vector<std::string>::const_iterator cur_subtopic_it, std::vector<std::string>::const_iterator end,
+    SubscriptionNode *this_node, std::vector<ReceivingSubscriber> &targetSessions, size_t distributionHash,
+    const std::string &senderClientId) noexcept
 {
     if (cur_subtopic_it == end) // This is the end of the topic path, so look for subscribers here.
     {
