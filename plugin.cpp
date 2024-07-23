@@ -336,7 +336,24 @@ AuthResult Authentication::aclCheck(const std::string &clientid, const std::stri
     if (settings.pluginSerializeAuthChecks)
         lock.lock();
 
-    if (pluginFamily == PluginFamily::MosquittoV2)
+    if (__builtin_expect(pluginFamily == PluginFamily::FlashMQ, 1))
+    {
+        // I'm using this try/catch because propagating the exception higher up conflicts with who gets the blame, and then the publisher
+        // gets disconnected.
+        try
+        {
+            if (flashmqPluginVersionNumber == 2)
+                return flashmq_plugin_acl_check_v2(pluginData, access, clientid, username, topic, subtopics, payload, qos, retain, userProperties);
+            else
+                return flashmq_plugin_acl_check_v1(pluginData, access, clientid, username, topic, subtopics, qos, retain, userProperties);
+        }
+        catch (std::exception &ex)
+        {
+            logger->logf(LOG_ERR, "Error doing ACL check in plugin: '%s'", ex.what());
+            logger->logf(LOG_WARNING, "Throwing exceptions from auth plugin login/ACL checks is slow. There's no need.");
+        }
+    }
+    else if (pluginFamily == PluginFamily::MosquittoV2)
     {
         // We have to do this, because Mosquitto plugin v2 has no notion of checking subscribes.
         if (access == AclAccess::subscribe)
@@ -355,23 +372,6 @@ AuthResult Authentication::aclCheck(const std::string &clientid, const std::stri
         }
 
         return result_;
-    }
-    else if (pluginFamily == PluginFamily::FlashMQ)
-    {
-        // I'm using this try/catch because propagating the exception higher up conflicts with who gets the blame, and then the publisher
-        // gets disconnected.
-        try
-        {
-            if (flashmqPluginVersionNumber == 1)
-                return flashmq_plugin_acl_check_v1(pluginData, access, clientid, username, topic, subtopics, qos, retain, userProperties);
-            else
-                return flashmq_plugin_acl_check_v2(pluginData, access, clientid, username, topic, subtopics, payload, qos, retain, userProperties);
-        }
-        catch (std::exception &ex)
-        {
-            logger->logf(LOG_ERR, "Error doing ACL check in plugin: '%s'", ex.what());
-            logger->logf(LOG_WARNING, "Throwing exceptions from auth plugin login/ACL checks is slow. There's no need.");
-        }
     }
 
     return AuthResult::error;
