@@ -723,6 +723,10 @@ ConnectData MqttPacket::parseConnectData()
                         throw ProtocolError("Can't specify " + propertyToString(prop) + " more than once", ReasonCodes::ProtocolError);
 
                     const std::string responseTopic = readBytesToString(true, true);
+
+                    if (responseTopic.empty())
+                        throw ProtocolError("Response topic in will cannot be empty", ReasonCodes::ProtocolError);
+
                     result.willpublish.propertyBuilder->writeResponseTopic(responseTopic);
                     break;
                 }
@@ -1763,6 +1767,10 @@ void MqttPacket::parsePublishData()
 
                 publishData.constructPropertyBuilder();
                 const std::string responseTopic = readBytesToString(true, true);
+
+                if (responseTopic.empty())
+                    throw ProtocolError("Response topic cannot be empty", ReasonCodes::ProtocolError);
+
                 publishData.propertyBuilder->writeResponseTopic(responseTopic);
                 break;
             }
