@@ -30,11 +30,6 @@ See LICENSE for license details.
 #include "evpencodectxmanager.h"
 
 
-#ifdef __SSE4_2__
-#include "threadlocalutils.h"
-thread_local SimdUtils simdUtils;
-#endif
-
 std::list<std::string> split(const std::string &input, const char sep, size_t max, bool keep_empty_parts)
 {
     std::list<std::string> list;
@@ -52,107 +47,16 @@ std::list<std::string> split(const std::string &input, const char sep, size_t ma
     return list;
 }
 
-bool isValidUtf8Generic(const std::string &s, bool alsoCheckInvalidPublishChars)
-{
-    int multibyte_remain = 0;
-    uint32_t cur_code_point = 0;
-    int total_char_len = 0;
-    for(const uint8_t x : s)
-    {
-        if (alsoCheckInvalidPublishChars && (x == '#' || x == '+'))
-            return false;
-
-        if(!multibyte_remain)
-        {
-            cur_code_point = 0;
-
-            if ((x & 0b10000000) == 0) // when the MSB is 0, it's ASCII, most common case
-            {
-                cur_code_point += (x & 0b01111111);
-            }
-            else if((x & 0b11100000) == 0b11000000) // 2 byte char
-            {
-                multibyte_remain = 1;
-                cur_code_point += ((x & 0b00011111) << 6);
-            }
-            else if((x & 0b11110000) == 0b11100000) // 3 byte char
-            {
-                multibyte_remain = 2;
-                cur_code_point += ((x & 0b00001111) << 12);
-            }
-            else if((x & 0b11111000) == 0b11110000) // 4 byte char
-            {
-                multibyte_remain = 3;
-                cur_code_point += ((x & 0b00000111) << 18);
-            }
-            else if((x & 0b10000000) != 0)
-                return false;
-            else
-                cur_code_point += (x & 0b01111111);
-
-            total_char_len = multibyte_remain + 1;
-        }
-        else // All remainer bytes of this code point needs to start with 10
-        {
-            if((x & 0b11000000) != 0b10000000)
-                return false;
-            multibyte_remain--;
-            cur_code_point += ((x & 0b00111111) << (6*multibyte_remain));
-        }
-
-        if (multibyte_remain == 0)
-        {
-            // Check overlong values, to avoid having mulitiple representations of the same value.
-            if (total_char_len == 1)
-            {
-
-            }
-            else if (total_char_len == 2 && cur_code_point < 0x80)
-                return false;
-            else if (total_char_len == 3 && cur_code_point < 0x800)
-                return false;
-            else if (total_char_len == 4 && cur_code_point < 0x10000)
-                return false;
-
-            if (cur_code_point <= 0x001F)
-                return false;
-            if (cur_code_point >= 0x007F && cur_code_point <= 0x009F)
-                return false;
-
-            if (total_char_len > 1)
-            {
-                // Invalid range for MQTT. [MQTT-1.5.3-1]
-                if (cur_code_point >= 0xD800 && cur_code_point <= 0xDFFF) // Dec 55296-57343
-                    return false;
-
-                // Unicode spec: "Which code points are noncharacters?".
-                if (cur_code_point >= 0xFDD0 && cur_code_point <= 0xFDEF)
-                    return false;
-                // The last two code points of each of the 17 planes are the remaining 34 non-chars.
-                const uint32_t plane = (cur_code_point & 0x1F0000) >> 16;
-                const uint32_t last_16_bit = cur_code_point & 0xFFFF;
-                if (plane <= 16 && (last_16_bit == 0xFFFE || last_16_bit == 0xFFFF))
-                    return false;
-            }
-
-            cur_code_point = 0;
-        }
-    }
-    return multibyte_remain == 0;
-}
-
-bool isValidUtf8(const std::string &s, bool alsoCheckInvalidPublishChars)
-{
-#ifdef __SSE4_2__
-    return simdUtils.isValidUtf8(s, alsoCheckInvalidPublishChars);
-#else
-    return isValidUtf8Generic(s, alsoCheckInvalidPublishChars);
-#endif
-}
-
 bool strContains(const std::string &s, const std::string &needle)
 {
     return s.find(needle) != std::string::npos;
+}
+
+// Only necessary for tests at this point.
+bool isValidUtf8Generic(const char *s, bool alsoCheckInvalidPublishChars)
+{
+    const std::string s2(s);
+    return isValidUtf8Generic(s2, alsoCheckInvalidPublishChars);
 }
 
 bool isValidPublishPath(const std::string &s)
@@ -230,6 +134,7 @@ bool containsDangerousCharacters(const std::string &s)
 std::vector<std::string> splitTopic(const std::string &topic)
 {
 #ifdef __SSE4_2__
+    thread_local static SimdUtils simdUtils;
     return simdUtils.splitTopic(topic);
 #else
     std::vector<std::string> output;
@@ -1158,7 +1063,6 @@ std::string propertyToString(Mqtt5Properties p)
     oss << static_cast<int>(p);
     return oss.str();
 }
-
 
 
 
