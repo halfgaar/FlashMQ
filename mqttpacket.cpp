@@ -1706,6 +1706,7 @@ void MqttPacket::parsePublishData()
                 if (pcounts[0]++ > 0)
                     throw ProtocolError("Can't specify " + propertyToString(prop) + " more than once", ReasonCodes::ProtocolError);
 
+                publishData.payloadUtf8 = true;
                 publishData.constructPropertyBuilder();
                 publishData.propertyBuilder->writePayloadFormatIndicator(readByte());
                 break;
@@ -1802,6 +1803,12 @@ void MqttPacket::parsePublishData()
 
     payloadLen = remainingAfterPos();
     payloadStart = pos;
+
+    // Not using SIMD UTF8 checker because that requires making a copy, and requires being able to deal with large strings.
+    if (publishData.payloadUtf8 && !isValidUtf8Generic(getPayloadView()))
+    {
+        throw ProtocolError("Payload announced as UTF8, but it's not valid.", ReasonCodes::PayloadFormatInvalid);
+    }
 }
 
 void MqttPacket::handlePublish()

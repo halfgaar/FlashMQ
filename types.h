@@ -231,6 +231,7 @@ public:
     bool retain = false; // Note: existing subscribers don't get publishes of retained messages with retain=1. [MQTT-3.3.1-9]
     uint16_t topicAlias = 0;
     bool skipTopic = false;
+    bool payloadUtf8 = false;
     std::shared_ptr<Mqtt5PropertyBuilder> propertyBuilder; // Only contains data for sending, not receiving
 
     PublishBase() = default;
