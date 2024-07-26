@@ -705,6 +705,7 @@ ConnectData MqttPacket::parseConnectData()
                     if (pcounts[1]++ > 0)
                         throw ProtocolError("Can't specify " + propertyToString(prop) + " more than once", ReasonCodes::ProtocolError);
 
+                    result.willpublish.payloadUtf8 = true;
                     result.willpublish.propertyBuilder->writePayloadFormatIndicator(readByte());
                     break;
                 case Mqtt5Properties::ContentType:
@@ -769,6 +770,11 @@ ConnectData MqttPacket::parseConnectData()
 
         uint16_t will_payload_length = readTwoBytesToUInt16();
         result.willpublish.payload = std::string(readBytes(will_payload_length), will_payload_length);
+
+        if (result.willpublish.payloadUtf8 && !isValidUtf8Generic(result.willpublish.payload))
+        {
+            throw ProtocolError("Will payload announced as UTF8, but it's not valid.", ReasonCodes::PayloadFormatInvalid);
+        }
     }
     else
     {
