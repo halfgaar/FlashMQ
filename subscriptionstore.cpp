@@ -579,11 +579,11 @@ void SubscriptionStore::publishNonRecursively(SubscriptionNode *this_node, std::
             continue;
         }
 
-        if (sub->noLocal && targetSessions.front().session->getClientId() == senderClientId)
-        {
-            targetSessions.pop_front();
-            continue;
-        }
+        /*
+         * We don't filter out 'no local' subscriptions:
+         *
+         * It is a Protocol Error to set the No Local bit to 1 on a Shared Subscription [MQTT-3.8.3-4]
+         */
     }
 }
 

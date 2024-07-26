@@ -1511,6 +1511,11 @@ void MqttPacket::handleSubscribe()
         std::string shareName;
         parseSubscriptionShare(subtopics, shareName);
 
+        if (!shareName.empty() && noLocal)
+        {
+            throw ProtocolError("It is a Protocol Error to set the No Local bit to 1 on a Shared Subscription", ReasonCodes::ProtocolError);
+        }
+
         const Settings *settings = ThreadGlobals::getSettings();
 
         AuthResult authResult = AuthResult::success;
