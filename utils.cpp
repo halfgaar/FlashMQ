@@ -759,7 +759,14 @@ int maskAllSignalsCurrentThread()
 void parseSubscriptionShare(std::vector<std::string> &subtopics, std::string &shareName)
 {
     if (subtopics.size() < 3)
+    {
+        if (subtopics.size() == 2 && subtopics[0] == "$share")
+        {
+            throw ProtocolError("Topic filter for shared subscription cannot be empty.", ReasonCodes::ProtocolError);
+        }
+
         return;
+    }
 
     const std::string &match = subtopics[0];
 
@@ -775,6 +782,9 @@ void parseSubscriptionShare(std::vector<std::string> &subtopics, std::string &sh
     {
         subtopics.erase(subtopics.begin());
     }
+
+    if (!(subtopics.size() > 1 || (subtopics.size() == 1 && !subtopics[0].empty()) ))
+        throw ProtocolError("The / character after a shared subscription name MUST be followed by a topic filter.", ReasonCodes::ProtocolError);
 
     shareName = _shareName;
 }
