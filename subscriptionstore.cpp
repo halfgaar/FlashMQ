@@ -447,12 +447,13 @@ void SubscriptionStore::sendQueuedWillMessages()
                 if (s && !s->hasActiveClient())
                 {
                     logger->logf(LOG_DEBUG, "Sending delayed will on topic '%s'.", p->topic.c_str() );
-                    if (auth.aclCheck(*p, p->payload) == AuthResult::success)
+                    const AuthResult authResult = auth.aclCheck(*p, p->payload);
+                    if (authResult == AuthResult::success || authResult == AuthResult::success_without_setting_retained)
                     {
                         PublishCopyFactory factory(p.get());
                         queuePacketAtSubscribers(factory, p->client_id);
 
-                        if (p->retain)
+                        if (p->retain && authResult == AuthResult::success)
                             setRetainedMessage(*p, p->getSubtopics());
                     }
 
@@ -484,13 +485,18 @@ void SubscriptionStore::queueOrSendWillMessage(
 
     logger->log(LOG_DEBUG) << "Sending immediate will on topic '" << willMessage->topic << "'.";
 
-    if (settings->willsEnabled && auth.aclCheck(*willMessage, willMessage->payload) == AuthResult::success)
+    if (settings->willsEnabled)
     {
-        PublishCopyFactory factory(willMessage.get());
-        queuePacketAtSubscribers(factory, senderClientId);
+        const AuthResult authResult = auth.aclCheck(*willMessage, willMessage->payload);
 
-        if (willMessage->retain)
-            setRetainedMessage(*willMessage.get(), (*willMessage).getSubtopics());
+        if (authResult == AuthResult::success || authResult == AuthResult::success_without_setting_retained)
+        {
+            PublishCopyFactory factory(willMessage.get());
+            queuePacketAtSubscribers(factory, senderClientId);
+
+            if (willMessage->retain && authResult == AuthResult::success)
+                setRetainedMessage(*willMessage.get(), (*willMessage).getSubtopics());
+        }
     }
 
     // Avoid sending two immediate wills when a session is destroyed with the client disconnect.
@@ -881,7 +887,7 @@ void SubscriptionStore::giveClientRetainedMessages(const std::shared_ptr<Session
 
     const Settings *settings = ThreadGlobals::getSettings();
 
-    if (settings->retainedMessagesMode > RetainedMessagesMode::EnabledWithoutPersistence)
+    if (settings->retainedMessagesMode >= RetainedMessagesMode::EnabledWithoutRetaining)
         return;
 
     // The specs aren't clear whether retained messages should be dropped, or just have their retain flag stripped. I chose the former,
@@ -944,7 +950,7 @@ bool SubscriptionStore::setRetainedMessage(const Publish &publish, const std::ve
 
     const Settings *settings = ThreadGlobals::getSettings();
 
-    if (settings->retainedMessagesMode > RetainedMessagesMode::EnabledWithoutPersistence)
+    if (settings->retainedMessagesMode >= RetainedMessagesMode::EnabledWithoutRetaining)
         return true;
 
     const std::shared_ptr<RetainedMessageNode> *deepestNode = &retainedMessagesRoot;

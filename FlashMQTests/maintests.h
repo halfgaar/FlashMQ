@@ -59,6 +59,7 @@ class MainTests
     void test_retained_double_set();
     void test_retained_mode_drop();
     void test_retained_mode_downgrade();
+    void test_retained_mode_no_retain();
     void test_retained_changed();
     void test_retained_removed();
     void test_retained_tree();

@@ -5,7 +5,7 @@
 \\$2 \(la\\$1\(ra\\$3
 ..
 .if \n(.g .mso www.tmac
-.TH flashmq.conf 5 "jun 24 2024" "" ""
+.TH flashmq.conf 5 "Jul 28 2024" "" ""
 .SH NAME
 flashmq.conf \- FlashMQ configuration file format
 .SH SYNOPSIS
@@ -219,6 +219,8 @@ Retained messages can be a strain on the server you may not need. You can set va
 \fI\m[blue]enabled\m[]\fR. This is normal operation.
 
 \fI\m[blue]enabled_without_persistence\m[]\fR. Like 'normal', except it won't store them to disk if \fB\m[green]storage_dir\fR\m[] is defined.
+
+\fI\m[blue]enabled_without_retaining\m[]\fR. This somewhat counter-intuitive sounding mode is like \fB\m[green]downgrade\fR\m[], except that the 'retain' flag is not removed. This allows MQTT5 subscribers that subscribe with 'retain as published' to see which messages were originally sent as retained. It's just that FlashMQ won't retain them.
 
 \fI\m[blue]downgrade\m[]\fR. The retain flag is removed and treated like a normal publish.
 

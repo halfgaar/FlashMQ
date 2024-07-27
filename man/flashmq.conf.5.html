@@ -488,6 +488,9 @@ multi-value-param one 'two' "three" "with ' char"
             <code class="filename">enabled_without_persistence</code>. Like 'normal', except it won't store them to disk if <code class="option">storage_dir</code> is defined.
           </p>
           <p>
+            <code class="filename">enabled_without_retaining</code>. This somewhat counter-intuitive sounding mode is like <code class="option">downgrade</code>, except that the 'retain' flag is not removed. This allows MQTT5 subscribers that subscribe with 'retain as published' to see which messages were originally sent as retained. It's just that FlashMQ won't retain them.
+          </p>
+          <p>
             <code class="filename">downgrade</code>. The retain flag is removed and treated like a normal publish.
           </p>
           <p>

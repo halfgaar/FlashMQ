@@ -1879,12 +1879,22 @@ void MqttPacket::handlePublish()
         // Don't look at 'retain', because the above is enough.
         this->alteredByPlugin = altered || qos_org != this->publishData.qos;
 
-        if (authentication.aclCheck(this->publishData, getPayloadView()) == AuthResult::success)
+        const AuthResult authResult = authentication.aclCheck(this->publishData, getPayloadView());
+        if (authResult == AuthResult::success || authResult == AuthResult::success_without_setting_retained)
         {
-            if (publishData.retain && settings->retainedMessagesMode <= RetainedMessagesMode::EnabledWithoutPersistence)
+            if (publishData.retain)
             {
-                publishData.payload = getPayloadCopy();
-                MainApp::getMainApp()->getSubscriptionStore()->trySetRetainedMessages(publishData, publishData.getSubtopics());
+                if (authResult == AuthResult::success && settings->retainedMessagesMode <= RetainedMessagesMode::EnabledWithoutPersistence)
+                {
+                    publishData.payload = getPayloadCopy();
+                    MainApp::getMainApp()->getSubscriptionStore()->trySetRetainedMessages(publishData, publishData.getSubtopics());
+                }
+                else if (settings->retainedMessagesMode == RetainedMessagesMode::Downgrade)
+                {
+                    publishData.retain = false;
+                    bites[0] &= 0b11111110;
+                    first_byte = bites[0];
+                }
             }
 
             if (!publishData.retain || settings->retainedMessagesMode <= RetainedMessagesMode::Downgrade)

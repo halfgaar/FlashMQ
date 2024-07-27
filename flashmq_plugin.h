@@ -74,6 +74,10 @@ enum class AclAccess
  * success_without_retained_delivery = allow the subscription action, but don't try to give client the matching retained messages. This
  * can be used prevent load on the server. For instance, if there are many retained messages and clients subscribe to '#'. This value
  * is only valid for AclAccess::subscribe, and requires FlashMQ version 1.9.0 or newer.
+ *
+ * success_without_setting_retained = allow the write action, but don't set the retained message (if it was set to retain to begin
+ * with). MQTT5 subscribers with 'retain as published' will still see the retain flag set. This value is only valid for
+ * AclAccess::write and requires a FlashMQ version 1.16.0 or higher.
  */
 enum class AuthResult
 {
@@ -84,6 +88,7 @@ enum class AuthResult
     error = 13,
     async = 50,
     success_without_retained_delivery = 51,
+    success_without_setting_retained = 52,
     auth_continue = -4
 };
 

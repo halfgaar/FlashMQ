@@ -183,6 +183,7 @@ MainTests::MainTests()
     REGISTER_FUNCTION(test_retained_double_set);
     REGISTER_FUNCTION(test_retained_mode_drop);
     REGISTER_FUNCTION(test_retained_mode_downgrade);
+    REGISTER_FUNCTION(test_retained_mode_no_retain);
     REGISTER_FUNCTION(test_retained_changed);
     REGISTER_FUNCTION(test_retained_removed);
     REGISTER_FUNCTION(test_retained_tree);

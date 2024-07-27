@@ -209,7 +209,7 @@ void MainTests::test_retained_mode_downgrade()
 
             receiver.connectClient(receiverVersion);
             receiver.subscribe("dummy", 0);
-            receiver.subscribe(topic, 0);
+            receiver.subscribe(topic, 0, false, true);
 
             usleep(250000);
 
@@ -228,6 +228,58 @@ void MainTests::test_retained_mode_downgrade()
             QVERIFY2(!msg2.getRetain(), "Getting a retained message while already being subscribed must be marked as normal, not retain.");
         }
     }
+}
+
+/**
+ * @brief Tests 'enabled_without_retaining', which relays the message with the 'retain' flag set, but does not retain.
+ */
+void MainTests::test_retained_mode_no_retain()
+{
+    ConfFileTemp confFile;
+    confFile.writeLine("allow_anonymous yes");
+    confFile.writeLine("retained_messages_mode enabled_without_retaining");
+    confFile.closeFile();
+
+    std::vector<std::string> args {"--config-file", confFile.getFilePath()};
+
+    cleanup();
+    init(args);
+
+    FlashMQTestClient sender;
+    FlashMQTestClient receiver;
+
+    sender.start();
+    receiver.start();
+
+    const std::string payload = "We are testing";
+    const std::string topic = "retaintopic/foo/bar";
+
+    sender.connectClient(ProtocolVersion::Mqtt5);
+
+    receiver.connectClient(ProtocolVersion::Mqtt5);
+    receiver.subscribe(topic, 0, false, true);
+
+    Publish pub1(topic, payload, 0);
+    pub1.retain = true;
+    sender.publish(pub1);
+
+    receiver.waitForMessageCount(1);
+    QVERIFY(receiver.receivedPublishes.size() == 1);
+
+    MqttPacket &msg = receiver.receivedPublishes.front();
+    QCOMPARE(msg.getPayloadCopy(), payload);
+    QCOMPARE(msg.getTopic(), topic);
+    QVERIFY2(msg.getRetain(), "We were supposed to have seen the retain flag, because 'retain as published' was on.");
+
+    FlashMQTestClient late_receiver;
+    late_receiver.start();
+    late_receiver.connectClient(ProtocolVersion::Mqtt5);
+    late_receiver.subscribe("#", 0);
+
+    usleep(250000);
+
+    receiver.waitForMessageCount(0);
+    QVERIFY2(late_receiver.receivedPublishes.empty(), "In enabled_without_retaining mode, retained publishes should not be stored as retained messages.");
 }
 
 void MainTests::test_retained_changed()

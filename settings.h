@@ -29,6 +29,7 @@ enum class RetainedMessagesMode
 {
     Enabled,
     EnabledWithoutPersistence,
+    EnabledWithoutRetaining,
     Downgrade,
     Drop,
     DisconnectWithError
