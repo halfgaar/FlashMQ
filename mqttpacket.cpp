@@ -1806,8 +1806,7 @@ void MqttPacket::parsePublishData()
                     throw ProtocolError("Can't specify " + propertyToString(prop) + " more than once", ReasonCodes::ProtocolError);
 
                 publishData.constructPropertyBuilder();
-                const uint16_t len = readTwoBytesToUInt16();
-                const std::string contentType(readBytes(len), len);
+                const std::string contentType = readBytesToString(true, false);
                 publishData.propertyBuilder->writeContentType(contentType);
                 break;
             }
