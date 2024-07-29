@@ -73,7 +73,7 @@ enum class AclAccess
  *
  * success_without_retained_delivery = allow the subscription action, but don't try to give client the matching retained messages. This
  * can be used prevent load on the server. For instance, if there are many retained messages and clients subscribe to '#'. This value
- * is only valid for AclAccess::subscribe.
+ * is only valid for AclAccess::subscribe, and requires FlashMQ version 1.9.0 or newer.
  */
 enum class AuthResult
 {
