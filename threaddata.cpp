@@ -441,7 +441,7 @@ void ThreadData::clientDisconnectActions(bool authenticated, const std::string &
 
     if (willPublish)
     {
-        store->queueOrSendWillMessage(willPublish, clientid, session);
+        store->queueOrSendWillMessage(willPublish, session);
     }
 
     if (session && session->getDestroyOnDisconnect())

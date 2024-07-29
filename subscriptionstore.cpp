@@ -405,6 +405,38 @@ std::shared_ptr<Session> SubscriptionStore::lockSession(const std::string &clien
     return std::shared_ptr<Session>();
 }
 
+void SubscriptionStore::sendWill(const std::shared_ptr<WillPublish> will, const std::shared_ptr<Session> session, const std::string &log)
+{
+    if (!will || !session)
+        return;
+
+    /*
+     * Avoid sending two immediate wills when a session is destroyed with the client disconnect.
+     * Session is null when you're destroying a client before a session is assigned, or
+     * when an old client has no session anymore after a client with the same ID connects.
+     */
+    session->clearWill();
+
+    const Settings *settings = ThreadGlobals::getSettings();
+
+    if (!settings->willsEnabled)
+        return;
+
+    logger->log(LOG_DEBUG) << log << " " << will->topic;
+
+    Authentication &auth = *ThreadGlobals::getAuth();
+    const AuthResult authResult = auth.aclCheck(*will, will->payload, AclAccess::write);
+
+    if (authResult == AuthResult::success || authResult == AuthResult::success_without_setting_retained)
+    {
+        PublishCopyFactory factory(will.get());
+        queuePacketAtSubscribers(factory, will->client_id);
+
+        if (will->retain && authResult == AuthResult::success)
+            setRetainedMessage(*will, will->getSubtopics());
+    }
+}
+
 /**
  * @brief SubscriptionStore::sendQueuedWillMessages sends queued will messages.
  *
@@ -417,8 +449,6 @@ std::shared_ptr<Session> SubscriptionStore::lockSession(const std::string &clien
  */
 void SubscriptionStore::sendQueuedWillMessages()
 {
-    Authentication &auth = *ThreadGlobals::getAuth();
-
     const auto now = std::chrono::steady_clock::now();
     const std::chrono::seconds secondsSinceEpoch = std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch());
     std::lock_guard<std::mutex> locker(this->pendingWillsMutex);
@@ -436,74 +466,31 @@ void SubscriptionStore::sendQueuedWillMessages()
         for(QueuedWill &will : willsOfSlot)
         {
             std::shared_ptr<WillPublish> p = will.getWill().lock();
+            std::shared_ptr<Session> s = will.getSession();
 
-            // If sessions get a new will, or the will is cleared from a new connecting client, this entry
-            // will be null and we can ignore it.
-            if (p)
-            {
-                std::shared_ptr<Session> s = will.getSession();
+            // If the session has been picked up again after the will was originally queued, we should not send it.
+            if (s && s->hasActiveClient())
+                continue;
 
-                // Check for stale wills, or sessions that have become active again.
-                if (s && !s->hasActiveClient())
-                {
-                    logger->logf(LOG_DEBUG, "Sending delayed will on topic '%s'.", p->topic.c_str() );
-                    const AuthResult authResult = auth.aclCheck(*p, p->payload);
-                    if (authResult == AuthResult::success || authResult == AuthResult::success_without_setting_retained)
-                    {
-                        PublishCopyFactory factory(p.get());
-                        queuePacketAtSubscribers(factory, p->client_id);
-
-                        if (p->retain && authResult == AuthResult::success)
-                            setRetainedMessage(*p, p->getSubtopics());
-                    }
-
-                    s->clearWill();
-                }
-            }
+            sendWill(p, s, "Sending delayed will on topic: ");
         }
+
         it = pendingWillMessages.erase(it);
     }
 }
 
 void SubscriptionStore::queueOrSendWillMessage(
-    const std::shared_ptr<WillPublish> &willMessage, const std::string &senderClientId, const std::shared_ptr<Session> &session,
-    bool forceNow)
+    const std::shared_ptr<WillPublish> &willMessage, const std::shared_ptr<Session> &session, bool forceNow)
 {
     if (!willMessage)
         return;
 
-    Authentication &auth = *ThreadGlobals::getAuth();
-    Settings *settings = ThreadGlobals::getSettings();
-
     const uint32_t delay = forceNow ? 0 : willMessage->will_delay;
 
     if (delay > 0)
-    {
         queueWillMessage(willMessage, session);
-        return;
-    }
-
-    logger->log(LOG_DEBUG) << "Sending immediate will on topic '" << willMessage->topic << "'.";
-
-    if (settings->willsEnabled)
-    {
-        const AuthResult authResult = auth.aclCheck(*willMessage, willMessage->payload);
-
-        if (authResult == AuthResult::success || authResult == AuthResult::success_without_setting_retained)
-        {
-            PublishCopyFactory factory(willMessage.get());
-            queuePacketAtSubscribers(factory, senderClientId);
-
-            if (willMessage->retain && authResult == AuthResult::success)
-                setRetainedMessage(*willMessage.get(), (*willMessage).getSubtopics());
-        }
-    }
-
-    // Avoid sending two immediate wills when a session is destroyed with the client disconnect.
-    // Session is null when you're destroying a client before a session is assigned, or
-    // when an old client has no session anymore after a client with the same ID connects.
-    if (session)
-        session->clearWill();
+    else
+        sendWill(willMessage, session, "Sending immediate will on topic: ");
 }
 
 /**
@@ -1168,7 +1155,7 @@ void SubscriptionStore::removeSession(const std::shared_ptr<Session> &session)
         std::shared_ptr<WillPublish> will = s->getWill();
         if (will)
         {
-            queueOrSendWillMessage(will, clientid, s, true);
+            queueOrSendWillMessage(will, s, true);
         }
 
         s.reset();

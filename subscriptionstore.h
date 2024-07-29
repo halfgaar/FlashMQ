@@ -167,6 +167,8 @@ class SubscriptionStore
                                 std::deque<std::weak_ptr<RetainedMessageNode>> &deferred);
 
     std::shared_ptr<SubscriptionNode> getDeepestNode(const std::vector<std::string> &subtopics, bool abort_on_dead_end=false);
+
+    void sendWill(const std::shared_ptr<WillPublish> will, const std::shared_ptr<Session> session, const std::string &log);
 public:
     SubscriptionStore();
 
@@ -181,8 +183,7 @@ public:
 
     void sendQueuedWillMessages();
     void queueOrSendWillMessage(
-        const std::shared_ptr<WillPublish> &willMessage, const std::string &senderClientId, const std::shared_ptr<Session> &session,
-        bool forceNow = false);
+        const std::shared_ptr<WillPublish> &willMessage, const std::shared_ptr<Session> &session, bool forceNow = false);
     void queueWillMessage(const std::shared_ptr<WillPublish> &willMessage, const std::shared_ptr<Session> &session);
     void queuePacketAtSubscribers(PublishCopyFactory &copyFactory, const std::string &senderClientId, bool dollar = false);
     void giveClientRetainedMessages(const std::shared_ptr<Session> &ses,
