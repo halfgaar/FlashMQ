@@ -122,15 +122,21 @@ void PluginLoader::mainInit(std::unordered_map<std::string, std::string> &plugin
     if (!main_init_v1)
         return;
 
+    std::optional<std::string> error;
+
     try
     {
         main_init_v1(plugin_opts);
     }
     catch(std::exception &ex)
     {
+        error = ex.what();
         Logger *logger = Logger::getInstance();
-        logger->logf(LOG_ERR, "Exception in flashmq_plugin_main_init(): ", ex.what());
+        logger->log(LOG_ERR) << "Exception in flashmq_plugin_main_init(): " << ex.what();
     }
+
+    if (error)
+        throw std::runtime_error(error.value());
 }
 
 void PluginLoader::mainDeinit(std::unordered_map<std::string, std::string> &plugin_opts)
@@ -145,6 +151,6 @@ void PluginLoader::mainDeinit(std::unordered_map<std::string, std::string> &plug
     catch(std::exception &ex)
     {
         Logger *logger = Logger::getInstance();
-        logger->logf(LOG_ERR, "Exception in flashmq_plugin_main_deinit(): ", ex.what());
+        logger->log(LOG_ERR) << "Exception in flashmq_plugin_main_deinit(): " << ex.what();
     }
 }
