@@ -55,6 +55,9 @@ Timer::~Timer()
 
     if (epollfd >= 0)
         close(epollfd);
+
+    if (t.joinable())
+        t.join();
 }
 
 void Timer::start()
@@ -73,7 +76,6 @@ void Timer::stop()
     running = false;
     uint64_t one = 1;
     check<std::runtime_error>(write(fd, &one, sizeof(uint64_t)));
-    t.join();
 }
 
 void Timer::addCallback(std::function<void ()> f, uint64_t interval_ms, const std::string &name)
