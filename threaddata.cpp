@@ -290,10 +290,12 @@ void ThreadData::bridgeReconnect()
     std::lock_guard<std::mutex> locker(clients_by_fd_mutex);
 
     bool requeue = false;
+    std::shared_ptr<BridgeState> bridge;
+    std::shared_ptr<ThreadData> _threadData;
 
     for (auto &pair : bridges)
     {
-        std::shared_ptr<BridgeState> bridge = pair.second;
+        bridge = pair.second;
 
         if (!bridge)
             continue;
@@ -316,12 +318,12 @@ void ThreadData::bridgeReconnect()
                 continue;
             }
 
-            std::shared_ptr<ThreadData> _threadData = bridge->threadData.lock();
+            _threadData = bridge->threadData.lock();
 
             if (!_threadData)
                 continue;
 
-            _threadData->publishBridgeState(bridge, false);
+            _threadData->publishBridgeState(bridge, false, "Connecting");
 
             if (bridge->dnsResults.empty())
             {
@@ -400,6 +402,9 @@ void ThreadData::bridgeReconnect()
         {
             logger->log(LOG_ERR) << "Error creating bridge '" << bridge->c.clientidPrefix << "': " << ex.what();
             bridge->registerReconnect();
+
+            if (_threadData && bridge)
+                _threadData->publishBridgeState(bridge, false, ex.what());
         }
     }
 
@@ -430,14 +435,15 @@ void ThreadData::queueContinuationOfAuthentication(const std::shared_ptr<Client>
     }
 }
 
-void ThreadData::clientDisconnectActions(bool authenticated, const std::string &clientid, std::shared_ptr<WillPublish> &willPublish, std::shared_ptr<Session> &session,
-                                         std::weak_ptr<BridgeState> &bridgeState)
+void ThreadData::clientDisconnectActions(
+        bool authenticated, const std::string &clientid, std::shared_ptr<WillPublish> &willPublish, std::shared_ptr<Session> &session,
+        std::weak_ptr<BridgeState> &bridgeState, const std::string &disconnect_reason)
 {
     std::shared_ptr<SubscriptionStore> store = MainApp::getMainApp()->getSubscriptionStore();
 
     assert(store);
 
-    publishBridgeState(bridgeState.lock(), false);
+    publishBridgeState(bridgeState.lock(), false, disconnect_reason);
 
     if (willPublish)
     {
@@ -457,10 +463,13 @@ void ThreadData::clientDisconnectActions(bool authenticated, const std::string &
         clientDisconnectEvent(clientid);
 }
 
-void ThreadData::queueClientDisconnectActions(bool authenticated, const std::string &clientid, std::shared_ptr<WillPublish> &&willPublish, std::shared_ptr<Session> &&session,
-                                              std::weak_ptr<BridgeState> &&bridgeState)
+void ThreadData::queueClientDisconnectActions(
+        bool authenticated, const std::string &clientid, std::shared_ptr<WillPublish> &&willPublish, std::shared_ptr<Session> &&session,
+        std::weak_ptr<BridgeState> &&bridgeState, const std::string &disconnect_reason)
 {
-    auto f = std::bind(&ThreadData::clientDisconnectActions, this, authenticated, clientid, std::move(willPublish), std::move(session), std::move(bridgeState));
+    auto f = std::bind(
+                &ThreadData::clientDisconnectActions, this, authenticated, clientid, std::move(willPublish),
+                std::move(session), std::move(bridgeState), disconnect_reason);
     assert(!willPublish);
     assert(!session);
     std::lock_guard<std::mutex> lockertaskQueue(taskQueueMutex);
@@ -597,22 +606,35 @@ void ThreadData::publishStat(const std::string &topic, uint64_t n)
     publishWithAcl(p, true);
 }
 
-void ThreadData::publishBridgeState(std::shared_ptr<BridgeState> bridge, bool connected)
+void ThreadData::publishBridgeState(std::shared_ptr<BridgeState> bridge, bool connected, const std::optional<std::string> &error)
 {
     if (!bridge)
         return;
 
-    const std::string payload = connected ? "1" : "0";
-
-    std::stringstream ss;
-    ss << "$SYS/broker/bridge/" << bridge->c.clientidPrefix << "/connected";
-    const std::string topic = ss.str();
-
     GlobalStats *globalStats = GlobalStats::getInstance();
-    globalStats->setExtra(topic, payload);
 
-    Publish p(topic, payload, 0);
-    publishWithAcl(p, true);
+    {
+        const std::string payload = connected ? "1" : "0";
+
+        std::stringstream ss;
+        ss << "$SYS/broker/bridge/" << bridge->c.clientidPrefix << "/connected";
+        const std::string topic = ss.str();
+
+        globalStats->setExtra(topic, payload);
+
+        Publish p(topic, payload, 0);
+        publishWithAcl(p, true);
+    }
+
+    {
+        const std::string message_on_no_error = connected ? "Connected" : "Not connected";
+        const std::string message = error.value_or(message_on_no_error);
+        const std::string topic = "$SYS/broker/bridge/" + bridge->c.clientidPrefix + "/connection_status";
+
+        globalStats->setExtra(topic, message);
+        Publish p(topic, message, 0);
+        publishWithAcl(p, true);
+    }
 }
 
 void ThreadData::queueSettingRetainedMessage(const Publish &p, const std::vector<std::string> &subtopics, const std::chrono::time_point<std::chrono::steady_clock> limit)
@@ -848,7 +870,7 @@ void ThreadData::removeBridge(std::shared_ptr<BridgeConfig> bridgeConfig, const 
     if (!reason.empty())
         client->setDisconnectReason(reason);
 
-    publishBridgeState(bridge, false);
+    publishBridgeState(bridge, false, reason);
     removeClientQueued(client);
 }
 

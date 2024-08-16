@@ -98,8 +98,9 @@ class ThreadData
     void queueClientNextKeepAliveCheck(std::shared_ptr<Client> &client, bool keepRechecking);
     void continueAsyncAuths();
     void clientDisconnectEvent(const std::string &clientid);
-    void clientDisconnectActions(bool authenticated, const std::string &clientid, std::shared_ptr<WillPublish> &willPublish, std::shared_ptr<Session> &session,
-                                 std::weak_ptr<BridgeState> &bridgeState);
+    void clientDisconnectActions(
+            bool authenticated, const std::string &clientid, std::shared_ptr<WillPublish> &willPublish, std::shared_ptr<Session> &session,
+            std::weak_ptr<BridgeState> &bridgeState, const std::string &disconnect_reason);
     void bridgeReconnect();
 
     void removeQueuedClients();
@@ -168,10 +169,11 @@ public:
     void queueClientNextKeepAliveCheckLocked(std::shared_ptr<Client> &client, bool keepRechecking);
     void continuationOfAuthentication(std::shared_ptr<Client> &client, AuthResult authResult, const std::string &authMethod, const std::string &returnData);
     void queueContinuationOfAuthentication(const std::shared_ptr<Client> &client, AuthResult authResult, const std::string &authMethod, const std::string &returnData);
-    void queueClientDisconnectActions(bool authenticated, const std::string &clientid, std::shared_ptr<WillPublish> &&willPublish, std::shared_ptr<Session> &&session,
-                                      std::weak_ptr<BridgeState> &&bridgeState);
+    void queueClientDisconnectActions(
+            bool authenticated, const std::string &clientid, std::shared_ptr<WillPublish> &&willPublish, std::shared_ptr<Session> &&session,
+            std::weak_ptr<BridgeState> &&bridgeState, const std::string &disconnect_reason);
     void queueBridgeReconnect();
-    void publishBridgeState(std::shared_ptr<BridgeState> bridge, bool connected);
+    void publishBridgeState(std::shared_ptr<BridgeState> bridge, bool connected, const std::optional<std::string> &error);
     void queueSettingRetainedMessage(const Publish &p, const std::vector<std::string> &subtopics, const std::chrono::time_point<std::chrono::steady_clock> limit);
     void setQueuedRetainedMessages();
     bool queuedRetainedMessagesEmpty() const;

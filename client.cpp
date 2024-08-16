@@ -92,7 +92,11 @@ Client::~Client()
     std::shared_ptr<ThreadData> td = this->threadData.lock();
 
     if (td)
-        td->queueClientDisconnectActions(authenticated, this->getClientId(), std::move(willPublish), std::move(session), std::move(bridgeState));
+    {
+        td->queueClientDisconnectActions(
+                    authenticated, this->getClientId(), std::move(willPublish), std::move(session),
+                    std::move(bridgeState), disconnectReason);
+    }
 
     assert(!session);
     assert(!willPublish);

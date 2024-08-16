@@ -1231,7 +1231,7 @@ void MqttPacket::handleConnAck()
         store->addSubscription(sender, subtopics, pub.qos, true, true);
     }
 
-    ThreadGlobals::getThreadData()->publishBridgeState(bridgeState, true);
+    ThreadGlobals::getThreadData()->publishBridgeState(bridgeState, true, {});
 
     session->sendAllPendingQosData();
 }
