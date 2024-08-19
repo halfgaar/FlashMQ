@@ -32,8 +32,10 @@ void GlobalStats::setExtra(const std::string &topic, const std::string &payload)
     extras[topic] = payload;
 }
 
-const std::unordered_map<std::string, std::string> &GlobalStats::getExtras() const
+std::unordered_map<std::string, std::string> GlobalStats::getExtras()
 {
-    return this->extras;
+    std::lock_guard<std::mutex> locker(extras_mutex);
+    std::unordered_map<std::string, std::string> r = extras;
+    return r;
 }
 

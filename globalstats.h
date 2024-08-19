@@ -31,7 +31,7 @@ public:
     DerivableCounter socketConnects;
 
     void setExtra(const std::string &topic, const std::string &payload);
-    const std::unordered_map<std::string, std::string> &getExtras() const;
+    std::unordered_map<std::string, std::string> getExtras();
 };
 
 #endif // GLOBALSTATS_H
