@@ -78,6 +78,9 @@ enum class AclAccess
  * success_without_setting_retained = allow the write action, but don't set the retained message (if it was set to retain to begin
  * with). MQTT5 subscribers with 'retain as published' will still see the retain flag set. This value is only valid for
  * AclAccess::write and requires a FlashMQ version 1.16.0 or higher.
+ *
+ * server_not_available = to be used as log-in result, for when you don't have auth data yet, for instance. MQTT3 and MQTT5 both support
+ * sending 'ServerUnavailble' in their CONNACK, when this result is used. Requires FlashMQ 1.17.0 or newer.
  */
 enum class AuthResult
 {
@@ -86,6 +89,7 @@ enum class AuthResult
     acl_denied = 12,
     login_denied = 11,
     error = 13,
+    server_not_available = 14,
     async = 50,
     success_without_retained_delivery = 51,
     success_without_setting_retained = 52,

@@ -738,6 +738,8 @@ ReasonCodes authResultToReasonCode(AuthResult authResult)
     case AuthResult::acl_denied:
     case AuthResult::login_denied:
         return ReasonCodes::NotAuthorized;
+    case AuthResult::server_not_available:
+        return ReasonCodes::ServerUnavailable;
     case AuthResult::error:
         return ReasonCodes::UnspecifiedError;
     case AuthResult::auth_continue:
