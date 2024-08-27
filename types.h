@@ -20,6 +20,7 @@ See LICENSE for license details.
 #include <optional>
 
 #include "forward_declarations.h"
+#include "nocopy.h"
 
 enum class PacketType
 {
@@ -206,10 +207,7 @@ public:
     size_t getLengthWithoutFixedHeader() const;
 };
 
-/**
- * @brief The PublishBase class was incepted to have an easy default copy constuctor that doesn't copy all fields.
- */
-class PublishBase
+class Publish
 {
 #ifdef TESTING
     friend class MainTests;
@@ -227,6 +225,10 @@ public:
     std::string username;
     std::string topic;
     std::string payload;
+private:
+    NoCopy<std::vector<std::string>> subtopics;
+public:
+
     uint8_t qos = 0;
     bool retain = false; // Note: existing subscribers don't get publishes of retained messages with retain=1. [MQTT-3.3.1-9]
     uint16_t topicAlias = 0;
@@ -234,8 +236,8 @@ public:
     bool payloadUtf8 = false;
     std::shared_ptr<Mqtt5PropertyBuilder> propertyBuilder; // Only contains data for sending, not receiving
 
-    PublishBase() = default;
-    PublishBase(const std::string &topic, const std::string &payload, uint8_t qos);
+    Publish() = default;
+    Publish(const std::string &topic, const std::string &payload, uint8_t qos);
     size_t getLengthWithoutFixedHeader() const;
     void setClientSpecificProperties();
     void constructPropertyBuilder();
@@ -250,24 +252,6 @@ public:
     bool getHasExpireInfo() const;
     std::chrono::seconds getCurrentTimeToExpire() const;
     std::chrono::time_point<std::chrono::steady_clock> getCreatedAt() const;
-};
-
-/**
- * @brief The Publish class derives from PublishBase to be able to have a partial copy constructor.
- *
- * Mostly when publishes are copied, you don't need the subtopics, so it'd be a waste of time to copy those too. So, the copy constructor uses
- * the copy constructor and assignment of PublishBase.
- */
-class Publish : public PublishBase
-{
-    std::vector<std::string> subtopics;
-
-public:
-    Publish() = default;
-    Publish(const Publish &other);
-    Publish(const std::string &topic, const std::string &payload, uint8_t qos);
-
-    Publish& operator=(const Publish &other);
 
     const std::vector<std::string> &getSubtopics();
     void resplitTopic();

@@ -232,6 +232,8 @@ class MainTests
 
     void forkingTestSaveAndLoadDelayedWill();
 
+    void testNoCopy();
+
 
 public:
     MainTests();

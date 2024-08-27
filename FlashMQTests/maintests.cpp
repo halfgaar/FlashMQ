@@ -312,6 +312,7 @@ MainTests::MainTests()
     REGISTER_FUNCTION3(testStringValuesFuzz);
     REGISTER_FUNCTION3(testStringValuesInvalid);
     REGISTER_FUNCTION2(testPreviouslyValidConfigFile, false, false);
+    REGISTER_FUNCTION3(testNoCopy);
 }
 
 bool MainTests::test(bool skip_tests_with_internet, bool skip_server_tests, const std::vector<std::string> &tests)

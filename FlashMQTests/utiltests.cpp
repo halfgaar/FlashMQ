@@ -6,6 +6,7 @@
 #include "utils.h"
 #include "exceptions.h"
 #include "conffiletemp.h"
+#include "nocopy.h"
 
 void MainTests::testStringValuesParsing()
 {
@@ -275,7 +276,27 @@ void MainTests::testPreviouslyValidConfigFile()
     FMQ_COMPARE(bridge->clientidPrefix, "zH53_-::_");
 }
 
+void MainTests::testNoCopy()
+{
+    std::string mystring = "haha";
 
+    NoCopy<std::string> s;
+    s = mystring;
+
+    {
+        NoCopy<std::string> s2(s);
+        FMQ_VERIFY(!s2);
+    }
+
+    {
+        NoCopy<std::string> s3;
+        s3 = s;
+        FMQ_VERIFY(!s3);
+
+        s3 = mystring;
+        FMQ_COMPARE(s3.value(), mystring);
+    }
+}
 
 
 

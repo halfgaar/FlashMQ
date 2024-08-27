@@ -148,7 +148,7 @@ size_t SubAck::getLengthWithoutFixedHeader() const
     return result;
 }
 
-PublishBase::PublishBase(const std::string &topic, const std::string &payload, uint8_t qos) :
+Publish::Publish(const std::string &topic, const std::string &payload, uint8_t qos) :
     topic(topic),
     payload(payload),
     qos(qos)
@@ -157,14 +157,14 @@ PublishBase::PublishBase(const std::string &topic, const std::string &payload, u
 }
 
 /**
- * @brief PublishBase::getLengthWithoutFixedHeader gets the size for packet buffer allocation, but without the MQTT5 properties.
+ * @brief Publish::getLengthWithoutFixedHeader gets the size for packet buffer allocation, but without the MQTT5 properties.
  * @return
  *
  * The protocol version is not part of the Publish object, because it's used to send publishes to MQTT3 and MQTT5 clients, so that
  * has to be added later. See the `MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, Publish &_publish)`
  * constructor.
  */
-size_t PublishBase::getLengthWithoutFixedHeader() const
+size_t Publish::getLengthWithoutFixedHeader() const
 {
     const int topicLength = this->skipTopic ? 0 : topic.length();
     int result = topicLength + payload.length() + 2;
@@ -178,7 +178,7 @@ size_t PublishBase::getLengthWithoutFixedHeader() const
 /**
  * @brief Publish::setClientSpecificProperties generates the properties byte array for properties that are unique to the receiver.
  */
-void PublishBase::setClientSpecificProperties()
+void Publish::setClientSpecificProperties()
 {
     if (!hasExpireInfo && this->topicAlias == 0)
         return;
@@ -197,7 +197,7 @@ void PublishBase::setClientSpecificProperties()
         propertyBuilder->writeTopicAlias(this->topicAlias);
 }
 
-void PublishBase::constructPropertyBuilder()
+void Publish::constructPropertyBuilder()
 {
     if (this->propertyBuilder)
         return;
@@ -205,12 +205,12 @@ void PublishBase::constructPropertyBuilder()
     this->propertyBuilder = std::make_shared<Mqtt5PropertyBuilder>();
 }
 
-bool PublishBase::hasUserProperties() const
+bool Publish::hasUserProperties() const
 {
     return this->propertyBuilder.operator bool() && this->propertyBuilder->getUserProperties().operator bool();
 }
 
-bool PublishBase::hasExpired() const
+bool Publish::hasExpired() const
 {
     if (!hasExpireInfo)
         return false;
@@ -218,7 +218,7 @@ bool PublishBase::hasExpired() const
     return (getAge() > expiresAfter);
 }
 
-std::chrono::seconds PublishBase::getAge() const
+std::chrono::seconds Publish::getAge() const
 {
     if (!hasExpireInfo)
         return std::chrono::seconds(0);
@@ -226,13 +226,13 @@ std::chrono::seconds PublishBase::getAge() const
     return std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - this->createdAt);
 }
 
-std::chrono::time_point<std::chrono::steady_clock> PublishBase::expiresAt() const
+std::chrono::time_point<std::chrono::steady_clock> Publish::expiresAt() const
 {
     auto result = this->createdAt + this->expiresAfter;
     return result;
 }
 
-std::vector<std::pair<std::string, std::string>> *PublishBase::getUserProperties() const
+std::vector<std::pair<std::string, std::string>> *Publish::getUserProperties() const
 {
     if (this->propertyBuilder)
         return this->propertyBuilder->getUserProperties().get();
@@ -240,14 +240,14 @@ std::vector<std::pair<std::string, std::string>> *PublishBase::getUserProperties
     return nullptr;
 }
 
-void PublishBase::setExpireAfter(uint32_t s)
+void Publish::setExpireAfter(uint32_t s)
 {
     this->createdAt = std::chrono::steady_clock::now();
     this->expiresAfter = std::chrono::seconds(s);
     this->hasExpireInfo = true;
 }
 
-void PublishBase::setExpireAfterToCeiling(uint32_t ceiling)
+void Publish::setExpireAfterToCeiling(uint32_t ceiling)
 {
     std::chrono::seconds ceiling_s(ceiling);
 
@@ -262,12 +262,12 @@ void PublishBase::setExpireAfterToCeiling(uint32_t ceiling)
     this->hasExpireInfo = true;
 }
 
-bool PublishBase::getHasExpireInfo() const
+bool Publish::getHasExpireInfo() const
 {
     return this->hasExpireInfo;
 }
 
-std::chrono::seconds PublishBase::getCurrentTimeToExpire() const
+std::chrono::seconds Publish::getCurrentTimeToExpire() const
 {
     assert(hasExpireInfo);
 
@@ -277,35 +277,17 @@ std::chrono::seconds PublishBase::getCurrentTimeToExpire() const
     return newExpireAfter;
 }
 
-std::chrono::time_point<std::chrono::steady_clock> PublishBase::getCreatedAt() const
+std::chrono::time_point<std::chrono::steady_clock> Publish::getCreatedAt() const
 {
     return this->createdAt;
 }
 
-Publish::Publish(const Publish &other) :
-    PublishBase(other)
-{
-
-}
-
-Publish::Publish(const std::string &topic, const std::string &payload, uint8_t qos) :
-    PublishBase(topic, payload, qos)
-{
-
-}
-
-Publish &Publish::operator=(const Publish &other)
-{
-    PublishBase::operator=(other);
-    return *this;
-}
-
 const std::vector<std::string> &Publish::getSubtopics()
 {
-    if (subtopics.empty())
+    if (!subtopics)
         subtopics = splitTopic(this->topic);
 
-    return subtopics;
+    return subtopics.value();
 }
 
 void Publish::resplitTopic()
