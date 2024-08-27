@@ -43,11 +43,11 @@ void QoSPublishQueue::addToExpirationQueue(std::shared_ptr<QueuedPublish> &qp)
 {
     Publish &pub = qp->getPublish();
 
-    if (!pub.getHasExpireInfo())
+    if (!pub.expireInfo)
         return;
 
-    this->nextExpireAt = std::min(pub.expiresAt(), this->nextExpireAt);
-    this->queueExpirations[pub.expiresAt()] = qp->getPacketId();
+    this->nextExpireAt = std::min(pub.expireInfo->expiresAt(), this->nextExpireAt);
+    this->queueExpirations[pub.expireInfo->expiresAt()] = qp->getPacketId();
 }
 
 bool QoSPublishQueue::erase(const uint16_t packet_id)

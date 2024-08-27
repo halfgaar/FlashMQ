@@ -161,7 +161,8 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV3V4V5()
                 pub.username = sender_username;
 
                 const uint32_t newPubAge = persistence_state_age + originalPubAge;
-                pub.createdAt = timepointFromAge(newPubAge);
+                if (pub.expireInfo)
+                    pub.expireInfo->createdAt = timepointFromAge(newPubAge);
 
                 logger->logf(LOG_DEBUG, "Loaded QoS %d message for topic '%s' for session '%s'.", pub.qos, pub.topic.c_str(), ses->getClientId().c_str());
                 ses->qosPacketQueue.queuePublish(std::move(pub), id);
@@ -327,7 +328,7 @@ void SessionsAndSubscriptionsDB::saveData(const std::vector<std::shared_ptr<Sess
                 cirbuf.ensureFreeSpace(packSize + 32);
                 pack.readIntoBuf(cirbuf);
 
-                const uint32_t pubAge = ageFromTimePoint(pub.getCreatedAt());
+                const uint32_t pubAge = pub.expireInfo ? ageFromTimePoint(pub.expireInfo.value().createdAt) : 0;
 
                 writeUint16(pack.getFixedHeaderLength());
                 writeUint16(p.getPacketId());

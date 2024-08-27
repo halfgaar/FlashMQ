@@ -90,7 +90,7 @@ void RetainedMessagesDB::saveData(const std::vector<RetainedMessage> &messages)
             pack.setPacketId(666);
 
         const uint32_t packSize = pack.getSizeIncludingNonPresentHeader();
-        const uint32_t pubAge = ageFromTimePoint(pcopy.getCreatedAt());
+        const uint32_t pubAge = pcopy.expireInfo ? ageFromTimePoint(pcopy.expireInfo.value().createdAt) : 0;
 
         cirbuf.reset();
         cirbuf.ensureFreeSpace(packSize + 32);
@@ -188,9 +188,8 @@ std::list<RetainedMessage> RetainedMessagesDB::readDataV3V4()
             pub.client_id = client_id;
             pub.username = username;
 
-            // A createdAt only means something when there is expire info (internal boolean is true), so we fake it first.
-            pub.setExpireAfter(std::numeric_limits<uint32_t>::max());
-            pub.createdAt = timepointFromAge(newPubAge);
+            if (pub.expireInfo)
+                pub.expireInfo.value().createdAt = timepointFromAge(newPubAge);
 
             RetainedMessage msg(pub);
             logger->logf(LOG_DEBUG, "Loading retained message for topic '%s' QoS %d, age %d seconds.", msg.publish.topic.c_str(), msg.publish.qos, msg.publish.getAge());

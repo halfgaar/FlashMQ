@@ -148,9 +148,9 @@ MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, const Publish &_pu
 
     if (protocolVersion >= ProtocolVersion::Mqtt5)
     {
-        if (_publish.getHasExpireInfo())
+        if (_publish.expireInfo)
         {
-            this->publishData.setExpireAfter(_publish.getCurrentTimeToExpire().count());
+            this->publishData.setExpireAfter(_publish.expireInfo->getCurrentTimeToExpire().count());
         }
 
         publishData.setClientSpecificProperties();
@@ -2474,7 +2474,7 @@ bool MqttPacket::containsClientSpecificProperties() const
         return false;
 
     // TODO: for the on-line clients, even with expire info, we can just copy the same packet. So, that case can be excluded.
-    if (publishData.getHasExpireInfo() || this->hasTopicAlias)
+    if (publishData.expireInfo || this->hasTopicAlias)
     {
         return true;
     }

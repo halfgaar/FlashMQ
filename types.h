@@ -207,19 +207,17 @@ public:
     size_t getLengthWithoutFixedHeader() const;
 };
 
-class Publish
+struct PublishExpireInfo
 {
-#ifdef TESTING
-    friend class MainTests;
-#endif
-
-    friend class SessionsAndSubscriptionsDB;
-    friend class RetainedMessagesDB;
-
-    bool hasExpireInfo = false;
-    std::chrono::time_point<std::chrono::steady_clock> createdAt;
+    std::chrono::time_point<std::chrono::steady_clock> createdAt = std::chrono::steady_clock::now();
     std::chrono::seconds expiresAfter;
 
+    std::chrono::time_point<std::chrono::steady_clock> expiresAt() const;
+    std::chrono::seconds getCurrentTimeToExpire() const;
+};
+
+class Publish
+{
 public:
     std::string client_id;
     std::string username;
@@ -234,6 +232,7 @@ public:
     uint16_t topicAlias = 0;
     bool skipTopic = false;
     bool payloadUtf8 = false;
+    std::optional<PublishExpireInfo> expireInfo;
     std::shared_ptr<Mqtt5PropertyBuilder> propertyBuilder; // Only contains data for sending, not receiving
 
     Publish() = default;
@@ -244,14 +243,10 @@ public:
     bool hasUserProperties() const;
     bool hasExpired() const;
     std::chrono::seconds getAge() const;
-    std::chrono::time_point<std::chrono::steady_clock> expiresAt() const;
     std::vector<std::pair<std::string, std::string>> *getUserProperties() const;
 
     void setExpireAfter(uint32_t s);
     void setExpireAfterToCeiling(uint32_t s);
-    bool getHasExpireInfo() const;
-    std::chrono::seconds getCurrentTimeToExpire() const;
-    std::chrono::time_point<std::chrono::steady_clock> getCreatedAt() const;
 
     const std::vector<std::string> &getSubtopics();
     void resplitTopic();

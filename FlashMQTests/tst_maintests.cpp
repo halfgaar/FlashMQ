@@ -1065,7 +1065,7 @@ void MainTests::testSavingSessions()
         QCOMPARE(queuedPublishLoaded->getPublish().qos, 1);
         QCOMPARE(queuedPublishLoaded->getPublish().client_id, "ClientIdFromFakePublisher");
         QCOMPARE(queuedPublishLoaded->getPublish().username, "UsernameFromFakePublisher");
-        QCOMPARE(queuedPublishLoaded->getPublish().expiresAfter.count(), 9);
+        QCOMPARE(queuedPublishLoaded->getPublish().expireInfo.value().expiresAfter.count(), 9);
         QCOMPARE(queuedPublishLoaded->getPublish().getAge().count(), 1);
     }
     catch (std::exception &ex)

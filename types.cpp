@@ -180,7 +180,7 @@ size_t Publish::getLengthWithoutFixedHeader() const
  */
 void Publish::setClientSpecificProperties()
 {
-    if (!hasExpireInfo && this->topicAlias == 0)
+    if (!expireInfo && this->topicAlias == 0)
         return;
 
     if (propertyBuilder)
@@ -188,9 +188,9 @@ void Publish::setClientSpecificProperties()
     else
         propertyBuilder = std::make_shared<Mqtt5PropertyBuilder>();
 
-    if (hasExpireInfo)
+    if (expireInfo)
     {
-        propertyBuilder->writeMessageExpiryInterval(this->expiresAfter.count());
+        propertyBuilder->writeMessageExpiryInterval(this->expireInfo->expiresAfter.count());
     }
 
     if (topicAlias > 0)
@@ -212,24 +212,18 @@ bool Publish::hasUserProperties() const
 
 bool Publish::hasExpired() const
 {
-    if (!hasExpireInfo)
+    if (!expireInfo)
         return false;
 
-    return (getAge() > expiresAfter);
+    return (getAge() > expireInfo->expiresAfter);
 }
 
 std::chrono::seconds Publish::getAge() const
 {
-    if (!hasExpireInfo)
+    if (!expireInfo)
         return std::chrono::seconds(0);
 
-    return std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - this->createdAt);
-}
-
-std::chrono::time_point<std::chrono::steady_clock> Publish::expiresAt() const
-{
-    auto result = this->createdAt + this->expiresAfter;
-    return result;
+    return std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - this->expireInfo->createdAt);
 }
 
 std::vector<std::pair<std::string, std::string>> *Publish::getUserProperties() const
@@ -242,44 +236,22 @@ std::vector<std::pair<std::string, std::string>> *Publish::getUserProperties() c
 
 void Publish::setExpireAfter(uint32_t s)
 {
-    this->createdAt = std::chrono::steady_clock::now();
-    this->expiresAfter = std::chrono::seconds(s);
-    this->hasExpireInfo = true;
+    this->expireInfo.emplace();
+    this->expireInfo->expiresAfter = std::chrono::seconds(s);
 }
 
 void Publish::setExpireAfterToCeiling(uint32_t ceiling)
 {
     std::chrono::seconds ceiling_s(ceiling);
 
-    if (hasExpireInfo)
+    if (expireInfo)
     {
-        this->expiresAfter = std::min(this->expiresAfter, ceiling_s);
+        this->expireInfo->expiresAfter = std::min(this->expireInfo->expiresAfter, ceiling_s);
         return;
     }
 
-    this->createdAt = std::chrono::steady_clock::now();
-    this->expiresAfter = ceiling_s;
-    this->hasExpireInfo = true;
-}
-
-bool Publish::getHasExpireInfo() const
-{
-    return this->hasExpireInfo;
-}
-
-std::chrono::seconds Publish::getCurrentTimeToExpire() const
-{
-    assert(hasExpireInfo);
-
-    const auto now = std::chrono::steady_clock::now();
-    std::chrono::seconds delay = std::chrono::duration_cast<std::chrono::seconds>(now - createdAt);
-    std::chrono::seconds newExpireAfter = std::max(this->expiresAfter - delay, std::chrono::seconds(0));
-    return newExpireAfter;
-}
-
-std::chrono::time_point<std::chrono::steady_clock> Publish::getCreatedAt() const
-{
-    return this->createdAt;
+    this->expireInfo.emplace();
+    this->expireInfo->expiresAfter = ceiling_s;
 }
 
 const std::vector<std::string> &Publish::getSubtopics()
@@ -519,4 +491,18 @@ size_t Unsubscribe::getLengthWithoutFixedHeader() const
     }
 
     return result;
+}
+
+std::chrono::time_point<std::chrono::steady_clock> PublishExpireInfo::expiresAt() const
+{
+    auto result = this->createdAt + this->expiresAfter;
+    return result;
+}
+
+std::chrono::seconds PublishExpireInfo::getCurrentTimeToExpire() const
+{
+    const auto now = std::chrono::steady_clock::now();
+    std::chrono::seconds delay = std::chrono::duration_cast<std::chrono::seconds>(now - createdAt);
+    std::chrono::seconds newExpireAfter = std::max(expiresAfter - delay, std::chrono::seconds(0));
+    return newExpireAfter;
 }
