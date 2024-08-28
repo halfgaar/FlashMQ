@@ -45,7 +45,6 @@ class QoSPublishQueue
 
     std::unordered_map<uint16_t, std::shared_ptr<QueuedPublish>> queue;
     std::map<std::chrono::time_point<std::chrono::steady_clock>, uint16_t> queueExpirations;
-    std::chrono::time_point<std::chrono::steady_clock> nextExpireAt = std::chrono::time_point<std::chrono::steady_clock>::max();
 
     ssize_t qosQueueBytes = 0;
 

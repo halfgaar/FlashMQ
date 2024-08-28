@@ -46,7 +46,6 @@ void QoSPublishQueue::addToExpirationQueue(std::shared_ptr<QueuedPublish> &qp)
     if (!pub.expireInfo)
         return;
 
-    this->nextExpireAt = std::min(pub.expireInfo->expiresAt(), this->nextExpireAt);
     this->queueExpirations[pub.expireInfo->expiresAt()] = qp->getPacketId();
 }
 
@@ -166,10 +165,11 @@ void QoSPublishQueue::queuePublish(Publish &&pub, uint16_t id)
 
 int QoSPublishQueue::clearExpiredMessages()
 {
-    if (nextExpireAt > std::chrono::steady_clock::now() || this->queueExpirations.empty())
+    if (this->queueExpirations.empty())
         return 0;
 
-    this->nextExpireAt = std::chrono::time_point<std::chrono::steady_clock>::max();
+    if (this->queueExpirations.begin()->first > std::chrono::steady_clock::now())
+        return 0;
 
     int removed = 0;
 
@@ -184,7 +184,6 @@ int QoSPublishQueue::clearExpiredMessages()
 
         if (when > std::chrono::steady_clock::now())
         {
-            this->nextExpireAt = when;
             break;
         }
 
