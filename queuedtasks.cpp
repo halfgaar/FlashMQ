@@ -93,7 +93,7 @@ void QueuedTasks::performAll()
     {
         try
         {
-            if (!f)
+            if (!f || !*f)
                 continue;
 
             f->operator()();
