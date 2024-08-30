@@ -41,8 +41,6 @@ uint32_t QueuedTasks::addTask(std::function<void ()> f, uint32_t delayInMs)
 
     queuedTasks.insert(t);
 
-    next = std::min(next, when);
-
     return id;
 }
 
@@ -53,9 +51,10 @@ void QueuedTasks::eraseTask(uint32_t id)
 
 uint32_t QueuedTasks::getTimeTillNext() const
 {
-    if (__builtin_expect(tasks.empty(), 1))
+    if (__builtin_expect(queuedTasks.empty(), 1))
         return std::numeric_limits<uint32_t>::max();
 
+    std::chrono::time_point<std::chrono::steady_clock> next = queuedTasks.begin()->when;
     std::chrono::milliseconds x = std::chrono::duration_cast<std::chrono::milliseconds>(next - std::chrono::steady_clock::now());
     std::chrono::milliseconds y = std::max<std::chrono::milliseconds>(std::chrono::milliseconds(0), x);
     return y.count();
@@ -63,7 +62,6 @@ uint32_t QueuedTasks::getTimeTillNext() const
 
 void QueuedTasks::performAll()
 {
-    next = std::chrono::time_point<std::chrono::steady_clock>::max();
     const auto now = std::chrono::steady_clock::now();
 
     std::list<std::shared_ptr<std::function<void()>>> copiedTasks;
@@ -76,7 +74,6 @@ void QueuedTasks::performAll()
 
         if (pos->when > now)
         {
-            next = pos->when;
             break;
         }
 

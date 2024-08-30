@@ -36,7 +36,6 @@ class QueuedTasks
     uint32_t nextId = 1;
     std::multiset<QueuedTask> queuedTasks;
     std::unordered_map<uint32_t, std::shared_ptr<std::function<void()>>> tasks;
-    std::chrono::time_point<std::chrono::steady_clock> next = std::chrono::time_point<std::chrono::steady_clock>::max();
 
 public:
     QueuedTasks();
