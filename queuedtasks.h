@@ -13,7 +13,7 @@ See LICENSE for license details.
 
 #include <functional>
 #include <set>
-#include <map>
+#include <unordered_map>
 #include <memory>
 #include <chrono>
 
@@ -35,7 +35,7 @@ class QueuedTasks
 {
     uint32_t nextId = 1;
     std::multiset<QueuedTask> queuedTasks;
-    std::map<uint32_t, std::shared_ptr<std::function<void()>>> tasks;
+    std::unordered_map<uint32_t, std::shared_ptr<std::function<void()>>> tasks;
     std::chrono::time_point<std::chrono::steady_clock> next = std::chrono::time_point<std::chrono::steady_clock>::max();
 
 public:
