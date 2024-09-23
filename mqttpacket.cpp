@@ -1135,7 +1135,7 @@ void MqttPacket::handleConnect()
     }
     else if (connectData.authenticationMethod.empty())
     {
-        authResult = authentication.unPwdCheck(connectData.client_id, username, connectData.password, getUserProperties(), sender, allowAnonymous);
+        authResult = authentication.loginCheck(connectData.client_id, username, connectData.password, getUserProperties(), sender, allowAnonymous);
     }
     else
     {

@@ -377,7 +377,7 @@ AuthResult Authentication::aclCheck(const std::string &clientid, const std::stri
     return AuthResult::error;
 }
 
-AuthResult Authentication::unPwdCheck(const std::string &clientid, const std::string &username, const std::string &password,
+AuthResult Authentication::loginCheck(const std::string &clientid, const std::string &username, const std::string &password,
                                       const std::vector<std::pair<std::string, std::string>> *userProperties, const std::weak_ptr<Client> &client,
                                       const bool allowAnonymous)
 {
@@ -393,7 +393,7 @@ AuthResult Authentication::unPwdCheck(const std::string &clientid, const std::st
 
     if (!this->mosquittoPasswordFile.empty())
     {
-        const std::optional<AuthResult> r = unPwdCheckFromMosquittoPasswordFile(username, password);
+        const std::optional<AuthResult> r = loginCheckFromMosquittoPasswordFile(username, password);
 
         if (r)
             firstResult = r.value();
@@ -819,7 +819,7 @@ AuthResult Authentication::aclCheckFromMosquittoAclFile(const std::string &clien
     return result;
 }
 
-std::optional<AuthResult> Authentication::unPwdCheckFromMosquittoPasswordFile(const std::string &username, const std::string &password)
+std::optional<AuthResult> Authentication::loginCheckFromMosquittoPasswordFile(const std::string &username, const std::string &password)
 {
     if (!this->mosquittoPasswordEntries)
         return AuthResult::login_denied;
