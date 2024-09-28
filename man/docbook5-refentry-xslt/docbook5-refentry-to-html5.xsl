@@ -21,7 +21,7 @@
   <xsl:variable name="reference" select="document($dbk5.reference)/dbk:reference"/>
 
   <xsl:template match="/">
-    <html>
+    <html data-color-scheme="light" data-fallback-color-scheme="light">
       <xsl:apply-templates select="/dbk:*/@xml:lang"/>
       <xsl:apply-templates select="node()"/>
     </html>
@@ -79,11 +79,45 @@
       </title>
 
       <style type="text/css" media="screen"><![CDATA[
+        html[data-color-scheme=light] {
+          --bgcolor: #fff;
+          --pre-bgcolor: #ddd;
+          --pre-color: #000;
+          --main-color: #000;
+          --h1-color: #111;
+          --h2-color: #111;
+          --h3-color: #111;
+          --dt-color: #111;
+          --link-color: blue;
+          --vlink-color: purple;
+          --alink-color: red;
+          --hash-color: #aaa;
+          --hash-hover-color: #111;
+          --code-bgcolor: transparent;
+        }
+        html[data-color-scheme=dark] {
+          --bgcolor: #111;
+          --pre-bgcolor: #000;
+          --pre-color: lightgrey;
+          --main-color: lightgrey;
+          --h1-color: lightgrey;
+          --h2-color: lightgrey;
+          --h3-color: lightgrey;
+          --dt-color: lightgrey;
+          --link-color: lightblue;
+          --vlink-color: lightpink;
+          --alink-color: lightcoral;
+          --hash-color: grey;
+          --hash-hover-color: #fff;
+          --code-bgcolor: transparent;
+        }
         html {
           margin: 0;
           padding: 0;
           font-size: 18px;  /* Set rem */
           font-family: sans-serif;
+          background-color: var(--bgcolor);
+          color: var(--main-color);
         }
         body {
           padding: 1rem 2rem;
@@ -104,7 +138,7 @@
           line-height: 1.2em;
           font-size: 2rem;
           font-weight: bold;
-          color: #111;
+          color: var(--h1-color);
         }
         h1 code.manvolnum {
           font-size: 70%;
@@ -119,13 +153,13 @@
           line-height: 1.2em;
           font-size: .9rem;
           font-weight: 600;
-          color: #111;
+          color: var(--h2-color);
           text-transform: uppercase;
         }
         dt {
           margin-bottom: -.5rem;
           font-weight: bold;
-          color: #111;
+          color: var(--dt-color);
         }
         dt .replaceable {
           text-decoration: underline;
@@ -134,28 +168,133 @@
         dd {
           margin-bottom: 2em;
         }
+        a:link {
+          color: var(--link-color);
+        }
+        a:visited {
+          color: var(--vlink-color);
+        }
         a.hash-anchor {
           margin-left: .5em;
-          color: #aaa;
+          color: var(--hash-color);
           text-decoration: none;
           font-weight: normal;
         }
         a.hash-anchor:hover {
           text-decoration: underline;
-          color: #111;
+          color: var(--hash-hover-color);
         }
         code {
+          background-color: var(--code-bgcolor);
           font-family: monospace;
           font-weight: bold;
         }
         pre.monospaced, pre.cmdsynopsis {
-          background-color: #ddd;
-          font-family: monospace;
+          background-color: var(--pre-bgcolor);
           padding: 2em 2em;
+          color: var(--pre-color);
+          font-family: monospace;
+        }
+
+        .color-scheme-switch {
+          position: fixed;
+          top: 0;
+          right: 0;
+
+          input {
+            display: none;
+          }
+          label {
+            margin: 0;
+            box-sizing: border-box;
+            display: inline-block;
+            position: relative;
+            height: 32px;
+            width: 32px;
+            font-size: 20px;
+            padding: 6px;
+            line-height: 20px;
+            cursor: pointer;
+            text-align: center;
+          }
+          input[value=""] + label {
+            background-color: transparent;
+            color: var(--main-color);
+          }
+          input[value=light] + label {
+            background-color: white;
+            color: black;
+          }
+          input[value=dark] + label {
+            background-color: black;
+            color: white;
+          }
+          input:checked + label::before {
+            content: '';
+            position: absolute;
+            bottom: -6px;
+            left: 12px;
+            width: 6px;
+            height: 6px;
+            border: 2px solid black;
+            border-radius: 50%;
+            background-color: white;
+          }
         }
       ]]></style>
     </head>
     <body>
+      <nav class="color-scheme-switch" hidden="true">
+        <input type="radio" id="color-scheme-browser-default" checked="true" name="color-scheme" value=""/><label for="color-scheme-browser-default" title="Follow browser default">A</label>
+        <input type="radio" id="color-scheme-light" name="color-scheme" value="light"/><label for="color-scheme-light" title="Change to light theme">☀</label>
+        <input type="radio" id="color-scheme-dark" name="color-scheme" value="dark"/><label for="color-scheme-dark" title="Change to dark theme">⏾</label>
+      </nav>
+      <script><![CDATA[
+      function setColorScheme(colorScheme) {
+        if (!colorScheme) {
+          localStorage.removeItem('colorScheme');
+        }
+        else {
+          localStorage.setItem('colorScheme', colorScheme);
+        }
+
+        document.querySelector('html').dataset.colorScheme = getColorScheme();
+      }
+
+      function getColorScheme() {
+        const localValue = localStorage.getItem('colorScheme');
+        if (localValue !== null) {
+          return localValue;
+        }
+
+        console.log('A');
+
+        const browserValue = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        if (browserValue !== null) {
+          return browserValue;
+        }
+        console.log('B');
+
+        return document.querySelector('html').dataset.fallbackColorScheme;
+      }
+
+      document.querySelectorAll('.color-scheme-switch').forEach(el => {
+        el.hidden = false;
+
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+          document.querySelector('html').dataset.colorScheme = getColorScheme();
+        });
+
+        el.querySelectorAll('input').forEach(input => {
+          if (input.checked) {
+            setColorScheme(input.value);
+          }
+          input.addEventListener('change', (event) => {
+            setColorScheme(event.target.value);
+          });
+        });
+      });
+      ]]></script>
       <article>
         <xsl:apply-templates select="@xml:id"/>
         <header>
