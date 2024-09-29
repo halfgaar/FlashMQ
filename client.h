@@ -56,6 +56,16 @@ enum class DisconnectStage
     Now
 };
 
+struct AsyncAuthResult
+{
+    AuthResult result;
+    std::string authMethod;
+    std::string authData;
+
+public:
+    AsyncAuthResult(AuthResult result, const std::string authMethod, const std::string &authData);
+};
+
 class Client
 {
     friend class IoWrapper;
@@ -122,6 +132,10 @@ class Client
     sockaddr_in6 addr;
 
     std::weak_ptr<BridgeState> bridgeState;
+
+    bool asyncAuthenticating = false;
+    std::unique_ptr<std::vector<MqttPacket>> packetQueueAfterAsync;
+    std::unique_ptr<AsyncAuthResult> asyncAuthResult;
 
     void setReadyForWriting(bool val);
     void setReadyForReading(bool val);
@@ -234,6 +248,14 @@ public:
     X509ClientVerification getX509ClientVerification() const;
     void setAllowAnonymousOverride(const AllowListenerAnonymous allow);
     AllowListenerAnonymous getAllowAnonymousOverride() const;
+
+    void setAsyncAuthenticating() { this->asyncAuthenticating = true; }
+    bool getAsyncAuthenticating() const { return this->asyncAuthenticating; }
+    void addPacketToAfterAsyncQueue(MqttPacket &&p);
+    void handleAfterAsyncQueue();
+    void setAsyncAuthResult(const AsyncAuthResult &v);
+    bool hasAsyncAuthResult() const { return this->asyncAuthResult.operator bool() ; }
+    std::unique_ptr<AsyncAuthResult> stealAsyncAuthResult();
 
 };
 

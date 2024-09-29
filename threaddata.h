@@ -44,17 +44,6 @@ struct KeepAliveCheck
     KeepAliveCheck(const std::shared_ptr<Client> client);
 };
 
-struct AsyncAuth
-{
-    std::weak_ptr<Client> client;
-    AuthResult result;
-    std::string authMethod;
-    std::string authData;
-
-public:
-    AsyncAuth(std::weak_ptr<Client> client, AuthResult result, const std::string authMethod, const std::string &authData);
-};
-
 struct QueuedRetainedMessage
 {
     const Publish p;
@@ -74,9 +63,6 @@ class ThreadData
 
     std::mutex clientsToRemoveMutex;
     std::forward_list<std::weak_ptr<Client>> clientsQueuedForRemoving;
-
-    std::mutex asyncClientsReadyMutex;
-    std::forward_list<AsyncAuth> asyncClientsReady;
 
     std::mutex queuedKeepAliveMutex;
     std::map<std::chrono::seconds, std::vector<KeepAliveCheck>> queuedKeepAliveChecks;
@@ -98,7 +84,6 @@ class ThreadData
     void sendAllWills();
     void sendAllDisconnects();
     void queueClientNextKeepAliveCheck(std::shared_ptr<Client> &client, bool keepRechecking);
-    void continueAsyncAuths();
     void clientDisconnectEvent(const std::string &clientid);
     void clientDisconnectActions(
             bool authenticated, const std::string &clientid, std::shared_ptr<WillPublish> &willPublish, std::shared_ptr<Session> &session,

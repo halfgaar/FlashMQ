@@ -188,6 +188,8 @@ class MainTests
     void testExtendedReAuthFail();
     void testSimpleAuthAsync();
     void testFailedAsyncClientCrashOnSession();
+    void testAsyncWithImmediateFollowUpPackets();
+    void testAsyncWithException();
     void testPluginAuthFail();
     void testPluginAuthSucceed();
     void testPluginOnDisconnect();

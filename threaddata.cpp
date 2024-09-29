@@ -24,15 +24,6 @@ KeepAliveCheck::KeepAliveCheck(const std::shared_ptr<Client> client) :
 
 }
 
-AsyncAuth::AsyncAuth(std::weak_ptr<Client> client, AuthResult result, const std::string authMethod, const std::string &authData) :
-    client(client),
-    result(result),
-    authMethod(authMethod),
-    authData(authData)
-{
-
-}
-
 QueuedRetainedMessage::QueuedRetainedMessage(const Publish &p, const std::vector<std::string> &subtopics, const std::chrono::time_point<std::chrono::steady_clock> limit) :
     p(p),
     subtopics(subtopics),
@@ -241,6 +232,7 @@ void ThreadData::continuationOfAuthentication(std::shared_ptr<Client> &client, A
             client->sendConnackSuccess();
             client->setAuthenticated(true);
             client->getSession()->sendAllPendingQosData();
+            client->handleAfterAsyncQueue();
         }
         else // Reauth (to authenticated clients) sends AUTH on success.
         {
@@ -267,29 +259,6 @@ void ThreadData::continuationOfAuthentication(std::shared_ptr<Client> &client, A
             client->writeMqttPacket(disconnectPack);
             logger->logf(LOG_NOTICE, "Client '%s', user '%s' reauthentication denied.", client->getClientId().c_str(), client->getUsername().c_str());
         }
-    }
-}
-
-void ThreadData::continueAsyncAuths()
-{
-    assert(pthread_self() == thread.native_handle());
-
-    std::forward_list<AsyncAuth> asyncClientsReadyCopies;
-
-    {
-        std::lock_guard<std::mutex> lck2(asyncClientsReadyMutex);
-        asyncClientsReadyCopies = std::move(this->asyncClientsReady);
-        this->asyncClientsReady.clear();
-    }
-
-    for(AsyncAuth &auth : asyncClientsReadyCopies)
-    {
-        std::shared_ptr<Client> c = auth.client.lock();
-
-        if (!c)
-            continue;
-
-        this->continuationOfAuthentication(c, auth.result, auth.authMethod, auth.authData);
     }
 }
 
@@ -430,22 +399,7 @@ void ThreadData::bridgeReconnect()
 
 void ThreadData::queueContinuationOfAuthentication(const std::shared_ptr<Client> &client, AuthResult authResult, const std::string &authMethod, const std::string &returnData)
 {
-    bool wakeUpNeeded = true;
-
-    {
-        std::lock_guard<std::mutex> locker(asyncClientsReadyMutex);
-        wakeUpNeeded = asyncClientsReady.empty();
-        asyncClientsReady.emplace_front(client, authResult, authMethod, returnData);
-    }
-
-    if (wakeUpNeeded)
-    {
-        auto f = std::bind(&ThreadData::continueAsyncAuths, this);
-        std::lock_guard<std::mutex> lockertaskQueue(taskQueueMutex);
-        taskQueue.push_back(f);
-
-        wakeUpThread();
-    }
+    client->setAsyncAuthResult({authResult, authMethod, returnData});
 }
 
 void ThreadData::clientDisconnectActions(

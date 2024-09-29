@@ -32,6 +32,14 @@ StowedClientRegistrationData::StowedClientRegistrationData(bool clean_start, uin
 
 }
 
+AsyncAuthResult::AsyncAuthResult(AuthResult result, const std::string authMethod, const std::string &authData) :
+    result(result),
+    authMethod(authMethod),
+    authData(authData)
+{
+
+}
+
 /**
  * @brief Client::Client
  * @param fd
@@ -1063,3 +1071,52 @@ AllowListenerAnonymous Client::getAllowAnonymousOverride() const
 {
     return allowAnonymousOverride;
 }
+
+void Client::addPacketToAfterAsyncQueue(MqttPacket &&p)
+{
+    if (!packetQueueAfterAsync)
+        packetQueueAfterAsync = std::make_unique<std::vector<MqttPacket>>();
+
+    if (packetQueueAfterAsync->size() > 64)
+        throw std::runtime_error("Client sending too many packets without waiting for CONNACK. This is likely an abuser");
+
+    packetQueueAfterAsync->push_back(std::move(p));
+}
+
+void Client::handleAfterAsyncQueue()
+{
+    if (!this->asyncAuthenticating)
+        return;
+
+    this->asyncAuthenticating = false;
+
+    if (!this->packetQueueAfterAsync)
+        return;
+
+    std::unique_ptr<std::vector<MqttPacket>> packets = std::move(this->packetQueueAfterAsync);
+    this->packetQueueAfterAsync.reset();
+
+    for (MqttPacket &p : *packets)
+    {
+        p.handle();
+    }
+}
+
+void Client::setAsyncAuthResult(const AsyncAuthResult &v)
+{
+    this->asyncAuthResult = std::make_unique<AsyncAuthResult>(v);
+
+    // As per the docs on setReadyForWriting(bool), this needs to be done under mutex.
+    std::lock_guard<std::mutex> locker(writeBufMutex);
+    setReadyForWriting(true);
+}
+
+std::unique_ptr<AsyncAuthResult> Client::stealAsyncAuthResult()
+{
+    std::unique_ptr<AsyncAuthResult> r(std::move(this->asyncAuthResult));
+    this->asyncAuthResult.reset();
+    return r;
+}
+
+
+

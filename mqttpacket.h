@@ -26,6 +26,12 @@ See LICENSE for license details.
 #include "mqtt5properties.h"
 #include "packetdatatypes.h"
 
+enum class HandleResult
+{
+    Done,
+    Defer
+};
+
 /**
  * @brief The MqttPacket class represents incoming and outgoing packets.
  *
@@ -121,7 +127,7 @@ public:
 
     static void bufferToMqttPackets(CirBuf &buf, std::vector<MqttPacket> &packetQueueIn, std::shared_ptr<Client> &sender);
 
-    void handle();
+    HandleResult handle();
     AuthPacketData parseAuthData();
     ConnectData parseConnectData();
     ConnAckData parseConnAckData();

@@ -208,6 +208,13 @@ void do_thread_work(ThreadData *threadData)
                     client->startOrContinueSslHandshake();
                     continue;
                 }
+                if (__builtin_expect((ready_client.events & EPOLLOUT) && client->hasAsyncAuthResult(), 0))
+                {
+                    const std::unique_ptr<AsyncAuthResult> auth = client->stealAsyncAuthResult();
+
+                    if (auth)
+                        threadData->continuationOfAuthentication(client, auth->result, auth->authMethod, auth->authData);
+                }
                 if ((ready_client.events & EPOLLIN) || ((ready_client.events & EPOLLOUT) && client->getSslReadWantsWrite()))
                 {
                     VectorClearGuard vectorClear(packetQueueIn);
@@ -221,7 +228,10 @@ void do_thread_work(ThreadData *threadData)
                             client->onPacketReceived(packet);
                         else
 #endif
-                        packet.handle();
+                        if (packet.handle() == HandleResult::Defer)
+                        {
+                            client->addPacketToAfterAsyncQueue(std::move(packet));
+                        }
                     }
 
                     if (disconnect == DisconnectStage::Now)

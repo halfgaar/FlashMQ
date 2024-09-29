@@ -451,7 +451,7 @@ void MqttPacket::bufferToMqttPackets(CirBuf &buf, std::vector<MqttPacket> &packe
     }
 }
 
-void MqttPacket::handle()
+HandleResult MqttPacket::handle()
 {
     // For clients that send packets before they even receive a connack.
     if (protocolVersion == ProtocolVersion::None)
@@ -460,7 +460,7 @@ void MqttPacket::handle()
     // It may be a stale client. This is especially important for when a session is picked up by another client. The old client
     // may still have stale data in the buffer, causing action on the session otherwise.
     if (sender->getDisconnectStage() > DisconnectStage::NotInitiated)
-        return;
+        return HandleResult::Done;
 
     if (packetType == PacketType::Reserved)
         throw ProtocolError("Packet type 0 specified, which is reserved and invalid.", ReasonCodes::MalformedPacket);
@@ -475,6 +475,9 @@ void MqttPacket::handle()
         if (!(packetType == PacketType::CONNECT || packetType == PacketType::AUTH || packetType == PacketType::DISCONNECT ||
               packetType == PacketType::CONNACK))
         {
+            if (sender->getAsyncAuthenticating())
+                return HandleResult::Defer;
+
             exceptionOnNonMqtt(this->bites);
 
             if (sender->preAuthPacketCounter++ > 200)
@@ -482,7 +485,7 @@ void MqttPacket::handle()
 
             logger->log(LOG_WARNING) << "Unapproved packet type (" << packetTypeToString(packetType)
                                      << ") from non-authenticated client " << sender->repr() << ". Dropping packet.";
-            return;
+            return HandleResult::Done;
         }
     }
 
@@ -512,6 +515,8 @@ void MqttPacket::handle()
         handleConnAck();
     else if (packetType == PacketType::AUTH)
         handleExtendedAuth();
+
+    return HandleResult::Done;
 }
 
 ConnectData MqttPacket::parseConnectData()
@@ -1169,6 +1174,10 @@ void MqttPacket::handleConnect()
     {
         threadData->continuationOfAuthentication(sender, authResult, connectData.authenticationMethod, authReturnData);
     }
+    else
+    {
+        sender->setAsyncAuthenticating();
+    }
 }
 
 void MqttPacket::handleConnAck()
@@ -1361,6 +1370,10 @@ void MqttPacket::handleExtendedAuth()
     if (authResult != AuthResult::async)
     {
         threadData->continuationOfAuthentication(sender, authResult, data.method, returnData);
+    }
+    else
+    {
+        sender->setAsyncAuthenticating();
     }
 }
 

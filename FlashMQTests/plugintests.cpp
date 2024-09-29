@@ -557,6 +557,113 @@ void MainTests::testFailedAsyncClientCrashOnSession()
     FMQ_COMPARE(clients.front().receivedPackets.back().packetType, PacketType::PUBCOMP);
 }
 
+/**
+ * We send a subscription directly after authentication, without waiting for it. These should be queued and dealt
+ * with after the login was approved.
+ */
+void MainTests::testAsyncWithImmediateFollowUpPackets()
+{
+    ConfFileTemp confFile;
+    confFile.writeLine("plugin plugins/libtest_plugin.so.0.0.1");
+    confFile.closeFile();
+
+    std::vector<std::string> args {"--config-file", confFile.getFilePath()};
+
+    cleanup();
+    init(args);
+
+    FlashMQTestClient client;
+    client.start();
+    client.connectClient(ProtocolVersion::Mqtt5, false, 120, [&](Connect &connect) {
+        connect.username = "async";
+        connect.password = "success";
+    }, 21883, false);
+
+    {
+        const uint16_t packet_id = 66;
+
+        Subscribe sub(client.getClient()->getProtocolVersion(), packet_id, "our/random/topic", 0);
+        MqttPacket subPack(sub);
+        client.getClient()->writeMqttPacketAndBlameThisClient(subPack);
+    }
+
+    client.waitForConnack();
+    client.getClient()->setAuthenticated(true);
+
+    FMQ_VERIFY(client.receivedPackets.size() >= 1);
+    ConnAckData connAckData = client.receivedPackets.front().parseConnAckData();
+    QVERIFY(connAckData.reasonCode == ReasonCodes::Success);
+
+    client.clearReceivedLists();
+
+    {
+        FlashMQTestClient client2;
+        client2.start();
+        client2.connectClient(ProtocolVersion::Mqtt311);
+        client2.publish("our/random/topic", "1Xs0QC5XInKLGHfm", 0);
+    }
+
+    client.waitForMessageCount(1);
+
+    MqttPacket &p = client.receivedPublishes.front();
+
+    FMQ_COMPARE(p.getTopic(), "our/random/topic");
+    FMQ_COMPARE(p.getPayloadCopy(), "1Xs0QC5XInKLGHfm");
+}
+
+/**
+ * We're testing behavior that throws an internal FlashMQ exception in handling async auth, namely trying
+ * to take over session with a different username. An exception inside the plugin would not be a good test,
+ * because that is handled locally by the authentication.
+ */
+void MainTests::testAsyncWithException()
+{
+    ConfFileTemp confFile;
+    confFile.writeLine("plugin plugins/libtest_plugin.so.0.0.1");
+    confFile.closeFile();
+
+    std::vector<std::string> args {"--config-file", confFile.getFilePath()};
+
+    cleanup();
+    init(args);
+
+    // =========
+
+    for (ProtocolVersion p : {ProtocolVersion::Mqtt311, ProtocolVersion::Mqtt5})
+    {
+        FlashMQTestClient client1;
+        client1.start();
+        client1.connectClient(p, true, 600, [](Connect &connect) {
+            connect.clientid = "thesameclientid";
+            connect.username = "async0";
+            connect.password = "success";
+        });
+
+        {
+            auto &pack = client1.receivedPackets.at(0);
+            FMQ_COMPARE(pack.packetType, PacketType::CONNACK);
+            ConnAckData ackData = pack.parseConnAckData();
+            FMQ_COMPARE(ackData.reasonCode, ReasonCodes::Success);
+        }
+
+        FlashMQTestClient client2;
+        client2.start();
+        client2.connectClient(p, true, 600, [](Connect &connect) {
+            connect.clientid = "thesameclientid";
+            connect.username = "async1";
+            connect.password = "success";
+        });
+
+        {
+            auto &pack = client2.receivedPackets.at(0);
+            FMQ_COMPARE(pack.packetType, PacketType::CONNACK);
+            ConnAckData ackData = pack.parseConnAckData();
+            int expectedCode = p == ProtocolVersion::Mqtt5 ? static_cast<int>(ReasonCodes::NotAuthorized) : static_cast<int>(ConnAckReturnCodes::NotAuthorized);
+            FMQ_COMPARE(static_cast<int>(ackData.reasonCode), expectedCode);
+        }
+    }
+}
+
 void MainTests::testClientRemovalByPlugin()
 {
     std::list<std::string> methods { "removeclient", "removeclientandsession"};
