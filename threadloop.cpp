@@ -150,9 +150,19 @@ void do_thread_work(ThreadData *threadData)
 
                     continue;
                 }
-                if (cur_ev.events & (EPOLLERR | EPOLLHUP))
+                if (cur_ev.events & EPOLLHUP)
                 {
-                    client->setDisconnectReason("epoll says socket is in ERR or HUP state.");
+                    client->setDisconnectReason("Hang up");
+                }
+                if (cur_ev.events & EPOLLERR)
+                {
+                    int error = 0;
+                    socklen_t errlen = sizeof(error);
+                    if (getsockopt(client->getFd(), SOL_SOCKET, SO_ERROR, &error, &errlen) == 0)
+                    {
+                        client->setDisconnectReason(strerror(error));
+                    }
+
                     threadData->removeClient(client);
                     continue;
                 }
