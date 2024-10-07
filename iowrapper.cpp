@@ -652,7 +652,7 @@ ssize_t IoWrapper::readWebsocketAndOrSsl(int fd, void *buf, size_t nbytes, IoWra
             std::string response = generateInvalidWebsocketVersionHttpHeaders(13);
             parentClient->writeText(response);
             parentClient->setDisconnectReason("Invalid websocket version");
-            parentClient->setReadyForDisconnect();
+            parentClient->setDisconnectStage(DisconnectStage::SendPendingAppData);
         }
         catch (BadHttpRequest &ex) // Should should also properly deal with attempt at HTTP2 with PRI.
         {
@@ -660,7 +660,7 @@ ssize_t IoWrapper::readWebsocketAndOrSsl(int fd, void *buf, size_t nbytes, IoWra
             parentClient->writeText(response);
             const std::string reason = formatString("Invalid websocket start: %s", ex.what());
             parentClient->setDisconnectReason(reason);
-            parentClient->setReadyForDisconnect();
+            parentClient->setDisconnectStage(DisconnectStage::SendPendingAppData);
         }
 
         return 0;

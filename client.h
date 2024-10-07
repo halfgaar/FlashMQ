@@ -48,6 +48,13 @@ struct StowedClientRegistrationData
     StowedClientRegistrationData(bool clean_start, uint16_t clientReceiveMax, uint32_t sessionExpiryInterval);
 };
 
+enum class DisconnectStage
+{
+    NotInitiated,
+    SendPendingAppData, // Set this before making a client ready to write, and EPOLLOUT will take care of it.
+    Now
+};
+
 class Client
 {
     friend class IoWrapper;
@@ -74,8 +81,7 @@ class Client
     bool connectPacketSeen = false;
     bool readyForWriting = false;
     bool readyForReading = true;
-    bool disconnectWhenBytesWritten = false;
-    bool disconnecting = false;
+    DisconnectStage disconnectStage = DisconnectStage::NotInitiated;
     bool outgoingConnection = false;
     bool outgoingConnectionEstablished = false;
     ClientType clientType = ClientType::Normal;
@@ -140,8 +146,8 @@ public:
     void connectToBridgeTarget(FMQSockaddr_in6 addr);
 
     void startOrContinueSslHandshake();
-    void markAsDisconnecting();
-    bool readFdIntoBuffer();
+    void setDisconnectStage(DisconnectStage val);
+    DisconnectStage readFdIntoBuffer();
     void bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn, std::shared_ptr<Client> &sender);
     void setClientProperties(ProtocolVersion protocolVersion, const std::string &clientId, const std::string username, bool connectPacketSeen, uint16_t keepalive);
     void setClientProperties(ProtocolVersion protocolVersion, const std::string &clientId, const std::string username, bool connectPacketSeen, uint16_t keepalive,
@@ -174,12 +180,8 @@ public:
     PacketDropReason writeMqttPacket(const MqttPacket &packet);
     PacketDropReason writeMqttPacketAndBlameThisClient(PublishCopyFactory &copyFactory, uint8_t max_qos, uint16_t packet_id, bool retain);
     PacketDropReason writeMqttPacketAndBlameThisClient(const MqttPacket &packet);
-    bool writeBufIntoFd();
-    bool isBeingDisconnected() const { return disconnectWhenBytesWritten; }
-    bool readyForDisconnecting() const { return disconnectWhenBytesWritten && writebuf.usedBytes() == 0; }
-
-    // Do this before calling an action that makes this client ready for writing, so that the EPOLLOUT will handle it.
-    void setReadyForDisconnect() { disconnectWhenBytesWritten = true; }
+    void writeBufIntoFd();
+    DisconnectStage getDisconnectStage() const { return disconnectStage; }
 
     const sockaddr *getAddr() const;
     std::string repr();

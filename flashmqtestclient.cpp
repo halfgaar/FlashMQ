@@ -78,7 +78,7 @@ void FlashMQTestClient::setWill(std::shared_ptr<WillPublish> &will)
 
 void FlashMQTestClient::disconnect(ReasonCodes reason)
 {
-    client->setReadyForDisconnect();
+    client->setDisconnectStage(DisconnectStage::SendPendingAppData);
     Disconnect d(this->client->getProtocolVersion(), reason);
     client->writeMqttPacket(d);
 }

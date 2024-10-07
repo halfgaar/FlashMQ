@@ -174,7 +174,7 @@ void do_thread_work(ThreadData *threadData)
                 if ((cur_ev.events & EPOLLIN) || ((cur_ev.events & EPOLLOUT) && client->getSslReadWantsWrite()))
                 {
                     VectorClearGuard vectorClear(packetQueueIn);
-                    bool readSuccess = client->readFdIntoBuffer();
+                    const DisconnectStage disconnect = client->readFdIntoBuffer();
                     client->bufferToMqttPackets(packetQueueIn, client);
 
                     for (MqttPacket &packet : packetQueueIn)
@@ -187,7 +187,7 @@ void do_thread_work(ThreadData *threadData)
                         packet.handle();
                     }
 
-                    if (!readSuccess)
+                    if (disconnect == DisconnectStage::Now)
                     {
                         client->setDisconnectReason("socket disconnect detected");
                         threadData->removeClient(client);
@@ -196,13 +196,9 @@ void do_thread_work(ThreadData *threadData)
                 }
                 if ((cur_ev.events & EPOLLOUT) || ((cur_ev.events & EPOLLIN) && client->getSslWriteWantsRead()))
                 {
-                    if (!client->writeBufIntoFd())
-                    {
-                        threadData->removeClient(client);
-                        continue;
-                    }
+                    client->writeBufIntoFd();
 
-                    if (client->readyForDisconnecting())
+                    if (client->getDisconnectStage() == DisconnectStage::Now)
                     {
                         threadData->removeClient(client);
                         continue;
@@ -224,7 +220,7 @@ void do_thread_work(ThreadData *threadData)
                         {
                             MqttPacket p(connAck);
                             client->writeMqttPacket(p);
-                            client->setReadyForDisconnect();
+                            client->setDisconnectStage(DisconnectStage::SendPendingAppData);
                         }
                         else
                         {
@@ -236,7 +232,7 @@ void do_thread_work(ThreadData *threadData)
                         Disconnect d(client->getProtocolVersion(), ex.reasonCode);
                         MqttPacket p(d);
                         client->writeMqttPacket(p);
-                        client->setReadyForDisconnect();
+                        client->setDisconnectStage(DisconnectStage::SendPendingAppData);
 
                         // When a client's TCP buffers are full (when the client is gone, for instance), EPOLLOUT will never be
                         // reported. In those cases, the client is not removed; not until the keep-alive mechanism anyway. Is

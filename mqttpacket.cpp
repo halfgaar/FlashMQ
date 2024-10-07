@@ -435,7 +435,7 @@ void MqttPacket::handle()
 
     // It may be a stale client. This is especially important for when a session is picked up by another client. The old client
     // may still have stale data in the buffer, causing action on the session otherwise.
-    if (sender->isBeingDisconnected())
+    if (sender->getDisconnectStage() > DisconnectStage::NotInitiated)
         return;
 
     if (packetType == PacketType::Reserved)
@@ -996,7 +996,7 @@ void MqttPacket::handleConnect()
 
         ConnAck connAck(fuzzyProtocolVersion, ReasonCodes::UnsupportedProtocolVersion);
         MqttPacket response(connAck);
-        sender->setReadyForDisconnect();
+        sender->setDisconnectStage(DisconnectStage::SendPendingAppData);
         sender->writeMqttPacket(response);
         sender->setDisconnectReason("Unsupported protocol version");
 
@@ -1011,7 +1011,7 @@ void MqttPacket::handleConnect()
     {
         ConnAck connAck(protocolVersion, ReasonCodes::BadUserNameOrPassword);
         MqttPacket response(connAck);
-        sender->setReadyForDisconnect();
+        sender->setDisconnectStage(DisconnectStage::SendPendingAppData);
         sender->writeMqttPacket(response);
         logger->logf(LOG_ERR, "Username has invalid UTF8: %s", connectData.username.value().c_str());
         return;
@@ -1041,7 +1041,7 @@ void MqttPacket::handleConnect()
         ConnAck connAck(protocolVersion, ReasonCodes::ClientIdentifierNotValid);
         MqttPacket response(connAck);
         sender->setDisconnectReason("Invalid clientID");
-        sender->setReadyForDisconnect();
+        sender->setDisconnectStage(DisconnectStage::SendPendingAppData);
         sender->writeMqttPacket(response);
         return;
     }
@@ -1417,7 +1417,7 @@ void MqttPacket::handleDisconnect()
 
     DisconnectData data = parseDisconnectData();
 
-    std::string disconnectReason = "MQTT Disconnect received (reason '" + reasonCodeToString(data.reasonCode) + "').";
+    std::string disconnectReason = "MQTT Disconnect received (reason '" + reasonCodeToString(data.reasonCode) + "')";
 
     if (!data.reasonString.empty())
         disconnectReason += data.reasonString;
@@ -1431,7 +1431,7 @@ void MqttPacket::handleDisconnect()
 
     logger->logf(LOG_NOTICE, "Client '%s' cleanly disconnecting", sender->repr().c_str());
     sender->setDisconnectReason(disconnectReason);
-    sender->markAsDisconnecting();
+    sender->setDisconnectStage(DisconnectStage::Now);
     if (data.reasonCode == ReasonCodes::Success)
         sender->clearWill();
     ThreadGlobals::getThreadData()->removeClientQueued(sender);

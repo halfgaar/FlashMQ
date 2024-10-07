@@ -193,20 +193,18 @@ void Client::startOrContinueSslHandshake()
         writeLoginPacket();
 }
 
-// Causes future activity on the client to cause a disconnect.
-void Client::markAsDisconnecting()
+void Client::setDisconnectStage(DisconnectStage val)
 {
-    if (disconnecting)
+    if (val <= this->disconnectStage)
         return;
 
-    disconnecting = true;
+    this->disconnectStage = val;
 }
 
-// false means any kind of error we want to get rid of the client for.
-bool Client::readFdIntoBuffer()
+DisconnectStage Client::readFdIntoBuffer()
 {
-    if (disconnecting)
-        return false;
+    if (this->disconnectStage == DisconnectStage::Now)
+        return DisconnectStage::Now;
 
     IoWrapResult error = IoWrapResult::Success;
     int n = 0;
@@ -243,13 +241,10 @@ bool Client::readFdIntoBuffer()
     }
 
     if (error == IoWrapResult::Disconnected)
-    {
-        return false;
-    }
+        return DisconnectStage::Now;
 
     lastActivity = std::chrono::steady_clock::now();
-
-    return true;
+    return this->disconnectStage;
 }
 
 void Client::writeText(const std::string &text)
@@ -316,7 +311,7 @@ PacketDropReason Client::writeMqttPacket(const MqttPacket &packet)
         td->sentMessageCounter.inc();
     }
     else if (packet.packetType == PacketType::DISCONNECT)
-        setReadyForDisconnect();
+        setDisconnectStage(DisconnectStage::SendPendingAppData);
 
     setReadyForWriting(true);
 
@@ -449,15 +444,15 @@ void Client::writeLoginPacket()
     writeMqttPacket(pack);
 }
 
-bool Client::writeBufIntoFd()
+void Client::writeBufIntoFd()
 {
     std::unique_lock<std::mutex> lock(writeBufMutex, std::try_to_lock);
     if (!lock.owns_lock())
-        return true;
+        return;
 
     // We can abort the write; the client is about to be removed anyway.
-    if (disconnecting)
-        return false;
+    if (this->disconnectStage == DisconnectStage::Now)
+        return;
 
     IoWrapResult error = IoWrapResult::Success;
     int n;
@@ -474,9 +469,14 @@ bool Client::writeBufIntoFd()
             break;
     }
 
-    setReadyForWriting(writebuf.usedBytes() > 0 || ioWrapper.hasPendingWrite() || error == IoWrapResult::Wouldblock);
+    const bool data_pending = writebuf.usedBytes() > 0 || ioWrapper.hasPendingWrite() || error == IoWrapResult::Wouldblock;
 
-    return true;
+    if (this->disconnectStage == DisconnectStage::SendPendingAppData && !data_pending)
+    {
+        this->disconnectStage = DisconnectStage::Now;
+    }
+
+    setReadyForWriting(data_pending);
 }
 
 const sockaddr *Client::getAddr() const
@@ -661,7 +661,7 @@ void Client::sendConnackDeny(ReasonCodes reason)
     ConnAck connDeny(protocolVersion, reason, false);
     MqttPacket response(connDeny);
     setDisconnectReason("Access denied");
-    setReadyForDisconnect();
+    setDisconnectStage(DisconnectStage::SendPendingAppData);
     writeMqttPacket(response);
     logger->logf(LOG_NOTICE, "User '%s' access denied", username.c_str());
 }
@@ -785,7 +785,7 @@ void Client::setReadyForWriting(bool val)
         return;
 #endif
 
-    if (disconnecting)
+    if (this->disconnectStage == DisconnectStage::Now)
         return;
 
     if (ioWrapper.getSslReadWantsWrite())
@@ -816,7 +816,7 @@ void Client::setReadyForReading(bool val)
         return;
 #endif
 
-    if (disconnecting)
+    if (this->disconnectStage == DisconnectStage::Now)
         return;
 
     // This looks a bit like a race condition, but all calls to this method are from a threads's event loop, so we should be OK.

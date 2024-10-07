@@ -738,9 +738,9 @@ void MainTests::testWebsocketClose()
             }
 
             pollFd(client_socket, true);
-            bool connectionStatus = client->readFdIntoBuffer();
+            DisconnectStage ds = client->readFdIntoBuffer();
 
-            QVERIFY(!connectionStatus);
+            QVERIFY(ds == DisconnectStage::Now);
         }
     }
     catch (std::exception &ex)

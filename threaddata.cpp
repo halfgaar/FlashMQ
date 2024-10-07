@@ -250,7 +250,7 @@ void ThreadData::continuationOfAuthentication(std::shared_ptr<Client> &client, A
             Disconnect disconnect(client->getProtocolVersion(), finalResult);
             MqttPacket disconnectPack(disconnect);
             client->setDisconnectReason("Reauth denied");
-            client->setReadyForDisconnect();
+            client->setDisconnectStage(DisconnectStage::SendPendingAppData);
             client->writeMqttPacket(disconnectPack);
             logger->logf(LOG_NOTICE, "Client '%s', user '%s' reauthentication denied.", client->getClientId().c_str(), client->getUsername().c_str());
         }
@@ -1015,7 +1015,7 @@ void ThreadData::removeClient(std::shared_ptr<Client> client)
     if (!client)
         return;
 
-    client->markAsDisconnecting();
+    client->setDisconnectStage(DisconnectStage::Now);
 
     std::lock_guard<std::mutex> lck(clients_by_fd_mutex);
     auto pos = clients_by_fd.find(client->getFd());
@@ -1052,13 +1052,13 @@ void ThreadData::serverInitiatedDisconnect(const std::shared_ptr<Client> &client
 
         if (client->getProtocolVersion() >= ProtocolVersion::Mqtt5)
         {
-            client->setReadyForDisconnect();
+            client->setDisconnectStage(DisconnectStage::SendPendingAppData);
             Disconnect d(ProtocolVersion::Mqtt5, reason);
             client->writeMqttPacket(d);
         }
         else
         {
-            client->markAsDisconnecting();
+            client->setDisconnectStage(DisconnectStage::Now);
             removeClientQueued(client);
         }
     };
