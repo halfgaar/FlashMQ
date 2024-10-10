@@ -612,6 +612,11 @@ void MainApp::initMainApp(int argc, char *argv[])
         }
     }
 
+    if (optind < argc)
+    {
+        throw std::runtime_error("Error: positional arguments given. Did you mean --config-file <path>?");
+    }
+
     if (testConfig)
     {
         try
