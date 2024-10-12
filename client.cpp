@@ -52,7 +52,7 @@ Client::Client(int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, bool we
     ioWrapper(ssl, websocket, settings.clientInitialBufferSize, this),
     readbuf(settings.clientInitialBufferSize),
     writebuf(settings.clientInitialBufferSize),
-    epoll_fd(threadData ? threadData->epollfd : 0),
+    epoll_fd(threadData ? threadData->getEpollFd() : 0),
     threadData(threadData)
 {
     ioWrapper.setHaProxy(haproxy);

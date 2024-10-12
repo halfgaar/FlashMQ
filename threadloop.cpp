@@ -19,7 +19,7 @@ void do_thread_work(ThreadData *threadData)
 {
     maskAllSignalsCurrentThread();
 
-    int epoll_fd = threadData->epollfd;
+    int epoll_fd = threadData->getEpollFd();
     ThreadGlobals::assign(&threadData->authentication);
     ThreadGlobals::assignThreadData(threadData);
     ThreadGlobals::assignSettings(&threadData->settingsLocalCopy);

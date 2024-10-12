@@ -42,14 +42,13 @@ QueuedRetainedMessage::QueuedRetainedMessage(const Publish &p, const std::vector
 }
 
 ThreadData::ThreadData(int threadnr, const Settings &settings, const PluginLoader &pluginLoader) :
+    epollfd(check<std::runtime_error>(epoll_create(999))),
     pluginLoader(pluginLoader),
     settingsLocalCopy(settings),
     authentication(settingsLocalCopy),
     threadnr(threadnr)
 {
     logger = Logger::getInstance();
-
-    epollfd = check<std::runtime_error>(epoll_create(999));
 
     taskEventFd = eventfd(0, EFD_NONBLOCK);
     if (taskEventFd < 0)
@@ -61,16 +60,13 @@ ThreadData::ThreadData(int threadnr, const Settings &settings, const PluginLoade
     memset(&ev, 0, sizeof (struct epoll_event));
     ev.data.fd = taskEventFd;
     ev.events = EPOLLIN;
-    check<std::runtime_error>(epoll_ctl(this->epollfd, EPOLL_CTL_ADD, taskEventFd, &ev));
+    check<std::runtime_error>(epoll_ctl(this->epollfd.get(), EPOLL_CTL_ADD, taskEventFd, &ev));
 }
 
 ThreadData::~ThreadData()
 {
     if (taskEventFd >= 0)
         close(taskEventFd);
-
-    if (epollfd >= 0)
-        close(epollfd);
 }
 
 void ThreadData::start(thread_f f)
@@ -381,7 +377,7 @@ void ThreadData::bridgeReconnect()
             memset(&ev, 0, sizeof (struct epoll_event));
             ev.data.fd = sockfd;
             ev.events = EPOLLIN | EPOLLOUT;
-            check<std::runtime_error>(epoll_ctl(epollfd, EPOLL_CTL_ADD, sockfd, &ev));
+            check<std::runtime_error>(epoll_ctl(epollfd.get(), EPOLL_CTL_ADD, sockfd, &ev));
 
             queueClientNextKeepAliveCheckLocked(c, true);
 
@@ -798,7 +794,7 @@ void ThreadData::giveClient(std::shared_ptr<Client> &&client)
     memset(&ev, 0, sizeof (struct epoll_event));
     ev.data.fd = fd;
     ev.events = EPOLLIN;
-    check<std::runtime_error>(epoll_ctl(epollfd, EPOLL_CTL_ADD, fd, &ev));
+    check<std::runtime_error>(epoll_ctl(epollfd.get(), EPOLL_CTL_ADD, fd, &ev));
 }
 
 void ThreadData::giveBridge(std::shared_ptr<BridgeState> &bridgeState)
@@ -1162,13 +1158,13 @@ void ThreadData::pollExternalFd(int fd, uint32_t events, const std::weak_ptr<voi
     memset(&ev, 0, sizeof (struct epoll_event));
     ev.data.fd = fd;
     ev.events = events;
-    check<std::runtime_error>(epoll_ctl(this->epollfd, mode, fd, &ev));
+    check<std::runtime_error>(epoll_ctl(this->epollfd.get(), mode, fd, &ev));
 }
 
 void ThreadData::pollExternalRemove(int fd)
 {
     this->externalFds.erase(fd);
-    if (epoll_ctl(this->epollfd, EPOLL_CTL_DEL, fd, NULL) != 0)
+    if (epoll_ctl(this->epollfd.get(), EPOLL_CTL_DEL, fd, NULL) != 0)
     {
         Logger *logger = Logger::getInstance();
         logger->logf(LOG_ERR, "Removing externally watched fd %d from epoll produced error: %s", fd, strerror(errno));

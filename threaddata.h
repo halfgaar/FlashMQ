@@ -32,6 +32,7 @@ See LICENSE for license details.
 #include "settings.h"
 #include "bridgeconfig.h"
 #include "driftcounter.h"
+#include "fdmanaged.h"
 
 typedef void (*thread_f)(ThreadData *);
 
@@ -65,6 +66,7 @@ struct QueuedRetainedMessage
 
 class ThreadData
 {
+    FdManaged epollfd;
     std::unordered_map<int, std::shared_ptr<Client>> clients_by_fd;
     std::unordered_map<std::string, std::shared_ptr<BridgeState>> bridges;
     std::mutex clients_by_fd_mutex;
@@ -116,7 +118,6 @@ public:
     bool allDisconnectsSent = false;
     std::thread thread;
     int threadnr = 0;
-    int epollfd = -1;
     int taskEventFd = -1;
     std::mutex taskQueueMutex;
     std::list<std::function<void()>> taskQueue;
@@ -141,6 +142,8 @@ public:
     ThreadData(const ThreadData &other) = delete;
     ThreadData(ThreadData &&other) = delete;
     ~ThreadData();
+
+    int getEpollFd() const { return epollfd.get(); }
 
     void start(thread_f f);
 
