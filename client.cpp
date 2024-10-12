@@ -101,11 +101,10 @@ Client::~Client()
     assert(!session);
     assert(!willPublish);
 
-    if (fd > 0) // this check is essentially for testing, when working with a dummy fd.
+    if (fd.get() > 0) // this check is essentially for testing, when working with a dummy fd.
     {
-        if (epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, fd, NULL) != 0)
-            logger->logf(LOG_ERR, "Removing fd %d of client '%s' from epoll produced error: %s", fd, repr().c_str(), strerror(errno));
-        close(fd);
+        if (epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, fd.get(), NULL) != 0)
+            logger->logf(LOG_ERR, "Removing fd %d of client '%s' from epoll produced error: %s", fd.get(), repr().c_str(), strerror(errno));
     }
 }
 
@@ -127,7 +126,7 @@ bool Client::needsHaProxyParsing() const
 HaProxyConnectionType Client::readHaProxyData()
 {
     struct sockaddr* addr = reinterpret_cast<struct sockaddr*>(&this->addr);
-    HaProxyConnectionType result = this->ioWrapper.readHaProxyData(this->fd, addr);
+    HaProxyConnectionType result = this->ioWrapper.readHaProxyData(this->fd.get(), addr);
     this->address = sockaddrToString(this->getAddr());
     return result;
 }
@@ -166,11 +165,11 @@ void Client::connectToBridgeTarget(FMQSockaddr_in6 addr)
     if (bridge->c.tcpNoDelay)
     {
         int tcp_nodelay_optval = 1;
-        check<std::runtime_error>(setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &tcp_nodelay_optval, sizeof(tcp_nodelay_optval)));
+        check<std::runtime_error>(setsockopt(fd.get(), IPPROTO_TCP, TCP_NODELAY, &tcp_nodelay_optval, sizeof(tcp_nodelay_optval)));
     }
 
     addr.setPort(bridge->c.port);
-    int rc = connect(fd, addr.getSockaddr(), addr.getSize());
+    int rc = connect(fd.get(), addr.getSockaddr(), addr.getSize());
 
     if (rc < 0)
     {
@@ -208,7 +207,7 @@ DisconnectStage Client::readFdIntoBuffer()
 
     IoWrapResult error = IoWrapResult::Success;
     int n = 0;
-    while (readbuf.freeSpace() > 0 && (n = ioWrapper.readWebsocketAndOrSsl(fd, readbuf.headPtr(), readbuf.maxWriteSize(), &error)) != 0)
+    while (readbuf.freeSpace() > 0 && (n = ioWrapper.readWebsocketAndOrSsl(fd.get(), readbuf.headPtr(), readbuf.maxWriteSize(), &error)) != 0)
     {
         if (n > 0)
         {
@@ -392,7 +391,7 @@ PacketDropReason Client::writeMqttPacketAndBlameThisClient(const MqttPacket &pac
     {
         std::shared_ptr<ThreadData> td = this->threadData.lock();
         if (td)
-            td->removeClientQueued(fd);
+            td->removeClientQueued(fd.get());
 
         return PacketDropReason::ClientError;
     }
@@ -458,7 +457,7 @@ void Client::writeBufIntoFd()
     int n;
     while (writebuf.usedBytes() > 0 || ioWrapper.hasPendingWrite())
     {
-        n = ioWrapper.writeWebsocketAndOrSsl(fd, writebuf.tailPtr(), writebuf.maxReadSize(), &error);
+        n = ioWrapper.writeWebsocketAndOrSsl(fd.get(), writebuf.tailPtr(), writebuf.maxReadSize(), &error);
 
         if (n > 0)
             writebuf.advanceTail(n);
@@ -494,7 +493,7 @@ std::string Client::repr()
         bridge = "LocalBridge ";
 
     std::string s = formatString("[%sClientID='%s', username='%s', fd=%d, keepalive=%ds, transport='%s', address='%s', prot=%s, clean=%d]",
-                                 bridge.c_str(), clientid.c_str(), username.c_str(), fd, keepalive, this->transportStr.c_str(), this->address.c_str(),
+                                 bridge.c_str(), clientid.c_str(), username.c_str(), fd.get(), keepalive, this->transportStr.c_str(), this->address.c_str(),
                                  protocolVersionString(protocolVersion).c_str(), this->clean_start);
     return s;
 }
@@ -502,7 +501,7 @@ std::string Client::repr()
 std::string Client::repr_endpoint()
 {
     std::string s = formatString("address='%s', transport='%s', fd=%d",
-                                 this->address.c_str(), this->transportStr.c_str(), fd);
+                                 this->address.c_str(), this->transportStr.c_str(), fd.get());
     return s;
 }
 
@@ -781,7 +780,7 @@ void Client::setReadyForWriting(bool val)
 #endif
 
 #ifdef TESTING
-    if (fd == 0)
+    if (fd.get() == 0)
         return;
 #endif
 
@@ -799,9 +798,9 @@ void Client::setReadyForWriting(bool val)
 
     struct epoll_event ev;
     memset(&ev, 0, sizeof (struct epoll_event));
-    ev.data.fd = fd;
+    ev.data.fd = fd.get();
     ev.events = readyForReading*EPOLLIN | readyForWriting*EPOLLOUT;
-    check<std::runtime_error>(epoll_ctl(this->epoll_fd, EPOLL_CTL_MOD, fd, &ev));
+    check<std::runtime_error>(epoll_ctl(this->epoll_fd, EPOLL_CTL_MOD, fd.get(), &ev));
 }
 
 void Client::setReadyForReading(bool val)
@@ -812,7 +811,7 @@ void Client::setReadyForReading(bool val)
 #endif
 
 #ifdef TESTING
-    if (fd == 0)
+    if (fd.get() == 0)
         return;
 #endif
 
@@ -827,14 +826,14 @@ void Client::setReadyForReading(bool val)
 
     struct epoll_event ev;
     memset(&ev, 0, sizeof (struct epoll_event));
-    ev.data.fd = fd;
+    ev.data.fd = fd.get();
 
     {
         // Because setReadyForWriting is always called onder writeBufMutex, this prevents readiness race conditions.
         std::lock_guard<std::mutex> locker(writeBufMutex);
 
         ev.events = readyForReading*EPOLLIN | readyForWriting*EPOLLOUT;
-        check<std::runtime_error>(epoll_ctl(this->epoll_fd, EPOLL_CTL_MOD, fd, &ev));
+        check<std::runtime_error>(epoll_ctl(this->epoll_fd, EPOLL_CTL_MOD, fd.get(), &ev));
     }
 }
 

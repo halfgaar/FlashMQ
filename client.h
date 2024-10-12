@@ -30,6 +30,7 @@ See LICENSE for license details.
 #include "iowrapper.h"
 #include "bridgeconfig.h"
 #include "enums.h"
+#include "fdmanaged.h"
 
 #include "publishcopyfactory.h"
 
@@ -59,7 +60,7 @@ class Client
 {
     friend class IoWrapper;
 
-    int fd;
+    FdManaged fd;
     bool fuzzMode = false;
 
     ProtocolVersion protocolVersion = ProtocolVersion::None;
@@ -134,7 +135,7 @@ public:
     Client(Client &&other) = delete;
     ~Client();
 
-    int getFd() { return fd;}
+    int getFd() { return fd.get();}
     bool isSslAccepted() const;
     bool isSsl() const;
     bool needsHaProxyParsing() const;

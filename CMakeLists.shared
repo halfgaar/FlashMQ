@@ -80,6 +80,7 @@ set(FLASHMQ_HEADERS
     ${RELPATH}lockedsharedptr.h
     ${RELPATH}globals.h
     ${RELPATH}nocopy.h
+    ${RELPATH}fdmanaged.h
 )
 
 set(FLASHMQ_IMPLS
@@ -142,4 +143,5 @@ set(FLASHMQ_IMPLS
     ${RELPATH}lockedweakptr.cpp
     ${RELPATH}globals.cpp
     ${RELPATH}nocopy.cpp
+    ${RELPATH}fdmanaged.cpp
     )
