@@ -13,6 +13,7 @@ See LICENSE for license details.
 #include <cassert>
 #include <string.h>
 #include <openssl/x509v3.h>
+#include <openssl/sslerr.h>
 
 #include "logger.h"
 #include "client.h"
@@ -74,10 +75,20 @@ IoWrapper::IoWrapper(SSL *ssl, bool websocket, const size_t initialBufferSize, C
 
 IoWrapper::~IoWrapper()
 {
-    // I don't do SSL_shutdown(), because I don't want to keep the session, plus, that takes active de-negiotation, so it can't be done
-    // in the destructor.
-    SSL_free(ssl);
-    ssl = nullptr;
+    if (ssl)
+    {
+        /*
+         * We write the shutdown when we can, but don't take error conditions into account. If socket buffers are full, because
+         * clients disappear for instance, the socket is just closed. We don't care.
+         *
+         * Truncation attacks seem irrelevant. MQTT is frame based, so either end knows if the transmission is done or not. The
+         * close_notify is not used in determining whether to use or discard the received data.
+         */
+        SSL_shutdown(ssl);
+
+        SSL_free(ssl);
+        ssl = nullptr;
+    }
 }
 
 void IoWrapper::startOrContinueSslHandshake()
@@ -419,12 +430,7 @@ ssize_t IoWrapper::readOrSslRead(int fd, void *buf, size_t nbytes, IoWrapResult 
             int err = SSL_get_error(ssl, n);
             unsigned long error_code = ERR_get_error();
 
-            // See https://www.openssl.org/docs/man1.1.1/man3/SSL_get_error.html "BUGS" why EOF is seen as SSL_ERROR_SYSCALL.
-            if (err == SSL_ERROR_ZERO_RETURN || (err == SSL_ERROR_SYSCALL && errno == 0))
-            {
-                *error = IoWrapResult::Disconnected;
-            }
-            else if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE)
+            if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE)
             {
                 *error = IoWrapResult::Wouldblock;
                 if (err == SSL_ERROR_WANT_WRITE)
@@ -433,6 +439,25 @@ ssize_t IoWrapper::readOrSslRead(int fd, void *buf, size_t nbytes, IoWrapResult 
                     parentClient->setReadyForWriting(true);
                 }
                 n = -1;
+            }
+            else if (err == SSL_ERROR_ZERO_RETURN)
+            {
+                parentClient->setDisconnectReason("SSL socket close with close_notify");
+                *error = IoWrapResult::Disconnected;
+            }
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+            else if (err == SSL_ERROR_SSL && ERR_GET_REASON(error_code) == SSL_R_UNEXPECTED_EOF_WHILE_READING)
+            {
+                parentClient->setDisconnectReason("SSL socket close without close_notify");
+                *error = IoWrapResult::Disconnected;
+            }
+#endif
+            else if (err == SSL_ERROR_SYSCALL && errno == 0)
+            {
+                // See https://www.openssl.org/docs/man1.1.1/man3/SSL_get_error.html "BUGS" why unexpected EOF is seen as SSL_ERROR_SYSCALL.
+
+                *error = IoWrapResult::Disconnected;
+                parentClient->setDisconnectReason("SSL<3 socket close without close_notify");
             }
             else
             {
