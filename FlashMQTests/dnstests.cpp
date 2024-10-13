@@ -16,7 +16,7 @@ void MainTests::testDnsResolver()
             std::list<FMQSockaddr_in6> results = resolver.getResult();
             if (!results.empty())
             {
-                QVERIFY(std::any_of(results.begin(), results.end(), [](FMQSockaddr_in6 &x){return x.getText() == "83.137.146.230";}));
+                QVERIFY(std::any_of(results.begin(), results.end(), [](FMQSockaddr_in6 &x){return x.getText() == "89.188.6.194";}));
                 QVERIFY(std::any_of(results.begin(), results.end(), [](FMQSockaddr_in6 &x){return x.getText() == "2a01:1b0:7996:418:83:137:146:230";}));
                 break;
             }
@@ -47,7 +47,7 @@ void MainTests::testDnsResolverDontCancel()
             std::list<FMQSockaddr_in6> results = resolver.getResult();
             if (!results.empty())
             {
-                QVERIFY(std::any_of(results.begin(), results.end(), [](FMQSockaddr_in6 &x){return x.getText() == "83.137.146.230";}));
+                QVERIFY(std::any_of(results.begin(), results.end(), [](FMQSockaddr_in6 &x){return x.getText() == "89.188.6.194";}));
                 QVERIFY(std::any_of(results.begin(), results.end(), [](FMQSockaddr_in6 &x){return x.getText() == "2a01:1b0:7996:418:83:137:146:230";}));
                 break;
             }
@@ -79,7 +79,7 @@ void MainTests::testDnsResolverSecondQuery()
                 std::list<FMQSockaddr_in6> results = resolver.getResult();
                 if (!results.empty())
                 {
-                    QVERIFY(std::any_of(results.begin(), results.end(), [](FMQSockaddr_in6 &x){return x.getText() == "83.137.146.230";}));
+                    QVERIFY(std::any_of(results.begin(), results.end(), [](FMQSockaddr_in6 &x){return x.getText() == "89.188.6.194";}));
                     QVERIFY(std::any_of(results.begin(), results.end(), [](FMQSockaddr_in6 &x){return x.getText() == "2a01:1b0:7996:418:83:137:146:230";}));
                     break;
                 }
