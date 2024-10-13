@@ -216,7 +216,7 @@ void do_thread_work(ThreadData *threadData)
                     {
                         ConnAck connAck(client->getProtocolVersion(), ex.reasonCode);
 
-                        if (connAck.supported_reason_code)
+                        if (connAck.supported_reason_code && !client->isOutgoingConnection())
                         {
                             MqttPacket p(connAck);
                             client->writeMqttPacket(p);
