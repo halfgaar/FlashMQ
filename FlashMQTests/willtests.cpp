@@ -108,8 +108,7 @@ void MainTests::testMqtt5DelayedWill()
     std::shared_ptr<WillPublish> will = std::make_shared<WillPublish>();
     will->topic = "my/will/testMqtt5DelayedWill";
     will->payload = "mypayload";
-    will->constructPropertyBuilder();
-    will->propertyBuilder->writeWillDelay(2);
+    will->will_delay = 2;
     sender->setWill(will);
     sender->connectClient(ProtocolVersion::Mqtt5, true, 60);
 
@@ -142,8 +141,7 @@ void MainTests::testMqtt5DelayedWillAlwaysOnSessionEnd()
     std::shared_ptr<WillPublish> will = std::make_shared<WillPublish>();
     will->topic = "my/will/testMqtt5DelayedWillAlwaysOnSessionEnd";
     will->payload = "mypayload";
-    will->constructPropertyBuilder();
-    will->propertyBuilder->writeWillDelay(120); // This long delay should not matter, because the session expires after 2s.
+    will->will_delay = 120; // This long delay should not matter, because the session expires after 2s.
     sender->setWill(will);
     sender->connectClient(ProtocolVersion::Mqtt5, true, 2);
 
@@ -322,8 +320,7 @@ void MainTests::testMqtt5DelayedWillsDisabled()
     std::shared_ptr<WillPublish> will = std::make_shared<WillPublish>();
     will->topic = "my/will/testMqtt5DelayedWill";
     will->payload = "mypayload";
-    will->constructPropertyBuilder();
-    will->propertyBuilder->writeWillDelay(1);
+    will->will_delay = 1;
     sender->setWill(will);
     sender->connectClient(ProtocolVersion::Mqtt5, true, 60);
 
@@ -379,10 +376,6 @@ log_level debug
 
         c.will = std::make_shared<WillPublish>(pub);
         c.will->will_delay = 1;
-
-        // This is not the proper way, but as of yet, the relevant constructor for MqttPacket doesn't generate them from members.
-        c.will->constructPropertyBuilder();
-        c.will->propertyBuilder->writeWillDelay(1);
     });
 
     sender.disconnect(ReasonCodes::DisconnectWithWill);

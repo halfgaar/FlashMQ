@@ -382,5 +382,13 @@ public:
     }
 };
 
+template<typename T>
+std::optional<T> &non_optional(std::optional<T> &o)
+{
+    if (!o)
+        o.emplace();
+    return o;
+}
+
 
 #endif // UTILS_H

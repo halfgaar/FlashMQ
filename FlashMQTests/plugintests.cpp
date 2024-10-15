@@ -1097,8 +1097,7 @@ void MainTests::testUserPropertiesPresent()
     receiver.subscribe(topic, 0);
 
     Publish pub1(topic, payload, 0);
-    pub1.constructPropertyBuilder();
-    pub1.propertyBuilder->writeUserProperty("myprop", "myval");
+    pub1.addUserProperty("myprop", "myval");
     sender.publish(pub1);
 
     receiver.waitForMessageCount(1);

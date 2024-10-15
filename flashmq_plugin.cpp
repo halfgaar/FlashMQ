@@ -92,38 +92,30 @@ void flashmq_publish_message(const std::string &topic, const uint8_t qos, const 
 
     if (userProperties)
     {
-        pub.constructPropertyBuilder();
-
         for (const std::pair<std::string, std::string> &pair : *userProperties)
         {
-            std::string key = pair.first;
-            std::string value = pair.second;
-            pub.propertyBuilder->writeUserProperty(std::move(key), std::move(value));
+            pub.addUserProperty(pair.first, pair.second);
         }
     }
 
     if (expiryInterval)
     {
-        pub.constructPropertyBuilder();
-        pub.propertyBuilder->writeMessageExpiryInterval(expiryInterval);
+        pub.setExpireAfter(expiryInterval);
     }
 
     if (responseTopic)
     {
-        pub.constructPropertyBuilder();
-        pub.propertyBuilder->writeResponseTopic(*responseTopic);
+        pub.responseTopic = *responseTopic;
     }
 
     if (correlationData)
     {
-        pub.constructPropertyBuilder();
-        pub.propertyBuilder->writeCorrelationData(*correlationData);
+        pub.correlationData = *correlationData;
     }
 
     if (contentType)
     {
-        pub.constructPropertyBuilder();
-        pub.propertyBuilder->writeContentType(*contentType);
+        pub.contentType = *contentType;
     }
 
     std::shared_ptr<SubscriptionStore> store = MainApp::getMainApp()->getSubscriptionStore();

@@ -30,8 +30,6 @@ See LICENSE for license details.
  * @brief The MqttPacket class represents incoming and outgoing packets.
  *
  * Be sure to understand the 'externallyReceived' member. See in-code documentation.
- *
- * TODO: I could perhaps make a subclass for the externally received one.
  */
 class MqttPacket
 {
@@ -68,8 +66,20 @@ class MqttPacket
     void writeByte(char b);
     void writeUint16(uint16_t x);
     void writeBytes(const char *b, size_t len);
-    void writeProperties(const std::shared_ptr<Mqtt5PropertyBuilder> &properties);
-    void joinAndWriteProperties(const std::shared_ptr<const Mqtt5PropertyBuilder> &properties);
+
+    template<typename T>
+    void writeProperties(T properties)
+    {
+        if (!properties)
+        {
+            writeByte(0);
+            return;
+        }
+
+        writeProperties(*properties);
+    }
+
+    void writeProperties(Mqtt5PropertyBuilder &properties);
     void writeVariableByteInt(const VariableByteInt &v);
     void writeString(const std::string &s);
     void writeString(std::string_view s);
@@ -77,7 +87,6 @@ class MqttPacket
     uint32_t readFourBytesToUint32();
     size_t remainingAfterPos();
     size_t decodeVariableByteIntAtPos();
-    void readUserProperty();
     std::string readBytesToString(bool validateUtf8 = true, bool alsoCheckInvalidPublishChars = false);
 
     void calculateRemainingLength();

@@ -233,17 +233,20 @@ public:
     bool skipTopic = false;
     bool payloadUtf8 = false;
     std::optional<PublishExpireInfo> expireInfo;
-    std::shared_ptr<Mqtt5PropertyBuilder> propertyBuilder; // Only contains data for sending, not receiving
+    std::optional<std::string> correlationData;
+    std::optional<std::string> responseTopic;
+    std::optional<std::string> contentType;
+    std::shared_ptr<std::vector<std::pair<std::string, std::string>>> userProperties;
 
     Publish() = default;
     Publish(const std::string &topic, const std::string &payload, uint8_t qos);
     size_t getLengthWithoutFixedHeader() const;
-    void setClientSpecificProperties();
-    void constructPropertyBuilder();
-    bool hasUserProperties() const;
     bool hasExpired() const;
     std::chrono::seconds getAge() const;
     std::vector<std::pair<std::string, std::string>> *getUserProperties() const;
+    void addUserProperty(const std::string &key, const std::string &val);
+    void addUserProperty(std::string &&key, std::string &&val);
+    std::optional<Mqtt5PropertyBuilder> getPropertyBuilder() const;
 
     void setExpireAfter(uint32_t s);
     void setExpireAfterToCeiling(uint32_t s);
@@ -262,6 +265,7 @@ public:
     WillPublish(const Publish &other);
     void setQueuedAt();
     uint32_t getQueuedAtAge() const;
+    std::optional<Mqtt5PropertyBuilder> getPropertyBuilder() const;
 };
 
 class PubResponse
@@ -311,7 +315,6 @@ struct Connect
     std::shared_ptr<Mqtt5PropertyBuilder> propertyBuilder;
 
     Connect(ProtocolVersion protocolVersion, const std::string &clientid);
-    size_t getLengthWithoutFixedHeader() const;
     std::string_view getMagicString() const;
     void constructPropertyBuilder();
 };

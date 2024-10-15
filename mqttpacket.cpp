@@ -146,14 +146,20 @@ MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, const Publish &_pu
     first_byte |= (this->publishData.qos << 1);
     first_byte |= (static_cast<char>(_publish.retain) & 0b00000001);
 
+    std::optional<Mqtt5PropertyBuilder> property_builder;
+
     if (protocolVersion >= ProtocolVersion::Mqtt5)
     {
         if (_publish.expireInfo)
-        {
             this->publishData.setExpireAfter(_publish.expireInfo->getCurrentTimeToExpire().count());
-        }
 
-        publishData.setClientSpecificProperties();
+        this->publishData.correlationData = _publish.correlationData;
+        this->publishData.responseTopic = _publish.responseTopic;
+        this->publishData.contentType = _publish.contentType;
+        this->publishData.payloadUtf8 = _publish.payloadUtf8;
+        this->publishData.userProperties = _publish.userProperties;
+
+        property_builder = this->publishData.getPropertyBuilder();
     }
 
     size_t len = 0;
@@ -169,22 +175,7 @@ MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, const Publish &_pu
             len += 2;
 
         if (protocolVersion >= ProtocolVersion::Mqtt5)
-        {
-            const uint32_t size_our_own_props = publishData.propertyBuilder ? publishData.propertyBuilder->getclientSpecificBytes().size() : 0;
-            const uint32_t size_injected_properties = _publish.propertyBuilder ? _publish.propertyBuilder->getGenericBytes().size() : 0;
-            const uint32_t size_total_props = size_our_own_props + size_injected_properties;
-
-            if (size_total_props == 0)
-            {
-                len += 1;
-            }
-            else
-            {
-                VariableByteInt proplen;
-                proplen = size_total_props;
-                len += proplen.getLen() + size_total_props;
-            }
-        }
+            len += property_builder ? property_builder->getLength() : 1;
     }
 
     bites.resize(len);
@@ -200,9 +191,7 @@ MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, const Publish &_pu
     }
 
     if (protocolVersion >= ProtocolVersion::Mqtt5)
-    {
-        joinAndWriteProperties(_publish.propertyBuilder);
-    }
+        writeProperties(property_builder);
 
     payloadStart = pos;
     payloadLen = _publish.payload.length();
@@ -268,13 +257,46 @@ MqttPacket::MqttPacket(const Auth &auth) :
 }
 
 MqttPacket::MqttPacket(const Connect &connect) :
-    bites(connect.getLengthWithoutFixedHeader()),
     protocolVersion(connect.protocolVersion),
     packetType(PacketType::CONNECT)
 {
     first_byte = static_cast<char>(packetType) << 4;
-
     const std::string_view magicString = connect.getMagicString();
+    std::optional<Mqtt5PropertyBuilder> will_properties;
+
+    if (connect.will && this->protocolVersion >= ProtocolVersion::Mqtt5)
+        will_properties = connect.will->getPropertyBuilder();
+
+    size_t len = 0;
+
+    // Calculate length
+    {
+        len += connect.clientid.length() + 2;
+
+        len += magicString.length();
+        len += 6; // header stuff, lengths, keep-alive
+
+        if (this->protocolVersion >= ProtocolVersion::Mqtt5)
+            len += connect.propertyBuilder ? connect.propertyBuilder->getLength() : 1;
+
+        if (connect.will)
+        {
+            if (this->protocolVersion >= ProtocolVersion::Mqtt5)
+                len += will_properties ? will_properties->getLength() : 1;
+
+            len += connect.will->topic.length() + 2;
+            len += connect.will->payload.length() + 2;
+        }
+
+        if (connect.username.has_value())
+            len += connect.username->size() + 2;
+
+        if (connect.password.has_value())
+            len += connect.password->size() + 2;
+    }
+
+    bites.resize(len);
+
     writeString(magicString);
 
     uint8_t protocolVersionByte = static_cast<uint8_t>(protocolVersion);
@@ -308,7 +330,7 @@ MqttPacket::MqttPacket(const Connect &connect) :
     {
         if (connect.protocolVersion >= ProtocolVersion::Mqtt5)
         {
-            writeProperties(connect.will->propertyBuilder);
+            writeProperties(will_properties);
         }
 
         writeString(connect.will->topic);
@@ -321,6 +343,7 @@ MqttPacket::MqttPacket(const Connect &connect) :
         writeString(connect.password.value());
 
     calculateRemainingLength();
+    assert(pos == bites.size());
 }
 
 MqttPacket::MqttPacket(const Subscribe &subscribe) :
@@ -625,8 +648,13 @@ ConnectData MqttPacket::parseConnectData()
                 break;
             }
             case Mqtt5Properties::UserProperty:
-                readUserProperty();
+            {
+                // We (ab)use the publishData for the user properties, because it's there.
+                std::string key = readBytesToString();
+                std::string val = readBytesToString();
+                this->publishData.addUserProperty(std::move(key), std::move(val));
                 break;
+            }
             case Mqtt5Properties::AuthenticationMethod:
             {
                 if (pcounts[6]++ > 0)
@@ -681,8 +709,6 @@ ConnectData MqttPacket::parseConnectData()
 
         if (protocolVersion == ProtocolVersion::Mqtt5)
         {
-            result.willpublish.constructPropertyBuilder();
-
             const size_t proplen = decodeVariableByteIntAtPos();
             const size_t prop_end_at = pos + proplen;
 
@@ -706,15 +732,13 @@ ConnectData MqttPacket::parseConnectData()
                         throw ProtocolError("Can't specify " + propertyToString(prop) + " more than once", ReasonCodes::ProtocolError);
 
                     result.willpublish.payloadUtf8 = true;
-                    result.willpublish.propertyBuilder->writePayloadFormatIndicator(readByte());
                     break;
                 case Mqtt5Properties::ContentType:
                 {
                     if (pcounts[2]++ > 0)
                         throw ProtocolError("Can't specify " + propertyToString(prop) + " more than once", ReasonCodes::ProtocolError);
 
-                    const std::string contentType = readBytesToString();
-                    result.willpublish.propertyBuilder->writeContentType(contentType);
+                    result.willpublish.contentType = readBytesToString();
                     break;
                 }
                 case Mqtt5Properties::ResponseTopic:
@@ -722,12 +746,11 @@ ConnectData MqttPacket::parseConnectData()
                     if (pcounts[3]++ > 0)
                         throw ProtocolError("Can't specify " + propertyToString(prop) + " more than once", ReasonCodes::ProtocolError);
 
-                    const std::string responseTopic = readBytesToString(true, true);
+                    result.willpublish.responseTopic = readBytesToString(true, true);
 
-                    if (responseTopic.empty())
+                    if (result.willpublish.responseTopic->empty())
                         throw ProtocolError("Response topic in will cannot be empty", ReasonCodes::ProtocolError);
 
-                    result.willpublish.propertyBuilder->writeResponseTopic(responseTopic);
                     break;
                 }
                 case Mqtt5Properties::MessageExpiryInterval:
@@ -744,18 +767,14 @@ ConnectData MqttPacket::parseConnectData()
                     if (pcounts[5]++ > 0)
                         throw ProtocolError("Can't specify " + propertyToString(prop) + " more than once", ReasonCodes::ProtocolError);
 
-                    const std::string correlationData = readBytesToString(false);
-                    result.willpublish.propertyBuilder->writeCorrelationData(correlationData);
+                    result.willpublish.correlationData = readBytesToString(false);
                     break;
                 }
                 case Mqtt5Properties::UserProperty:
                 {
-                    result.willpublish.constructPropertyBuilder();
-
                     std::string key = readBytesToString();
-                    std::string value = readBytesToString();
-
-                    result.willpublish.propertyBuilder->writeUserProperty(std::move(key), std::move(value));
+                    std::string val = readBytesToString();
+                    result.willpublish.addUserProperty(std::move(key), std::move(val));
                     break;
                 }
                 default:
@@ -1286,8 +1305,13 @@ AuthPacketData MqttPacket::parseAuthData()
                 readBytesToString();
                 break;
             case Mqtt5Properties::UserProperty:
-                readUserProperty();
+            {
+                // We (ab)use the publishData for the user properties, because it's there.
+                std::string key = readBytesToString();
+                std::string val = readBytesToString();
+                this->publishData.addUserProperty(std::move(key), std::move(val));
                 break;
+            }
             default:
                 throw ProtocolError("Invalid property in auth packet.", ReasonCodes::ProtocolError);
             }
@@ -1398,8 +1422,13 @@ DisconnectData MqttPacket::parseDisconnectData()
                     break;
                 }
                 case Mqtt5Properties::UserProperty:
-                    readUserProperty();
+                {
+                    // We (ab)use the publishData for the user properties, because it's there.
+                    std::string key = readBytesToString();
+                    std::string val = readBytesToString();
+                    this->publishData.addUserProperty(std::move(key), std::move(val));
                     break;
+                }
                 default:
                     throw ProtocolError("Invalid property in disconnect.", ReasonCodes::ProtocolError);
                 }
@@ -1465,8 +1494,13 @@ void MqttPacket::handleSubscribe()
             case Mqtt5Properties::SubscriptionIdentifier:
                 throw ProtocolError("Subscription identifiers not supported", ReasonCodes::ProtocolError);
             case Mqtt5Properties::UserProperty:
-                readUserProperty();
+            {
+                // We (ab)use the publishData for the user properties, because it's there.
+                std::string key = readBytesToString();
+                std::string val = readBytesToString();
+                this->publishData.addUserProperty(std::move(key), std::move(val));
                 break;
+            }
             default:
                 throw ProtocolError("Invalid subscribe property.", ReasonCodes::ProtocolError);
             }
@@ -1636,8 +1670,13 @@ void MqttPacket::handleUnsubscribe()
             switch (prop)
             {
             case Mqtt5Properties::UserProperty:
-                readUserProperty();
+            {
+                // We (ab)use the publishData for the user properties, because it's there.
+                std::string key = readBytesToString();
+                std::string val = readBytesToString();
+                this->publishData.addUserProperty(std::move(key), std::move(val));
                 break;
+            }
             default:
                 throw ProtocolError("Invalid unsubscribe property.", ReasonCodes::ProtocolError);
             }
@@ -1721,8 +1760,6 @@ void MqttPacket::parsePublishData()
                     throw ProtocolError("Can't specify " + propertyToString(prop) + " more than once", ReasonCodes::ProtocolError);
 
                 publishData.payloadUtf8 = true;
-                publishData.constructPropertyBuilder();
-                publishData.propertyBuilder->writePayloadFormatIndicator(readByte());
                 break;
             case Mqtt5Properties::MessageExpiryInterval:
                 if (pcounts[1]++ > 0)
@@ -1764,13 +1801,11 @@ void MqttPacket::parsePublishData()
                 if (pcounts[3]++ > 0)
                     throw ProtocolError("Can't specify " + propertyToString(prop) + " more than once", ReasonCodes::ProtocolError);
 
-                publishData.constructPropertyBuilder();
-                const std::string responseTopic = readBytesToString(true, true);
+                publishData.responseTopic = readBytesToString(true, true);
 
-                if (responseTopic.empty())
+                if (publishData.responseTopic->empty())
                     throw ProtocolError("Response topic cannot be empty", ReasonCodes::ProtocolError);
 
-                publishData.propertyBuilder->writeResponseTopic(responseTopic);
                 break;
             }
             case Mqtt5Properties::CorrelationData:
@@ -1778,14 +1813,14 @@ void MqttPacket::parsePublishData()
                 if (pcounts[4]++ > 0)
                     throw ProtocolError("Can't specify " + propertyToString(prop) + " more than once", ReasonCodes::ProtocolError);
 
-                publishData.constructPropertyBuilder();
-                const std::string correlationData = readBytesToString(false);
-                publishData.propertyBuilder->writeCorrelationData(correlationData);
+                publishData.correlationData = readBytesToString(false);
                 break;
             }
             case Mqtt5Properties::UserProperty:
             {
-                readUserProperty();
+                std::string key = readBytesToString();
+                std::string val = readBytesToString();
+                this->publishData.addUserProperty(std::move(key), std::move(val));
                 break;
             }
             case Mqtt5Properties::SubscriptionIdentifier:
@@ -1804,9 +1839,7 @@ void MqttPacket::parsePublishData()
                 if (pcounts[6]++ > 0)
                     throw ProtocolError("Can't specify " + propertyToString(prop) + " more than once", ReasonCodes::ProtocolError);
 
-                publishData.constructPropertyBuilder();
-                const std::string contentType = readBytesToString(true, false);
-                publishData.propertyBuilder->writeContentType(contentType);
+                publishData.contentType = readBytesToString(true, false);
                 break;
             }
             default:
@@ -2070,8 +2103,13 @@ SubAckData MqttPacket::parseSubAckData()
                 result.reasonString = readBytesToString();
                 break;
             case Mqtt5Properties::UserProperty:
-                readUserProperty();
+            {
+                // We (ab)use the publishData for the user properties, because it's there.
+                std::string key = readBytesToString();
+                std::string val = readBytesToString();
+                this->publishData.addUserProperty(std::move(key), std::move(val));
                 break;
+            }
             default:
                 throw ProtocolError("Invalid property in suback.", ReasonCodes::ProtocolError);
             }
@@ -2290,53 +2328,11 @@ void MqttPacket::writeBytes(const char *b, size_t len)
     pos += len;
 }
 
-void MqttPacket::writeProperties(const std::shared_ptr<Mqtt5PropertyBuilder> &properties)
+void MqttPacket::writeProperties(Mqtt5PropertyBuilder &properties)
 {
-    if (!properties)
-        writeByte(0);
-    else
-    {
-        writeVariableByteInt(properties->getVarInt());
-        const std::vector<char> &b = properties->getGenericBytes();
-        writeBytes(b.data(), b.size());
-        const std::vector<char> &b2 = properties->getclientSpecificBytes();
-        writeBytes(b2.data(), b2.size());
-    }
-}
-
-/**
- * @brief MqttPacket::joinAndWriteProperties write the properties by combining the fixed source ones and the new ones for our receiver.
- * @param properties
- *
- * By using the source properties only here, it saves having to copy those to our own PublishData object.
- */
-void MqttPacket::joinAndWriteProperties(const std::shared_ptr<const Mqtt5PropertyBuilder> &properties)
-{
-    const size_t size_our_own_props = publishData.propertyBuilder ? publishData.propertyBuilder->getclientSpecificBytes().size() : 0;
-    const size_t size_injected_properties = properties ? properties->getGenericBytes().size() : 0;
-    const size_t size_total = size_our_own_props + size_injected_properties;
-
-    if (size_total == 0)
-    {
-        writeByte(0);
-        return;
-    }
-
-    VariableByteInt len;
-    len = size_total;
-    writeVariableByteInt(len);
-
-    if (publishData.propertyBuilder)
-    {
-        const std::vector<char> &b = publishData.propertyBuilder->getclientSpecificBytes();
-        writeBytes(b.data(), b.size());
-    }
-
-    if (properties)
-    {
-        const std::vector<char> &b = properties->getGenericBytes();
-        writeBytes(b.data(), b.size());
-    }
+    writeVariableByteInt(properties.getVarInt());
+    const std::vector<char> &b = properties.getBytes();
+    writeBytes(b.data(), b.size());
 }
 
 void MqttPacket::writeVariableByteInt(const VariableByteInt &v)
@@ -2406,16 +2402,6 @@ size_t MqttPacket::decodeVariableByteIntAtPos()
     while ((encodedByte & 128) != 0);
 
     return value;
-}
-
-void MqttPacket::readUserProperty()
-{
-    this->publishData.constructPropertyBuilder();
-
-    std::string key = readBytesToString();
-    std::string value = readBytesToString();
-
-    this->publishData.propertyBuilder->writeUserProperty(std::move(key), std::move(value));
 }
 
 std::string MqttPacket::readBytesToString(bool validateUtf8, bool alsoCheckInvalidPublishChars)

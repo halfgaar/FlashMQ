@@ -175,41 +175,6 @@ size_t Publish::getLengthWithoutFixedHeader() const
     return result;
 }
 
-/**
- * @brief Publish::setClientSpecificProperties generates the properties byte array for properties that are unique to the receiver.
- */
-void Publish::setClientSpecificProperties()
-{
-    if (!expireInfo && this->topicAlias == 0)
-        return;
-
-    if (propertyBuilder)
-        propertyBuilder->clearClientSpecificBytes();
-    else
-        propertyBuilder = std::make_shared<Mqtt5PropertyBuilder>();
-
-    if (expireInfo)
-    {
-        propertyBuilder->writeMessageExpiryInterval(this->expireInfo->expiresAfter.count());
-    }
-
-    if (topicAlias > 0)
-        propertyBuilder->writeTopicAlias(this->topicAlias);
-}
-
-void Publish::constructPropertyBuilder()
-{
-    if (this->propertyBuilder)
-        return;
-
-    this->propertyBuilder = std::make_shared<Mqtt5PropertyBuilder>();
-}
-
-bool Publish::hasUserProperties() const
-{
-    return this->propertyBuilder.operator bool() && this->propertyBuilder->getUserProperties().operator bool();
-}
-
 bool Publish::hasExpired() const
 {
     if (!expireInfo)
@@ -228,10 +193,51 @@ std::chrono::seconds Publish::getAge() const
 
 std::vector<std::pair<std::string, std::string>> *Publish::getUserProperties() const
 {
-    if (this->propertyBuilder)
-        return this->propertyBuilder->getUserProperties().get();
+    return userProperties.get();
+}
 
-    return nullptr;
+void Publish::addUserProperty(const std::string &key, const std::string &val)
+{
+    if (!userProperties)
+        userProperties = std::make_shared<std::vector<std::pair<std::string, std::string>>>();
+
+    userProperties->emplace_back(key, val);
+}
+
+void Publish::addUserProperty(std::string &&key, std::string &&val)
+{
+    if (!userProperties)
+        userProperties = std::make_shared<std::vector<std::pair<std::string, std::string>>>();
+
+    userProperties->emplace_back(std::move(key), std::move(val));
+}
+
+std::optional<Mqtt5PropertyBuilder> Publish::getPropertyBuilder() const
+{
+    std::optional<Mqtt5PropertyBuilder> property_builder;
+
+    if (expireInfo)
+        non_optional(property_builder)->writeMessageExpiryInterval(expireInfo->expiresAfter.count());
+
+    if (correlationData)
+        non_optional(property_builder)->writeCorrelationData(*correlationData);
+
+    if (responseTopic)
+        non_optional(property_builder)->writeResponseTopic(*responseTopic);
+
+    if (contentType)
+        non_optional(property_builder)->writeContentType(*contentType);
+
+    if (payloadUtf8)
+        non_optional(property_builder)->writePayloadFormatIndicator(1);
+
+    if (topicAlias > 0)
+        non_optional(property_builder)->writeTopicAlias(topicAlias);
+
+    if (userProperties)
+        non_optional(property_builder)->writeUserProperties(*userProperties);
+
+    return property_builder;
 }
 
 void Publish::setExpireAfter(uint32_t s)
@@ -293,6 +299,16 @@ uint32_t WillPublish::getQueuedAtAge() const
 
     const std::chrono::seconds age = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - this->queuedAt);
     return age.count();
+}
+
+std::optional<Mqtt5PropertyBuilder> WillPublish::getPropertyBuilder() const
+{
+    auto property_builder = Publish::getPropertyBuilder();
+
+    if (this->will_delay > 0)
+        non_optional(property_builder)->writeWillDelay(this->will_delay);
+
+    return property_builder;
 }
 
 PubResponse::PubResponse(const ProtocolVersion protVersion, const PacketType packet_type, ReasonCodes reason_code, uint16_t packet_id) :
@@ -395,40 +411,6 @@ Connect::Connect(ProtocolVersion protocolVersion, const std::string &clientid) :
     clientid(clientid)
 {
 
-}
-
-size_t Connect::getLengthWithoutFixedHeader() const
-{
-    size_t result = clientid.length() + 2;
-
-    result += this->protocolVersion <= ProtocolVersion::Mqtt31 ? 6 : 4;
-    result += 6; // header stuff, lengths, keep-alive
-
-    if (this->protocolVersion >= ProtocolVersion::Mqtt5)
-    {
-        const size_t proplen = propertyBuilder ? propertyBuilder->getLength() : 1;
-        result += proplen;
-    }
-
-    if (will)
-    {
-        if (this->protocolVersion >= ProtocolVersion::Mqtt5)
-        {
-            const size_t proplen = will->propertyBuilder ? will->propertyBuilder->getLength() : 1;
-            result += proplen;
-        }
-
-        result += will->topic.length() + 2;
-        result += will->payload.length() + 2;
-    }
-
-    if (username.has_value())
-        result += username->size() + 2;
-
-    if (password.has_value())
-        result += password->size() + 2;
-
-    return result;
 }
 
 std::string_view Connect::getMagicString() const

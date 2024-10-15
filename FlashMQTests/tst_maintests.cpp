@@ -1528,7 +1528,6 @@ void MainTests::testDontRemoveSessionGivenToNewClientWithSameId()
 
     {
         Publish pub("just/a/path", "AAAAA", 0);
-        pub.constructPropertyBuilder();
         pub.topicAlias = 1;
         sender.publish(pub);
     }
@@ -1551,7 +1550,6 @@ void MainTests::testDontRemoveSessionGivenToNewClientWithSameId()
 
     {
         Publish pub("just/a/path", "AAAAA", 0);
-        pub.constructPropertyBuilder();
         pub.topicAlias = 1;
         sender.publish(pub);
     }
@@ -1595,7 +1593,6 @@ void MainTests::testKeepSubscriptionOnKickingOutExistingClientWithCleanSessionFa
 
     {
         Publish pub("just/a/path", "AAAAA", 0);
-        pub.constructPropertyBuilder();
         pub.topicAlias = 1;
         sender.publish(pub);
     }
@@ -1641,7 +1638,6 @@ void MainTests::testPickUpSessionWithSubscriptionsAfterDisconnect()
 
     {
         Publish pub("just/a/path", "AAAAAB", 0);
-        pub.constructPropertyBuilder();
         pub.topicAlias = 1;
         sender.publish(pub);
     }
@@ -1677,14 +1673,12 @@ void MainTests::testIncomingTopicAlias()
 
     {
         Publish pub("just/a/path", "AAAAA", 0);
-        pub.constructPropertyBuilder();
         pub.topicAlias = 1;
         sender.publish(pub);
     }
 
     {
         Publish pub2("", "BBBBB", 0);
-        pub2.constructPropertyBuilder();
         pub2.topicAlias = 1;
         sender.publish(pub2);
     }
@@ -1972,9 +1966,8 @@ void MainTests::testUserProperties()
     receiver3.subscribe("#", 1);
 
     Publish pub("I'm/going/to/leave/a/message", "boo", 1);
-    pub.constructPropertyBuilder();
-    pub.propertyBuilder->writeUserProperty("mykey", "myval");
-    pub.propertyBuilder->writeUserProperty("mykeyhaha", "myvalhaha");
+    pub.addUserProperty("mykey", "myval");
+    pub.addUserProperty("mykeyhaha", "myvalhaha");
     sender.publish(pub);
 
     receiver5.waitForMessageCount(1);
@@ -2021,7 +2014,6 @@ void MainTests::testMessageExpiry()
     sender.connectClient(ProtocolVersion::Mqtt5, true, 120);
 
     Publish publishMe("a/b/c/d/e", "smoke", 1);
-    publishMe.constructPropertyBuilder();
     publishMe.setExpireAfter(1);
     sender.publish(publishMe);
 
