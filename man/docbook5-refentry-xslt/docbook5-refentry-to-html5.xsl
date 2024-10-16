@@ -242,6 +242,8 @@
           }
         }
       ]]></style>
+
+      <xsl:apply-templates select="." mode="html-refentry-last-child"/>
     </head>
     <body>
       <nav class="color-scheme-switch" hidden="true">
@@ -297,6 +299,7 @@
       ]]></script>
       <article>
         <xsl:apply-templates select="@xml:id"/>
+        <xsl:apply-templates select="." mode="html-article-first-child"/>
         <header>
           <h1>
             <xsl:choose>
@@ -333,6 +336,8 @@
 
         <xsl:apply-templates select="dbk:refsynopsisdiv | dbk:refsect1 | dbk:refsection"/>
       </article>
+
+      <xsl:apply-templates select="." mode="html-body-last-child"/>
     </body>
   </xsl:template>
 
@@ -472,7 +477,9 @@
           <xsl:apply-templates select="@xml:id"/>
         </xsl:otherwise>
       </xsl:choose>
-      <xsl:apply-templates select="@* | node()"/>
+      <xsl:apply-templates select="@*"/>
+      <xsl:apply-templates select="." mode="html-dt-first-child"/>
+      <xsl:apply-templates select="node()"/>
       <xsl:choose>
         <xsl:when test="not(preceding-sibling::dbk:term)">
           <xsl:apply-templates select="../@xml:id" mode="anchor"/>
@@ -610,6 +617,12 @@
     <span class="member">
       <xsl:apply-templates select="node()"/>
     </span>
+  </xsl:template>
+
+  <xsl:template match="@arch|@audience|@condition|@conformance|@os|@revision|@security|@userlevel|@vendor|@wordsize">
+    <xsl:attribute name="data-{name()}">
+      <xsl:value-of select="."/>
+    </xsl:attribute>
   </xsl:template>
 
   <xsl:template match="dbk:*[@outputformat][not(@outputformat='html')]"/>
