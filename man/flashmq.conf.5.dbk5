@@ -140,7 +140,7 @@ multi-value-param one 'two' "three" "with ' char"
           </para>
         </listitem>
       </varlistentry>
-      <varlistentry xml:id="log_level">
+      <varlistentry xml:id="log_level" condition="flashmq ≥ 1.11.0">
         <term><option>log_level</option> <replaceable>info/notice/warning/error/none</replaceable></term>
         <listitem>
           <para>
@@ -212,7 +212,7 @@ multi-value-param one 'two' "three" "with ' char"
           </para>
         </listitem>
       </varlistentry>
-      <varlistentry xml:id="client_max_write_buffer_size">
+      <varlistentry xml:id="client_max_write_buffer_size" condition="flashmq ≥ 1.4.4">
         <term><option>client_max_write_buffer_size</option> <replaceable>bytes</replaceable></term>
         <listitem>
           <para>
@@ -276,7 +276,7 @@ multi-value-param one 'two' "three" "with ' char"
           </para>
         </listitem>
       </varlistentry>
-      <varlistentry xml:id="zero_byte_username_is_anonymous">
+      <varlistentry xml:id="zero_byte_username_is_anonymous" condition="flashmq ≥ 1.11.0">
         <term><option>zero_byte_username_is_anonymous</option> <replaceable>true/false</replaceable></term>
         <listitem>
           <para>
@@ -343,7 +343,7 @@ multi-value-param one 'two' "three" "with ' char"
           </para>
         </listitem>
       </varlistentry>
-      <varlistentry xml:id="save_state_interval">
+      <varlistentry xml:id="save_state_interval" condition="flashmq ≥ 1.15.1">
         <term><option>save_state_interval</option> <replaceable>seconds</replaceable></term>
         <listitem>
           <para>
@@ -377,7 +377,7 @@ multi-value-param one 'two' "three" "with ' char"
           </itemizedlist>
         </listitem>
       </varlistentry>
-      <varlistentry xml:id="max_incoming_topic_alias_value">
+      <varlistentry xml:id="max_incoming_topic_alias_value" condition="flashmq ≥ 1.4.2">
         <term><option>max_incoming_topic_alias_value</option> <replaceable>number</replaceable></term>
         <listitem>
           <para>
@@ -391,7 +391,7 @@ multi-value-param one 'two' "three" "with ' char"
           </para>
         </listitem>
       </varlistentry>
-      <varlistentry xml:id="max_outgoing_topic_alias_value">
+      <varlistentry xml:id="max_outgoing_topic_alias_value" condition="flashmq ≥ 1.4.2">
         <term><option>max_outgoing_topic_alias_value</option> <replaceable>number</replaceable></term>
         <listitem>
           <para>
@@ -433,13 +433,14 @@ multi-value-param one 'two' "three" "with ' char"
           <para>
             Retained messages can be a strain on the server you may not need. You can set various ways of dealing with them:
           </para>
+          <!-- TODO: Turn values into `<varlistentry>` too. -->
           <para>
             <filename>enabled</filename>. This is normal operation.
           </para>
-          <para>
+          <para condition="flashmq ≥ 1.15.1">
             <filename>enabled_without_persistence</filename>. Like 'normal', except it won't store them to disk if <option>storage_dir</option> is defined.
           </para>
-          <para>
+          <para condition="flashmq ≥ 1.16.0">
             <filename>enabled_without_retaining</filename>. This somewhat counter-intuitive sounding mode is like <option>downgrade</option>, except that the 'retain' flag is not removed. This allows MQTT5 subscribers that subscribe with 'retain as published' to see which messages were originally sent as retained. It's just that FlashMQ won't retain them.
           </para>
           <para>
@@ -469,7 +470,7 @@ multi-value-param one 'two' "three" "with ' char"
         </listitem>
       </varlistentry>
 
-      <varlistentry xml:id="retained_messages_delivery_limit">
+      <varlistentry xml:id="retained_messages_delivery_limit" condition="flashmq ≥ 1.6.7">
         <term><option>retained_messages_delivery_limit</option> <replaceable>number</replaceable></term>
         <listitem>
           <para>
@@ -478,7 +479,7 @@ multi-value-param one 'two' "three" "with ' char"
         </listitem>
       </varlistentry>
 
-      <varlistentry xml:id="retained_messages_node_limit">
+      <varlistentry xml:id="retained_messages_node_limit" condition="flashmq ≥ 1.8.4">
         <term><option>retained_messages_node_limit</option> <replaceable>number</replaceable></term>
         <listitem>
           <para>
@@ -493,7 +494,7 @@ multi-value-param one 'two' "three" "with ' char"
         </listitem>
       </varlistentry>
 
-      <varlistentry xml:id="set_retained_message_defer_timeout">
+      <varlistentry xml:id="set_retained_message_defer_timeout" condition="flashmq ≥ 1.14.0">
         <term><option>set_retained_message_defer_timeout</option> <replaceable>milliseconds</replaceable></term>
         <listitem>
           <para>
@@ -517,7 +518,7 @@ multi-value-param one 'two' "three" "with ' char"
         </listitem>
       </varlistentry>
 
-      <varlistentry xml:id="set_retained_message_defer_timeout_spread">
+      <varlistentry xml:id="set_retained_message_defer_timeout_spread" condition="flashmq ≥ 1.14.0">
         <term><option>set_retained_message_defer_timeout_spread</option> <replaceable>milliseconds</replaceable></term>
         <listitem>
           <para>
@@ -529,7 +530,7 @@ multi-value-param one 'two' "three" "with ' char"
         </listitem>
       </varlistentry>
 
-      <varlistentry xml:id="retained_message_node_lifetime">
+      <varlistentry xml:id="retained_message_node_lifetime" condition="flashmq ≥ 1.14.0">
         <term><option>retained_message_node_lifetime</option> <replaceable>seconds</replaceable></term>
         <listitem>
           <para>
@@ -544,7 +545,7 @@ multi-value-param one 'two' "three" "with ' char"
         </listitem>
       </varlistentry>
 
-      <varlistentry xml:id="subscription_node_lifetime">
+      <varlistentry xml:id="subscription_node_lifetime" condition="flashmq ≥ 1.15.1">
         <term><option>subscription_node_lifetime</option> <replaceable>seconds</replaceable></term>
         <listitem>
           <para>
@@ -559,7 +560,7 @@ multi-value-param one 'two' "three" "with ' char"
         </listitem>
       </varlistentry>
 
-      <varlistentry xml:id="websocket_set_real_ip_from">
+      <varlistentry xml:id="websocket_set_real_ip_from" condition="flashmq ≥ 1.2.0">
         <term><option>websocket_set_real_ip_from</option> <replaceable>inet4_address/inet6_address</replaceable></term>
         <listitem>
           <para>
@@ -577,7 +578,7 @@ multi-value-param one 'two' "three" "with ' char"
         </listitem>
       </varlistentry>
 
-      <varlistentry xml:id="shared_subscription_targeting">
+      <varlistentry xml:id="shared_subscription_targeting" condition="flashmq ≥ 1.2.0">
         <term><option>shared_subscription_targeting</option> <replaceable>round_robin/sender_hash</replaceable></term>
         <listitem>
           <para>
@@ -595,7 +596,7 @@ multi-value-param one 'two' "three" "with ' char"
         </listitem>
       </varlistentry>
 
-      <varlistentry xml:id="minimum_wildcard_subscription_depth">
+      <varlistentry xml:id="minimum_wildcard_subscription_depth" condition="flashmq ≥ 1.9.0">
         <term><option>minimum_wildcard_subscription_depth</option> <replaceable>number</replaceable></term>
         <listitem>
           <para>
@@ -610,7 +611,7 @@ multi-value-param one 'two' "three" "with ' char"
         </listitem>
       </varlistentry>
 
-      <varlistentry xml:id="wildcard_subscription_deny_mode">
+      <varlistentry xml:id="wildcard_subscription_deny_mode" condition="flashmq ≥ 1.9.0">
         <term><option>wildcard_subscription_deny_mode</option> <replaceable>deny_all/deny_retained_only</replaceable></term>
         <listitem>
           <para>
@@ -622,7 +623,7 @@ multi-value-param one 'two' "three" "with ' char"
         </listitem>
       </varlistentry>
 
-      <varlistentry xml:id="overload_mode">
+      <varlistentry xml:id="overload_mode" condition="flashmq ≥ 1.12.0">
         <term><option>overload_mode</option> <replaceable>log/close_new_clients</replaceable></term>
         <listitem>
           <para>
@@ -643,7 +644,7 @@ multi-value-param one 'two' "three" "with ' char"
         </listitem>
       </varlistentry>
 
-      <varlistentry xml:id="max_event_loop_drift">
+      <varlistentry xml:id="max_event_loop_drift" condition="flashmq ≥ 1.12.0">
         <term><option>max_event_loop_drift</option> <replaceable>milliseconds</replaceable></term>
         <listitem>
           <para>
@@ -658,7 +659,7 @@ multi-value-param one 'two' "three" "with ' char"
         </listitem>
       </varlistentry>
 
-      <varlistentry xml:id="include_dir">
+      <varlistentry xml:id="include_dir" condition="flashmq ≥ 1.7.0">
         <term><option>include_dir</option> <replaceable>/path/to/dir</replaceable></term>
         <listitem>
           <para>
@@ -780,7 +781,7 @@ multi-value-param one 'two' "three" "with ' char"
         </listitem>
       </varlistentry>
 
-      <varlistentry xml:id="client_verification_ca_file">
+      <varlistentry xml:id="client_verification_ca_file" condition="flashmq ≥ 1.8.0">
         <term><option>client_verification_ca_file</option> <replaceable>/foobar/client_authority.crt</replaceable></term>
         <listitem>
           <para>
@@ -792,7 +793,7 @@ multi-value-param one 'two' "three" "with ' char"
         </listitem>
       </varlistentry>
 
-      <varlistentry xml:id="client_verification_ca_dir">
+      <varlistentry xml:id="client_verification_ca_dir" condition="flashmq ≥ 1.8.0">
         <term><option>client_verification_ca_dir</option> <replaceable>/foobar/dir_with_certificates</replaceable></term>
         <listitem>
           <para>
@@ -807,7 +808,7 @@ multi-value-param one 'two' "three" "with ' char"
         </listitem>
       </varlistentry>
 
-      <varlistentry xml:id="client_verification_still_do_authn">
+      <varlistentry xml:id="client_verification_still_do_authn" condition="flashmq ≥ 1.8.0">
         <term><option>client_verification_still_do_authn</option> <replaceable>true/false</replaceable></term>
         <listitem>
           <para>
@@ -816,7 +817,7 @@ multi-value-param one 'two' "three" "with ' char"
         </listitem>
       </varlistentry>
 
-      <varlistentry xml:id="listen__allow_anonymous">
+      <varlistentry xml:id="listen__allow_anonymous" condition="flashmq ≥ 1.10.0">
         <term><option>allow_anonymous</option> <replaceable>true/false</replaceable></term>
         <listitem>
           <para>
@@ -825,7 +826,7 @@ multi-value-param one 'two' "three" "with ' char"
         </listitem>
       </varlistentry>
 
-      <varlistentry xml:id="haproxy">
+      <varlistentry xml:id="haproxy" condition="flashmq ≥ 1.1.0">
         <term><option>haproxy</option> <replaceable>true/false</replaceable></term>
         <listitem>
           <para>
@@ -843,7 +844,7 @@ multi-value-param one 'two' "three" "with ' char"
         </listitem>
       </varlistentry>
 
-      <varlistentry xml:id="tcp_nodelay">
+      <varlistentry xml:id="tcp_nodelay" condition="flashmq ≥ 1.13.0">
         <term><option>tcp_nodelay</option> <replaceable>true/false</replaceable></term>
         <listitem>
           <para>
@@ -911,7 +912,7 @@ listen {
 }]]></literallayout>
   </refsect1>
 
-  <refsect1 xml:id="bridge">
+  <refsect1 xml:id="bridge" condition="flashmq ≥ 1.7.0">
     <title>Bridge configuration</title>
     <para>
        Bridges can be defined inside <literal>bridge { }</literal> blocks. A bridge is essentially just an outgoing connection to another server with loop-detection and retain flag relaying. It is not a form of clustering. Also note that one bridge is one connection, and because FlashMQ's threading model is that clients are serviced by one selected thread only, a bridge has the potential to saturate a thread, if it's heavily loaded. You could work around that by defining multiple bridges to the same server, for various topic paths. A future version of FlashMQ will likely improve upon this.
@@ -922,7 +923,7 @@ listen {
     </para>
 
     <variablelist>
-      <varlistentry xml:id="bridge__address">
+      <varlistentry xml:id="bridge__address" condition="flashmq ≥ 1.7.0">
         <term><option>address</option> <replaceable>address</replaceable></term>
         <listitem>
           <para>
@@ -931,7 +932,7 @@ listen {
         </listitem>
       </varlistentry>
 
-      <varlistentry xml:id="bridge__port">
+      <varlistentry xml:id="bridge__port" condition="flashmq ≥ 1.7.0">
         <term><option>port</option> <replaceable>number</replaceable></term>
         <listitem>
           <para>
@@ -940,7 +941,7 @@ listen {
         </listitem>
       </varlistentry>
 
-      <varlistentry xml:id="bridge__inet_protocol">
+      <varlistentry xml:id="bridge__inet_protocol" condition="flashmq ≥ 1.7.0">
         <term><option>inet_protocol</option> <replaceable>ip4_ip6/ip4/ip6</replaceable></term>
         <listitem>
           <para>
@@ -949,7 +950,7 @@ listen {
         </listitem>
       </varlistentry>
 
-      <varlistentry xml:id="bridge__tls">
+      <varlistentry xml:id="bridge__tls" condition="flashmq ≥ 1.7.0">
         <term><option>tls</option> <replaceable>off/on/unverified</replaceable></term>
         <listitem>
           <para>
@@ -958,7 +959,7 @@ listen {
         </listitem>
       </varlistentry>
 
-      <varlistentry xml:id="bridge__ca_file">
+      <varlistentry xml:id="bridge__ca_file" condition="flashmq ≥ 1.7.0">
         <term><option>ca_file</option> <replaceable>path</replaceable></term>
         <listitem>
           <para>
@@ -967,7 +968,7 @@ listen {
         </listitem>
       </varlistentry>
 
-      <varlistentry xml:id="bridge__ca_dir">
+      <varlistentry xml:id="bridge__ca_dir" condition="flashmq ≥ 1.7.0">
         <term><option>ca_dir</option> <replaceable>path</replaceable></term>
         <listitem>
           <para>
@@ -976,7 +977,7 @@ listen {
         </listitem>
       </varlistentry>
 
-      <varlistentry xml:id="bridge__protocol_version">
+      <varlistentry xml:id="bridge__protocol_version" condition="flashmq ≥ 1.7.0">
         <term><option>protocol_version</option> <replaceable>mqtt3.1/mqtt3.1.1/mqtt5</replaceable></term>
         <listitem>
           <para>
@@ -985,7 +986,7 @@ listen {
         </listitem>
       </varlistentry>
 
-      <varlistentry xml:id="bridge__bridge_protocol_bit">
+      <varlistentry xml:id="bridge__bridge_protocol_bit" condition="flashmq ≥ 1.7.0">
         <term><option>bridge_protocol_bit</option> <replaceable>true/false</replaceable></term>
         <listitem>
           <para>
@@ -1000,7 +1001,7 @@ listen {
         </listitem>
       </varlistentry>
 
-      <varlistentry xml:id="bridge__keepalive">
+      <varlistentry xml:id="bridge__keepalive" condition="flashmq ≥ 1.7.0">
         <term><option>keepalive</option> <replaceable>seconds</replaceable></term>
         <listitem>
           <para>
@@ -1012,7 +1013,7 @@ listen {
         </listitem>
       </varlistentry>
 
-      <varlistentry xml:id="bridge__clientid_prefix">
+      <varlistentry xml:id="bridge__clientid_prefix" condition="flashmq ≥ 1.7.0">
         <term><option>clientid_prefix</option> <replaceable>prefix</replaceable></term>
         <listitem>
           <para>
@@ -1024,7 +1025,7 @@ listen {
         </listitem>
       </varlistentry>
 
-      <varlistentry xml:id="bridge__publish">
+      <varlistentry xml:id="bridge__publish" condition="flashmq ≥ 1.7.0">
         <term><option>publish</option> <replaceable>filter</replaceable> <replaceable>qos</replaceable></term>
         <listitem>
           <para>
@@ -1039,7 +1040,7 @@ listen {
         </listitem>
       </varlistentry>
 
-      <varlistentry xml:id="bridge__subscribe">
+      <varlistentry xml:id="bridge__subscribe" condition="flashmq ≥ 1.7.0">
         <term><option>subscribe</option> <replaceable>filter</replaceable> <replaceable>qos</replaceable></term>
         <listitem>
           <para>
@@ -1054,7 +1055,7 @@ listen {
         </listitem>
       </varlistentry>
 
-      <varlistentry xml:id="bridge__local_username">
+      <varlistentry xml:id="bridge__local_username" condition="flashmq ≥ 1.7.0">
         <term><option>local_username</option> <replaceable>username</replaceable></term>
         <listitem>
           <para>
@@ -1063,7 +1064,7 @@ listen {
         </listitem>
       </varlistentry>
 
-      <varlistentry xml:id="bridge__remote_username">
+      <varlistentry xml:id="bridge__remote_username" condition="flashmq ≥ 1.7.0">
         <term><option>remote_username</option> <replaceable>username</replaceable></term>
         <listitem>
           <para>
@@ -1072,7 +1073,7 @@ listen {
         </listitem>
       </varlistentry>
 
-      <varlistentry xml:id="bridge__remote_password">
+      <varlistentry xml:id="bridge__remote_password" condition="flashmq ≥ 1.7.0">
         <term><option>remote_password</option> <replaceable>password</replaceable></term>
         <listitem>
           <para>
@@ -1081,7 +1082,7 @@ listen {
         </listitem>
       </varlistentry>
 
-      <varlistentry xml:id="bridge__remote_clean_start">
+      <varlistentry xml:id="bridge__remote_clean_start" condition="flashmq ≥ 1.7.0">
         <term><option>remote_clean_start</option> <replaceable>true/false</replaceable></term>
         <listitem>
           <para>
@@ -1099,7 +1100,7 @@ listen {
         </listitem>
       </varlistentry>
 
-      <varlistentry xml:id="bridge__local_clean_start">
+      <varlistentry xml:id="bridge__local_clean_start" condition="flashmq ≥ 1.7.0">
         <term><option>local_clean_start</option> <replaceable>true/false</replaceable></term>
         <listitem>
           <para>
@@ -1117,7 +1118,7 @@ listen {
         </listitem>
       </varlistentry>
 
-      <varlistentry xml:id="bridge__remote_session_expiry_interval">
+      <varlistentry xml:id="bridge__remote_session_expiry_interval" condition="flashmq ≥ 1.7.0">
         <term><option>remote_session_expiry_interval</option> <replaceable>seconds</replaceable></term>
         <listitem>
           <para>
@@ -1129,7 +1130,7 @@ listen {
         </listitem>
       </varlistentry>
 
-      <varlistentry xml:id="bridge__local_session_expiry_interval">
+      <varlistentry xml:id="bridge__local_session_expiry_interval" condition="flashmq ≥ 1.7.0">
         <term><option>local_session_expiry_interval</option> <replaceable>seconds</replaceable></term>
         <listitem>
           <para>
@@ -1141,7 +1142,7 @@ listen {
         </listitem>
       </varlistentry>
 
-      <varlistentry xml:id="bridge__remote_retain_available">
+      <varlistentry xml:id="bridge__remote_retain_available" condition="flashmq ≥ 1.7.0">
         <term><option>remote_retain_available</option> <replaceable>true/false</replaceable></term>
         <listitem>
           <para>
@@ -1156,7 +1157,7 @@ listen {
         </listitem>
       </varlistentry>
 
-      <varlistentry xml:id="bridge__use_saved_clientid">
+      <varlistentry xml:id="bridge__use_saved_clientid" condition="flashmq ≥ 1.7.0">
         <term><option>use_saved_clientid</option> <replaceable>true/false</replaceable></term>
         <listitem>
           <para>
@@ -1174,7 +1175,7 @@ listen {
         </listitem>
       </varlistentry>
 
-      <varlistentry xml:id="bridge__max_outgoing_topic_aliases">
+      <varlistentry xml:id="bridge__max_outgoing_topic_aliases" condition="flashmq ≥ 1.7.0">
         <term><option>max_outgoing_topic_aliases</option> <replaceable>amount</replaceable></term>
         <listitem>
           <para>
@@ -1186,7 +1187,7 @@ listen {
         </listitem>
       </varlistentry>
 
-      <varlistentry xml:id="bridge__max_incoming_topic_aliases">
+      <varlistentry xml:id="bridge__max_incoming_topic_aliases" condition="flashmq ≥ 1.7.0">
         <term><option>max_incoming_topic_aliases</option> <replaceable>amount</replaceable></term>
         <listitem>
           <para>
@@ -1198,7 +1199,7 @@ listen {
         </listitem>
       </varlistentry>
 
-      <varlistentry xml:id="bridge__tcp_nodelay">
+      <varlistentry xml:id="bridge__tcp_nodelay" condition="flashmq ≥ 1.13.0">
         <term><option>tcp_nodelay</option> <replaceable>true/false</replaceable></term>
         <listitem>
           <para>
@@ -1216,7 +1217,7 @@ listen {
     </variablelist>
   </refsect1>
 
-  <refsect1 xml:id="example_bridge">
+  <refsect1 xml:id="example_bridge" condition="flashmq ≥ 1.7.0">
     <title>Example bridge</title>
 
     <literallayout language="flashmq.conf" class="monospaced"><![CDATA[bridge {

@@ -163,6 +163,43 @@
             background-color: white;
           }
         }
+      </style><style xmlns="http://docbook.org/ns/docbook" xmlns:dbk="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:semver="https://semver.org/spec/v2.0.0.html" xmlns:fmq="http://www.flashmq.org/man/" type="text/css" media="screen">
+        html[data-color-scheme=light] {
+          --compatible-flashmq-version-color: #209020;
+          --incompatible-flashmq-version-color: crimson;
+          --flashmq-version-weight: bold;
+        }
+        html[data-color-scheme=dark] {
+          --compatible-flashmq-version-color: #5cdd5c;
+          --incompatible-flashmq-version-color: #fd5c5c;
+          --flashmq-version-weight: normal;
+        }
+
+        .flashmq_version_requirement {
+          float: right;
+          color: var(--main-color);
+          font-size: .9rem;
+          font-weight: var(--flashmq-version-weight);
+
+          &.compatible-with-selected-flashmq-version {
+            color: var(--compatible-flashmq-version-color);
+          }
+          &.incompatible-with-selected-flashmq-version {
+            color: var(--incompatible-flashmq-version-color);
+          }
+        }
+
+        #flashmq-version-nav {
+          position: sticky;
+          top: 0;
+        }
+
+        #select-flashmq-version {
+          float: right;
+          margin-top: 4px;
+          padding: 4px;
+          font-size: .8rem;
+        }
       </style></head><body><nav class="color-scheme-switch" hidden="true"><input type="radio" id="color-scheme-browser-default" checked name="color-scheme" value=""></input><label for="color-scheme-browser-default" title="Follow browser default">A</label><input type="radio" id="color-scheme-light" name="color-scheme" value="light"></input><label for="color-scheme-light" title="Change to light theme">☀</label><input type="radio" id="color-scheme-dark" name="color-scheme" value="dark"></input><label for="color-scheme-dark" title="Change to dark theme">⏾</label></nav><script>
       function setColorScheme(colorScheme) {
         if (!colorScheme) {
@@ -181,13 +218,10 @@
           return localValue;
         }
 
-        console.log('A');
-
         const browserValue = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
         if (browserValue !== null) {
           return browserValue;
         }
-        console.log('B');
 
         return document.querySelector('html').dataset.fallbackColorScheme;
       }
@@ -208,7 +242,7 @@
           });
         });
       });
-      </script><article id="flashmq.1"><header><h1>flashmq<code class="manvolnum"> (1)</code></h1><h2 class="refpurpose">A fast light-weight scalable MQTT server</h2></header><section class="refsynopsisdiv"><header><h2>Synopsis</h2></header>
+      </script><article id="flashmq.1"><nav xmlns="http://docbook.org/ns/docbook" xmlns:dbk="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:semver="https://semver.org/spec/v2.0.0.html" xmlns:fmq="http://www.flashmq.org/man/" id="flashmq-version-nav"><select id="select-flashmq-version"><option value="" selected>latest</option></select></nav><header><h1>flashmq<code class="manvolnum"> (1)</code></h1><h2 class="refpurpose">A fast light-weight scalable MQTT server</h2></header><section class="refsynopsisdiv"><header><h2>Synopsis</h2></header>
     <pre class="cmdsynopsis"><code class="command">flashmq</code> [<a href="#config-file">-c</a> | <a href="#config-file">--config-file</a> <code class="replaceable">config_file_path</code>] [<a href="#test-config">-t</a> | <a href="#test-config">--test-config</a>] |
      [<a href="#help">-h</a> | <a href="#help">--help</a>] |
      [<a href="#version">-v</a> | <a href="#version">--version</a>] |
@@ -335,4 +369,83 @@
     The sources for the FlashMQ manual pages are maintained in <a href="https://tdg.docbook.org/tdg/5.2/">DocBook 5.2</a> XML files.  The transformation to the multiple destination file formats is done using a bunch of XSLT 1.0 sheets, contributed to this project by Rowan van der Molen.
   </p>
   
-</section></article></body></html>
+</section></article><script xmlns="http://docbook.org/ns/docbook" xmlns:dbk="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:semver="https://semver.org/spec/v2.0.0.html" xmlns:fmq="http://www.flashmq.org/man/">
+function parseSemver(semver) {
+  const re = /^(?<major>0|[1-9]\d*)\.(?<minor>0|[1-9]\d*)\.(?<patch>0|[1-9]\d*)(?:-(?<prerelease>(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+(?<buildmetadata>[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/;
+  const { major, minor, patch, prerelease, buildmetadata } = re.exec(semver).groups;
+  return {
+    major: parseInt(major),
+    minor: parseInt(minor),
+    patch: parseInt(patch),
+    prerelease: prerelease,
+    buildmetadata: buildmetadata,
+  };
+}
+
+function compareSemver(a, b) {
+  const a_obj = parseSemver(a);
+  const b_obj = parseSemver(b);
+
+  if (a_obj.major < b_obj.major) return -1;
+  if (a_obj.major > b_obj.major) return 1;
+  if (a_obj.minor < b_obj.minor) return -1;
+  if (a_obj.minor > b_obj.minor) return 1;
+  if (a_obj.patch < b_obj.patch) return -1;
+  if (a_obj.patch > b_obj.patch) return 1;
+  if (a_obj.prerelease !== null && b_obj.prerelease === null) return -1;
+  if (a_obj.prerelease === null && b_obj.prerelease !== null) return 1;
+  // NOTE: prereleases are not taken into account and probably will never need to, because, though Wiebe
+  //       may start to do prereleases, new options and option values will then almost certainly be bound
+  //       to the main (major + minor + patch) version to which the prerelease identifiers are appended.
+
+  return 0;
+}
+
+function applySelectedFlashmqVersion(selectElement) {
+  console.assert(selectElement instanceof HTMLSelectElement);
+
+  const selectedVersion = selectElement.selectedOptions[0].value;
+
+  for (const el of document.querySelectorAll('[data-since-flashmq-version]')) {
+    const contentAppliesSinceVersion = el.dataset.sinceFlashmqVersion;
+    if (selectedVersion !== '' && compareSemver(contentAppliesSinceVersion, selectedVersion) > 0) {
+      el.classList.add('incompatible-with-selected-flashmq-version');
+      el.classList.remove('compatible-with-selected-flashmq-version');
+    }
+    else {
+      el.classList.add('compatible-with-selected-flashmq-version');
+      el.classList.remove('incompatible-with-selected-flashmq-version');
+    }
+  }
+
+  const url = new URL(window.location.href);
+  const searchParams = new URLSearchParams(url.search);
+  if (selectedVersion === '') {
+    searchParams.delete('v');
+  }
+  else {
+    searchParams.set('v', selectedVersion);
+  }
+  url.search = searchParams.toString();
+  history.pushState({}, '', url);
+}
+
+const selectFlashmqVersionElement = document.getElementById('select-flashmq-version');
+selectFlashmqVersionElement.addEventListener('change', (e) => {
+  applySelectedFlashmqVersion(e.target);
+});
+
+const url = new URL(window.location.href);
+if (url.search) {
+  if (url.searchParams.has('v')) {
+    const versionFromUrl = url.searchParams.get('v');
+    for (const opt of selectFlashmqVersionElement.options) {
+      if (opt.value === versionFromUrl) {
+        opt.selected = true;
+      }
+    }
+  }
+}
+
+applySelectedFlashmqVersion(selectFlashmqVersionElement);
+    </script></body></html>

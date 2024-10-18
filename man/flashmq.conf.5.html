@@ -163,6 +163,43 @@
             background-color: white;
           }
         }
+      </style><style xmlns="http://docbook.org/ns/docbook" xmlns:dbk="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:semver="https://semver.org/spec/v2.0.0.html" xmlns:fmq="http://www.flashmq.org/man/" type="text/css" media="screen">
+        html[data-color-scheme=light] {
+          --compatible-flashmq-version-color: #209020;
+          --incompatible-flashmq-version-color: crimson;
+          --flashmq-version-weight: bold;
+        }
+        html[data-color-scheme=dark] {
+          --compatible-flashmq-version-color: #5cdd5c;
+          --incompatible-flashmq-version-color: #fd5c5c;
+          --flashmq-version-weight: normal;
+        }
+
+        .flashmq_version_requirement {
+          float: right;
+          color: var(--main-color);
+          font-size: .9rem;
+          font-weight: var(--flashmq-version-weight);
+
+          &.compatible-with-selected-flashmq-version {
+            color: var(--compatible-flashmq-version-color);
+          }
+          &.incompatible-with-selected-flashmq-version {
+            color: var(--incompatible-flashmq-version-color);
+          }
+        }
+
+        #flashmq-version-nav {
+          position: sticky;
+          top: 0;
+        }
+
+        #select-flashmq-version {
+          float: right;
+          margin-top: 4px;
+          padding: 4px;
+          font-size: .8rem;
+        }
       </style></head><body><nav class="color-scheme-switch" hidden="true"><input type="radio" id="color-scheme-browser-default" checked name="color-scheme" value=""></input><label for="color-scheme-browser-default" title="Follow browser default">A</label><input type="radio" id="color-scheme-light" name="color-scheme" value="light"></input><label for="color-scheme-light" title="Change to light theme">☀</label><input type="radio" id="color-scheme-dark" name="color-scheme" value="dark"></input><label for="color-scheme-dark" title="Change to dark theme">⏾</label></nav><script>
       function setColorScheme(colorScheme) {
         if (!colorScheme) {
@@ -181,13 +218,10 @@
           return localValue;
         }
 
-        console.log('A');
-
         const browserValue = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
         if (browserValue !== null) {
           return browserValue;
         }
-        console.log('B');
 
         return document.querySelector('html').dataset.fallbackColorScheme;
       }
@@ -208,7 +242,7 @@
           });
         });
       });
-      </script><article id="flashmq.conf.5"><header><h1>flashmq.conf<code class="manvolnum"> (5)</code></h1><h2 class="refpurpose">FlashMQ configuration file format</h2></header><section class="refsynopsisdiv" id="synopsis"><header><h2>Synopsis</h2></header>
+      </script><article id="flashmq.conf.5"><nav xmlns="http://docbook.org/ns/docbook" xmlns:dbk="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:semver="https://semver.org/spec/v2.0.0.html" xmlns:fmq="http://www.flashmq.org/man/" id="flashmq-version-nav"><select id="select-flashmq-version"><option value="" selected>latest</option><option value="1.16.0">≥ v1.16.0</option><option value="1.15.1">≥ v1.15.1</option><option value="1.14.0">≥ v1.14.0</option><option value="1.13.0">≥ v1.13.0</option><option value="1.12.0">≥ v1.12.0</option><option value="1.11.0">≥ v1.11.0</option><option value="1.10.0">≥ v1.10.0</option><option value="1.9.0">≥ v1.9.0</option><option value="1.8.4">≥ v1.8.4</option><option value="1.8.0">≥ v1.8.0</option><option value="1.7.0">≥ v1.7.0</option><option value="1.6.7">≥ v1.6.7</option><option value="1.4.4">≥ v1.4.4</option><option value="1.4.2">≥ v1.4.2</option><option value="1.2.0">≥ v1.2.0</option><option value="1.1.0">≥ v1.1.0</option></select></nav><header><h1>flashmq.conf<code class="manvolnum"> (5)</code></h1><h2 class="refpurpose">FlashMQ configuration file format</h2></header><section class="refsynopsisdiv" id="synopsis"><header><h2>Synopsis</h2></header>
     <p>
        The <code class="filename">flashmq.conf</code> file is the configuration used for configuring the FlashMQ MQTT broker.
     </p>
@@ -322,7 +356,7 @@ multi-value-param one 'two' "three" "with ' char"
         </dd>
       
       
-        <dt id="log_level"><code class="option">log_level</code> <code class="replaceable">info/notice/warning/error/none</code><a class="hash-anchor" href="#log_level">#</a></dt>
+        <dt id="log_level"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.11.0">≥ v1.11.0</div><code class="option">log_level</code> <code class="replaceable">info/notice/warning/error/none</code><a class="hash-anchor" href="#log_level">#</a></dt>
         <dd>
           <p>
             Set the log level to specified level and above. That means <code class="replaceable">notice</code> will log <code class="replaceable">notice</code>, <code class="replaceable">warning</code> and <code class="replaceable">error</code>.
@@ -394,7 +428,7 @@ multi-value-param one 'two' "three" "with ' char"
         </dd>
       
       
-        <dt id="client_max_write_buffer_size"><code class="option">client_max_write_buffer_size</code> <code class="replaceable">bytes</code><a class="hash-anchor" href="#client_max_write_buffer_size">#</a></dt>
+        <dt id="client_max_write_buffer_size"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.4.4">≥ v1.4.4</div><code class="option">client_max_write_buffer_size</code> <code class="replaceable">bytes</code><a class="hash-anchor" href="#client_max_write_buffer_size">#</a></dt>
         <dd>
           <p>
             The client's write buffer is where packets are stored before the event loop has the chance to flush them out. Any time a client's connection is bad and bytes can't be flushed, this buffer fills. So, there's good reason to limit this to something sensible. A good indication is your average packet size (or better yet, a configured <code class="option">max_packet_size</code>) multiplied by the amount of packets you want to be able to buffer.
@@ -458,7 +492,7 @@ multi-value-param one 'two' "three" "with ' char"
         </dd>
       
       
-        <dt id="zero_byte_username_is_anonymous"><code class="option">zero_byte_username_is_anonymous</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#zero_byte_username_is_anonymous">#</a></dt>
+        <dt id="zero_byte_username_is_anonymous"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.11.0">≥ v1.11.0</div><code class="option">zero_byte_username_is_anonymous</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#zero_byte_username_is_anonymous">#</a></dt>
         <dd>
           <p>
             The proper way to signal an anonymous client is by setting the 'username present' flag in the CONNECT packet to 0, which in MQTT3 also demands the absence of a password. However, there are also clients out there that set the 'username present' flag to 1 and then give an empty username. This is an undesirable situation, because it means there are two ways to identify an anonymous client.
@@ -525,7 +559,7 @@ multi-value-param one 'two' "three" "with ' char"
         </dd>
       
       
-        <dt id="save_state_interval"><code class="option">save_state_interval</code> <code class="replaceable">seconds</code><a class="hash-anchor" href="#save_state_interval">#</a></dt>
+        <dt id="save_state_interval"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.15.1">≥ v1.15.1</div><code class="option">save_state_interval</code> <code class="replaceable">seconds</code><a class="hash-anchor" href="#save_state_interval">#</a></dt>
         <dd>
           <p>
             The interval at which the state is saved, if enabled with <code class="option">storage_dir</code>.
@@ -559,7 +593,7 @@ multi-value-param one 'two' "three" "with ' char"
         </dd>
       
       
-        <dt id="max_incoming_topic_alias_value"><code class="option">max_incoming_topic_alias_value</code> <code class="replaceable">number</code><a class="hash-anchor" href="#max_incoming_topic_alias_value">#</a></dt>
+        <dt id="max_incoming_topic_alias_value"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.4.2">≥ v1.4.2</div><code class="option">max_incoming_topic_alias_value</code> <code class="replaceable">number</code><a class="hash-anchor" href="#max_incoming_topic_alias_value">#</a></dt>
         <dd>
           <p>
             Is communicated towards MQTT5 clients. It is then up to them to decide to set them or not.
@@ -573,7 +607,7 @@ multi-value-param one 'two' "three" "with ' char"
         </dd>
       
       
-        <dt id="max_outgoing_topic_alias_value"><code class="option">max_outgoing_topic_alias_value</code> <code class="replaceable">number</code><a class="hash-anchor" href="#max_outgoing_topic_alias_value">#</a></dt>
+        <dt id="max_outgoing_topic_alias_value"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.4.2">≥ v1.4.2</div><code class="option">max_outgoing_topic_alias_value</code> <code class="replaceable">number</code><a class="hash-anchor" href="#max_outgoing_topic_alias_value">#</a></dt>
         <dd>
           <p>
             FlashMQ will make this many aliases per MQTT5 client, if they ask for aliases (with the connect property <code class="option">TopicAliasMaximum</code>).
@@ -614,13 +648,14 @@ multi-value-param one 'two' "three" "with ' char"
           <p>
             Retained messages can be a strain on the server you may not need. You can set various ways of dealing with them:
           </p>
+          
           <p>
             <code class="filename">enabled</code>. This is normal operation.
           </p>
-          <p>
+          <p data-since-flashmq-version="1.15.1">
             <code class="filename">enabled_without_persistence</code>. Like 'normal', except it won't store them to disk if <code class="option">storage_dir</code> is defined.
           </p>
-          <p>
+          <p data-since-flashmq-version="1.16.0">
             <code class="filename">enabled_without_retaining</code>. This somewhat counter-intuitive sounding mode is like <code class="option">downgrade</code>, except that the 'retain' flag is not removed. This allows MQTT5 subscribers that subscribe with 'retain as published' to see which messages were originally sent as retained. It's just that FlashMQ won't retain them.
           </p>
           <p>
@@ -651,7 +686,7 @@ multi-value-param one 'two' "three" "with ' char"
       
 
       
-        <dt id="retained_messages_delivery_limit"><code class="option">retained_messages_delivery_limit</code> <code class="replaceable">number</code><a class="hash-anchor" href="#retained_messages_delivery_limit">#</a></dt>
+        <dt id="retained_messages_delivery_limit"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.6.7">≥ v1.6.7</div><code class="option">retained_messages_delivery_limit</code> <code class="replaceable">number</code><a class="hash-anchor" href="#retained_messages_delivery_limit">#</a></dt>
         <dd>
           <p>
             Deprecated.
@@ -660,7 +695,7 @@ multi-value-param one 'two' "three" "with ' char"
       
 
       
-        <dt id="retained_messages_node_limit"><code class="option">retained_messages_node_limit</code> <code class="replaceable">number</code><a class="hash-anchor" href="#retained_messages_node_limit">#</a></dt>
+        <dt id="retained_messages_node_limit"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.8.4">≥ v1.8.4</div><code class="option">retained_messages_node_limit</code> <code class="replaceable">number</code><a class="hash-anchor" href="#retained_messages_node_limit">#</a></dt>
         <dd>
           <p>
             When clients place a subscription, they will get the retained messages matching that subscription. Even though traversing the retained message tree is deprioritized in favor of other traffic, it will still cause CPU load until it's done. If you have a tree with millions of nodes and clients subscribe to `#`, this is potentially unwanted. You can use this setting to limit how many nodes of the retrained tree are traversed. 
@@ -675,7 +710,7 @@ multi-value-param one 'two' "three" "with ' char"
       
 
       
-        <dt id="set_retained_message_defer_timeout"><code class="option">set_retained_message_defer_timeout</code> <code class="replaceable">milliseconds</code><a class="hash-anchor" href="#set_retained_message_defer_timeout">#</a></dt>
+        <dt id="set_retained_message_defer_timeout"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.14.0">≥ v1.14.0</div><code class="option">set_retained_message_defer_timeout</code> <code class="replaceable">milliseconds</code><a class="hash-anchor" href="#set_retained_message_defer_timeout">#</a></dt>
         <dd>
           <p>
             The time after which FlashMQ will fall back to (b)locking vs queued mode for setting retained messages. 0, the default, disables queued mode altogether. It's disabled by default because it can incur some extra CPU and memory overhead.
@@ -699,7 +734,7 @@ multi-value-param one 'two' "three" "with ' char"
       
 
       
-        <dt id="set_retained_message_defer_timeout_spread"><code class="option">set_retained_message_defer_timeout_spread</code> <code class="replaceable">milliseconds</code><a class="hash-anchor" href="#set_retained_message_defer_timeout_spread">#</a></dt>
+        <dt id="set_retained_message_defer_timeout_spread"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.14.0">≥ v1.14.0</div><code class="option">set_retained_message_defer_timeout_spread</code> <code class="replaceable">milliseconds</code><a class="hash-anchor" href="#set_retained_message_defer_timeout_spread">#</a></dt>
         <dd>
           <p>
             For <code class="option">set_retained_message_defer_timeout</code>, the amount of random spread between 0 and this value for the timeout. This spreads out locking over time, reducing contention.
@@ -711,7 +746,7 @@ multi-value-param one 'two' "three" "with ' char"
       
 
       
-        <dt id="retained_message_node_lifetime"><code class="option">retained_message_node_lifetime</code> <code class="replaceable">seconds</code><a class="hash-anchor" href="#retained_message_node_lifetime">#</a></dt>
+        <dt id="retained_message_node_lifetime"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.14.0">≥ v1.14.0</div><code class="option">retained_message_node_lifetime</code> <code class="replaceable">seconds</code><a class="hash-anchor" href="#retained_message_node_lifetime">#</a></dt>
         <dd>
           <p>
             The grace period after which a retained message node is eligible for deletion. The topic 'one/two/three' is three nodes, and if that topic had a message, it would be contained in 'three'.
@@ -726,7 +761,7 @@ multi-value-param one 'two' "three" "with ' char"
       
 
       
-        <dt id="subscription_node_lifetime"><code class="option">subscription_node_lifetime</code> <code class="replaceable">seconds</code><a class="hash-anchor" href="#subscription_node_lifetime">#</a></dt>
+        <dt id="subscription_node_lifetime"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.15.1">≥ v1.15.1</div><code class="option">subscription_node_lifetime</code> <code class="replaceable">seconds</code><a class="hash-anchor" href="#subscription_node_lifetime">#</a></dt>
         <dd>
           <p>
             The grace period after which a subscription node is eligible for deletion. The subscription 'one/two/three' is three nodes.
@@ -741,7 +776,7 @@ multi-value-param one 'two' "three" "with ' char"
       
 
       
-        <dt id="websocket_set_real_ip_from"><code class="option">websocket_set_real_ip_from</code> <code class="replaceable">inet4_address/inet6_address</code><a class="hash-anchor" href="#websocket_set_real_ip_from">#</a></dt>
+        <dt id="websocket_set_real_ip_from"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.2.0">≥ v1.2.0</div><code class="option">websocket_set_real_ip_from</code> <code class="replaceable">inet4_address/inet6_address</code><a class="hash-anchor" href="#websocket_set_real_ip_from">#</a></dt>
         <dd>
           <p>
               HTTP proxies in front of the websocket listeners can set the <code class="replaceable">X-Real-IP</code> header to identify the original connecting client. With <code class="option">websocket_set_real_ip_from</code> you can mark IP networks as trusted. By default, clients are not trusted, to avoid spoofing.
@@ -759,7 +794,7 @@ multi-value-param one 'two' "three" "with ' char"
       
 
       
-        <dt id="shared_subscription_targeting"><code class="option">shared_subscription_targeting</code> <code class="replaceable">round_robin/sender_hash</code><a class="hash-anchor" href="#shared_subscription_targeting">#</a></dt>
+        <dt id="shared_subscription_targeting"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.2.0">≥ v1.2.0</div><code class="option">shared_subscription_targeting</code> <code class="replaceable">round_robin/sender_hash</code><a class="hash-anchor" href="#shared_subscription_targeting">#</a></dt>
         <dd>
           <p>
             When having multiple subscribers on a shared subscription (like '$share/myshare/jane/doe'), select how the messages should be distributed over the subscribers.
@@ -777,7 +812,7 @@ multi-value-param one 'two' "three" "with ' char"
       
 
       
-        <dt id="minimum_wildcard_subscription_depth"><code class="option">minimum_wildcard_subscription_depth</code> <code class="replaceable">number</code><a class="hash-anchor" href="#minimum_wildcard_subscription_depth">#</a></dt>
+        <dt id="minimum_wildcard_subscription_depth"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.9.0">≥ v1.9.0</div><code class="option">minimum_wildcard_subscription_depth</code> <code class="replaceable">number</code><a class="hash-anchor" href="#minimum_wildcard_subscription_depth">#</a></dt>
         <dd>
           <p>
             Defines the minimum level of the first wildcard topic filter (<code class="option">#</code> and <code class="option">+</code>). In a topic filter like <code class="option">sensors/temperature/#</code>, that is 2. If you specify 2, a subscription to <code class="option">sensors/#</code> will be denied. Remember that only MQTT 3.1.1 and newer actually notify the client of the denial in the sub-ack packet.
@@ -792,7 +827,7 @@ multi-value-param one 'two' "three" "with ' char"
       
 
       
-        <dt id="wildcard_subscription_deny_mode"><code class="option">wildcard_subscription_deny_mode</code> <code class="replaceable">deny_all/deny_retained_only</code><a class="hash-anchor" href="#wildcard_subscription_deny_mode">#</a></dt>
+        <dt id="wildcard_subscription_deny_mode"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.9.0">≥ v1.9.0</div><code class="option">wildcard_subscription_deny_mode</code> <code class="replaceable">deny_all/deny_retained_only</code><a class="hash-anchor" href="#wildcard_subscription_deny_mode">#</a></dt>
         <dd>
           <p>
             For <code class="option">minimum_wildcard_subscription_depth</code>, specify what you want to deny. Trying to give a client all retained messages can cause quite some load, so only denying the retained messages upon receiving a broad wildcard subscription can be useful if you have a low enough general message volume, but a high number of retained messages. 
@@ -804,7 +839,7 @@ multi-value-param one 'two' "three" "with ' char"
       
 
       
-        <dt id="overload_mode"><code class="option">overload_mode</code> <code class="replaceable">log/close_new_clients</code><a class="hash-anchor" href="#overload_mode">#</a></dt>
+        <dt id="overload_mode"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.12.0">≥ v1.12.0</div><code class="option">overload_mode</code> <code class="replaceable">log/close_new_clients</code><a class="hash-anchor" href="#overload_mode">#</a></dt>
         <dd>
           <p>
             Define the action to perform when the value defined with <code class="option">max_event_loop_drift</code> is exceeded.
@@ -825,7 +860,7 @@ multi-value-param one 'two' "three" "with ' char"
       
 
       
-        <dt id="max_event_loop_drift"><code class="option">max_event_loop_drift</code> <code class="replaceable">milliseconds</code><a class="hash-anchor" href="#max_event_loop_drift">#</a></dt>
+        <dt id="max_event_loop_drift"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.12.0">≥ v1.12.0</div><code class="option">max_event_loop_drift</code> <code class="replaceable">milliseconds</code><a class="hash-anchor" href="#max_event_loop_drift">#</a></dt>
         <dd>
           <p>
             For <code class="option">overload_mode</code>, the maximum permissible thread drift before the overload action is taken.
@@ -840,7 +875,7 @@ multi-value-param one 'two' "three" "with ' char"
       
 
       
-        <dt id="include_dir"><code class="option">include_dir</code> <code class="replaceable">/path/to/dir</code><a class="hash-anchor" href="#include_dir">#</a></dt>
+        <dt id="include_dir"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.7.0">≥ v1.7.0</div><code class="option">include_dir</code> <code class="replaceable">/path/to/dir</code><a class="hash-anchor" href="#include_dir">#</a></dt>
         <dd>
           <p>
             Load *.conf files from the specified directory, to merge with the main configuration file.
@@ -960,7 +995,7 @@ multi-value-param one 'two' "three" "with ' char"
       
 
       
-        <dt id="client_verification_ca_file"><code class="option">client_verification_ca_file</code> <code class="replaceable">/foobar/client_authority.crt</code><a class="hash-anchor" href="#client_verification_ca_file">#</a></dt>
+        <dt id="client_verification_ca_file"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.8.0">≥ v1.8.0</div><code class="option">client_verification_ca_file</code> <code class="replaceable">/foobar/client_authority.crt</code><a class="hash-anchor" href="#client_verification_ca_file">#</a></dt>
         <dd>
           <p>
             Clients can be authenticated using X509 certificates, and the username taken from the CN (common name) field. Use this directive to specify the certificate authority you trust.
@@ -972,7 +1007,7 @@ multi-value-param one 'two' "three" "with ' char"
       
 
       
-        <dt id="client_verification_ca_dir"><code class="option">client_verification_ca_dir</code> <code class="replaceable">/foobar/dir_with_certificates</code><a class="hash-anchor" href="#client_verification_ca_dir">#</a></dt>
+        <dt id="client_verification_ca_dir"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.8.0">≥ v1.8.0</div><code class="option">client_verification_ca_dir</code> <code class="replaceable">/foobar/dir_with_certificates</code><a class="hash-anchor" href="#client_verification_ca_dir">#</a></dt>
         <dd>
           <p>
             Clients can be authenticated using X509 certificates, and the username taken from the CN (common name) field. Use this directive to specify the dir containing certificate authorities you trust.
@@ -987,7 +1022,7 @@ multi-value-param one 'two' "three" "with ' char"
       
 
       
-        <dt id="client_verification_still_do_authn"><code class="option">client_verification_still_do_authn</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#client_verification_still_do_authn">#</a></dt>
+        <dt id="client_verification_still_do_authn"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.8.0">≥ v1.8.0</div><code class="option">client_verification_still_do_authn</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#client_verification_still_do_authn">#</a></dt>
         <dd>
           <p>
             When using X509 client authentication with <code class="option">client_verification_ca_file</code> or <code class="option">client_verification_ca_dir</code>, the username will not be checked with a user database or a plugin by default. Set this option to <code class="literal">true</code> to override that.
@@ -996,7 +1031,7 @@ multi-value-param one 'two' "three" "with ' char"
       
 
       
-        <dt id="listen__allow_anonymous"><code class="option">allow_anonymous</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#listen__allow_anonymous">#</a></dt>
+        <dt id="listen__allow_anonymous"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.10.0">≥ v1.10.0</div><code class="option">allow_anonymous</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#listen__allow_anonymous">#</a></dt>
         <dd>
           <p>
             This allows you to override the <a href="#allow_anonymous">global <code class="option">allow_anonymous</code></a> setting on the listener level.
@@ -1005,7 +1040,7 @@ multi-value-param one 'two' "three" "with ' char"
       
 
       
-        <dt id="haproxy"><code class="option">haproxy</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#haproxy">#</a></dt>
+        <dt id="haproxy"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.1.0">≥ v1.1.0</div><code class="option">haproxy</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#haproxy">#</a></dt>
         <dd>
           <p>
             Setting the listener to haproxy makes it expect the PROXY protocol and set client source address to the original client. Make sure this listener is private / firewalled, otherwise anybody can set a different source address.
@@ -1023,7 +1058,7 @@ multi-value-param one 'two' "three" "with ' char"
       
 
       
-        <dt id="tcp_nodelay"><code class="option">tcp_nodelay</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#tcp_nodelay">#</a></dt>
+        <dt id="tcp_nodelay"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.13.0">≥ v1.13.0</div><code class="option">tcp_nodelay</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#tcp_nodelay">#</a></dt>
         <dd>
           <p>
             <code class="option">tcp_nodelay</code> will cause the <code class="literal">TCP_NODELAY</code> option to be set for the listener's socket(s), and therefore for all clients accepted on that listener.
@@ -1086,7 +1121,7 @@ listen {
   port 2883
   haproxy on
 }</pre>
-  </section><section class="refsect1" id="bridge">
+  </section><section class="refsect1" id="bridge" data-since-flashmq-version="1.7.0">
     <header><h2>Bridge configuration<a class="hash-anchor" href="#bridge">#</a></h2></header>
     <p>
        Bridges can be defined inside <code class="literal">bridge { }</code> blocks. A bridge is essentially just an outgoing connection to another server with loop-detection and retain flag relaying. It is not a form of clustering. Also note that one bridge is one connection, and because FlashMQ's threading model is that clients are serviced by one selected thread only, a bridge has the potential to saturate a thread, if it's heavily loaded. You could work around that by defining multiple bridges to the same server, for various topic paths. A future version of FlashMQ will likely improve upon this.
@@ -1098,7 +1133,7 @@ listen {
 
     <dl>
       
-        <dt id="bridge__address"><code class="option">address</code> <code class="replaceable">address</code><a class="hash-anchor" href="#bridge__address">#</a></dt>
+        <dt id="bridge__address"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.7.0">≥ v1.7.0</div><code class="option">address</code> <code class="replaceable">address</code><a class="hash-anchor" href="#bridge__address">#</a></dt>
         <dd>
           <p>
               The DNS name, IPv4 or IPv6 address of the server you want to connect to.
@@ -1107,7 +1142,7 @@ listen {
       
 
       
-        <dt id="bridge__port"><code class="option">port</code> <code class="replaceable">number</code><a class="hash-anchor" href="#bridge__port">#</a></dt>
+        <dt id="bridge__port"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.7.0">≥ v1.7.0</div><code class="option">port</code> <code class="replaceable">number</code><a class="hash-anchor" href="#bridge__port">#</a></dt>
         <dd>
           <p>
             The default port depends on the <code class="option">tls</code> option, either 1883 or 8883.
@@ -1116,7 +1151,7 @@ listen {
       
 
       
-        <dt id="bridge__inet_protocol"><code class="option">inet_protocol</code> <code class="replaceable">ip4_ip6/ip4/ip6</code><a class="hash-anchor" href="#bridge__inet_protocol">#</a></dt>
+        <dt id="bridge__inet_protocol"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.7.0">≥ v1.7.0</div><code class="option">inet_protocol</code> <code class="replaceable">ip4_ip6/ip4/ip6</code><a class="hash-anchor" href="#bridge__inet_protocol">#</a></dt>
         <dd>
           <p>
             Default: <code class="literal">ip4_ip6</code>
@@ -1125,7 +1160,7 @@ listen {
       
 
       
-        <dt id="bridge__tls"><code class="option">tls</code> <code class="replaceable">off/on/unverified</code><a class="hash-anchor" href="#bridge__tls">#</a></dt>
+        <dt id="bridge__tls"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.7.0">≥ v1.7.0</div><code class="option">tls</code> <code class="replaceable">off/on/unverified</code><a class="hash-anchor" href="#bridge__tls">#</a></dt>
         <dd>
           <p>
             Set TLS mode. The value <code class="option">unverified</code> means the x509 chain is not verified.
@@ -1134,7 +1169,7 @@ listen {
       
 
       
-        <dt id="bridge__ca_file"><code class="option">ca_file</code> <code class="replaceable">path</code><a class="hash-anchor" href="#bridge__ca_file">#</a></dt>
+        <dt id="bridge__ca_file"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.7.0">≥ v1.7.0</div><code class="option">ca_file</code> <code class="replaceable">path</code><a class="hash-anchor" href="#bridge__ca_file">#</a></dt>
         <dd>
           <p>
             File to be used for x509 certificate chain validation.
@@ -1143,7 +1178,7 @@ listen {
       
 
       
-        <dt id="bridge__ca_dir"><code class="option">ca_dir</code> <code class="replaceable">path</code><a class="hash-anchor" href="#bridge__ca_dir">#</a></dt>
+        <dt id="bridge__ca_dir"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.7.0">≥ v1.7.0</div><code class="option">ca_dir</code> <code class="replaceable">path</code><a class="hash-anchor" href="#bridge__ca_dir">#</a></dt>
         <dd>
           <p>
             Directory containing certificates for x509 certificate chain validation.
@@ -1152,7 +1187,7 @@ listen {
       
 
       
-        <dt id="bridge__protocol_version"><code class="option">protocol_version</code> <code class="replaceable">mqtt3.1/mqtt3.1.1/mqtt5</code><a class="hash-anchor" href="#bridge__protocol_version">#</a></dt>
+        <dt id="bridge__protocol_version"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.7.0">≥ v1.7.0</div><code class="option">protocol_version</code> <code class="replaceable">mqtt3.1/mqtt3.1.1/mqtt5</code><a class="hash-anchor" href="#bridge__protocol_version">#</a></dt>
         <dd>
           <p>
             Default: <code class="literal">mqtt3.1.1</code>
@@ -1161,7 +1196,7 @@ listen {
       
 
       
-        <dt id="bridge__bridge_protocol_bit"><code class="option">bridge_protocol_bit</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#bridge__bridge_protocol_bit">#</a></dt>
+        <dt id="bridge__bridge_protocol_bit"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.7.0">≥ v1.7.0</div><code class="option">bridge_protocol_bit</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#bridge__bridge_protocol_bit">#</a></dt>
         <dd>
           <p>
             An unofficial standard is to set the most significant bit of the protocol version byte to 1 to signal the connection is a bridge. This allows the other side to alter its behavior slightly. However, this is not always supported, so you can disable this if you get disconnected for reporting an invalid protocol version.
@@ -1176,7 +1211,7 @@ listen {
       
 
       
-        <dt id="bridge__keepalive"><code class="option">keepalive</code> <code class="replaceable">seconds</code><a class="hash-anchor" href="#bridge__keepalive">#</a></dt>
+        <dt id="bridge__keepalive"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.7.0">≥ v1.7.0</div><code class="option">keepalive</code> <code class="replaceable">seconds</code><a class="hash-anchor" href="#bridge__keepalive">#</a></dt>
         <dd>
           <p>
             The time between sending ping packets to the other side.
@@ -1188,7 +1223,7 @@ listen {
       
 
       
-        <dt id="bridge__clientid_prefix"><code class="option">clientid_prefix</code> <code class="replaceable">prefix</code><a class="hash-anchor" href="#bridge__clientid_prefix">#</a></dt>
+        <dt id="bridge__clientid_prefix"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.7.0">≥ v1.7.0</div><code class="option">clientid_prefix</code> <code class="replaceable">prefix</code><a class="hash-anchor" href="#bridge__clientid_prefix">#</a></dt>
         <dd>
           <p>
             The prefix of the randomly generated client ID. Client IDs cannot be explicitely set for security reasons. See <a href="https://www.flashmq.org/2022/11/26/understanding-clean-session-and-clean-start/"><cite>Understanding clean session and clean start</cite></a>.
@@ -1200,7 +1235,7 @@ listen {
       
 
       
-        <dt id="bridge__publish"><code class="option">publish</code> <code class="replaceable">filter</code> <code class="replaceable">qos</code><a class="hash-anchor" href="#bridge__publish">#</a></dt>
+        <dt id="bridge__publish"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.7.0">≥ v1.7.0</div><code class="option">publish</code> <code class="replaceable">filter</code> <code class="replaceable">qos</code><a class="hash-anchor" href="#bridge__publish">#</a></dt>
         <dd>
           <p>
               Messages matching this filter will be published to the other side. Examples: <code class="literal">#</code> or <code class="literal">sport/tennis/#</code>. This option can be repeated several times.
@@ -1215,7 +1250,7 @@ listen {
       
 
       
-        <dt id="bridge__subscribe"><code class="option">subscribe</code> <code class="replaceable">filter</code> <code class="replaceable">qos</code><a class="hash-anchor" href="#bridge__subscribe">#</a></dt>
+        <dt id="bridge__subscribe"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.7.0">≥ v1.7.0</div><code class="option">subscribe</code> <code class="replaceable">filter</code> <code class="replaceable">qos</code><a class="hash-anchor" href="#bridge__subscribe">#</a></dt>
         <dd>
           <p>
               Subscriptions for this filter is placed at the other side. Examples: <code class="literal">#</code> or <code class="literal">sport/tennis/#</code>. This option can be repeated several times.
@@ -1230,7 +1265,7 @@ listen {
       
 
       
-        <dt id="bridge__local_username"><code class="option">local_username</code> <code class="replaceable">username</code><a class="hash-anchor" href="#bridge__local_username">#</a></dt>
+        <dt id="bridge__local_username"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.7.0">≥ v1.7.0</div><code class="option">local_username</code> <code class="replaceable">username</code><a class="hash-anchor" href="#bridge__local_username">#</a></dt>
         <dd>
           <p>
             Username as seen by the local FlashMQ's plugin or ACL checks. This is not always necessary.
@@ -1239,7 +1274,7 @@ listen {
       
 
       
-        <dt id="bridge__remote_username"><code class="option">remote_username</code> <code class="replaceable">username</code><a class="hash-anchor" href="#bridge__remote_username">#</a></dt>
+        <dt id="bridge__remote_username"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.7.0">≥ v1.7.0</div><code class="option">remote_username</code> <code class="replaceable">username</code><a class="hash-anchor" href="#bridge__remote_username">#</a></dt>
         <dd>
           <p>
             Username sent to the remote connection.
@@ -1248,7 +1283,7 @@ listen {
       
 
       
-        <dt id="bridge__remote_password"><code class="option">remote_password</code> <code class="replaceable">password</code><a class="hash-anchor" href="#bridge__remote_password">#</a></dt>
+        <dt id="bridge__remote_password"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.7.0">≥ v1.7.0</div><code class="option">remote_password</code> <code class="replaceable">password</code><a class="hash-anchor" href="#bridge__remote_password">#</a></dt>
         <dd>
           <p>
             Password sent to the remote connection.
@@ -1257,7 +1292,7 @@ listen {
       
 
       
-        <dt id="bridge__remote_clean_start"><code class="option">remote_clean_start</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#bridge__remote_clean_start">#</a></dt>
+        <dt id="bridge__remote_clean_start"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.7.0">≥ v1.7.0</div><code class="option">remote_clean_start</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#bridge__remote_clean_start">#</a></dt>
         <dd>
           <p>
             In MQTT3, this means 'clean session', meaning the remote server removes any existing session with the same ID on (re)connect, and destroys it immediately on disconnect. If you want reuseable sessions that survive disconnects, set this to false. If you also want to pick up remote sessions on FlashMQ restart, set <code class="option">use_saved_clientid</code> to true.
@@ -1275,7 +1310,7 @@ listen {
       
 
       
-        <dt id="bridge__local_clean_start"><code class="option">local_clean_start</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#bridge__local_clean_start">#</a></dt>
+        <dt id="bridge__local_clean_start"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.7.0">≥ v1.7.0</div><code class="option">local_clean_start</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#bridge__local_clean_start">#</a></dt>
         <dd>
           <p>
               In MQTT3 mode, this means 'clean session' and means the session is removed upon disconnect. If you want to reuse sessions on reconnect, set this to false. Any new start of FlashMQ will give you a new client ID so will always be a fresh session, except if you set <code class="option">use_saved_clientid</code>.
@@ -1293,7 +1328,7 @@ listen {
       
 
       
-        <dt id="bridge__remote_session_expiry_interval"><code class="option">remote_session_expiry_interval</code> <code class="replaceable">seconds</code><a class="hash-anchor" href="#bridge__remote_session_expiry_interval">#</a></dt>
+        <dt id="bridge__remote_session_expiry_interval"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.7.0">≥ v1.7.0</div><code class="option">remote_session_expiry_interval</code> <code class="replaceable">seconds</code><a class="hash-anchor" href="#bridge__remote_session_expiry_interval">#</a></dt>
         <dd>
           <p>
             Is only used in MQTT5 mode and determines the amount of seconds after which the session can be removed from the remote server.
@@ -1305,7 +1340,7 @@ listen {
       
 
       
-        <dt id="bridge__local_session_expiry_interval"><code class="option">local_session_expiry_interval</code> <code class="replaceable">seconds</code><a class="hash-anchor" href="#bridge__local_session_expiry_interval">#</a></dt>
+        <dt id="bridge__local_session_expiry_interval"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.7.0">≥ v1.7.0</div><code class="option">local_session_expiry_interval</code> <code class="replaceable">seconds</code><a class="hash-anchor" href="#bridge__local_session_expiry_interval">#</a></dt>
         <dd>
           <p>
               Determines when a local session without an active client will be removed, in both MQTT3 and MQTT5 mode. Note that in MQTT3 mode, the session is removed on disconnect when <code class="option">local_clean_start</code> is true.
@@ -1317,7 +1352,7 @@ listen {
       
 
       
-        <dt id="bridge__remote_retain_available"><code class="option">remote_retain_available</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#bridge__remote_retain_available">#</a></dt>
+        <dt id="bridge__remote_retain_available"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.7.0">≥ v1.7.0</div><code class="option">remote_retain_available</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#bridge__remote_retain_available">#</a></dt>
         <dd>
           <p>
               MQTT5 allows a server to tell a client it doesn't support retained messages, or has it disabled. When using MQTT3, use this option to achieve the same.
@@ -1332,7 +1367,7 @@ listen {
       
 
       
-        <dt id="bridge__use_saved_clientid"><code class="option">use_saved_clientid</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#bridge__use_saved_clientid">#</a></dt>
+        <dt id="bridge__use_saved_clientid"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.7.0">≥ v1.7.0</div><code class="option">use_saved_clientid</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#bridge__use_saved_clientid">#</a></dt>
         <dd>
           <p>
               When you want your bridges to resume local and remote sessions after restart, set this to true and set <code class="option">remote_clean_start</code>, <code class="option">local_clean_start</code>, <code class="option">remote_session_expiry_interval</code> and <code class="option">local_session_expiry_interval</code> accordingly. It only has effect when you have set a <code class="option">storage_dir</code>.
@@ -1350,7 +1385,7 @@ listen {
       
 
       
-        <dt id="bridge__max_outgoing_topic_aliases"><code class="option">max_outgoing_topic_aliases</code> <code class="replaceable">amount</code><a class="hash-anchor" href="#bridge__max_outgoing_topic_aliases">#</a></dt>
+        <dt id="bridge__max_outgoing_topic_aliases"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.7.0">≥ v1.7.0</div><code class="option">max_outgoing_topic_aliases</code> <code class="replaceable">amount</code><a class="hash-anchor" href="#bridge__max_outgoing_topic_aliases">#</a></dt>
         <dd>
           <p>
             If you want FlashMQ to initiate topic aliases for this bridge, set this to a non-zero value. Note that it's floored to the value the remote side gives in the CONNACK packet, so it only works if the other side permits it.
@@ -1362,7 +1397,7 @@ listen {
       
 
       
-        <dt id="bridge__max_incoming_topic_aliases"><code class="option">max_incoming_topic_aliases</code> <code class="replaceable">amount</code><a class="hash-anchor" href="#bridge__max_incoming_topic_aliases">#</a></dt>
+        <dt id="bridge__max_incoming_topic_aliases"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.7.0">≥ v1.7.0</div><code class="option">max_incoming_topic_aliases</code> <code class="replaceable">amount</code><a class="hash-anchor" href="#bridge__max_incoming_topic_aliases">#</a></dt>
         <dd>
           <p>
             If you want to accept topic aliases for this bridge, set this to a non-zero value. The value is set in the CONNECT packet to inform the remote side of the wish. It's not guaranteed that the other side will actually make aliases.
@@ -1374,7 +1409,7 @@ listen {
       
 
       
-        <dt id="bridge__tcp_nodelay"><code class="option">tcp_nodelay</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#bridge__tcp_nodelay">#</a></dt>
+        <dt id="bridge__tcp_nodelay"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.13.0">≥ v1.13.0</div><code class="option">tcp_nodelay</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#bridge__tcp_nodelay">#</a></dt>
         <dd>
           <p>
             <code class="option">tcp_nodelay</code> will cause the <code class="literal">TCP_NODELAY</code> option to be set for the client socket that is used to connect to the other end of the bridge.
@@ -1389,7 +1424,7 @@ listen {
       
 
     </dl>
-  </section><section class="refsect1" id="example_bridge">
+  </section><section class="refsect1" id="example_bridge" data-since-flashmq-version="1.7.0">
     <header><h2>Example bridge<a class="hash-anchor" href="#example_bridge">#</a></h2></header>
 
     <pre class="literallayout monospaced">bridge {
@@ -1428,4 +1463,83 @@ listen {
     The sources for the FlashMQ manual pages are maintained in <a href="https://tdg.docbook.org/tdg/5.2/">DocBook 5.2</a> XML files.  The transformation to the multiple destination file formats is done using a bunch of XSLT 1.0 sheets, contributed to this project by Rowan van der Molen.
   </p>
   
-</section></article></body></html>
+</section></article><script xmlns="http://docbook.org/ns/docbook" xmlns:dbk="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:semver="https://semver.org/spec/v2.0.0.html" xmlns:fmq="http://www.flashmq.org/man/">
+function parseSemver(semver) {
+  const re = /^(?<major>0|[1-9]\d*)\.(?<minor>0|[1-9]\d*)\.(?<patch>0|[1-9]\d*)(?:-(?<prerelease>(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+(?<buildmetadata>[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/;
+  const { major, minor, patch, prerelease, buildmetadata } = re.exec(semver).groups;
+  return {
+    major: parseInt(major),
+    minor: parseInt(minor),
+    patch: parseInt(patch),
+    prerelease: prerelease,
+    buildmetadata: buildmetadata,
+  };
+}
+
+function compareSemver(a, b) {
+  const a_obj = parseSemver(a);
+  const b_obj = parseSemver(b);
+
+  if (a_obj.major < b_obj.major) return -1;
+  if (a_obj.major > b_obj.major) return 1;
+  if (a_obj.minor < b_obj.minor) return -1;
+  if (a_obj.minor > b_obj.minor) return 1;
+  if (a_obj.patch < b_obj.patch) return -1;
+  if (a_obj.patch > b_obj.patch) return 1;
+  if (a_obj.prerelease !== null && b_obj.prerelease === null) return -1;
+  if (a_obj.prerelease === null && b_obj.prerelease !== null) return 1;
+  // NOTE: prereleases are not taken into account and probably will never need to, because, though Wiebe
+  //       may start to do prereleases, new options and option values will then almost certainly be bound
+  //       to the main (major + minor + patch) version to which the prerelease identifiers are appended.
+
+  return 0;
+}
+
+function applySelectedFlashmqVersion(selectElement) {
+  console.assert(selectElement instanceof HTMLSelectElement);
+
+  const selectedVersion = selectElement.selectedOptions[0].value;
+
+  for (const el of document.querySelectorAll('[data-since-flashmq-version]')) {
+    const contentAppliesSinceVersion = el.dataset.sinceFlashmqVersion;
+    if (selectedVersion !== '' && compareSemver(contentAppliesSinceVersion, selectedVersion) > 0) {
+      el.classList.add('incompatible-with-selected-flashmq-version');
+      el.classList.remove('compatible-with-selected-flashmq-version');
+    }
+    else {
+      el.classList.add('compatible-with-selected-flashmq-version');
+      el.classList.remove('incompatible-with-selected-flashmq-version');
+    }
+  }
+
+  const url = new URL(window.location.href);
+  const searchParams = new URLSearchParams(url.search);
+  if (selectedVersion === '') {
+    searchParams.delete('v');
+  }
+  else {
+    searchParams.set('v', selectedVersion);
+  }
+  url.search = searchParams.toString();
+  history.pushState({}, '', url);
+}
+
+const selectFlashmqVersionElement = document.getElementById('select-flashmq-version');
+selectFlashmqVersionElement.addEventListener('change', (e) => {
+  applySelectedFlashmqVersion(e.target);
+});
+
+const url = new URL(window.location.href);
+if (url.search) {
+  if (url.searchParams.has('v')) {
+    const versionFromUrl = url.searchParams.get('v');
+    for (const opt of selectFlashmqVersionElement.options) {
+      if (opt.value === versionFromUrl) {
+        opt.selected = true;
+      }
+    }
+  }
+}
+
+applySelectedFlashmqVersion(selectFlashmqVersionElement);
+    </script></body></html>
