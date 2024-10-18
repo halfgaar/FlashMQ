@@ -269,13 +269,10 @@
           return localValue;
         }
 
-        console.log('A');
-
         const browserValue = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
         if (browserValue !== null) {
           return browserValue;
         }
-        console.log('B');
 
         return document.querySelector('html').dataset.fallbackColorScheme;
       }
