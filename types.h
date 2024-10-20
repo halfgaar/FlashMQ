@@ -240,7 +240,6 @@ public:
 
     Publish() = default;
     Publish(const std::string &topic, const std::string &payload, uint8_t qos);
-    size_t getLengthWithoutFixedHeader() const;
     bool hasExpired() const;
     std::chrono::seconds getAge() const;
     std::vector<std::pair<std::string, std::string>> *getUserProperties() const;
