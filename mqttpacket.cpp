@@ -136,6 +136,7 @@ MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, const Publish &_pu
     this->publishData.username = _publish.username;
     this->publishData.skipTopic = _skip_topic;
     this->publishData.qos = _qos;
+    this->publishData.retain = _publish.retain;
     this->publishData.topicAlias = _topic_alias;
     this->packetType = PacketType::PUBLISH;
 
@@ -144,7 +145,7 @@ MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, const Publish &_pu
 
     first_byte = static_cast<char>(packetType) << 4;
     first_byte |= (this->publishData.qos << 1);
-    first_byte |= (static_cast<char>(_publish.retain) & 0b00000001);
+    first_byte |= (static_cast<char>(publishData.retain) & 0b00000001);
 
     std::optional<Mqtt5PropertyBuilder> property_builder;
 
