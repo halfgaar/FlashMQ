@@ -90,6 +90,17 @@ typedef AuthResult(*F_flashmq_plugin_acl_check_v2)(void *thread_data, const AclA
 typedef bool (*F_flashmq_plugin_alter_publish_v2)(void *thread_data, const std::string &clientid, std::string &topic, const std::vector<std::string> &subtopics,
                                                   std::string_view payload, uint8_t &qos, bool &retain, std::vector<std::pair<std::string, std::string>> *userProperties);
 
+
+typedef AuthResult(*F_flashmq_plugin_acl_check_v3)(
+    void *thread_data, const AclAccess access, const std::string &clientid, const std::string &username,
+    const std::string &topic, const std::vector<std::string> &subtopics, std::string_view payload,
+    const uint8_t qos, const bool retain, const std::optional<std::string> &correlationData,
+    const std::optional<std::string> &responseTopic, const std::vector<std::pair<std::string, std::string>> *userProperties);
+typedef bool (*F_flashmq_plugin_alter_publish_v3)(
+    void *thread_data, const std::string &clientid, std::string &topic, const std::vector<std::string> &subtopics,
+    std::string_view payload, uint8_t &qos, bool &retain, const std::optional<std::string> &correlationData,
+    const std::optional<std::string> &responseTopic, std::vector<std::pair<std::string, std::string>> *userProperties);
+
 extern "C"
 {
     // Gets called by the plugin, so it needs to exist, globally
@@ -129,6 +140,9 @@ class Authentication
 
     F_flashmq_plugin_acl_check_v2 flashmq_plugin_acl_check_v2 = nullptr;
     F_flashmq_plugin_alter_publish_v2 flashmq_plugin_alter_publish_v2 = nullptr;
+
+    F_flashmq_plugin_acl_check_v3 flashmq_plugin_acl_check_v3 = nullptr;
+    F_flashmq_plugin_alter_publish_v3 flashmq_plugin_alter_publish_v3 = nullptr;
 
     static std::mutex initMutex;
     static std::mutex deinitMutex;
@@ -177,7 +191,8 @@ public:
     void securityCleanup(bool reloading);
     AuthResult aclCheck(Publish &publishData, std::string_view payload, AclAccess access = AclAccess::write);
     AuthResult aclCheck(const std::string &clientid, const std::string &username, const std::string &topic, const std::vector<std::string> &subtopics,
-                        std::string_view payload, AclAccess access, uint8_t qos, bool retain, const std::vector<std::pair<std::string, std::string>> *userProperties);
+                        std::string_view payload, AclAccess access, uint8_t qos, bool retain, const std::optional<std::string> &correlationData,
+                        const std::optional<std::string> &responseTopic, const std::vector<std::pair<std::string, std::string>> *userProperties);
     AuthResult loginCheck(const std::string &clientid, const std::string &username, const std::string &password,
                           const std::vector<std::pair<std::string, std::string>> *userProperties, const std::weak_ptr<Client> &client, const bool allowAnonymous);
     AuthResult extendedAuth(const std::string &clientid, ExtendedAuthStage stage, const std::string &authMethod,
@@ -186,7 +201,8 @@ public:
     bool alterSubscribe(const std::string &clientid, std::string &topic, const std::vector<std::string> &subtopics, uint8_t &qos,
                         const std::vector<std::pair<std::string, std::string>> *userProperties);
     bool alterPublish(const std::string &clientid, std::string &topic, const std::vector<std::string> &subtopics, std::string_view payload,
-                      uint8_t &qos, bool &retain, std::vector<std::pair<std::string, std::string>> *userProperties);
+                      uint8_t &qos, bool &retain, const std::optional<std::string> &correlationData, const std::optional<std::string> &responseTopic,
+                      std::vector<std::pair<std::string, std::string>> *userProperties);
     void clientDisconnected(const std::string &clientid);
     void fdReady(int fd, int events, const std::weak_ptr<void> &p);
 

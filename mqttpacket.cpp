@@ -1579,7 +1579,9 @@ void MqttPacket::handleSubscribe()
 
         if (authResult == AuthResult::success || authResult == AuthResult::success_without_retained_delivery)
         {
-            const AuthResult newAuthResult = authentication.aclCheck(sender->getClientId(), sender->getUsername(), topic, subtopics, std::string_view(), AclAccess::subscribe, qos, false, getUserProperties());
+            const AuthResult newAuthResult = authentication.aclCheck(
+                sender->getClientId(), sender->getUsername(), topic, subtopics, std::string_view(), AclAccess::subscribe, qos,
+                false, std::optional<std::string>(), std::optional<std::string>(), getUserProperties());
 
             // We don't allow upgrading back to success. This gets too complicated between having no additional ACL, having an ACL file, and/or a plugin.
             if (newAuthResult != AuthResult::success)
@@ -1903,8 +1905,10 @@ void MqttPacket::handlePublish()
 
         const uint8_t qos_org = this->publishData.qos;
         const bool retain_org = this->publishData.retain;
-        const bool altered = authentication.alterPublish(this->publishData.client_id, this->publishData.topic, this->publishData.getSubtopics(),
-                                                         getPayloadView(), this->publishData.qos, this->publishData.retain, this->publishData.getUserProperties());
+        const bool altered = authentication.alterPublish(
+            this->publishData.client_id, this->publishData.topic, this->publishData.getSubtopics(),
+            getPayloadView(), this->publishData.qos, this->publishData.retain, this->publishData.correlationData, this->publishData.responseTopic,
+            this->publishData.getUserProperties());
 
         if (altered)
             this->publishData.resplitTopic();
@@ -2429,6 +2433,16 @@ std::string MqttPacket::readBytesToString(bool validateUtf8, bool alsoCheckInval
 std::vector<std::pair<std::string, std::string>> *MqttPacket::getUserProperties()
 {
     return this->publishData.getUserProperties();
+}
+
+const std::optional<std::string> &MqttPacket::getCorrelationData() const
+{
+    return this->publishData.correlationData;
+}
+
+const std::optional<std::string> &MqttPacket::getResponseTopic() const
+{
+    return this->publishData.responseTopic;
 }
 
 bool MqttPacket::getRetain() const

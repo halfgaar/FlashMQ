@@ -53,6 +53,8 @@ public:
     Publish getNewPublish(uint8_t new_max_qos, bool retainAsPublished) const;
     std::shared_ptr<Client> getSender();
     const std::vector<std::pair<std::string, std::string>> *getUserProperties() const;
+    const std::optional<std::string> &getCorrelationData() const;
+    const std::optional<std::string> &getResponseTopic() const;
     void setSharedSubscriptionHashKey(size_t hash);
     size_t getSharedSubscriptionHashKey() const { return sharedSubscriptionHashKey; }
 

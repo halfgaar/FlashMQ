@@ -168,6 +168,8 @@ public:
     const Publish &getPublishData();
     bool biteArrayCannotBeReused() const;
     std::vector<std::pair<std::string, std::string>> *getUserProperties();
+    const std::optional<std::string> &getCorrelationData() const;
+    const std::optional<std::string> &getResponseTopic() const;
 };
 
 struct SubscriptionTuple

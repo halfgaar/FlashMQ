@@ -176,6 +176,24 @@ const std::vector<std::pair<std::string, std::string> > *PublishCopyFactory::get
     return publish->getUserProperties();
 }
 
+const std::optional<std::string> &PublishCopyFactory::getCorrelationData() const
+{
+    if (packet)
+        return packet->getCorrelationData();
+
+    assert(publish);
+    return publish->correlationData;
+}
+
+const std::optional<std::string> &PublishCopyFactory::getResponseTopic() const
+{
+    if (packet)
+        return packet->getResponseTopic();
+
+    assert(publish);
+    return publish->responseTopic;
+}
+
 void PublishCopyFactory::setSharedSubscriptionHashKey(size_t hash)
 {
     this->sharedSubscriptionHashKey = hash;

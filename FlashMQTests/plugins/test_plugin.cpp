@@ -3,6 +3,7 @@
 #include <cassert>
 #include <cstring>
 #include <stdexcept>
+#include <optional>
 
 #include "../../flashmq_plugin.h"
 #include "test_plugin.h"
@@ -180,7 +181,9 @@ AuthResult flashmq_plugin_login_check(void *thread_data, const std::string &clie
 
 AuthResult flashmq_plugin_acl_check(void *thread_data, const AclAccess access, const std::string &clientid, const std::string &username,
                                     const std::string &topic, const std::vector<std::string> &subtopics, std::string_view payload,
-                                    const uint8_t qos, const bool retain, const std::vector<std::pair<std::string, std::string>> *userProperties)
+                                    const uint8_t qos, const bool retain, const std::optional<std::string> &correlationData,
+                                    const std::optional<std::string> &responseTopic,
+                                    const std::vector<std::pair<std::string, std::string>> *userProperties)
 {
     (void)thread_data;
     (void)access;
@@ -189,6 +192,8 @@ AuthResult flashmq_plugin_acl_check(void *thread_data, const AclAccess access, c
     (void)subtopics;
     (void)qos;
     (void)retain;
+    (void)correlationData;
+    (void)responseTopic;
     (void)userProperties;
 
     if (clientid == "return_error")
@@ -277,13 +282,16 @@ AuthResult flashmq_plugin_extended_auth(void *thread_data, const std::string &cl
 }
 
 bool flashmq_plugin_alter_publish(void *thread_data, const std::string &clientid, std::string &topic, const std::vector<std::string> &subtopics, std::string_view payload,
-                                  uint8_t &qos, bool &retain, std::vector<std::pair<std::string, std::string>> *userProperties)
+                                  uint8_t &qos, bool &retain, const std::optional<std::string> &correlationData, const std::optional<std::string> &responseTopic,
+                                  std::vector<std::pair<std::string, std::string>> *userProperties)
 {
     (void)thread_data;
     (void)clientid;
     (void)subtopics;
     (void)qos;
     (void)retain;
+    (void)correlationData;
+    (void)responseTopic;
     (void)userProperties;
 
     TestPluginData *p = static_cast<TestPluginData*>(thread_data);
