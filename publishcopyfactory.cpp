@@ -39,17 +39,20 @@ MqttPacket *PublishCopyFactory::getOptimumPacket(const uint8_t max_qos, const Pr
         // The incoming topic alias is not relevant after initial conversion and it should not propagate.
         assert(packet->getPublishData().topicAlias == 0);
 
-        if (protocolVersion >= ProtocolVersion::Mqtt5 && (packet->containsClientSpecificProperties() || topic_alias > 0))
+        // When the packet contains an alias specific to the receiver, we don't cache it.
+        if (protocolVersion >= ProtocolVersion::Mqtt5 && topic_alias > 0)
         {
             this->oneShotPacket.emplace(protocolVersion, packet->getPublishData(), actualQos, topic_alias, skip_topic);
             return &*this->oneShotPacket;
         }
 
-        if (packet->getProtocolVersion() == protocolVersion && static_cast<bool>(orgQos) == static_cast<bool>(actualQos) && !packet->isAlteredByPlugin())
+        if (!packet->biteArrayCannotBeReused() && packet->getProtocolVersion() == protocolVersion && static_cast<bool>(orgQos) == static_cast<bool>(actualQos))
         {
             return packet;
         }
 
+        // Note that this cache also possibly contains the expiration interval, but because we're only hitting this block for on-line
+        // publishers, the interval has not decreased and is fine.
         const int cache_key = (static_cast<uint8_t>(protocolVersion) * 10) + actualQos;
         std::optional<MqttPacket> &cachedPack = constructedPacketCache[cache_key];
 

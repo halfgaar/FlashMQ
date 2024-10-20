@@ -49,8 +49,7 @@ class MqttPacket
     ProtocolVersion protocolVersion = ProtocolVersion::None;
     size_t payloadStart = 0;
     size_t payloadLen = 0;
-    bool hasTopicAlias = false;
-    bool alteredByPlugin = false;
+    bool dontReuseBites = false;
 
     // It's important to understand that this class is used for incoming packets as well as new outgoing packets. When we create
     // new outgoing packets, we generally know exactly who it's for and the information is only stored in this->bites. So, the
@@ -167,8 +166,7 @@ public:
     bool getRetain() const;
     void setRetain(bool val);
     const Publish &getPublishData();
-    bool containsClientSpecificProperties() const;
-    bool isAlteredByPlugin() const;
+    bool biteArrayCannotBeReused() const;
     std::vector<std::pair<std::string, std::string>> *getUserProperties();
 };
 

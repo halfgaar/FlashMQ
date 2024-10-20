@@ -1784,7 +1784,7 @@ void MqttPacket::parsePublishData()
                 if (alias_id == 0)
                     throw ProtocolError("Topic alias ID 0 is invalid.", ReasonCodes::TopicAliasInvalid);
 
-                this->hasTopicAlias = true;
+                this->dontReuseBites = true;
 
                 if (publishData.topic.empty())
                 {
@@ -1794,6 +1794,9 @@ void MqttPacket::parsePublishData()
                 {
                     sender->setTopicAlias(alias_id, publishData.topic);
                 }
+
+                // Just making clear we don't want to store the alias in the publish object. It has lost its meaning from this point on.
+                assert(this->publishData.topicAlias == 0);
 
                 break;
             }
@@ -1909,8 +1912,9 @@ void MqttPacket::handlePublish()
         if (retain_org != publishData.retain)
             setRetain(publishData.retain);
 
-        // Don't look at 'retain', because the above is enough.
-        this->alteredByPlugin = altered || qos_org != this->publishData.qos;
+        // Don't look at 'retain', because a changed retain bit doesn't alter the byte layout of the original packet.
+        if (altered || qos_org != this->publishData.qos)
+            this->dontReuseBites = true;
 
         const AuthResult authResult = authentication.aclCheck(this->publishData, getPayloadView());
         if (authResult == AuthResult::success || authResult == AuthResult::success_without_setting_retained)
@@ -2452,30 +2456,13 @@ const Publish &MqttPacket::getPublishData()
     return publishData;
 }
 
-bool MqttPacket::containsClientSpecificProperties() const
+bool MqttPacket::biteArrayCannotBeReused() const
 {
     assert(packetType == PacketType::PUBLISH);
     assert(this->externallyReceived);
+    assert(this->publishData.topicAlias == 0); // The topic alias should not be stored in the incoming publish.
 
-    if (protocolVersion <= ProtocolVersion::Mqtt311)
-        return false;
-
-    // TODO: for the on-line clients, even with expire info, we can just copy the same packet. So, that case can be excluded.
-    if (publishData.expireInfo || this->hasTopicAlias)
-    {
-        return true;
-    }
-
-    return false;
-}
-
-/**
- * @brief MqttPacket::isAlteredByPlugin indicates the parsed data in PublishData no longer matches the byte array of the original incoming packet.
- * @return
- */
-bool MqttPacket::isAlteredByPlugin() const
-{
-    return this->alteredByPlugin;
+    return this->dontReuseBites;
 }
 
 void MqttPacket::readIntoBuf(CirBuf &buf) const
