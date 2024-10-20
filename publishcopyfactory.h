@@ -13,7 +13,9 @@ See LICENSE for license details.
 
 #include <vector>
 #include <unordered_map>
+#include <optional>
 
+#include "mqttpacket.h"
 #include "forward_declarations.h"
 #include "types.h"
 
@@ -30,10 +32,10 @@ class PublishCopyFactory
 {
     MqttPacket *packet = nullptr;
     Publish *publish = nullptr;
-    std::unique_ptr<MqttPacket> oneShotPacket;
+    std::optional<MqttPacket> oneShotPacket;
     const uint8_t orgQos;
     const bool orgRetain = false;
-    std::unordered_map<uint8_t, std::unique_ptr<MqttPacket>> constructedPacketCache;
+    std::unordered_map<uint8_t, std::optional<MqttPacket>> constructedPacketCache;
     size_t sharedSubscriptionHashKey;
 public:
     PublishCopyFactory(MqttPacket *packet);

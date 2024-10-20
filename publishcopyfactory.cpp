@@ -41,8 +41,8 @@ MqttPacket *PublishCopyFactory::getOptimumPacket(const uint8_t max_qos, const Pr
 
         if (protocolVersion >= ProtocolVersion::Mqtt5 && (packet->containsClientSpecificProperties() || topic_alias > 0))
         {
-            this->oneShotPacket = std::make_unique<MqttPacket>(protocolVersion, packet->getPublishData(), actualQos, topic_alias, skip_topic);
-            return this->oneShotPacket.get();
+            this->oneShotPacket.emplace(protocolVersion, packet->getPublishData(), actualQos, topic_alias, skip_topic);
+            return &*this->oneShotPacket;
         }
 
         if (packet->getProtocolVersion() == protocolVersion && static_cast<bool>(orgQos) == static_cast<bool>(actualQos) && !packet->isAlteredByPlugin())
@@ -51,14 +51,14 @@ MqttPacket *PublishCopyFactory::getOptimumPacket(const uint8_t max_qos, const Pr
         }
 
         const int cache_key = (static_cast<uint8_t>(protocolVersion) * 10) + actualQos;
-        std::unique_ptr<MqttPacket> &cachedPack = constructedPacketCache[cache_key];
+        std::optional<MqttPacket> &cachedPack = constructedPacketCache[cache_key];
 
         if (!cachedPack)
         {
-            cachedPack = std::make_unique<MqttPacket>(protocolVersion, packet->getPublishData(), actualQos, 0, false);
+            cachedPack.emplace(protocolVersion, packet->getPublishData(), actualQos, 0, false);
         }
 
-        return cachedPack.get();
+        return &*cachedPack;
     }
 
     // Getting an instance of a Publish object happens at least on retained messages, will messages and SYS topics. It's low traffic, anyway.
@@ -67,8 +67,8 @@ MqttPacket *PublishCopyFactory::getOptimumPacket(const uint8_t max_qos, const Pr
     // The incoming topic alias is not relevant after initial conversion and it should not propagate.
     assert(publish->topicAlias == 0);
 
-    this->oneShotPacket = std::make_unique<MqttPacket>(protocolVersion, *publish, actualQos, topic_alias, skip_topic);
-    return this->oneShotPacket.get();
+    this->oneShotPacket.emplace(protocolVersion, *publish, actualQos, topic_alias, skip_topic);
+    return &*this->oneShotPacket;
 }
 
 uint8_t PublishCopyFactory::getEffectiveQos(uint8_t max_qos) const
