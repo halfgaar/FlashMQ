@@ -48,4 +48,4 @@ If your company requires commercial FlashMQ services, go to
 
 - the development of custom FlashMQ plugins;
 - MQTT integration advice; and
-- managed FlashMQ. Send an email to service@flashmq.com to be notified for early trials.
+- managed FlashMQ. Send an email to service@flashmq.com to be notified for early trials.
