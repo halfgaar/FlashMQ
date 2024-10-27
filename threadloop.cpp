@@ -72,7 +72,8 @@ void do_thread_work(ThreadData *threadData)
             if (fd == threadData->taskEventFd)
             {
                 uint64_t eventfd_value = 0;
-                check<std::runtime_error>(read(fd, &eventfd_value, sizeof(uint64_t)));
+                if (read(fd, &eventfd_value, sizeof(uint64_t)) < 0)
+                    logger->log(LOG_ERROR) << "Error reading taskEventFd: " << strerror(errno);
 
                 std::list<std::function<void()>> copiedTasks;
 
