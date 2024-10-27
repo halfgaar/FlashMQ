@@ -16,11 +16,12 @@ See LICENSE for license details.
 #include <vector>
 #include "forward_declarations.h"
 
+template<typename T>
 class VectorClearGuard
 {
-    std::vector<MqttPacket> &v;
+    std::vector<T> &v;
 public:
-    VectorClearGuard(std::vector<MqttPacket> &v) :
+    VectorClearGuard(std::vector<T> &v) :
         v(v)
     {
 
@@ -30,6 +31,17 @@ public:
     {
         v.clear();
     }
+};
+
+struct ReadyClient
+{
+    uint32_t events;
+    std::shared_ptr<Client> client;
+
+    ReadyClient() = delete;
+    ReadyClient(const ReadyClient &other) = delete;
+    ReadyClient(ReadyClient &&other) = default;
+    ReadyClient(uint32_t events, std::shared_ptr<Client> &&client);
 };
 
 void do_thread_work(ThreadData *threadData);

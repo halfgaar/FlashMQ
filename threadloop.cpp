@@ -46,8 +46,12 @@ void do_thread_work(ThreadData *threadData)
         instance->quit();
     }
 
+    std::vector<ReadyClient> ready_clients;
+
     while (threadData->running)
     {
+        VectorClearGuard clear_ready_clients(ready_clients);
+
         const uint32_t next_task_delay = threadData->delayedTasks.getTimeTillNext();
         const uint32_t epoll_wait_time = std::min<uint32_t>(next_task_delay, 100);
 
@@ -107,24 +111,32 @@ void do_thread_work(ThreadData *threadData)
                                          << "happen and is likely a bug. Clearing the queue for safety.";
                     threadData->clearQueuedRetainedMessages();
                 }
-
-                continue;
             }
-
-            std::shared_ptr<Client> client = threadData->getClient(fd);
-
-            if (__builtin_expect(!client, 0))
+            else
             {
-                // If the fd is not a client, it may be an externally monitored fd, from the plugin.
-                auto pos = threadData->externalFds.find(fd);
-                if (pos != threadData->externalFds.end())
-                {
-                    std::weak_ptr<void> &p = pos->second;
-                    threadData->authentication.fdReady(fd, cur_ev.events, p);
-                }
+                ready_clients.emplace_back(static_cast<uint32_t>(cur_ev.events), threadData->getClient(fd));
 
-                continue;
+                if (__builtin_expect(!ready_clients.back().client, 0))
+                {
+                    ready_clients.pop_back();
+
+                    // If the fd is not a client, it may be an externally monitored fd, from the plugin.
+                    auto pos = threadData->externalFds.find(fd);
+                    if (pos != threadData->externalFds.end())
+                    {
+                        std::weak_ptr<void> &p = pos->second;
+                        threadData->authentication.fdReady(fd, cur_ev.events, p);
+                    }
+                }
             }
+        }
+
+        for (ReadyClient &ready_client : ready_clients)
+        {
+            std::shared_ptr<Client> &client = ready_client.client;
+
+            if (!client)
+                continue;
 
             try
             {
@@ -139,7 +151,7 @@ void do_thread_work(ThreadData *threadData)
                 {
                     int error = 0;
                     socklen_t optlen = sizeof(int);
-                    int rc = getsockopt(fd, SOL_SOCKET, SO_ERROR, &error, &optlen);
+                    int rc = getsockopt(client->getFd(), SOL_SOCKET, SO_ERROR, &error, &optlen);
 
                     if (rc == 0 && error == 0)
                     {
@@ -151,11 +163,11 @@ void do_thread_work(ThreadData *threadData)
 
                     continue;
                 }
-                if (cur_ev.events & EPOLLHUP)
+                if (ready_client.events & EPOLLHUP)
                 {
                     client->setDisconnectReason("Hang up");
                 }
-                if (cur_ev.events & EPOLLERR)
+                if (ready_client.events & EPOLLERR)
                 {
                     int error = 0;
                     socklen_t errlen = sizeof(error);
@@ -172,7 +184,7 @@ void do_thread_work(ThreadData *threadData)
                     client->startOrContinueSslHandshake();
                     continue;
                 }
-                if ((cur_ev.events & EPOLLIN) || ((cur_ev.events & EPOLLOUT) && client->getSslReadWantsWrite()))
+                if ((ready_client.events & EPOLLIN) || ((ready_client.events & EPOLLOUT) && client->getSslReadWantsWrite()))
                 {
                     VectorClearGuard vectorClear(packetQueueIn);
                     const DisconnectStage disconnect = client->readFdIntoBuffer();
@@ -195,7 +207,7 @@ void do_thread_work(ThreadData *threadData)
                         continue;
                     }
                 }
-                if ((cur_ev.events & EPOLLOUT) || ((cur_ev.events & EPOLLIN) && client->getSslWriteWantsRead()))
+                if ((ready_client.events & EPOLLOUT) || ((ready_client.events & EPOLLIN) && client->getSslWriteWantsRead()))
                 {
                     client->writeBufIntoFd();
 
@@ -281,4 +293,11 @@ void do_thread_work(ThreadData *threadData)
     }
 
     threadData->finished = true;
+}
+
+ReadyClient::ReadyClient(uint32_t events, std::shared_ptr<Client> &&client) :
+    events(events),
+    client(std::move(client))
+{
+
 }
