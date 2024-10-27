@@ -167,7 +167,7 @@ public:
     void setRetain(bool val);
     const Publish &getPublishData();
     bool biteArrayCannotBeReused() const;
-    std::vector<std::pair<std::string, std::string>> *getUserProperties();
+    std::vector<std::pair<std::string, std::string>> *getUserProperties() const;
     const std::optional<std::string> &getCorrelationData() const;
     const std::optional<std::string> &getResponseTopic() const;
 };

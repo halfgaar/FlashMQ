@@ -2430,7 +2430,7 @@ std::string MqttPacket::readBytesToString(bool validateUtf8, bool alsoCheckInval
     return result;
 }
 
-std::vector<std::pair<std::string, std::string>> *MqttPacket::getUserProperties()
+std::vector<std::pair<std::string, std::string>> *MqttPacket::getUserProperties() const
 {
     return this->publishData.getUserProperties();
 }
