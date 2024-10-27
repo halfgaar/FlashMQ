@@ -328,16 +328,6 @@ void MainApp::waitForWillsQueued()
     }
 }
 
-void MainApp::waitForDisconnectsInitiated()
-{
-    int i = 0;
-
-    while(std::any_of(threads.begin(), threads.end(), [](std::shared_ptr<ThreadData> t){ return !t->allDisconnectsSent && t->running; }) && i++ < 5000)
-    {
-        usleep(1000);
-    }
-}
-
 void MainApp::queueRetainedMessageExpiration()
 {
     if (!threads.empty())
@@ -962,20 +952,13 @@ void MainApp::start()
         waitForWillsQueued();
     }
 
-    logger->logf(LOG_DEBUG, "Having all client in all threads send a disconnect packet.");
+    logger->logf(LOG_DEBUG, "Having all client in all threads send a disconnect packet and initiate quit.");
     for(std::shared_ptr<ThreadData> &thread : threads)
     {
         thread->queueSendDisconnects();
     }
-    waitForDisconnectsInitiated();
 
     oneInstanceLock.unlock();
-
-    logger->logf(LOG_DEBUG, "Signaling threads to finish.");
-    for(std::shared_ptr<ThreadData> &thread : threads)
-    {
-        thread->queueQuit();
-    }
 
     logger->logf(LOG_DEBUG, "Waiting for threads to finish.");
     int count = 0;

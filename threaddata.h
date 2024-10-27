@@ -115,15 +115,16 @@ public:
     bool running = true;
     bool finished = false;
     bool allWillsQueued = false;
-    bool allDisconnectsSent = false;
     std::thread thread;
     int threadnr = 0;
     int taskEventFd = -1;
+    int disconnectingEventFd = -1;
     std::mutex taskQueueMutex;
     std::list<std::function<void()>> taskQueue;
     QueuedTasks delayedTasks;
     DriftCounter driftCounter;
     std::unordered_map<int, std::weak_ptr<void>> externalFds;
+    std::vector<std::weak_ptr<Client>> disconnectingClients;
 
     DerivableCounter receivedMessageCounter;
     DerivableCounter sentMessageCounter;

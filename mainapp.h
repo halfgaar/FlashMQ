@@ -97,7 +97,6 @@ class MainApp
     void queueSaveStateInThread();
     void queueSendQueuedWills();
     void waitForWillsQueued();
-    void waitForDisconnectsInitiated();
     void queueRetainedMessageExpiration();
     void sendBridgesToThreads();
     void queueSendBridgesToThreads();

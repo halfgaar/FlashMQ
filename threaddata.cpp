@@ -54,19 +54,34 @@ ThreadData::ThreadData(int threadnr, const Settings &settings, const PluginLoade
     if (taskEventFd < 0)
         throw std::runtime_error("Can't create eventfd.");
 
+    disconnectingEventFd = eventfd(0, EFD_NONBLOCK);
+    if (disconnectingEventFd < 0)
+        throw std::runtime_error("Can't create eventfd.");
+
     randomish.seed(get_random_int<unsigned long>());
 
     struct epoll_event ev;
-    memset(&ev, 0, sizeof (struct epoll_event));
-    ev.data.fd = taskEventFd;
-    ev.events = EPOLLIN;
-    check<std::runtime_error>(epoll_ctl(this->epollfd.get(), EPOLL_CTL_ADD, taskEventFd, &ev));
+    std::array<int, 2> event_fds {taskEventFd, disconnectingEventFd};
+    for (int efd : event_fds)
+    {
+        memset(&ev, 0, sizeof (struct epoll_event));
+        ev.data.fd = efd;
+        ev.events = EPOLLIN;
+        check<std::runtime_error>(epoll_ctl(this->epollfd.get(), EPOLL_CTL_ADD, efd, &ev));
+    }
 }
 
 ThreadData::~ThreadData()
 {
     if (taskEventFd >= 0)
         close(taskEventFd);
+
+    if (disconnectingEventFd >= 0)
+    {
+        close(disconnectingEventFd);
+        disconnectingEventFd = -1;
+    }
+
 }
 
 void ThreadData::start(thread_f f)
@@ -741,7 +756,8 @@ void ThreadData::sendAllDisconnects()
         serverInitiatedDisconnect(c, ReasonCodes::ServerShuttingDown, "");
     }
 
-    allDisconnectsSent = true;
+    uint64_t one = 1;
+    check<std::runtime_error>(write(disconnectingEventFd, &one, sizeof(uint64_t)));
 }
 
 void ThreadData::removeQueuedClients()
@@ -1057,6 +1073,8 @@ void ThreadData::serverInitiatedDisconnect(const std::shared_ptr<Client> &client
             client->setDisconnectStage(DisconnectStage::Now);
             removeClientQueued(client);
         }
+
+        disconnectingClients.push_back(client);
     };
 
     addImmediateTask(f);

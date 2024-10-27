@@ -112,6 +112,30 @@ void do_thread_work(ThreadData *threadData)
                     threadData->clearQueuedRetainedMessages();
                 }
             }
+            else if (fd == threadData->disconnectingEventFd)
+            {
+                /*
+                 * This block (and related) ensures all the clients get processed at least once when a shutdown
+                 * is initiated, so that all clients (that can), are sent a disconnect packet.
+                 */
+
+                uint64_t eventfd_value = 0;
+                if (read(fd, &eventfd_value, sizeof(uint64_t)) < 0)
+                    logger->log(LOG_ERROR) << "Error reading event fd: " << strerror(errno);
+
+                for (std::weak_ptr<Client> &wc : threadData->disconnectingClients)
+                {
+                    std::shared_ptr<Client> c = wc.lock();
+
+                    if (!c)
+                        continue;
+
+                    ready_clients.emplace_back(EPOLLOUT, std::move(c));
+                }
+
+                threadData->disconnectingClients.clear();
+                threadData->queueQuit();
+            }
             else
             {
                 ready_clients.emplace_back(static_cast<uint32_t>(cur_ev.events), threadData->getClient(fd));
