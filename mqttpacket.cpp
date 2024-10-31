@@ -1966,6 +1966,8 @@ void MqttPacket::handlePublish()
     // Protection against using the altered packet id (because we change the incoming byte array for each subscriber).
     this->packet_id = 0;
     this->publishData.qos = 0;
+    if (publishData.qos > 0)
+        this->setPacketId(0);
 #endif
 }
 
