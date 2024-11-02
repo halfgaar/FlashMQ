@@ -277,6 +277,7 @@ MainTests::MainTests()
     REGISTER_FUNCTION(testExtendedReAuthTwoStep);
     REGISTER_FUNCTION(testExtendedReAuthFail);
     REGISTER_FUNCTION(testSimpleAuthAsync);
+    REGISTER_FUNCTION(testFailedAsyncClientCrashOnSession);
     REGISTER_FUNCTION(testPluginAuthFail);
     REGISTER_FUNCTION(testPluginAuthSucceed);
     REGISTER_FUNCTION(testPluginOnDisconnect);

@@ -504,6 +504,57 @@ void MainTests::testSimpleAuthAsync()
     }
 }
 
+/**
+ * There was a crash when doing session stuff with a client that was rejected by exception
+ * in continuationOfAuthentication (by duplicate session id between different users).
+ */
+void MainTests::testFailedAsyncClientCrashOnSession()
+{
+    ConfFileTemp confFile;
+    confFile.writeLine("plugin plugins/libtest_plugin.so.0.0.1");
+    confFile.closeFile();
+
+    std::vector<std::string> args {"--config-file", confFile.getFilePath()};
+
+    cleanup();
+    init(args);
+
+    std::list<FlashMQTestClient> clients;
+
+    for (int i = 0; i < 2; i++)
+    {
+        clients.emplace_back();
+        FlashMQTestClient &client = clients.back();
+        client.start();
+        client.connectClient(ProtocolVersion::Mqtt5, false, 120, [&](Connect &connect) {
+            connect.username = "async" + std::to_string(i);
+            connect.password = "success";
+            connect.clientid = "duplicate";
+        }, 21883, false);
+    }
+
+    FlashMQTestClient &second_client = clients.back();
+
+    clients.front().waitForConnack();
+
+    // Because it crashed, we don't have events to wait for.
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+
+    Publish pub("sdf", "wer", 2);
+    MqttPacket pubPack(second_client.getClient()->getProtocolVersion(), pub);
+    if (pub.qos > 0)
+        pubPack.setPacketId(3);
+    second_client.getClient()->writeMqttPacketAndBlameThisClient(pubPack);
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+    // Test if the server still works after that.
+    clients.front().clearReceivedLists();
+    clients.front().publish("sdf", "sfd", 2);
+    FMQ_VERIFY(!clients.front().receivedPackets.empty());
+    FMQ_COMPARE(clients.front().receivedPackets.back().packetType, PacketType::PUBCOMP);
+}
+
 void MainTests::testClientRemovalByPlugin()
 {
     std::list<std::string> methods { "removeclient", "removeclientandsession"};

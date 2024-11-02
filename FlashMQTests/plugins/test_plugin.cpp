@@ -118,7 +118,7 @@ AuthResult flashmq_plugin_login_check(void *thread_data, const std::string &clie
     (void)userProperties;
     (void)client;
 
-    if (username == "async")
+    if (username.find("async") == 0)
     {
         TestPluginData *p = static_cast<TestPluginData*>(thread_data);
         p->c = client;

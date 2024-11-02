@@ -88,18 +88,18 @@ void FlashMQTestClient::start()
     testServerWorkerThreadData->start(&do_thread_work);
 }
 
-void FlashMQTestClient::connectClient(ProtocolVersion protocolVersion, int port)
+void FlashMQTestClient::connectClient(ProtocolVersion protocolVersion, int port, bool _waitForConnack)
 {
-    connectClient(protocolVersion, true, 0, [](Connect&){}, port);
+    connectClient(protocolVersion, true, 0, [](Connect&){}, port, _waitForConnack);
 }
 
-void FlashMQTestClient::connectClient(ProtocolVersion protocolVersion, bool clean_start, uint32_t session_expiry_interval, int port)
+void FlashMQTestClient::connectClient(ProtocolVersion protocolVersion, bool clean_start, uint32_t session_expiry_interval, int port, bool _waitForConnack)
 {
-    connectClient(protocolVersion, clean_start, session_expiry_interval, [](Connect&){}, port);
+    connectClient(protocolVersion, clean_start, session_expiry_interval, [](Connect&){}, port, _waitForConnack);
 }
 
 void FlashMQTestClient::connectClient(ProtocolVersion protocolVersion, bool clean_start, uint32_t session_expiry_interval,
-                                      std::function<void(Connect&)> manipulateConnect, int port)
+                                      std::function<void(Connect&)> manipulateConnect, int port, bool _waitForConnack)
 {
     int sockfd = check<std::runtime_error>(socket(AF_INET, SOCK_STREAM, 0));
 
@@ -180,8 +180,11 @@ void FlashMQTestClient::connectClient(ProtocolVersion protocolVersion, bool clea
     MqttPacket connectPack(connect);
     this->client->writeMqttPacketAndBlameThisClient(connectPack);
 
-    waitForConnack();
-    this->client->setAuthenticated(true);
+    if (_waitForConnack)
+    {
+        waitForConnack();
+        this->client->setAuthenticated(true);
+    }
 }
 
 void FlashMQTestClient::subscribe(const std::string topic, uint8_t qos, bool noLocal, bool retainAsPublished)

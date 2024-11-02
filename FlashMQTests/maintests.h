@@ -186,6 +186,7 @@ class MainTests
     void testExtendedReAuthTwoStep();
     void testExtendedReAuthFail();
     void testSimpleAuthAsync();
+    void testFailedAsyncClientCrashOnSession();
     void testPluginAuthFail();
     void testPluginAuthSucceed();
     void testPluginOnDisconnect();
