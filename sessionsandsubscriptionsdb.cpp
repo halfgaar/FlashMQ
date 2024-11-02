@@ -282,7 +282,7 @@ void SessionsAndSubscriptionsDB::saveData(const std::vector<std::shared_ptr<Sess
     std::vector<std::shared_ptr<Session>> sessionsToSave;
     // Sessions created with clean session need to be destroyed when disconnecting, so no point in saving them.
     std::copy_if(sessions.begin(), sessions.end(), std::back_inserter(sessionsToSave), [](const std::shared_ptr<Session> &ses) {
-        return !ses->destroyOnDisconnect;
+        return ses && !ses->destroyOnDisconnect;
     });
 
     writeUint32(sessionsToSave.size());
