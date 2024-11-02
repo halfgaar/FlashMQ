@@ -521,24 +521,26 @@ void MainTests::testFailedAsyncClientCrashOnSession()
 
     std::list<FlashMQTestClient> clients;
 
-    for (int i = 0; i < 2; i++)
-    {
-        clients.emplace_back();
-        FlashMQTestClient &client = clients.back();
-        client.start();
-        client.connectClient(ProtocolVersion::Mqtt5, false, 120, [&](Connect &connect) {
-            connect.username = "async" + std::to_string(i);
+    clients.emplace_back();
+    clients.back().start();
+    clients.back().connectClient(ProtocolVersion::Mqtt5, false, 120, [&](Connect &connect) {
+            connect.username = "async1";
+            connect.password = "success";
+            connect.clientid = "duplicate";
+        }, 21883);
+
+    clients.emplace_back();
+    clients.back().start();
+    clients.back().connectClient(ProtocolVersion::Mqtt5, false, 120, [&](Connect &connect) {
+            connect.username = "async2";
             connect.password = "success";
             connect.clientid = "duplicate";
         }, 21883, false);
-    }
-
-    FlashMQTestClient &second_client = clients.back();
-
-    clients.front().waitForConnack();
 
     // Because it crashed, we don't have events to wait for.
     std::this_thread::sleep_for(std::chrono::seconds(1));
+
+    FlashMQTestClient &second_client = clients.back();
 
     Publish pub("sdf", "wer", 2);
     MqttPacket pubPack(second_client.getClient()->getProtocolVersion(), pub);
