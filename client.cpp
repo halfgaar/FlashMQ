@@ -929,12 +929,10 @@ void Client::assignSession(const std::shared_ptr<Session> &session)
 
 std::shared_ptr<Session> Client::getSession()
 {
-    return this->session;
-}
+    if (!this->session)
+        throw std::runtime_error("Client has no session in getSession(). It was probably meant to be discarded.");
 
-void Client::resetSession()
-{
-    this->session.reset();
+    return this->session;
 }
 
 void Client::setDisconnectReason(const std::string &reason)

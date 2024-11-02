@@ -222,8 +222,8 @@ void ThreadData::continuationOfAuthentication(std::shared_ptr<Client> &client, A
                 client->setWillFromStaged();
             }
 
-            client->sendConnackSuccess();
             subscriptionStore->registerClientAndKickExistingOne(client);
+            client->sendConnackSuccess();
         }
         else // Reauth (to authenticated clients) sends AUTH on success.
         {

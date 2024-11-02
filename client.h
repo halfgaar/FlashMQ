@@ -170,7 +170,6 @@ public:
     const std::shared_ptr<WillPublish> &getStagedWill() { return this->stagedWillPublish; }
     void assignSession(const std::shared_ptr<Session> &session);
     std::shared_ptr<Session> getSession();
-    void resetSession();
     void setDisconnectReason(const std::string &reason);
     std::chrono::seconds getSecondsTillKeepAliveAction() const;
 
