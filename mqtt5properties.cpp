@@ -13,6 +13,7 @@ See LICENSE for license details.
 #include <cstring>
 #include <vector>
 #include <cassert>
+#include <array>
 
 #include "exceptions.h"
 
