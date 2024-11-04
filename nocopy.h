@@ -10,14 +10,14 @@ class NoCopy
 
 public:
 
-    NoCopy<T>() = default;
+    NoCopy() = default;
 
-    NoCopy<T>(const NoCopy<T> &other)
+    NoCopy(const NoCopy<T> &other)
     {
         (void) other;
     }
 
-    NoCopy<T>(NoCopy<T> &&other) = delete;
+    NoCopy(NoCopy<T> &&other) = delete;
 
     NoCopy<T>& operator=(const NoCopy<T> &other)
     {
