@@ -141,7 +141,7 @@ multi-value-param one 'two' "three" "with ' char"
         </listitem>
       </varlistentry>
       <varlistentry xml:id="log_level" condition="flashmq ≥ 1.11.0">
-        <term><option>log_level</option> <replaceable>info</replaceable>|<replaceable>notice</replaceable>|<replaceable>warning</replaceable>|<replaceable>error</replaceable>|<replaceable>none</replaceable></term>
+        <term><option>log_level</option> <replaceable>debug</replaceable>|<replaceable>info</replaceable>|<replaceable>notice</replaceable>|<replaceable>warning</replaceable>|<replaceable>error</replaceable>|<replaceable>none</replaceable></term>
         <listitem>
           <para>
             Set the log level to specified level and above. That means <replaceable>notice</replaceable> will log <replaceable>notice</replaceable>, <replaceable>warning</replaceable> and <replaceable>error</replaceable>.
