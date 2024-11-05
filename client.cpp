@@ -648,7 +648,6 @@ void Client::sendConnackSuccess()
     }
 
     ConnAck &connAck = *this->stagedConnack.get();
-    setAuthenticated(true);
     MqttPacket response(connAck);
     writeMqttPacket(response);
     logger->logf(LOG_NOTICE, "Client '%s' logged in successfully", repr().c_str());
