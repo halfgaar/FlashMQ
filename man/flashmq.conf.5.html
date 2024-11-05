@@ -306,7 +306,7 @@ multi-value-param one 'two' "three" "with ' char"
       
 
       
-        <dt id="plugin_serialize_init"><code class="option">plugin_serialize_init</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#plugin_serialize_init">#</a></dt>
+        <dt id="plugin_serialize_init"><code class="option">plugin_serialize_init</code> <code class="replaceable">true</code>|<code class="replaceable">false</code><a class="hash-anchor" href="#plugin_serialize_init">#</a></dt>
         <dd>
           <p>
             There could be circumstances where the plugin code is mostly thread-safe, but not on initialization. Libmysqlclient for instance, needs a one-time initialization. To add to the confusion, Qt hides that away.
@@ -320,7 +320,7 @@ multi-value-param one 'two' "three" "with ' char"
         </dd>
       
       
-        <dt id="plugin_serialize_auth_checks"><code class="option">plugin_serialize_auth_checks</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#plugin_serialize_auth_checks">#</a></dt>
+        <dt id="plugin_serialize_auth_checks"><code class="option">plugin_serialize_auth_checks</code> <code class="replaceable">true</code>|<code class="replaceable">false</code><a class="hash-anchor" href="#plugin_serialize_auth_checks">#</a></dt>
         <dd>
           <p>
             Like <code class="option">plugin_serialize_init</code>, but then for all login and ACL checks.
@@ -356,7 +356,7 @@ multi-value-param one 'two' "three" "with ' char"
         </dd>
       
       
-        <dt id="log_level"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.11.0">≥ v1.11.0</div><code class="option">log_level</code> <code class="replaceable">info/notice/warning/error/none</code><a class="hash-anchor" href="#log_level">#</a></dt>
+        <dt id="log_level"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.11.0">≥ v1.11.0</div><code class="option">log_level</code> <code class="replaceable">info</code>|<code class="replaceable">notice</code>|<code class="replaceable">warning</code>|<code class="replaceable">error</code>|<code class="replaceable">none</code><a class="hash-anchor" href="#log_level">#</a></dt>
         <dd>
           <p>
             Set the log level to specified level and above. That means <code class="replaceable">notice</code> will log <code class="replaceable">notice</code>, <code class="replaceable">warning</code> and <code class="replaceable">error</code>.
@@ -370,7 +370,7 @@ multi-value-param one 'two' "three" "with ' char"
         </dd>
       
       
-        <dt id="log_debug"><code class="option">log_debug</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#log_debug">#</a></dt>
+        <dt id="log_debug"><code class="option">log_debug</code> <code class="replaceable">true</code>|<code class="replaceable">false</code><a class="hash-anchor" href="#log_debug">#</a></dt>
         <dd>
           <p>
             Debug logging obviously creates a lot of log noise, so should only be done to diagnose problems.
@@ -384,7 +384,7 @@ multi-value-param one 'two' "three" "with ' char"
         </dd>
       
       
-        <dt id="log_subscriptions"><code class="option">log_subscriptions</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#log_subscriptions">#</a></dt>
+        <dt id="log_subscriptions"><code class="option">log_subscriptions</code> <code class="replaceable">true</code>|<code class="replaceable">false</code><a class="hash-anchor" href="#log_subscriptions">#</a></dt>
         <dd>
           <p>
             Default value: <code class="literal">false</code>
@@ -392,7 +392,7 @@ multi-value-param one 'two' "three" "with ' char"
         </dd>
       
       
-        <dt id="allow_unsafe_clientid_chars"><code class="option">allow_unsafe_clientid_chars</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#allow_unsafe_clientid_chars">#</a></dt>
+        <dt id="allow_unsafe_clientid_chars"><code class="option">allow_unsafe_clientid_chars</code> <code class="replaceable">true</code>|<code class="replaceable">false</code><a class="hash-anchor" href="#allow_unsafe_clientid_chars">#</a></dt>
         <dd>
           <p>
             If you have topics with client IDs in it, people can possibly manipulate your ACL checking by saying their client ID is 'John+foobar'. Audit your security before you allow this.
@@ -403,7 +403,7 @@ multi-value-param one 'two' "three" "with ' char"
         </dd>
       
       
-        <dt id="allow_unsafe_username_chars"><code class="option">allow_unsafe_username_chars</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#allow_unsafe_username_chars">#</a></dt>
+        <dt id="allow_unsafe_username_chars"><code class="option">allow_unsafe_username_chars</code> <code class="replaceable">true</code>|<code class="replaceable">false</code><a class="hash-anchor" href="#allow_unsafe_username_chars">#</a></dt>
         <dd>
           <p>
             If you have topics with usernames in it, people can possibly manipulate your ACL checking by saying their username is 'John+foobar'. Audit your security before you allow this.
@@ -481,7 +481,7 @@ multi-value-param one 'two' "three" "with ' char"
         </dd>
       
       
-        <dt id="allow_anonymous"><code class="option">allow_anonymous</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#allow_anonymous">#</a></dt>
+        <dt id="allow_anonymous"><code class="option">allow_anonymous</code> <code class="replaceable">true</code>|<code class="replaceable">false</code><a class="hash-anchor" href="#allow_anonymous">#</a></dt>
         <dd>
           <p>
               This option can be overriden on a per-listener basis; see <a href="#listen__allow_anonymous"><code class="option">listener.allow_anonymous</code></a>.
@@ -492,7 +492,7 @@ multi-value-param one 'two' "three" "with ' char"
         </dd>
       
       
-        <dt id="zero_byte_username_is_anonymous"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.11.0">≥ v1.11.0</div><code class="option">zero_byte_username_is_anonymous</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#zero_byte_username_is_anonymous">#</a></dt>
+        <dt id="zero_byte_username_is_anonymous"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.11.0">≥ v1.11.0</div><code class="option">zero_byte_username_is_anonymous</code> <code class="replaceable">true</code>|<code class="replaceable">false</code><a class="hash-anchor" href="#zero_byte_username_is_anonymous">#</a></dt>
         <dd>
           <p>
             The proper way to signal an anonymous client is by setting the 'username present' flag in the CONNECT packet to 0, which in MQTT3 also demands the absence of a password. However, there are also clients out there that set the 'username present' flag to 1 and then give an empty username. This is an undesirable situation, because it means there are two ways to identify an anonymous client.
@@ -537,7 +537,7 @@ multi-value-param one 'two' "three" "with ' char"
         </dd>
       
       
-        <dt id="quiet"><code class="option">quiet</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#quiet">#</a></dt>
+        <dt id="quiet"><code class="option">quiet</code> <code class="replaceable">true</code>|<code class="replaceable">false</code><a class="hash-anchor" href="#quiet">#</a></dt>
         <dd>
           <p>
             Don't log LOG_INFO and LOG_NOTICE. This is useful when you have a lot of foot traffic, because otherwise the log gets filled with connect/disconnect notices.
@@ -573,8 +573,8 @@ multi-value-param one 'two' "three" "with ' char"
         </dd>
       
       
-        <dt id="max_qos_msg_pending_per_client"><code class="option">max_qos_msg_pending_per_client</code></dt>
-        <dt id="max_qos_bytes_pending_per_client"><code class="option">max_qos_bytes_pending_per_client</code><a class="hash-anchor" href="#max_qos_bytes_pending_per_client">#</a></dt>
+        <dt id="max_qos_msg_pending_per_client"><code class="option">max_qos_msg_pending_per_client</code> <code class="replaceable">number</code></dt>
+        <dt id="max_qos_bytes_pending_per_client"><code class="option">max_qos_bytes_pending_per_client</code> <code class="replaceable">bytes</code><a class="hash-anchor" href="#max_qos_bytes_pending_per_client">#</a></dt>
         <dd>
           <p>
             There is a limit to how many QoS packets can be stored in a session, so you can define a maximum amount of messages and bytes. If any of these is exceeded, the packet is dropped.
@@ -634,7 +634,7 @@ multi-value-param one 'two' "three" "with ' char"
       
 
       
-        <dt id="wills_enabled"><code class="option">wills_enabled</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#wills_enabled">#</a></dt>
+        <dt id="wills_enabled"><code class="option">wills_enabled</code> <code class="replaceable">true</code>|<code class="replaceable">false</code><a class="hash-anchor" href="#wills_enabled">#</a></dt>
         <dd>
           <p>
             When disabled, the server will not set last will and testament specified by connecting clients.
@@ -646,7 +646,7 @@ multi-value-param one 'two' "three" "with ' char"
       
 
       
-        <dt id="retained_messages_mode"><code class="option">retained_messages_mode</code> <code class="replaceable">enabled/enabled_without_persistence/downgrade/drop/disconnect_with_error</code><a class="hash-anchor" href="#retained_messages_mode">#</a></dt>
+        <dt id="retained_messages_mode"><code class="option">retained_messages_mode</code> <code class="replaceable">enabled</code>|<code class="replaceable">enabled_without_persistence</code>|<code class="replaceable">downgrade</code>|<code class="replaceable">drop</code>|<code class="replaceable">disconnect_with_error</code><a class="hash-anchor" href="#retained_messages_mode">#</a></dt>
         <dd>
           <p>
             Retained messages can be a strain on the server you may not need. You can set various ways of dealing with them:
@@ -779,7 +779,7 @@ multi-value-param one 'two' "three" "with ' char"
       
 
       
-        <dt id="websocket_set_real_ip_from"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.2.0">≥ v1.2.0</div><code class="option">websocket_set_real_ip_from</code> <code class="replaceable">inet4_address/inet6_address</code><a class="hash-anchor" href="#websocket_set_real_ip_from">#</a></dt>
+        <dt id="websocket_set_real_ip_from"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.2.0">≥ v1.2.0</div><code class="option">websocket_set_real_ip_from</code> <code class="replaceable">inet4_address</code>|<code class="replaceable">inet6_address</code><a class="hash-anchor" href="#websocket_set_real_ip_from">#</a></dt>
         <dd>
           <p>
               HTTP proxies in front of the websocket listeners can set the <code class="replaceable">X-Real-IP</code> header to identify the original connecting client. With <code class="option">websocket_set_real_ip_from</code> you can mark IP networks as trusted. By default, clients are not trusted, to avoid spoofing.
@@ -797,7 +797,7 @@ multi-value-param one 'two' "three" "with ' char"
       
 
       
-        <dt id="shared_subscription_targeting"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.2.0">≥ v1.2.0</div><code class="option">shared_subscription_targeting</code> <code class="replaceable">round_robin/sender_hash</code><a class="hash-anchor" href="#shared_subscription_targeting">#</a></dt>
+        <dt id="shared_subscription_targeting"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.2.0">≥ v1.2.0</div><code class="option">shared_subscription_targeting</code> <code class="replaceable">round_robin</code>|<code class="replaceable">sender_hash</code><a class="hash-anchor" href="#shared_subscription_targeting">#</a></dt>
         <dd>
           <p>
             When having multiple subscribers on a shared subscription (like '$share/myshare/jane/doe'), select how the messages should be distributed over the subscribers.
@@ -830,7 +830,7 @@ multi-value-param one 'two' "three" "with ' char"
       
 
       
-        <dt id="wildcard_subscription_deny_mode"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.9.0">≥ v1.9.0</div><code class="option">wildcard_subscription_deny_mode</code> <code class="replaceable">deny_all/deny_retained_only</code><a class="hash-anchor" href="#wildcard_subscription_deny_mode">#</a></dt>
+        <dt id="wildcard_subscription_deny_mode"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.9.0">≥ v1.9.0</div><code class="option">wildcard_subscription_deny_mode</code> <code class="replaceable">deny_all</code>|<code class="replaceable">deny_retained_only</code><a class="hash-anchor" href="#wildcard_subscription_deny_mode">#</a></dt>
         <dd>
           <p>
             For <code class="option">minimum_wildcard_subscription_depth</code>, specify what you want to deny. Trying to give a client all retained messages can cause quite some load, so only denying the retained messages upon receiving a broad wildcard subscription can be useful if you have a low enough general message volume, but a high number of retained messages. 
@@ -842,7 +842,7 @@ multi-value-param one 'two' "three" "with ' char"
       
 
       
-        <dt id="overload_mode"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.12.0">≥ v1.12.0</div><code class="option">overload_mode</code> <code class="replaceable">log/close_new_clients</code><a class="hash-anchor" href="#overload_mode">#</a></dt>
+        <dt id="overload_mode"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.12.0">≥ v1.12.0</div><code class="option">overload_mode</code> <code class="replaceable">log</code>|<code class="replaceable">close_new_clients</code><a class="hash-anchor" href="#overload_mode">#</a></dt>
         <dd>
           <p>
             Define the action to perform when the value defined with <code class="option">max_event_loop_drift</code> is exceeded.
@@ -927,40 +927,18 @@ multi-value-param one 'two' "three" "with ' char"
         </dd>
       
       
-        <dt id="protocol"><code class="option">protocol</code><a class="hash-anchor" href="#protocol">#</a></dt>
+        <dt id="protocol"><code class="option">protocol</code> <code class="replaceable">mqtt</code>|<code class="replaceable">websockets</code><a class="hash-anchor" href="#protocol">#</a></dt>
         <dd>
           <p>
-            Valid values:
-            <span class="simplelist inline">
-              <span class="member">
-                <code class="literal">mqtt</code>
-              </span>
-               <span class="member-sep">, </span><span class="member">
-                <code class="literal">websockets</code>
-              </span>
-            </span>
+            This is a required parameter.
           </p>
         </dd>
       
       
-        <dt id="inet_protocol"><code class="option">inet_protocol</code><a class="hash-anchor" href="#inet_protocol">#</a></dt>
+        <dt id="inet_protocol"><code class="option">inet_protocol</code> <code class="replaceable">ip4_ip6</code>|<code class="replaceable">ip4</code>|<code class="replaceable">ip6</code><a class="hash-anchor" href="#inet_protocol">#</a></dt>
         <dd>
           <p>
-            Valid values:
-            <span class="simplelist inline">
-              <span class="member">
-                <code class="literal">ip4_ip6</code>
-              </span>
-              <span class="member-sep">, </span><span class="member">
-                <code class="literal">ip4</code>
-              </span>
-              <span class="member-sep">, </span><span class="member">
-                <code class="literal">ip6</code>
-              </span>
-            </span>
-            <p>
-              Default: ip4_ip6
-            </p>
+            Default: <code class="literal">ip4_ip6</code>
           </p>
         </dd>
       
@@ -1025,7 +1003,7 @@ multi-value-param one 'two' "three" "with ' char"
       
 
       
-        <dt id="client_verification_still_do_authn"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.8.0">≥ v1.8.0</div><code class="option">client_verification_still_do_authn</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#client_verification_still_do_authn">#</a></dt>
+        <dt id="client_verification_still_do_authn"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.8.0">≥ v1.8.0</div><code class="option">client_verification_still_do_authn</code> <code class="replaceable">true</code>|<code class="replaceable">false</code><a class="hash-anchor" href="#client_verification_still_do_authn">#</a></dt>
         <dd>
           <p>
             When using X509 client authentication with <code class="option">client_verification_ca_file</code> or <code class="option">client_verification_ca_dir</code>, the username will not be checked with a user database or a plugin by default. Set this option to <code class="literal">true</code> to override that.
@@ -1034,7 +1012,7 @@ multi-value-param one 'two' "three" "with ' char"
       
 
       
-        <dt id="listen__allow_anonymous"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.10.0">≥ v1.10.0</div><code class="option">allow_anonymous</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#listen__allow_anonymous">#</a></dt>
+        <dt id="listen__allow_anonymous"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.10.0">≥ v1.10.0</div><code class="option">allow_anonymous</code> <code class="replaceable">true</code>|<code class="replaceable">false</code><a class="hash-anchor" href="#listen__allow_anonymous">#</a></dt>
         <dd>
           <p>
             This allows you to override the <a href="#allow_anonymous">global <code class="option">allow_anonymous</code></a> setting on the listener level.
@@ -1043,7 +1021,7 @@ multi-value-param one 'two' "three" "with ' char"
       
 
       
-        <dt id="haproxy"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.1.0">≥ v1.1.0</div><code class="option">haproxy</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#haproxy">#</a></dt>
+        <dt id="haproxy"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.1.0">≥ v1.1.0</div><code class="option">haproxy</code> <code class="replaceable">true</code>|<code class="replaceable">false</code><a class="hash-anchor" href="#haproxy">#</a></dt>
         <dd>
           <p>
             Setting the listener to haproxy makes it expect the PROXY protocol and set client source address to the original client. Make sure this listener is private / firewalled, otherwise anybody can set a different source address.
@@ -1061,7 +1039,7 @@ multi-value-param one 'two' "three" "with ' char"
       
 
       
-        <dt id="tcp_nodelay"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.13.0">≥ v1.13.0</div><code class="option">tcp_nodelay</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#tcp_nodelay">#</a></dt>
+        <dt id="tcp_nodelay"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.13.0">≥ v1.13.0</div><code class="option">tcp_nodelay</code> <code class="replaceable">true</code>|<code class="replaceable">false</code><a class="hash-anchor" href="#tcp_nodelay">#</a></dt>
         <dd>
           <p>
             <code class="option">tcp_nodelay</code> will cause the <code class="literal">TCP_NODELAY</code> option to be set for the listener's socket(s), and therefore for all clients accepted on that listener.
@@ -1190,7 +1168,7 @@ listen {
       
 
       
-        <dt id="bridge__protocol_version"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.7.0">≥ v1.7.0</div><code class="option">protocol_version</code> <code class="replaceable">mqtt3.1/mqtt3.1.1/mqtt5</code><a class="hash-anchor" href="#bridge__protocol_version">#</a></dt>
+        <dt id="bridge__protocol_version"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.7.0">≥ v1.7.0</div><code class="option">protocol_version</code> <code class="replaceable">mqtt3.1</code>|<code class="replaceable">mqtt3.1.1</code>|<code class="replaceable">mqtt5</code><a class="hash-anchor" href="#bridge__protocol_version">#</a></dt>
         <dd>
           <p>
             Default: <code class="literal">mqtt3.1.1</code>
@@ -1199,7 +1177,7 @@ listen {
       
 
       
-        <dt id="bridge__bridge_protocol_bit"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.7.0">≥ v1.7.0</div><code class="option">bridge_protocol_bit</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#bridge__bridge_protocol_bit">#</a></dt>
+        <dt id="bridge__bridge_protocol_bit"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.7.0">≥ v1.7.0</div><code class="option">bridge_protocol_bit</code> <code class="replaceable">true</code>|<code class="replaceable">false</code><a class="hash-anchor" href="#bridge__bridge_protocol_bit">#</a></dt>
         <dd>
           <p>
             An unofficial standard is to set the most significant bit of the protocol version byte to 1 to signal the connection is a bridge. This allows the other side to alter its behavior slightly. However, this is not always supported, so you can disable this if you get disconnected for reporting an invalid protocol version.
@@ -1295,7 +1273,7 @@ listen {
       
 
       
-        <dt id="bridge__remote_clean_start"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.7.0">≥ v1.7.0</div><code class="option">remote_clean_start</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#bridge__remote_clean_start">#</a></dt>
+        <dt id="bridge__remote_clean_start"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.7.0">≥ v1.7.0</div><code class="option">remote_clean_start</code> <code class="replaceable">true</code>|<code class="replaceable">false</code><a class="hash-anchor" href="#bridge__remote_clean_start">#</a></dt>
         <dd>
           <p>
             In MQTT3, this means 'clean session', meaning the remote server removes any existing session with the same ID on (re)connect, and destroys it immediately on disconnect. If you want reuseable sessions that survive disconnects, set this to false. If you also want to pick up remote sessions on FlashMQ restart, set <code class="option">use_saved_clientid</code> to true.
@@ -1313,7 +1291,7 @@ listen {
       
 
       
-        <dt id="bridge__local_clean_start"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.7.0">≥ v1.7.0</div><code class="option">local_clean_start</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#bridge__local_clean_start">#</a></dt>
+        <dt id="bridge__local_clean_start"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.7.0">≥ v1.7.0</div><code class="option">local_clean_start</code> <code class="replaceable">true</code>|<code class="replaceable">false</code><a class="hash-anchor" href="#bridge__local_clean_start">#</a></dt>
         <dd>
           <p>
               In MQTT3 mode, this means 'clean session' and means the session is removed upon disconnect. If you want to reuse sessions on reconnect, set this to false. Any new start of FlashMQ will give you a new client ID so will always be a fresh session, except if you set <code class="option">use_saved_clientid</code>.
@@ -1355,7 +1333,7 @@ listen {
       
 
       
-        <dt id="bridge__remote_retain_available"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.7.0">≥ v1.7.0</div><code class="option">remote_retain_available</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#bridge__remote_retain_available">#</a></dt>
+        <dt id="bridge__remote_retain_available"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.7.0">≥ v1.7.0</div><code class="option">remote_retain_available</code> <code class="replaceable">true</code>|<code class="replaceable">false</code><a class="hash-anchor" href="#bridge__remote_retain_available">#</a></dt>
         <dd>
           <p>
               MQTT5 allows a server to tell a client it doesn't support retained messages, or has it disabled. When using MQTT3, use this option to achieve the same.
@@ -1370,7 +1348,7 @@ listen {
       
 
       
-        <dt id="bridge__use_saved_clientid"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.7.0">≥ v1.7.0</div><code class="option">use_saved_clientid</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#bridge__use_saved_clientid">#</a></dt>
+        <dt id="bridge__use_saved_clientid"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.7.0">≥ v1.7.0</div><code class="option">use_saved_clientid</code> <code class="replaceable">true</code>|<code class="replaceable">false</code><a class="hash-anchor" href="#bridge__use_saved_clientid">#</a></dt>
         <dd>
           <p>
               When you want your bridges to resume local and remote sessions after restart, set this to true and set <code class="option">remote_clean_start</code>, <code class="option">local_clean_start</code>, <code class="option">remote_session_expiry_interval</code> and <code class="option">local_session_expiry_interval</code> accordingly. It only has effect when you have set a <code class="option">storage_dir</code>.
@@ -1412,7 +1390,7 @@ listen {
       
 
       
-        <dt id="bridge__tcp_nodelay"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.13.0">≥ v1.13.0</div><code class="option">tcp_nodelay</code> <code class="replaceable">true/false</code><a class="hash-anchor" href="#bridge__tcp_nodelay">#</a></dt>
+        <dt id="bridge__tcp_nodelay"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.13.0">≥ v1.13.0</div><code class="option">tcp_nodelay</code> <code class="replaceable">true</code>|<code class="replaceable">false</code><a class="hash-anchor" href="#bridge__tcp_nodelay">#</a></dt>
         <dd>
           <p>
             <code class="option">tcp_nodelay</code> will cause the <code class="literal">TCP_NODELAY</code> option to be set for the client socket that is used to connect to the other end of the bridge.
