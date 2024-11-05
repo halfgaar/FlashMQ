@@ -91,7 +91,7 @@ multi-value-param one 'two' "three" "with ' char"
       </varlistentry>
 
       <varlistentry xml:id="plugin_serialize_init">
-        <term><option>plugin_serialize_init</option> <replaceable>true/false</replaceable></term>
+        <term><option>plugin_serialize_init</option> <replaceable>true</replaceable>|<replaceable>false</replaceable></term>
         <listitem>
           <para>
             There could be circumstances where the plugin code is mostly thread-safe, but not on initialization. Libmysqlclient for instance, needs a one-time initialization. To add to the confusion, Qt hides that away.
@@ -105,7 +105,7 @@ multi-value-param one 'two' "three" "with ' char"
         </listitem>
       </varlistentry>
       <varlistentry xml:id="plugin_serialize_auth_checks">
-        <term><option>plugin_serialize_auth_checks</option> <replaceable>true/false</replaceable></term>
+        <term><option>plugin_serialize_auth_checks</option> <replaceable>true</replaceable>|<replaceable>false</replaceable></term>
         <listitem>
           <para>
             Like <option>plugin_serialize_init</option>, but then for all login and ACL checks.
@@ -141,7 +141,7 @@ multi-value-param one 'two' "three" "with ' char"
         </listitem>
       </varlistentry>
       <varlistentry xml:id="log_level" condition="flashmq ≥ 1.11.0">
-        <term><option>log_level</option> <replaceable>info/notice/warning/error/none</replaceable></term>
+        <term><option>log_level</option> <replaceable>info</replaceable>|<replaceable>notice</replaceable>|<replaceable>warning</replaceable>|<replaceable>error</replaceable>|<replaceable>none</replaceable></term>
         <listitem>
           <para>
             Set the log level to specified level and above. That means <replaceable>notice</replaceable> will log <replaceable>notice</replaceable>, <replaceable>warning</replaceable> and <replaceable>error</replaceable>.
@@ -155,7 +155,7 @@ multi-value-param one 'two' "three" "with ' char"
         </listitem>
       </varlistentry>
       <varlistentry xml:id="log_debug">
-        <term><option>log_debug</option> <replaceable>true/false</replaceable></term>
+        <term><option>log_debug</option> <replaceable>true</replaceable>|<replaceable>false</replaceable></term>
         <listitem>
           <para>
             Debug logging obviously creates a lot of log noise, so should only be done to diagnose problems.
@@ -169,7 +169,7 @@ multi-value-param one 'two' "three" "with ' char"
         </listitem>
       </varlistentry>
       <varlistentry xml:id="log_subscriptions">
-        <term><option>log_subscriptions</option> <replaceable>true/false</replaceable></term>
+        <term><option>log_subscriptions</option> <replaceable>true</replaceable>|<replaceable>false</replaceable></term>
         <listitem>
           <para>
             Default value: <literal>false</literal>
@@ -177,7 +177,7 @@ multi-value-param one 'two' "three" "with ' char"
         </listitem>
       </varlistentry>
       <varlistentry xml:id="allow_unsafe_clientid_chars">
-        <term><option>allow_unsafe_clientid_chars</option> <replaceable>true/false</replaceable></term>
+        <term><option>allow_unsafe_clientid_chars</option> <replaceable>true</replaceable>|<replaceable>false</replaceable></term>
         <listitem>
           <para>
             If you have topics with client IDs in it, people can possibly manipulate your ACL checking by saying their client ID is 'John+foobar'. Audit your security before you allow this.
@@ -188,7 +188,7 @@ multi-value-param one 'two' "three" "with ' char"
         </listitem>
       </varlistentry>
       <varlistentry xml:id="allow_unsafe_username_chars">
-        <term><option>allow_unsafe_username_chars</option> <replaceable>true/false</replaceable></term>
+        <term><option>allow_unsafe_username_chars</option> <replaceable>true</replaceable>|<replaceable>false</replaceable></term>
         <listitem>
           <para>
             If you have topics with usernames in it, people can possibly manipulate your ACL checking by saying their username is 'John+foobar'. Audit your security before you allow this.
@@ -266,7 +266,7 @@ multi-value-param one 'two' "three" "with ' char"
         </listitem>
       </varlistentry>
       <varlistentry xml:id="allow_anonymous">
-        <term><option>allow_anonymous</option> <replaceable>true/false</replaceable></term>
+        <term><option>allow_anonymous</option> <replaceable>true</replaceable>|<replaceable>false</replaceable></term>
         <listitem>
           <para>
               This option can be overriden on a per-listener basis; see <link xlink:href="#listen__allow_anonymous"><option>listener.allow_anonymous</option></link>.
@@ -277,7 +277,7 @@ multi-value-param one 'two' "three" "with ' char"
         </listitem>
       </varlistentry>
       <varlistentry xml:id="zero_byte_username_is_anonymous" condition="flashmq ≥ 1.11.0">
-        <term><option>zero_byte_username_is_anonymous</option> <replaceable>true/false</replaceable></term>
+        <term><option>zero_byte_username_is_anonymous</option> <replaceable>true</replaceable>|<replaceable>false</replaceable></term>
         <listitem>
           <para>
             The proper way to signal an anonymous client is by setting the 'username present' flag in the CONNECT packet to 0, which in MQTT3 also demands the absence of a password. However, there are also clients out there that set the 'username present' flag to 1 and then give an empty username. This is an undesirable situation, because it means there are two ways to identify an anonymous client.
@@ -322,7 +322,7 @@ multi-value-param one 'two' "three" "with ' char"
         </listitem>
       </varlistentry>
       <varlistentry xml:id="quiet">
-        <term><option>quiet</option> <replaceable>true/false</replaceable></term>
+        <term><option>quiet</option> <replaceable>true</replaceable>|<replaceable>false</replaceable></term>
         <listitem>
           <para>
             Don't log LOG_INFO and LOG_NOTICE. This is useful when you have a lot of foot traffic, because otherwise the log gets filled with connect/disconnect notices.
@@ -358,8 +358,8 @@ multi-value-param one 'two' "three" "with ' char"
         </listitem>
       </varlistentry>
       <varlistentry>
-        <term xml:id="max_qos_msg_pending_per_client"><option>max_qos_msg_pending_per_client</option></term>
-        <term xml:id="max_qos_bytes_pending_per_client"><option>max_qos_bytes_pending_per_client</option></term>
+        <term xml:id="max_qos_msg_pending_per_client"><option>max_qos_msg_pending_per_client</option> <replaceable>number</replaceable></term>
+        <term xml:id="max_qos_bytes_pending_per_client"><option>max_qos_bytes_pending_per_client</option> <replaceable>bytes</replaceable></term>
         <listitem>
           <para>
             There is a limit to how many QoS packets can be stored in a session, so you can define a maximum amount of messages and bytes. If any of these is exceeded, the packet is dropped.
@@ -416,7 +416,7 @@ multi-value-param one 'two' "three" "with ' char"
       </varlistentry>
 
       <varlistentry xml:id="wills_enabled">
-        <term><option>wills_enabled</option> <replaceable>true/false</replaceable></term>
+        <term><option>wills_enabled</option> <replaceable>true</replaceable>|<replaceable>false</replaceable></term>
         <listitem>
           <para>
             When disabled, the server will not set last will and testament specified by connecting clients.
@@ -428,7 +428,7 @@ multi-value-param one 'two' "three" "with ' char"
       </varlistentry>
 
       <varlistentry xml:id="retained_messages_mode">
-        <term><option>retained_messages_mode</option> <replaceable>enabled/enabled_without_persistence/downgrade/drop/disconnect_with_error</replaceable></term>
+        <term><option>retained_messages_mode</option> <replaceable>enabled</replaceable>|<replaceable>enabled_without_persistence</replaceable>|<replaceable>downgrade</replaceable>|<replaceable>drop</replaceable>|<replaceable>disconnect_with_error</replaceable></term>
         <listitem>
           <para>
             Retained messages can be a strain on the server you may not need. You can set various ways of dealing with them:
@@ -561,7 +561,7 @@ multi-value-param one 'two' "three" "with ' char"
       </varlistentry>
 
       <varlistentry xml:id="websocket_set_real_ip_from" condition="flashmq ≥ 1.2.0">
-        <term><option>websocket_set_real_ip_from</option> <replaceable>inet4_address/inet6_address</replaceable></term>
+        <term><option>websocket_set_real_ip_from</option> <replaceable>inet4_address</replaceable>|<replaceable>inet6_address</replaceable></term>
         <listitem>
           <para>
               HTTP proxies in front of the websocket listeners can set the <replaceable>X-Real-IP</replaceable> header to identify the original connecting client. With <option>websocket_set_real_ip_from</option> you can mark IP networks as trusted. By default, clients are not trusted, to avoid spoofing.
@@ -579,7 +579,7 @@ multi-value-param one 'two' "three" "with ' char"
       </varlistentry>
 
       <varlistentry xml:id="shared_subscription_targeting" condition="flashmq ≥ 1.2.0">
-        <term><option>shared_subscription_targeting</option> <replaceable>round_robin/sender_hash</replaceable></term>
+        <term><option>shared_subscription_targeting</option> <replaceable>round_robin</replaceable>|<replaceable>sender_hash</replaceable></term>
         <listitem>
           <para>
             When having multiple subscribers on a shared subscription (like '$share/myshare/jane/doe'), select how the messages should be distributed over the subscribers.
@@ -612,7 +612,7 @@ multi-value-param one 'two' "three" "with ' char"
       </varlistentry>
 
       <varlistentry xml:id="wildcard_subscription_deny_mode" condition="flashmq ≥ 1.9.0">
-        <term><option>wildcard_subscription_deny_mode</option> <replaceable>deny_all/deny_retained_only</replaceable></term>
+        <term><option>wildcard_subscription_deny_mode</option> <replaceable>deny_all</replaceable>|<replaceable>deny_retained_only</replaceable></term>
         <listitem>
           <para>
             For <option>minimum_wildcard_subscription_depth</option>, specify what you want to deny. Trying to give a client all retained messages can cause quite some load, so only denying the retained messages upon receiving a broad wildcard subscription can be useful if you have a low enough general message volume, but a high number of retained messages. 
@@ -624,7 +624,7 @@ multi-value-param one 'two' "three" "with ' char"
       </varlistentry>
 
       <varlistentry xml:id="overload_mode" condition="flashmq ≥ 1.12.0">
-        <term><option>overload_mode</option> <replaceable>log/close_new_clients</replaceable></term>
+        <term><option>overload_mode</option> <replaceable>log</replaceable>|<replaceable>close_new_clients</replaceable></term>
         <listitem>
           <para>
             Define the action to perform when the value defined with <option>max_event_loop_drift</option> is exceeded.
@@ -711,40 +711,18 @@ multi-value-param one 'two' "three" "with ' char"
         </listitem>
       </varlistentry>
       <varlistentry xml:id="protocol">
-        <term><option>protocol</option></term>
+        <term><option>protocol</option> <replaceable>mqtt</replaceable>|<replaceable>websockets</replaceable></term>
         <listitem>
           <para>
-            Valid values:
-            <simplelist type="horiz">
-              <member>
-                <literal>mqtt</literal>
-              </member>
-               <member>
-                <literal>websockets</literal>
-              </member>
-            </simplelist>
+            This is a required parameter.
           </para>
         </listitem>
       </varlistentry>
       <varlistentry xml:id="inet_protocol">
-        <term><option>inet_protocol</option></term>
+        <term><option>inet_protocol</option> <replaceable>ip4_ip6</replaceable>|<replaceable>ip4</replaceable>|<replaceable>ip6</replaceable></term>
         <listitem>
           <para>
-            Valid values:
-            <simplelist type="horiz">
-              <member>
-                <literal>ip4_ip6</literal>
-              </member>
-              <member>
-                <literal>ip4</literal>
-              </member>
-              <member>
-                <literal>ip6</literal>
-              </member>
-            </simplelist>
-            <para>
-              Default: ip4_ip6
-            </para>
+            Default: <literal>ip4_ip6</literal>
           </para>
         </listitem>
       </varlistentry>
@@ -809,7 +787,7 @@ multi-value-param one 'two' "three" "with ' char"
       </varlistentry>
 
       <varlistentry xml:id="client_verification_still_do_authn" condition="flashmq ≥ 1.8.0">
-        <term><option>client_verification_still_do_authn</option> <replaceable>true/false</replaceable></term>
+        <term><option>client_verification_still_do_authn</option> <replaceable>true</replaceable>|<replaceable>false</replaceable></term>
         <listitem>
           <para>
             When using X509 client authentication with <option>client_verification_ca_file</option> or <option>client_verification_ca_dir</option>, the username will not be checked with a user database or a plugin by default. Set this option to <literal>true</literal> to override that.
@@ -818,7 +796,7 @@ multi-value-param one 'two' "three" "with ' char"
       </varlistentry>
 
       <varlistentry xml:id="listen__allow_anonymous" condition="flashmq ≥ 1.10.0">
-        <term><option>allow_anonymous</option> <replaceable>true/false</replaceable></term>
+        <term><option>allow_anonymous</option> <replaceable>true</replaceable>|<replaceable>false</replaceable></term>
         <listitem>
           <para>
             This allows you to override the <link xlink:href="#allow_anonymous">global <option>allow_anonymous</option></link> setting on the listener level.
@@ -827,7 +805,7 @@ multi-value-param one 'two' "three" "with ' char"
       </varlistentry>
 
       <varlistentry xml:id="haproxy" condition="flashmq ≥ 1.1.0">
-        <term><option>haproxy</option> <replaceable>true/false</replaceable></term>
+        <term><option>haproxy</option> <replaceable>true</replaceable>|<replaceable>false</replaceable></term>
         <listitem>
           <para>
             Setting the listener to haproxy makes it expect the PROXY protocol and set client source address to the original client. Make sure this listener is private / firewalled, otherwise anybody can set a different source address.
@@ -845,7 +823,7 @@ multi-value-param one 'two' "three" "with ' char"
       </varlistentry>
 
       <varlistentry xml:id="tcp_nodelay" condition="flashmq ≥ 1.13.0">
-        <term><option>tcp_nodelay</option> <replaceable>true/false</replaceable></term>
+        <term><option>tcp_nodelay</option> <replaceable>true</replaceable>|<replaceable>false</replaceable></term>
         <listitem>
           <para>
             <option>tcp_nodelay</option> will cause the <literal>TCP_NODELAY</literal> option to be set for the listener's socket(s), and therefore for all clients accepted on that listener.
@@ -978,7 +956,7 @@ listen {
       </varlistentry>
 
       <varlistentry xml:id="bridge__protocol_version" condition="flashmq ≥ 1.7.0">
-        <term><option>protocol_version</option> <replaceable>mqtt3.1/mqtt3.1.1/mqtt5</replaceable></term>
+        <term><option>protocol_version</option> <replaceable>mqtt3.1</replaceable>|<replaceable>mqtt3.1.1</replaceable>|<replaceable>mqtt5</replaceable></term>
         <listitem>
           <para>
             Default: <literal>mqtt3.1.1</literal>
@@ -987,7 +965,7 @@ listen {
       </varlistentry>
 
       <varlistentry xml:id="bridge__bridge_protocol_bit" condition="flashmq ≥ 1.7.0">
-        <term><option>bridge_protocol_bit</option> <replaceable>true/false</replaceable></term>
+        <term><option>bridge_protocol_bit</option> <replaceable>true</replaceable>|<replaceable>false</replaceable></term>
         <listitem>
           <para>
             An unofficial standard is to set the most significant bit of the protocol version byte to 1 to signal the connection is a bridge. This allows the other side to alter its behavior slightly. However, this is not always supported, so you can disable this if you get disconnected for reporting an invalid protocol version.
@@ -1083,7 +1061,7 @@ listen {
       </varlistentry>
 
       <varlistentry xml:id="bridge__remote_clean_start" condition="flashmq ≥ 1.7.0">
-        <term><option>remote_clean_start</option> <replaceable>true/false</replaceable></term>
+        <term><option>remote_clean_start</option> <replaceable>true</replaceable>|<replaceable>false</replaceable></term>
         <listitem>
           <para>
             In MQTT3, this means 'clean session', meaning the remote server removes any existing session with the same ID on (re)connect, and destroys it immediately on disconnect. If you want reuseable sessions that survive disconnects, set this to false. If you also want to pick up remote sessions on FlashMQ restart, set <option>use_saved_clientid</option> to true.
@@ -1101,7 +1079,7 @@ listen {
       </varlistentry>
 
       <varlistentry xml:id="bridge__local_clean_start" condition="flashmq ≥ 1.7.0">
-        <term><option>local_clean_start</option> <replaceable>true/false</replaceable></term>
+        <term><option>local_clean_start</option> <replaceable>true</replaceable>|<replaceable>false</replaceable></term>
         <listitem>
           <para>
               In MQTT3 mode, this means 'clean session' and means the session is removed upon disconnect. If you want to reuse sessions on reconnect, set this to false. Any new start of FlashMQ will give you a new client ID so will always be a fresh session, except if you set <option>use_saved_clientid</option>.
@@ -1143,7 +1121,7 @@ listen {
       </varlistentry>
 
       <varlistentry xml:id="bridge__remote_retain_available" condition="flashmq ≥ 1.7.0">
-        <term><option>remote_retain_available</option> <replaceable>true/false</replaceable></term>
+        <term><option>remote_retain_available</option> <replaceable>true</replaceable>|<replaceable>false</replaceable></term>
         <listitem>
           <para>
               MQTT5 allows a server to tell a client it doesn't support retained messages, or has it disabled. When using MQTT3, use this option to achieve the same.
@@ -1158,7 +1136,7 @@ listen {
       </varlistentry>
 
       <varlistentry xml:id="bridge__use_saved_clientid" condition="flashmq ≥ 1.7.0">
-        <term><option>use_saved_clientid</option> <replaceable>true/false</replaceable></term>
+        <term><option>use_saved_clientid</option> <replaceable>true</replaceable>|<replaceable>false</replaceable></term>
         <listitem>
           <para>
               When you want your bridges to resume local and remote sessions after restart, set this to true and set <option>remote_clean_start</option>, <option>local_clean_start</option>, <option>remote_session_expiry_interval</option> and <option>local_session_expiry_interval</option> accordingly. It only has effect when you have set a <option>storage_dir</option>.
@@ -1200,7 +1178,7 @@ listen {
       </varlistentry>
 
       <varlistentry xml:id="bridge__tcp_nodelay" condition="flashmq ≥ 1.13.0">
-        <term><option>tcp_nodelay</option> <replaceable>true/false</replaceable></term>
+        <term><option>tcp_nodelay</option> <replaceable>true</replaceable>|<replaceable>false</replaceable></term>
         <listitem>
           <para>
             <option>tcp_nodelay</option> will cause the <literal>TCP_NODELAY</literal> option to be set for the client socket that is used to connect to the other end of the bridge.
