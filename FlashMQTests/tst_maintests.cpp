@@ -3080,3 +3080,28 @@ void MainTests::testSessionTakeoverOtherUsername()
         }
     }
 }
+
+void MainTests::testCorrelationData()
+{
+    FlashMQTestClient client1;
+    client1.start();
+    client1.connectClient(ProtocolVersion::Mqtt5);
+    client1.subscribe("several/sub/topics", 1);
+
+    {
+        FlashMQTestClient sender;
+        sender.start();
+        sender.connectClient(ProtocolVersion::Mqtt5);
+
+        Publish pub("several/sub/topics", "payload", 1);
+        pub.correlationData = "INsI8czE8y3IZBxY";
+        sender.publish(pub);
+    }
+
+    client1.waitForMessageCount(1);
+
+    auto &pack = client1.receivedPublishes.at(0);
+    FMQ_COMPARE(pack.publishData.correlationData, "INsI8czE8y3IZBxY");
+    FMQ_COMPARE(pack.getTopic(), "several/sub/topics");
+    FMQ_COMPARE(pack.getPayloadView(), "payload");
+}

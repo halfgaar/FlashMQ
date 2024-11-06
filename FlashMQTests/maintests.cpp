@@ -316,6 +316,7 @@ MainTests::MainTests()
     REGISTER_FUNCTION2(testPreviouslyValidConfigFile, false, false);
     REGISTER_FUNCTION3(testNoCopy);
     REGISTER_FUNCTION(testSessionTakeoverOtherUsername);
+    REGISTER_FUNCTION(testCorrelationData);
 }
 
 bool MainTests::test(bool skip_tests_with_internet, bool skip_server_tests, const std::vector<std::string> &tests)

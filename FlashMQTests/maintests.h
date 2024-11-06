@@ -236,6 +236,7 @@ class MainTests
 
     void testNoCopy();
     void testSessionTakeoverOtherUsername();
+    void testCorrelationData();
 
 
 public:
