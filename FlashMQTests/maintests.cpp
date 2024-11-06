@@ -250,6 +250,7 @@ MainTests::MainTests()
     REGISTER_FUNCTION(testOutgoingTopicAliasStoredPublishes);
     REGISTER_FUNCTION(testReceivingRetainedMessageWithQoS);
     REGISTER_FUNCTION(testQosDowngradeOnOfflineClients);
+    REGISTER_FUNCTION(testPacketOrderOnSessionPickup);
     REGISTER_FUNCTION(testUserProperties);
     REGISTER_FUNCTION(testMessageExpiry);
     REGISTER_FUNCTION(testExpiredQueuedMessages);

@@ -145,6 +145,7 @@ class MainTests
     void testReceivingRetainedMessageWithQoS();
 
     void testQosDowngradeOnOfflineClients();
+    void testPacketOrderOnSessionPickup();
 
     void testUserProperties();
 

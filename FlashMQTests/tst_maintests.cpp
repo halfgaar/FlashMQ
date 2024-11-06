@@ -3008,4 +3008,41 @@ void MainTests::forkingTestForkingTestServer()
     MYCASTCOMPARE(receiver.receivedPublishes.size(), 1);
 }
 
+/**
+ * There was a regression in 1.17.2 that caused publish packets to be sent before connacks. This tests for that.
+ */
+void MainTests::testPacketOrderOnSessionPickup()
+{
+    // First start with clean_start to reset the session.
+    std::unique_ptr<FlashMQTestClient> receiver = std::make_unique<FlashMQTestClient>();
+    receiver->start();
+    receiver->connectClient(ProtocolVersion::Mqtt5, true, 600, [](Connect &connect) {
+        connect.clientid = "TheReceiver";
+    });
+    receiver->subscribe("subscribe/path", 2);
+    receiver->disconnect(ReasonCodes::Success);
+    receiver.reset();
+
+    const std::string payload = "We are testing";
+
+    FlashMQTestClient sender;
+    sender.start();
+    sender.connectClient(ProtocolVersion::Mqtt311);
+
+    Publish p1("subscribe/path", payload, 2);
+    sender.publish(p1);
+
+    // Now we connect again, and we should now pick up the existing session.
+    receiver = std::make_unique<FlashMQTestClient>();
+    receiver->start();
+    receiver->connectClient(ProtocolVersion::Mqtt5, false, 600, [](Connect &connect) {
+        connect.clientid = "TheReceiver";
+    });
+
+    receiver->waitForPacketCount(3);
+
+    FMQ_COMPARE(receiver->receivedPackets.at(0).packetType, PacketType::CONNACK);
+    FMQ_COMPARE(receiver->receivedPackets.at(1).packetType, PacketType::PUBLISH);
+    FMQ_COMPARE(receiver->receivedPackets.at(2).packetType, PacketType::PUBREL);
+}
 
