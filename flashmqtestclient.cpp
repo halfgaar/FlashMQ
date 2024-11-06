@@ -147,9 +147,14 @@ void FlashMQTestClient::connectClient(ProtocolVersion protocolVersion, bool clea
             MqttPacket copyPacket = pack;
             this->receivedPublishes.push_back(copyPacket);
 
-            if (pack.getPublishData().qos > 0)
+            if (pack.getPublishData().qos == 1)
             {
                 PubResponse pubAck(this->client->getProtocolVersion(), PacketType::PUBACK, ReasonCodes::Success, pack.getPacketId());
+                this->client->writeMqttPacketAndBlameThisClient(pubAck);
+            }
+            else if (pack.getPublishData().qos == 2)
+            {
+                PubResponse pubAck(this->client->getProtocolVersion(), PacketType::PUBREC, ReasonCodes::Success, pack.getPacketId());
                 this->client->writeMqttPacketAndBlameThisClient(pubAck);
             }
         }
