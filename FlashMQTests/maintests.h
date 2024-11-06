@@ -235,6 +235,7 @@ class MainTests
     void forkingTestSaveAndLoadDelayedWill();
 
     void testNoCopy();
+    void testSessionTakeoverOtherUsername();
 
 
 public:

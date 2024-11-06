@@ -3046,3 +3046,37 @@ void MainTests::testPacketOrderOnSessionPickup()
     FMQ_COMPARE(receiver->receivedPackets.at(2).packetType, PacketType::PUBREL);
 }
 
+void MainTests::testSessionTakeoverOtherUsername()
+{
+    for (ProtocolVersion p : {ProtocolVersion::Mqtt311, ProtocolVersion::Mqtt5})
+    {
+        FlashMQTestClient client1;
+        client1.start();
+        client1.connectClient(p, true, 600, [](Connect &connect) {
+            connect.clientid = "TheReceiver";
+            connect.username = "mark";
+        });
+
+        {
+            auto &pack = client1.receivedPackets.at(0);
+            FMQ_COMPARE(pack.packetType, PacketType::CONNACK);
+            ConnAckData ackData = pack.parseConnAckData();
+            FMQ_COMPARE(ackData.reasonCode, ReasonCodes::Success);
+        }
+
+        FlashMQTestClient client2;
+        client2.start();
+        client2.connectClient(p, true, 600, [](Connect &connect) {
+            connect.clientid = "TheReceiver";
+            connect.username = "marktwain";
+        });
+
+        {
+            auto &pack = client2.receivedPackets.at(0);
+            FMQ_COMPARE(pack.packetType, PacketType::CONNACK);
+            ConnAckData ackData = pack.parseConnAckData();
+            int expectedCode = p == ProtocolVersion::Mqtt5 ? static_cast<int>(ReasonCodes::NotAuthorized) : static_cast<int>(ConnAckReturnCodes::NotAuthorized);
+            FMQ_COMPARE(static_cast<int>(ackData.reasonCode), expectedCode);
+        }
+    }
+}
