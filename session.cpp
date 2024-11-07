@@ -158,9 +158,20 @@ PacketDropReason Session::writePacket(PublishCopyFactory &copyFactory, const uin
         {
             if (QoSLogPrintedAtId != nextPacketId)
             {
-                logger->logf(LOG_WARNING, "Dropping QoS message(s) for client '%s', because it hasn't seen enough PUBACK/PUBCOMP/PUBRECs to release places "
-                                          "or it exceeded the queue size. You could increase 'max_qos_msg_pending_per_client' "
-                                          "or 'max_qos_bytes_pending_per_client' (but this is also subject the client's 'receive max').", client_id.c_str());
+                if (c)
+                {
+                    logger->log(LOG_WARNING) <<
+                        "Dropping QoS message(s) for on-line client '" << client_id << "', because it hasn't seen "
+                        "enough PUBACK/PUBCOMP/PUBRECs to release places "
+                        "or it exceeded the queue size. You could increase 'max_qos_msg_pending_per_client' "
+                        "or 'max_qos_bytes_pending_per_client' (but this is also subject the client's 'receive max').";
+                }
+                else
+                {
+                    logger->log(LOG_WARNING) <<
+                        "Dropping QoS message(s) for off-line client '" << client_id << "', because the limit has been reached. "
+                        "You can increase 'max_qos_msg_pending_per_client' and/or 'max_qos_bytes_pending_per_client' to buffer more.";
+                }
                 QoSLogPrintedAtId = nextPacketId;
             }
             return PacketDropReason::QoSTODOSomethingSomething;
