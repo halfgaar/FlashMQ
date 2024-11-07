@@ -580,6 +580,9 @@ multi-value-param one 'two' "three" "with ' char"
             There is a limit to how many QoS packets can be stored in a session, so you can define a maximum amount of messages and bytes. If any of these is exceeded, the packet is dropped.
           </p>
           <p>
+            Note that changing <code class="option">max_qos_msg_pending_per_client</code> only takes effect for new clients (also when picking up existing sessions). This is largely due to it being part of the MQTT5 connection handshake and is supposed to be adhered to.
+          </p>
+          <p>
             Defaults:
           </p>
           <ul>
