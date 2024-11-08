@@ -5,7 +5,7 @@
 \\$2 \(la\\$1\(ra\\$3
 ..
 .if \n(.g .mso www.tmac
-.TH flashmq.conf 5 "Nov 07 2024" "" ""
+.TH flashmq.conf 5 "Nov 08 2024" "" ""
 .SH NAME
 flashmq.conf \- FlashMQ configuration file format
 .SH SYNOPSIS
@@ -241,9 +241,9 @@ Default value: \fI\m[blue]4294967296\m[]\fR
 Deprecated.
 .TP
 \*(T<\fB\m[green]retained_messages_node_limit\m[] \fI\m[cyan]number\m[]\fR\fR\*(T>
-When clients place a subscription, they will get the retained messages matching that subscription. Even though traversing the retained message tree is deprioritized in favor of other traffic, it will still cause CPU load until it's done. If you have a tree with millions of nodes and clients subscribe to `#`, this is potentially unwanted. You can use this setting to limit how many nodes of the retrained tree are traversed.
+When clients place a subscription, they will get the retained messages matching that subscription. Even though traversing the retained message tree is deprioritized in favor of other traffic, it will still cause CPU load until it's done. If you have a tree with millions of nodes and clients subscribe to \fI#\fR, this is potentially unwanted. You can use this setting to limit how many nodes of the retrained tree are traversed.
 
-Note that the topic `one/two/three` is three nodes, and each node doesn't necessarilly need to contain a message.
+Note that the topic \fIone/two/three\fR is three nodes, and each node doesn't necessarilly need to contain a message.
 
 Default value: \fI\m[blue]4294967296\m[]\fR
 .TP

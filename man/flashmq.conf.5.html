@@ -701,10 +701,10 @@ multi-value-param one 'two' "three" "with ' char"
         <dt id="retained_messages_node_limit"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.8.4">≥ v1.8.4</div><code class="option">retained_messages_node_limit</code> <code class="replaceable">number</code><a class="hash-anchor" href="#retained_messages_node_limit">#</a></dt>
         <dd>
           <p>
-            When clients place a subscription, they will get the retained messages matching that subscription. Even though traversing the retained message tree is deprioritized in favor of other traffic, it will still cause CPU load until it's done. If you have a tree with millions of nodes and clients subscribe to `#`, this is potentially unwanted. You can use this setting to limit how many nodes of the retrained tree are traversed. 
+            When clients place a subscription, they will get the retained messages matching that subscription. Even though traversing the retained message tree is deprioritized in favor of other traffic, it will still cause CPU load until it's done. If you have a tree with millions of nodes and clients subscribe to <code class="literal">#</code>, this is potentially unwanted. You can use this setting to limit how many nodes of the retrained tree are traversed.
           </p>
           <p>
-            Note that the topic `one/two/three` is three nodes, and each node doesn't necessarilly need to contain a message.
+            Note that the topic <code class="literal">one/two/three</code> is three nodes, and each node doesn't necessarilly need to contain a message.
           </p>
           <p>
             Default value: <code class="filename">4294967296</code>
@@ -719,7 +719,7 @@ multi-value-param one 'two' "three" "with ' char"
             The time after which FlashMQ will fall back to (b)locking vs queued mode for setting retained messages. 0, the default, disables queued mode altogether. It's disabled by default because it can incur some extra CPU and memory overhead.
           </p>
           <p>
-            Each retained message lives in a node in a tree. The topic 'one/two/three' is three nodes. When a node in that tree does not exist yet, it needs to be created. This requires a write lock on the tree. At this point, other threads reading from or writing to the retained message tree need to wait. This can cause a compounding blocking effect, especially if many threads do it at once. 
+            Each retained message lives in a node in a tree. The topic 'one/two/three' is three nodes. When a node in that tree does not exist yet, it needs to be created. This requires a write lock on the tree. At this point, other threads reading from or writing to the retained message tree need to wait. This can cause a compounding blocking effect, especially if many threads do it at once.
           </p>
           <p>
             This feature is to favor server responsiveness vs the speed at which retained messages become available in the server. It is primarily useful for when you have a lot of retained messages on different/changing topics. If at first a retained message can't be set, the action to do so will be retried in the event loop, asynchronously.
