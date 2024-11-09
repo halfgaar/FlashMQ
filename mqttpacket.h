@@ -117,7 +117,8 @@ public:
     MqttPacket(const SubAck &subAck);
     MqttPacket(const UnsubAck &unsubAck);
     MqttPacket(const ProtocolVersion protocolVersion, const Publish &_publish);
-    MqttPacket(const ProtocolVersion protocolVersion, const Publish &_publish, const uint8_t _qos, const uint16_t _topic_alias, const bool _skip_topic);
+    MqttPacket(const ProtocolVersion protocolVersion, const Publish &_publish, const uint8_t _qos, const uint16_t _topic_alias,
+               const bool _skip_topic, const uint32_t subscriptionIdentifier);
     MqttPacket(const PubResponse &pubAck);
     MqttPacket(const Disconnect &disconnect);
     MqttPacket(const Auth &auth);
@@ -187,9 +188,10 @@ struct SubscriptionTuple
     const bool retainAsPublished;
     const std::string shareName;
     const AuthResult authResult;
+    const uint32_t subscriptionIdentifier = 0;
 
     SubscriptionTuple(const std::string &topic, const std::vector<std::string> &subtopics, uint8_t qos, bool noLocal, bool retainAsPublished,
-                      const std::string &shareName, const AuthResult authResult);
+                      const std::string &shareName, const AuthResult authResult, const uint32_t subscriptionIdentifier);
 };
 
 #endif // MQTTPACKET_H

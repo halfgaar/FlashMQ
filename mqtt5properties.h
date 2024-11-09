@@ -28,6 +28,7 @@ class Mqtt5PropertyBuilder
     void writeUint8(Mqtt5Properties prop, const uint8_t x);
     void writeStr(Mqtt5Properties prop, const std::string &str);
     void write2Str(Mqtt5Properties prop, const std::string &one, const std::string &two);
+    void writeVariableByteInt(Mqtt5Properties prop, const unsigned int val);
 public:
     Mqtt5PropertyBuilder();
 
@@ -43,6 +44,7 @@ public:
     void writeAssignedClientId(const std::string &clientid);
     void writeMaxTopicAliases(uint16_t val);
     void writeWildcardSubscriptionAvailable(uint8_t val);
+    void writeSubscriptionIdentifier(uint32_t val);
     void writeSubscriptionIdentifiersAvailable(uint8_t val);
     void writeSharedSubscriptionAvailable(uint8_t val);
     void writeContentType(const std::string &format);

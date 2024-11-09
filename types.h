@@ -236,6 +236,10 @@ public:
     std::optional<std::string> correlationData;
     std::optional<std::string> responseTopic;
     std::optional<std::string> contentType;
+    uint32_t subscriptionIdentifier = 0;
+#ifdef TESTING
+    uint32_t subscriptionIdentifierTesting = 0; // Clunky...
+#endif
     std::shared_ptr<std::vector<std::pair<std::string, std::string>>> userProperties;
 
     Publish() = default;
@@ -331,6 +335,7 @@ struct Subscribe
     uint8_t qos;
     bool noLocal = false;
     bool retainAsPublished = false;
+    uint32_t subscriptionIdentifier = 0;
 
     Subscribe(const ProtocolVersion protocolVersion, uint16_t packetId, const std::string &topic, uint8_t qos);
 };

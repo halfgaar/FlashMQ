@@ -319,6 +319,12 @@ MainTests::MainTests()
     REGISTER_FUNCTION3(testNoCopy);
     REGISTER_FUNCTION(testSessionTakeoverOtherUsername);
     REGISTER_FUNCTION(testCorrelationData);
+    REGISTER_FUNCTION(testSubscriptionIdOnlineClient);
+    REGISTER_FUNCTION(testSubscriptionIdOfflineClient);
+    REGISTER_FUNCTION(testSubscriptionIdRetainedMessages);
+    REGISTER_FUNCTION(testSubscriptionIdSharedSubscriptions);
+    REGISTER_FUNCTION(testSubscriptionIdChange);
+    REGISTER_FUNCTION(testSubscriptionIdOverlappingSubscriptions);
 }
 
 bool MainTests::test(bool skip_tests_with_internet, bool skip_server_tests, const std::vector<std::string> &tests)

@@ -215,6 +215,9 @@ std::optional<Mqtt5PropertyBuilder> Publish::getPropertyBuilder() const
     if (topicAlias > 0)
         non_optional(property_builder)->writeTopicAlias(topicAlias);
 
+    if (subscriptionIdentifier > 0)
+        non_optional(property_builder)->writeSubscriptionIdentifier(subscriptionIdentifier);
+
     if (userProperties)
         non_optional(property_builder)->writeUserProperties(*userProperties);
 

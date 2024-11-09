@@ -192,7 +192,7 @@ public:
     void writePingResp();
     void writeLoginPacket();
     PacketDropReason writeMqttPacket(const MqttPacket &packet);
-    PacketDropReason writeMqttPacketAndBlameThisClient(PublishCopyFactory &copyFactory, uint8_t max_qos, uint16_t packet_id, bool retain);
+    PacketDropReason writeMqttPacketAndBlameThisClient(PublishCopyFactory &copyFactory, uint8_t max_qos, uint16_t packet_id, bool retain, uint32_t subscriptionIdentifier);
     PacketDropReason writeMqttPacketAndBlameThisClient(const MqttPacket &packet);
     void writeBufIntoFd();
     DisconnectStage getDisconnectStage() const { return disconnectStage; }

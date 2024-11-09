@@ -61,7 +61,7 @@ public:
     bool erase(const uint16_t packet_id);
     size_t size() const;
     size_t getByteSize() const;
-    void queuePublish(PublishCopyFactory &copyFactory, uint16_t id, uint8_t new_max_qos, bool retainAsPublished);
+    void queuePublish(PublishCopyFactory &copyFactory, uint16_t id, uint8_t new_max_qos, bool retainAsPublished, const uint32_t subscriptionIdentifier);
     void queuePublish(Publish &&pub, uint16_t id);
     int clearExpiredMessages();
     const std::shared_ptr<QueuedPublish> &getTail() const;

@@ -23,6 +23,7 @@ See LICENSE for license details.
 #define MAGIC_STRING_SESSION_FILE_V3 "FlashMQSessionDBv3"
 #define MAGIC_STRING_SESSION_FILE_V4 "FlashMQSessionDBv4"
 #define MAGIC_STRING_SESSION_FILE_V5 "FlashMQSessionDBv5"
+#define MAGIC_STRING_SESSION_FILE_V6 "FlashMQSessionDBv6"
 #define RESERVED_SPACE_SESSIONS_DB_V2 32
 
 /**
@@ -35,12 +36,13 @@ struct SubscriptionForSerializing
     const std::string shareName;
     const bool noLocal = false;
     const bool retainAsPublished = false;
+    const uint32_t subscriptionidentifier = 0;
 
-    SubscriptionForSerializing(const std::string &clientId, uint8_t qos, bool noLocal, bool retainAsPublished);
-    SubscriptionForSerializing(const std::string &clientId, uint8_t qos, bool noLocal, bool retainAsPublished, const std::string &shareName);
-    SubscriptionForSerializing(const std::string &&clientId, uint8_t qos, bool noLocal, bool retainAsPublished);
+    SubscriptionForSerializing(const std::string &clientId, uint8_t qos, bool noLocal, bool retainAsPublished, uint32_t subscriptionidentifier);
+    SubscriptionForSerializing(const std::string &clientId, uint8_t qos, bool noLocal, bool retainAsPublished, uint32_t subscriptionidentifier, const std::string &shareName);
+    SubscriptionForSerializing(const std::string &&clientId, uint8_t qos, bool noLocal, bool retainAsPublished, uint32_t subscriptionidentifier);
 
-    SubscriptionForSerializing(const std::string &&clientId, SubscriptionOptionsByte options, const std::string &shareName);
+    SubscriptionForSerializing(const std::string &&clientId, SubscriptionOptionsByte options, uint32_t subscriptionidentifier, const std::string &shareName);
 
     SubscriptionOptionsByte getSubscriptionOptions() const;
 };
@@ -61,12 +63,13 @@ class SessionsAndSubscriptionsDB : private PersistenceFile
         v2,
         v3,
         v4,
-        v5
+        v5,
+        v6
     };
 
     ReadVersion readVersion = ReadVersion::unknown;
 
-    SessionsAndSubscriptionsResult readDataV3V4V5();
+    SessionsAndSubscriptionsResult readDataV3V4V5V6();
     void writeRowHeader();
 public:
     SessionsAndSubscriptionsDB(const std::string &filePath);

@@ -32,10 +32,11 @@ DeferredGetSubscription::DeferredGetSubscription(const std::shared_ptr<Subscript
 
 }
 
-ReceivingSubscriber::ReceivingSubscriber(const std::weak_ptr<Session> &ses, uint8_t qos, bool retainAsPublished) :
+ReceivingSubscriber::ReceivingSubscriber(const std::weak_ptr<Session> &ses, uint8_t qos, bool retainAsPublished, const uint32_t subscriptionIdentifier) :
     session(ses.lock()),
     qos(qos),
-    retainAsPublished(retainAsPublished)
+    retainAsPublished(retainAsPublished),
+    subscriptionIdentifier(subscriptionIdentifier)
 {
 
 }
@@ -55,7 +56,8 @@ std::unordered_map<std::string, SharedSubscribers> &SubscriptionNode::getSharedS
     return sharedSubscribers;
 }
 
-void SubscriptionNode::addSubscriber(const std::shared_ptr<Session> &subscriber, uint8_t qos, bool noLocal, bool retainAsPublished, const std::string &shareName)
+void SubscriptionNode::addSubscriber(const std::shared_ptr<Session> &subscriber, uint8_t qos, bool noLocal, bool retainAsPublished,
+                                     const std::string &shareName, const uint32_t subscriptionIdentifier)
 {
     if (!subscriber)
         return;
@@ -65,6 +67,7 @@ void SubscriptionNode::addSubscriber(const std::shared_ptr<Session> &subscriber,
     sub.qos = qos;
     sub.noLocal = noLocal;
     sub.retainAsPublished = retainAsPublished;
+    sub.subscriptionIdentifier = subscriptionIdentifier;
 
     const std::string &client_id = subscriber->getClientId();
 
@@ -235,14 +238,15 @@ std::shared_ptr<SubscriptionNode> SubscriptionStore::getDeepestNode(const std::v
     return result;
 }
 
-void SubscriptionStore::addSubscription(std::shared_ptr<Client> &client, const std::vector<std::string> &subtopics, uint8_t qos, bool noLocal, bool retainAsPublished)
+void SubscriptionStore::addSubscription(std::shared_ptr<Client> &client, const std::vector<std::string> &subtopics, uint8_t qos, bool noLocal, bool retainAsPublished,
+                                        uint32_t subscriptionIdentifier)
 {
     const static std::string empty;
-    addSubscription(client, subtopics, qos, noLocal, retainAsPublished, empty, AuthResult::success);
+    addSubscription(client, subtopics, qos, noLocal, retainAsPublished, empty, AuthResult::success, subscriptionIdentifier);
 }
 
 void SubscriptionStore::addSubscription(std::shared_ptr<Client> &client, const std::vector<std::string> &subtopics, uint8_t qos, bool noLocal, bool retainAsPublished,
-                                        const std::string &shareName, AuthResult authResult)
+                                        const std::string &shareName, AuthResult authResult, const uint32_t subscriptionIdentifier)
 {
     const std::shared_ptr<SubscriptionNode> deepestNode = getDeepestNode(subtopics);
 
@@ -264,11 +268,15 @@ void SubscriptionStore::addSubscription(std::shared_ptr<Client> &client, const s
             return;
     }
 
-    deepestNode->addSubscriber(ses, qos, noLocal, retainAsPublished, shareName);
+    uint32_t appliedSubscriptionIdentifier = 0;
+    if (subscriptionIdentifier > 0 && ThreadGlobals::getSettings()->subscriptionIdentifierEnabled)
+        appliedSubscriptionIdentifier = subscriptionIdentifier;
+
+    deepestNode->addSubscriber(ses, qos, noLocal, retainAsPublished, shareName, appliedSubscriptionIdentifier);
     subscriptionCount++;
 
     if (authResult == AuthResult::success && shareName.empty())
-        giveClientRetainedMessages(ses, subtopics, qos);
+        giveClientRetainedMessages(ses, subtopics, qos, appliedSubscriptionIdentifier);
 
 }
 
@@ -524,7 +532,7 @@ void SubscriptionStore::publishNonRecursively(
     for (auto &pair : this_node->subscribers)
     {
         const Subscription &sub = pair.second;
-        targetSessions.emplace_back(sub.session, sub.qos, sub.retainAsPublished);
+        targetSessions.emplace_back(sub.session, sub.qos, sub.retainAsPublished, sub.subscriptionIdentifier);
 
         /*
          * Shared pointer expires when session has been cleaned by 'clean session' disconnect.
@@ -565,7 +573,7 @@ void SubscriptionStore::publishNonRecursively(
             continue;
 
         // Same comment about duplicate copies as above.
-        targetSessions.emplace_back(sub->session, sub->qos, sub->retainAsPublished);
+        targetSessions.emplace_back(sub->session, sub->qos, sub->retainAsPublished, sub->subscriptionIdentifier);
         if (!targetSessions.back().session)
         {
             targetSessions.pop_back();
@@ -669,7 +677,7 @@ void SubscriptionStore::queuePacketAtSubscribers(PublishCopyFactory &copyFactory
 
     for(const ReceivingSubscriber &x : subscriberSessions)
     {
-        x.session->writePacket(copyFactory, x.qos, x.retainAsPublished);
+        x.session->writePacket(copyFactory, x.qos, x.retainAsPublished, x.subscriptionIdentifier);
     }
 }
 
@@ -678,6 +686,7 @@ void SubscriptionStore::giveClientRetainedMessagesRecursively(std::vector<std::s
                                                               const std::shared_ptr<RetainedMessageNode> &this_node,
                                                               bool poundMode,
                                                               const std::shared_ptr<Session> &session, const uint8_t max_qos,
+                                                              const uint32_t subscription_identifier,
                                                               const std::chrono::time_point<std::chrono::steady_clock> &limit,
                                                               std::deque<DeferredRetainedMessageNodeDelivery> &deferred,
                                                               int &drop_count, int &processed_nodes_count)
@@ -701,7 +710,7 @@ void SubscriptionStore::giveClientRetainedMessagesRecursively(std::vector<std::s
                 if (auth.aclCheck(publish, publish.payload) == AuthResult::success)
                 {
                     PublishCopyFactory copyFactory(&publish);
-                    const PacketDropReason drop_reason = session->writePacket(copyFactory, max_qos, true);
+                    const PacketDropReason drop_reason = session->writePacket(copyFactory, max_qos, true, subscription_identifier);
 
                     if (drop_reason == PacketDropReason::BufferFull || drop_reason == PacketDropReason::QoSTODOSomethingSomething)
                     {
@@ -743,7 +752,8 @@ void SubscriptionStore::giveClientRetainedMessagesRecursively(std::vector<std::s
                 else
                 {
                     std::shared_ptr<RetainedMessageNode> &child = pair.second;
-                    giveClientRetainedMessagesRecursively(cur_subtopic_it, end, child, poundMode, session, max_qos, limit, deferred, drop_count, ++processed_nodes_count);
+                    giveClientRetainedMessagesRecursively(
+                        cur_subtopic_it, end, child, poundMode, session, max_qos, subscription_identifier, limit, deferred, drop_count, ++processed_nodes_count);
                 }
             }
         }
@@ -757,7 +767,8 @@ void SubscriptionStore::giveClientRetainedMessagesRecursively(std::vector<std::s
     if (cur_subtop == "#")
     {
         // We start at this node, so that a subscription on 'one/two/three/#' gives you 'one/two/three' too.
-        giveClientRetainedMessagesRecursively(next_subtopic, end, this_node, true, session, max_qos, limit, deferred, drop_count, ++processed_nodes_count);
+        giveClientRetainedMessagesRecursively(
+            next_subtopic, end, this_node, true, session, max_qos, subscription_identifier, limit, deferred, drop_count, ++processed_nodes_count);
     }
     else if (cur_subtop == "+")
     {
@@ -777,7 +788,8 @@ void SubscriptionStore::giveClientRetainedMessagesRecursively(std::vector<std::s
             else
             {
                 std::shared_ptr<RetainedMessageNode> &child = pair.second;
-                giveClientRetainedMessagesRecursively(next_subtopic, end, child, false, session, max_qos, limit, deferred, drop_count, ++processed_nodes_count);
+                giveClientRetainedMessagesRecursively(
+                    next_subtopic, end, child, false, session, max_qos, subscription_identifier, limit, deferred, drop_count, ++processed_nodes_count);
             }
         }
     }
@@ -798,7 +810,8 @@ void SubscriptionStore::giveClientRetainedMessagesRecursively(std::vector<std::s
             }
             else
             {
-                giveClientRetainedMessagesRecursively(next_subtopic, end, children, false, session, max_qos, limit, deferred, drop_count, ++processed_nodes_count);
+                giveClientRetainedMessagesRecursively(
+                    next_subtopic, end, children, false, session, max_qos, subscription_identifier, limit, deferred, drop_count, ++processed_nodes_count);
             }
         }
     }
@@ -807,7 +820,8 @@ void SubscriptionStore::giveClientRetainedMessagesRecursively(std::vector<std::s
 void SubscriptionStore::giveClientRetainedMessagesInitiateDeferred(const std::weak_ptr<Session> ses,
                                                                    const std::shared_ptr<const std::vector<std::string>> subscribeSubtopicsCopy,
                                                                    std::shared_ptr<std::deque<DeferredRetainedMessageNodeDelivery>> deferred,
-                                                                   int &requeue_count, uint &total_node_count, uint8_t max_qos)
+                                                                   int &requeue_count, uint &total_node_count, uint8_t max_qos,
+                                                                   const uint32_t subscription_identifier)
 {
     std::shared_ptr<Session> session = ses.lock();
 
@@ -837,7 +851,7 @@ void SubscriptionStore::giveClientRetainedMessagesInitiateDeferred(const std::we
 
         RWLockGuard locker(&retainedMessagesRwlock);
         locker.rdlock();
-        giveClientRetainedMessagesRecursively(d.cur, d.end, node, d.poundMode, session, max_qos, new_limit, *deferred, drop_count, processed_nodes);
+        giveClientRetainedMessagesRecursively(d.cur, d.end, node, d.poundMode, session, max_qos, subscription_identifier, new_limit, *deferred, drop_count, processed_nodes);
     }
 
     total_node_count += processed_nodes;
@@ -850,7 +864,8 @@ void SubscriptionStore::giveClientRetainedMessagesInitiateDeferred(const std::we
     if (!deferred->empty() && ++requeue_count < 100 && total_node_count < settings->retainedMessagesNodeLimit)
     {
         ThreadData *t = ThreadGlobals::getThreadData();
-        auto again = std::bind(&SubscriptionStore::giveClientRetainedMessagesInitiateDeferred, this, ses, subscribeSubtopicsCopy, deferred, requeue_count, total_node_count, max_qos);
+        auto again = std::bind(&SubscriptionStore::giveClientRetainedMessagesInitiateDeferred, this,
+                               ses, subscribeSubtopicsCopy, deferred, requeue_count, total_node_count, max_qos, subscription_identifier);
 
         /*
          * Adding a delayed retry is kind of a cheap way to avoid detecting when there is buffer or QoS space in the event loop, but that comes
@@ -866,7 +881,7 @@ void SubscriptionStore::giveClientRetainedMessagesInitiateDeferred(const std::we
 }
 
 void SubscriptionStore::giveClientRetainedMessages(const std::shared_ptr<Session> &ses,
-                                                   const std::vector<std::string> &subscribeSubtopics, uint8_t max_qos)
+                                                   const std::vector<std::string> &subscribeSubtopics, uint8_t max_qos, const uint32_t subscriptionIdentifier)
 {
     if (!ses)
         return;
@@ -901,7 +916,7 @@ void SubscriptionStore::giveClientRetainedMessages(const std::shared_ptr<Session
 
     int requeue_count = 0;
     uint total_node_count = 0;
-    giveClientRetainedMessagesInitiateDeferred(ses, subscribeSubtopicsCopy, deferred, requeue_count, total_node_count, max_qos);
+    giveClientRetainedMessagesInitiateDeferred(ses, subscribeSubtopicsCopy, deferred, requeue_count, total_node_count, max_qos, subscriptionIdentifier);
 }
 
 /**
@@ -1428,7 +1443,7 @@ void SubscriptionStore::getSubscriptions(SubscriptionNode *this_node, const std:
         std::shared_ptr<Session> ses = node.session.lock();
         if (ses)
         {
-            SubscriptionForSerializing sub(ses->getClientId(), node.qos, node.noLocal, node.retainAsPublished);
+            SubscriptionForSerializing sub(ses->getClientId(), node.qos, node.noLocal, node.retainAsPublished, node.subscriptionIdentifier);
             outputList[composedTopic].push_back(sub);
         }
     }
@@ -1713,7 +1728,7 @@ void SubscriptionStore::loadSessionsAndSubscriptions(const std::string &filePath
                 if (session_it != sessionsByIdConst.end())
                 {
                     const std::shared_ptr<Session> &ses = session_it->second;
-                    subscriptionNode->addSubscriber(ses, sub.qos, sub.noLocal, sub.retainAsPublished, sub.shareName);
+                    subscriptionNode->addSubscriber(ses, sub.qos, sub.noLocal, sub.retainAsPublished, sub.shareName, sub.subscriptionidentifier);
                 }
 
             }

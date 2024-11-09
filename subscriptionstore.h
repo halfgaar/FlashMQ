@@ -34,9 +34,10 @@ struct ReceivingSubscriber
     const std::shared_ptr<Session> session;
     const uint8_t qos;
     const bool retainAsPublished;
+    const uint32_t subscriptionIdentifier = 0;
 
 public:
-    ReceivingSubscriber(const std::weak_ptr<Session> &ses, uint8_t qos, bool retainAsPublished);
+    ReceivingSubscriber(const std::weak_ptr<Session> &ses, uint8_t qos, bool retainAsPublished, const uint32_t subscriptionIdentifier);
 };
 
 class SubscriptionNode
@@ -56,7 +57,8 @@ public:
 
     const std::unordered_map<std::string, Subscription> &getSubscribers() const;
     std::unordered_map<std::string, SharedSubscribers> &getSharedSubscribers();
-    void addSubscriber(const std::shared_ptr<Session> &subscriber, uint8_t qos, bool noLocal, bool retainAsPublished, const std::string &shareName);
+    void addSubscriber(const std::shared_ptr<Session> &subscriber, uint8_t qos, bool noLocal, bool retainAsPublished,
+                       const std::string &shareName, const uint32_t subscriptionIdentifier);
     void removeSubscriber(const std::shared_ptr<Session> &subscriber, const std::string &shareName);
     std::unordered_map<std::string, std::shared_ptr<SubscriptionNode>> children;
     std::shared_ptr<SubscriptionNode> childrenPlus;
@@ -152,6 +154,7 @@ class SubscriptionStore
     static void giveClientRetainedMessagesRecursively(std::vector<std::string>::const_iterator cur_subtopic_it,
                                                       std::vector<std::string>::const_iterator end, const std::shared_ptr<RetainedMessageNode> &this_node, bool poundMode,
                                                       const std::shared_ptr<Session> &session, const uint8_t max_qos,
+                                                      const uint32_t subscription_identifier,
                                                       const std::chrono::time_point<std::chrono::steady_clock> &limit,
                                                       std::deque<DeferredRetainedMessageNodeDelivery> &deferred,
                                                       int &drop_count, int &processed_nodes_count);
@@ -172,9 +175,9 @@ class SubscriptionStore
 public:
     SubscriptionStore();
 
-    void addSubscription(std::shared_ptr<Client> &client, const std::vector<std::string> &subtopics, uint8_t qos, bool noLocal, bool retainAsPublished);
+    void addSubscription(std::shared_ptr<Client> &client, const std::vector<std::string> &subtopics, uint8_t qos, bool noLocal, bool retainAsPublished, uint32_t subscriptionIdentifier);
     void addSubscription(std::shared_ptr<Client> &client, const std::vector<std::string> &subtopics, uint8_t qos, bool noLocal, bool retainAsPublished,
-                         const std::string &shareName, AuthResult authResult);
+                         const std::string &shareName, AuthResult authResult, const uint32_t subscriptionIdentifier);
     void removeSubscription(std::shared_ptr<Client> &client, const std::string &topic);
     std::shared_ptr<Session> getBridgeSession(std::shared_ptr<Client> &client);
     void registerClientAndKickExistingOne(std::shared_ptr<Client> &client);
@@ -187,11 +190,12 @@ public:
     void queueWillMessage(const std::shared_ptr<WillPublish> &willMessage, const std::shared_ptr<Session> &session);
     void queuePacketAtSubscribers(PublishCopyFactory &copyFactory, const std::string &senderClientId, bool dollar = false);
     void giveClientRetainedMessages(const std::shared_ptr<Session> &ses,
-                                    const std::vector<std::string> &subscribeSubtopics, uint8_t max_qos);
+                                    const std::vector<std::string> &subscribeSubtopics, uint8_t max_qos, const uint32_t subscriptionIdentifier);
     void giveClientRetainedMessagesInitiateDeferred(const std::weak_ptr<Session> ses,
                                                     const std::shared_ptr<const std::vector<std::string>> subscribeSubtopicsCopy,
                                                     std::shared_ptr<std::deque<DeferredRetainedMessageNodeDelivery>> deferred,
-                                                    int &requeue_count, uint &total_node_count, uint8_t max_qos);
+                                                    int &requeue_count, uint &total_node_count, uint8_t max_qos,
+                                                    const uint32_t subscription_identifier);
 
     void trySetRetainedMessages(const Publish &publish, const std::vector<std::string> &subtopics);
     bool setRetainedMessage(const Publish &publish, const std::vector<std::string> &subtopics, bool try_lock_fail=false);

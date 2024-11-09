@@ -74,6 +74,7 @@ public:
     bool pluginSerializeInit = false;
     bool pluginSerializeAuthChecks = false;
     bool logSubscriptions = false;
+    bool subscriptionIdentifierEnabled = true;
     int clientInitialBufferSize = 1024; // Must be power of 2
     uint32_t maxPacketSize = ABSOLUTE_MAX_PACKET_SIZE;
     uint32_t clientMaxWriteBufferSize = 1048576;

@@ -113,7 +113,7 @@ void Session::assignActiveConnection(const std::shared_ptr<Session> &thisSession
  * @param retain. Keep MQTT-3.3.1-9 in mind: existing subscribers don't get retain=1 on packets.
  * @param count. Reference value is updated. It's for statistics.
  */
-PacketDropReason Session::writePacket(PublishCopyFactory &copyFactory, const uint8_t max_qos, bool retainAsPublished)
+PacketDropReason Session::writePacket(PublishCopyFactory &copyFactory, const uint8_t max_qos, bool retainAsPublished, const uint32_t subscriptionIdentifier)
 {
     /*
      * We want to do as little as possible before the ACL check, because it's code that's called
@@ -180,7 +180,7 @@ PacketDropReason Session::writePacket(PublishCopyFactory &copyFactory, const uin
         pack_id = getNextPacketId();
 
         if (!destroyOnDisconnect)
-            qosPacketQueue.queuePublish(copyFactory, pack_id, effectiveQos, effectiveRetain);
+            qosPacketQueue.queuePublish(copyFactory, pack_id, effectiveQos, effectiveRetain, subscriptionIdentifier);
     }
 
     PacketDropReason return_value = PacketDropReason::ClientOffline;
@@ -190,7 +190,7 @@ PacketDropReason Session::writePacket(PublishCopyFactory &copyFactory, const uin
         if (!c->isRetainedAvailable())
             effectiveRetain = false;
 
-        return_value = c->writeMqttPacketAndBlameThisClient(copyFactory, effectiveQos, pack_id, effectiveRetain);
+        return_value = c->writeMqttPacketAndBlameThisClient(copyFactory, effectiveQos, pack_id, effectiveRetain, subscriptionIdentifier);
     }
 
     return return_value;
@@ -289,7 +289,7 @@ void Session::sendAllPendingQosData()
         {
             PublishCopyFactory fac(&p.first);
             const bool retain = !c->isRetainedAvailable() ? false : p.first.retain;
-            c->writeMqttPacketAndBlameThisClient(fac, p.first.qos, p.second, retain);
+            c->writeMqttPacketAndBlameThisClient(fac, p.first.qos, p.second, retain, p.first.subscriptionIdentifier);
         }
 
         for(uint16_t id : copiedQoS2Ids)

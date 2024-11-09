@@ -239,6 +239,12 @@ class MainTests
     void testNoCopy();
     void testSessionTakeoverOtherUsername();
     void testCorrelationData();
+    void testSubscriptionIdOnlineClient();
+    void testSubscriptionIdOfflineClient();
+    void testSubscriptionIdRetainedMessages();
+    void testSubscriptionIdSharedSubscriptions();
+    void testSubscriptionIdChange();
+    void testSubscriptionIdOverlappingSubscriptions();
 
 
 public:

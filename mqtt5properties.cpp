@@ -79,6 +79,11 @@ void Mqtt5PropertyBuilder::writeWildcardSubscriptionAvailable(uint8_t val)
     writeUint8(Mqtt5Properties::WildcardSubscriptionAvailable, val);
 }
 
+void Mqtt5PropertyBuilder::writeSubscriptionIdentifier(uint32_t val)
+{
+    writeVariableByteInt(Mqtt5Properties::SubscriptionIdentifier, val);
+}
+
 void Mqtt5PropertyBuilder::writeSubscriptionIdentifiersAvailable(uint8_t val)
 {
     writeUint8(Mqtt5Properties::SubscriptionIdentifierAvailable, val);
@@ -241,5 +246,18 @@ void Mqtt5PropertyBuilder::write2Str(Mqtt5Properties prop, const std::string &on
         std::memcpy(&bytes[pos], str->c_str(), strlen);
         pos += strlen;
     }
+}
+
+void Mqtt5PropertyBuilder::writeVariableByteInt(Mqtt5Properties prop, const uint32_t val)
+{
+    const VariableByteInt x(val);
+
+    size_t pos = bytes.size();
+    const size_t newSize = pos + x.getLen() + 1;
+    bytes.resize(newSize);
+
+    bytes[pos++] = static_cast<uint8_t>(prop);
+
+    std::memcpy(&bytes[pos], x.data(), x.getLen());
 }
 

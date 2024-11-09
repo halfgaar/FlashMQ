@@ -14,6 +14,11 @@ See LICENSE for license details.
 #include <cstring>
 #include <stdexcept>
 
+VariableByteInt::VariableByteInt(uint32_t val)
+{
+    *this = val;
+}
+
 void VariableByteInt::readIntoBuf(CirBuf &buf) const
 {
     assert(len > 0);

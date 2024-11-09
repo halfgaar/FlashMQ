@@ -711,10 +711,10 @@ void MainApp::start()
             websocketsubscriber->setFakeUpgraded();
             subscriptionStore->registerClientAndKickExistingOne(websocketsubscriber);
             subtopics = splitTopic("#");
-            subscriptionStore->addSubscription(websocketsubscriber, subtopics, 0, false, false, empty, AuthResult::success);
+            subscriptionStore->addSubscription(websocketsubscriber, subtopics, 0, false, false, empty, AuthResult::success, 0);
 
             subscriptionStore->registerClientAndKickExistingOne(subscriber);
-            subscriptionStore->addSubscription(subscriber, subtopics, 0, false, false, empty, AuthResult::success);
+            subscriptionStore->addSubscription(subscriber, subtopics, 0, false, false, empty, AuthResult::success, 0);
 
             if (fuzzWebsockets && strContains(fuzzFilePathLower, "upgrade"))
             {

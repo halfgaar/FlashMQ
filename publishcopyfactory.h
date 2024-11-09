@@ -43,14 +43,14 @@ public:
     PublishCopyFactory(const PublishCopyFactory &other) = delete;
     PublishCopyFactory(PublishCopyFactory &&other) = delete;
 
-    MqttPacket *getOptimumPacket(const uint8_t max_qos, const ProtocolVersion protocolVersion, uint16_t topic_alias, bool skip_topic);
+    MqttPacket *getOptimumPacket(const uint8_t max_qos, const ProtocolVersion protocolVersion, uint16_t topic_alias, bool skip_topic, uint32_t subscriptionIdentifier);
     uint8_t getEffectiveQos(uint8_t max_qos) const;
     bool getEffectiveRetain(bool retainAsPublished) const;
     const std::string &getTopic() const;
     const std::vector<std::string> &getSubtopics();
     std::string_view getPayload() const;
     bool getRetain() const;
-    Publish getNewPublish(uint8_t new_max_qos, bool retainAsPublished) const;
+    Publish getNewPublish(uint8_t new_max_qos, bool retainAsPublished, uint32_t subscriptionIdentifier) const;
     std::shared_ptr<Client> getSender();
     const std::vector<std::pair<std::string, std::string>> *getUserProperties() const;
     const std::optional<std::string> &getCorrelationData() const;

@@ -56,7 +56,7 @@ public:
     void connectClient(ProtocolVersion protocolVersion, bool clean_start, uint32_t session_expiry_interval, int port=21883, bool _waitForConnack=true);
     void connectClient(ProtocolVersion protocolVersion, bool clean_start, uint32_t session_expiry_interval, std::function<void(Connect&)> manipulateConnect,
                        int port=21883, bool _waitForConnack=true);
-    void subscribe(const std::string topic, uint8_t qos, bool noLocal=false, bool retainAsPublished=false);
+    void subscribe(const std::string topic, uint8_t qos, bool noLocal=false, bool retainAsPublished=false, uint32_t subscriptionIdentifier=0);
     void unsubscribe(const std::string &topic);
     void publish(const std::string &topic, const std::string &payload, uint8_t qos);
     void publish(Publish &pub);

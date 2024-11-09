@@ -64,6 +64,7 @@ add_executable(flashmq-tests
     utiltests.cpp
     testinitializer.h testinitializer.cpp
     mainappasfork.h mainappasfork.cpp
+    subscriptionidtests.cpp
 
     )
 

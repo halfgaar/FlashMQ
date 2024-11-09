@@ -21,40 +21,48 @@ See LICENSE for license details.
 
 #include <cassert>
 
-SubscriptionForSerializing::SubscriptionForSerializing(const std::string &clientId, uint8_t qos, bool noLocal, bool retainAsPublished) :
+SubscriptionForSerializing::SubscriptionForSerializing(const std::string &clientId, uint8_t qos, bool noLocal, bool retainAsPublished,
+                                                       uint32_t subscriptionidentifier) :
     clientId(clientId),
     qos(qos),
     noLocal(noLocal),
-    retainAsPublished(retainAsPublished)
+    retainAsPublished(retainAsPublished),
+    subscriptionidentifier(subscriptionidentifier)
 {
 
 }
 
-SubscriptionForSerializing::SubscriptionForSerializing(const std::string &clientId, uint8_t qos, bool noLocal, bool retainAsPublished, const std::string &shareName) :
+SubscriptionForSerializing::SubscriptionForSerializing(const std::string &clientId, uint8_t qos, bool noLocal, bool retainAsPublished,
+                                                       uint32_t subscriptionidentifier, const std::string &shareName) :
     clientId(clientId),
     qos(qos),
     shareName(shareName),
     noLocal(noLocal),
-    retainAsPublished(retainAsPublished)
+    retainAsPublished(retainAsPublished),
+    subscriptionidentifier(subscriptionidentifier)
 {
 
 }
 
-SubscriptionForSerializing::SubscriptionForSerializing(const std::string &&clientId, uint8_t qos, bool noLocal, bool retainAsPublished) :
+SubscriptionForSerializing::SubscriptionForSerializing(const std::string &&clientId, uint8_t qos, bool noLocal, bool retainAsPublished,
+                                                       uint32_t subscriptionidentifier) :
     clientId(std::move(clientId)),
     qos(qos),
     noLocal(noLocal),
-    retainAsPublished(retainAsPublished)
+    retainAsPublished(retainAsPublished),
+    subscriptionidentifier(subscriptionidentifier)
 {
 
 }
 
-SubscriptionForSerializing::SubscriptionForSerializing(const std::string &&clientId, SubscriptionOptionsByte options, const std::string &shareName) :
+SubscriptionForSerializing::SubscriptionForSerializing(const std::string &&clientId, SubscriptionOptionsByte options,
+                                                       uint32_t subscriptionidentifier, const std::string &shareName) :
     clientId(std::move(clientId)),
     qos(options.getQos()),
     shareName(shareName),
     noLocal(options.getNoLocal()),
-    retainAsPublished(options.getRetainAsPublished())
+    retainAsPublished(options.getRetainAsPublished()),
+    subscriptionidentifier(subscriptionidentifier)
 {
 
 }
@@ -71,7 +79,7 @@ SessionsAndSubscriptionsDB::SessionsAndSubscriptionsDB(const std::string &filePa
 
 void SessionsAndSubscriptionsDB::openWrite()
 {
-    PersistenceFile::openWrite(MAGIC_STRING_SESSION_FILE_V5);
+    PersistenceFile::openWrite(MAGIC_STRING_SESSION_FILE_V6);
 }
 
 void SessionsAndSubscriptionsDB::openRead()
@@ -88,11 +96,13 @@ void SessionsAndSubscriptionsDB::openRead()
         readVersion = ReadVersion::v4;
     else if (detectedVersionString == MAGIC_STRING_SESSION_FILE_V5)
         readVersion = ReadVersion::v5;
+    else if (detectedVersionString == MAGIC_STRING_SESSION_FILE_V6)
+        readVersion = ReadVersion::v6;
     else
         throw std::runtime_error("Unknown file version.");
 }
 
-SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV3V4V5()
+SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV3V4V5V6()
 {
     const Settings &settings = *ThreadGlobals::getSettings();
 
@@ -250,9 +260,13 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV3V4V5()
                 std::string clientId = readString(eofFound);
                 const SubscriptionOptionsByte subscriptionOptions(readUint8(eofFound));
 
+                uint32_t subscription_identifier = 0;
+                if (readVersion >= ReadVersion::v6)
+                    subscription_identifier = readUint32(eofFound);
+
                 logger->logf(LOG_DEBUG, "Saving session '%s' subscription to '%s' QoS %d.", clientId.c_str(), topic.c_str(), subscriptionOptions.getQos());
 
-                SubscriptionForSerializing sub(std::move(clientId), subscriptionOptions, sharename);
+                SubscriptionForSerializing sub(std::move(clientId), subscriptionOptions, subscription_identifier, sharename);
                 result.subscriptions[topic].push_back(std::move(sub));
             }
 
@@ -421,6 +435,7 @@ void SessionsAndSubscriptionsDB::saveData(const std::vector<std::shared_ptr<Sess
             writeString(subscription.shareName);
             writeString(subscription.clientId);
             writeUint8(subscription.getSubscriptionOptions().b);
+            writeUint32(subscription.subscriptionidentifier); // Added in file version 6.
         }
     }
 
@@ -438,8 +453,8 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readData()
         logger->logf(LOG_WARNING, "File '%s' is version 1, an internal development version that was never finalized. Not reading.", getFilePath().c_str());
     if (readVersion == ReadVersion::v2)
         logger->logf(LOG_WARNING, "File '%s' is version 2, an internal development version that was never finalized. Not reading.", getFilePath().c_str());
-    if (readVersion >= ReadVersion::v3 || readVersion == ReadVersion::v4 || readVersion == ReadVersion::v5)
-        return readDataV3V4V5();
+    if (readVersion >= ReadVersion::v3)
+        return readDataV3V4V5V6();
 
     return defaultResult;
 }

@@ -30,7 +30,8 @@ PublishCopyFactory::PublishCopyFactory(Publish *publish) :
 
 }
 
-MqttPacket *PublishCopyFactory::getOptimumPacket(const uint8_t max_qos, const ProtocolVersion protocolVersion, uint16_t topic_alias, bool skip_topic)
+MqttPacket *PublishCopyFactory::getOptimumPacket(
+    const uint8_t max_qos, const ProtocolVersion protocolVersion, uint16_t topic_alias, bool skip_topic, uint32_t subscriptionIdentifier)
 {
     const uint8_t actualQos = getEffectiveQos(max_qos);
 
@@ -39,10 +40,13 @@ MqttPacket *PublishCopyFactory::getOptimumPacket(const uint8_t max_qos, const Pr
         // The incoming topic alias is not relevant after initial conversion and it should not propagate.
         assert(packet->getPublishData().topicAlias == 0);
 
-        // When the packet contains an alias specific to the receiver, we don't cache it.
-        if (protocolVersion >= ProtocolVersion::Mqtt5 && topic_alias > 0)
+        // The incoming packet should not have a subscription identifier stored in it.
+        assert(packet->getPublishData().subscriptionIdentifier == 0);
+
+        // When the packet contains an data specific to the receiver, we don't cache it.
+        if ((protocolVersion >= ProtocolVersion::Mqtt5 && topic_alias > 0) || subscriptionIdentifier > 0)
         {
-            this->oneShotPacket.emplace(protocolVersion, packet->getPublishData(), actualQos, topic_alias, skip_topic);
+            this->oneShotPacket.emplace(protocolVersion, packet->getPublishData(), actualQos, topic_alias, skip_topic, subscriptionIdentifier);
             return &*this->oneShotPacket;
         }
 
@@ -60,7 +64,7 @@ MqttPacket *PublishCopyFactory::getOptimumPacket(const uint8_t max_qos, const Pr
 
         if (!cachedPack)
         {
-            cachedPack.emplace(protocolVersion, packet->getPublishData(), actualQos, 0, false);
+            cachedPack.emplace(protocolVersion, packet->getPublishData(), actualQos, 0, false, 0);
         }
 
         return &*cachedPack;
@@ -72,7 +76,7 @@ MqttPacket *PublishCopyFactory::getOptimumPacket(const uint8_t max_qos, const Pr
     // The incoming topic alias is not relevant after initial conversion and it should not propagate.
     assert(publish->topicAlias == 0);
 
-    this->oneShotPacket.emplace(protocolVersion, *publish, actualQos, topic_alias, skip_topic);
+    this->oneShotPacket.emplace(protocolVersion, *publish, actualQos, topic_alias, skip_topic, subscriptionIdentifier);
     return &*this->oneShotPacket;
 }
 
@@ -132,7 +136,7 @@ bool PublishCopyFactory::getRetain() const
  * It being a public function, the idea is that it's only needed for creating publish objects for storing QoS messages for off-line
  * clients. For on-line clients, you're always making a packet (with getOptimumPacket()).
  */
-Publish PublishCopyFactory::getNewPublish(uint8_t new_max_qos, bool retainAsPublished) const
+Publish PublishCopyFactory::getNewPublish(uint8_t new_max_qos, bool retainAsPublished, uint32_t subscriptionIdentifier) const
 {
     // (At time of writing) we only need to construct new publishes for QoS (because we're storing QoS publishes for offline clients). If
     // you're doing it elsewhere, it's a bug.
@@ -148,6 +152,7 @@ Publish PublishCopyFactory::getNewPublish(uint8_t new_max_qos, bool retainAsPubl
         Publish p(packet->getPublishData());
         p.qos = actualQos;
         p.retain = getEffectiveRetain(retainAsPublished);
+        p.subscriptionIdentifier = subscriptionIdentifier;
         return p;
     }
 

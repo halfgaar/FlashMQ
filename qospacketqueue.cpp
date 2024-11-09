@@ -139,12 +139,12 @@ void QoSPublishQueue::addToHeadOfLinkedList(std::shared_ptr<QueuedPublish> &qp)
  * subscribe, which an offline client can't do. However, MQTT5 introduces 'retained as published', so it becomes valid. Bridge
  * mode uses this as well.
  */
-void QoSPublishQueue::queuePublish(PublishCopyFactory &copyFactory, uint16_t id, uint8_t new_max_qos, bool retainAsPublished)
+void QoSPublishQueue::queuePublish(PublishCopyFactory &copyFactory, uint16_t id, uint8_t new_max_qos, bool retainAsPublished, const uint32_t subscriptionIdentifier)
 {
     assert(new_max_qos > 0);
     assert(id > 0);
 
-    Publish pub = copyFactory.getNewPublish(new_max_qos, retainAsPublished);
+    Publish pub = copyFactory.getNewPublish(new_max_qos, retainAsPublished, subscriptionIdentifier);
     std::shared_ptr<QueuedPublish> qp = std::make_shared<QueuedPublish>(std::move(pub), id);
     addToHeadOfLinkedList(qp);
     qosQueueBytes += qp->getApproximateMemoryFootprint();

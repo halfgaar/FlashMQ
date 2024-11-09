@@ -325,7 +325,8 @@ PacketDropReason Client::writeMqttPacket(const MqttPacket &packet)
     return PacketDropReason::Success;
 }
 
-PacketDropReason Client::writeMqttPacketAndBlameThisClient(PublishCopyFactory &copyFactory, uint8_t max_qos, uint16_t packet_id, bool retain)
+PacketDropReason Client::writeMqttPacketAndBlameThisClient(
+    PublishCopyFactory &copyFactory, uint8_t max_qos, uint16_t packet_id, bool retain, uint32_t subscriptionIdentifier)
 {
     uint16_t topic_alias = 0;
     uint16_t topic_alias_next = 0;
@@ -363,7 +364,7 @@ PacketDropReason Client::writeMqttPacketAndBlameThisClient(PublishCopyFactory &c
         }
     }
 
-    MqttPacket *p = copyFactory.getOptimumPacket(max_qos, this->protocolVersion, topic_alias, skip_topic);
+    MqttPacket *p = copyFactory.getOptimumPacket(max_qos, this->protocolVersion, topic_alias, skip_topic, subscriptionIdentifier);
 
     assert(static_cast<bool>(p->getQos()) == static_cast<bool>(max_qos));
     assert(PublishCopyFactory::getPublishLayoutCompareKey(protocolVersion) == PublishCopyFactory::getPublishLayoutCompareKey(p->getProtocolVersion()));

@@ -20,6 +20,7 @@ struct Subscription
     uint8_t qos;
     bool noLocal = false;
     bool retainAsPublished = false;
+    uint32_t subscriptionIdentifier = 0;
     bool operator==(const Subscription &rhs) const;
     void reset();
 };

@@ -19,6 +19,9 @@ class VariableByteInt
     uint8_t len = 0;
 
 public:
+    VariableByteInt(uint32_t val);
+    VariableByteInt() = default;
+
     void readIntoBuf(CirBuf &buf) const;
     VariableByteInt &operator=(uint32_t x);
     uint8_t getLen() const;

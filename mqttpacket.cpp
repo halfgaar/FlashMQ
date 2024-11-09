@@ -108,7 +108,7 @@ MqttPacket::MqttPacket(const UnsubAck &unsubAck) :
 }
 
 MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, const Publish &_publish) :
-    MqttPacket(protocolVersion, _publish, _publish.qos, _publish.topicAlias, _publish.skipTopic)
+    MqttPacket(protocolVersion, _publish, _publish.qos, _publish.topicAlias, _publish.skipTopic, _publish.subscriptionIdentifier)
 {
 
 }
@@ -124,7 +124,8 @@ MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, const Publish &_pu
  * The extra parameters are for overriding certain properties of the publish, because the receiving client wants it differently. Use the other overload
  * if you just want the publish object's data.
  */
-MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, const Publish &_publish, const uint8_t _qos, const uint16_t _topic_alias, const bool _skip_topic)
+MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, const Publish &_publish, const uint8_t _qos, const uint16_t _topic_alias,
+                       const bool _skip_topic, const uint32_t subscriptionIdentifier)
 {
     if (_publish.topic.length() > 0xFFFF)
     {
@@ -159,6 +160,7 @@ MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, const Publish &_pu
         this->publishData.contentType = _publish.contentType;
         this->publishData.payloadUtf8 = _publish.payloadUtf8;
         this->publishData.userProperties = _publish.userProperties;
+        this->publishData.subscriptionIdentifier = subscriptionIdentifier;
 
         property_builder = this->publishData.getPropertyBuilder();
     }
@@ -358,10 +360,8 @@ MqttPacket::MqttPacket(const Subscribe &subscribe) :
 
     if (subscribe.protocolVersion >= ProtocolVersion::Mqtt5)
     {
-        if (false) // TODO: place holder
-        {
-            properties.emplace();
-        }
+        if (subscribe.subscriptionIdentifier > 0)
+            non_optional(properties)->writeSubscriptionIdentifier(subscribe.subscriptionIdentifier);
     }
 
     size_t len = 0;
@@ -1149,7 +1149,7 @@ void MqttPacket::handleConnect()
                 connAck->propertyBuilder->writeAssignedClientId(connectData.client_id);
             connAck->propertyBuilder->writeMaxTopicAliases(sender->getMaxIncomingTopicAliasValue());
             connAck->propertyBuilder->writeWildcardSubscriptionAvailable(1);
-            connAck->propertyBuilder->writeSubscriptionIdentifiersAvailable(0);
+            connAck->propertyBuilder->writeSubscriptionIdentifiersAvailable(static_cast<uint8_t>(settings.subscriptionIdentifierEnabled));
             connAck->propertyBuilder->writeSharedSubscriptionAvailable(1);
             connAck->propertyBuilder->writeServerKeepAlive(connectData.keep_alive);
 
@@ -1281,7 +1281,7 @@ void MqttPacket::handleConnAck()
                                << static_cast<int>(pub.qos) << ".";
 
         const std::vector<std::string> subtopics = splitTopic(pub.topic);
-        store->addSubscription(sender, subtopics, pub.qos, true, true);
+        store->addSubscription(sender, subtopics, pub.qos, true, true, 0);
     }
 
     ThreadGlobals::getThreadData()->publishBridgeState(bridgeState, true, {});
@@ -1518,10 +1518,15 @@ void MqttPacket::handleSubscribe()
         throw ProtocolError("Packet ID 0 when subscribing is invalid.", ReasonCodes::MalformedPacket); // [MQTT-2.3.1-1]
     }
 
+    uint32_t subscription_identifier = 0;
+
     if (protocolVersion == ProtocolVersion::Mqtt5)
     {
         const size_t proplen = decodeVariableByteIntAtPos();
         const size_t prop_end_at = pos + proplen;
+
+        std::array<uint8_t, 1> pcounts;
+        pcounts.fill(0);
 
         while (pos < prop_end_at)
         {
@@ -1530,7 +1535,25 @@ void MqttPacket::handleSubscribe()
             switch (prop)
             {
             case Mqtt5Properties::SubscriptionIdentifier:
-                throw ProtocolError("Subscription identifiers not supported", ReasonCodes::ProtocolError);
+            {
+                /*
+                 * This is per-spec, but when you change the setting in a running server, clients that will have already received
+                 * 'subscription identifiers enabled' in the CONNACK won't know that. On the other hand, by keep allowing
+                 * existing clients to use them, a sysop is out of control.
+                 */
+                if (!ThreadGlobals::getSettings()->subscriptionIdentifierEnabled)
+                    throw ProtocolError("Subscription identifiers are disabled.", ReasonCodes::ProtocolError);
+
+                if (pcounts[0]++ > 0)
+                    throw ProtocolError("Can't specify " + propertyToString(prop) + " more than once", ReasonCodes::ProtocolError);
+
+                subscription_identifier = decodeVariableByteIntAtPos();
+
+                if (subscription_identifier == 0)
+                    throw ProtocolError("Subscription identifier can't be 0", ReasonCodes::ProtocolError);
+
+                break;
+            }
             case Mqtt5Properties::UserProperty:
             {
                 // We (ab)use the publishData for the user properties, because it's there.
@@ -1627,7 +1650,7 @@ void MqttPacket::handleSubscribe()
 
         if (authResult == AuthResult::success || authResult == AuthResult::success_without_retained_delivery)
         {
-            deferredSubscribes.emplace_front(topic, subtopics, qos, noLocal, retainedAsPublished, shareName, authResult);
+            deferredSubscribes.emplace_front(topic, subtopics, qos, noLocal, retainedAsPublished, shareName, authResult, subscription_identifier);
             subs_reponse_codes.push_back(static_cast<ReasonCodes>(qos));
         }
         else
@@ -1654,7 +1677,8 @@ void MqttPacket::handleSubscribe()
     for(const SubscriptionTuple &tup : deferredSubscribes)
     {
         logger->logf(LOG_SUBSCRIBE, "Client '%s' subscribed to '%s' QoS %d", sender->repr().c_str(), tup.topic.c_str(), tup.qos);
-        MainApp::getMainApp()->getSubscriptionStore()->addSubscription(sender, tup.subtopics, tup.qos, tup.noLocal, tup.retainAsPublished, tup.shareName, tup.authResult);
+        MainApp::getMainApp()->getSubscriptionStore()->addSubscription(
+            sender, tup.subtopics, tup.qos, tup.noLocal, tup.retainAsPublished, tup.shareName, tup.authResult, tup.subscriptionIdentifier);
     }
 }
 
@@ -1871,10 +1895,18 @@ void MqttPacket::parsePublishData()
                 if (pcounts[5]++ > 0)
                     throw ProtocolError("Can't specify " + propertyToString(prop) + " more than once", ReasonCodes::ProtocolError);
 
+                dontReuseBites = true;
+
+#ifndef TESTING
                 if (sender->getClientType() != ClientType::LocalBridge)
                     throw ProtocolError("Subscription identifiers cannot be sent to servers.", ReasonCodes::ProtocolError);
 
+                // We don't store it, because it should not propagate.
                 decodeVariableByteIntAtPos();
+#else
+                publishData.subscriptionIdentifierTesting = decodeVariableByteIntAtPos();
+#endif
+
                 break;
             }
             case Mqtt5Properties::ContentType:
@@ -2540,14 +2572,15 @@ void MqttPacket::readIntoBuf(CirBuf &buf) const
 }
 
 SubscriptionTuple::SubscriptionTuple(const std::string &topic, const std::vector<std::string> &subtopics, uint8_t qos, bool noLocal, bool retainAsPublished,
-                                     const std::string &shareName, const AuthResult authResult) :
+                                     const std::string &shareName, const AuthResult authResult, const uint32_t subscriptionIdentifier) :
     topic(topic),
     subtopics(subtopics),
     qos(qos),
     noLocal(noLocal),
     retainAsPublished(retainAsPublished),
     shareName(shareName),
-    authResult(authResult)
+    authResult(authResult),
+    subscriptionIdentifier(subscriptionIdentifier)
 {
 
 }

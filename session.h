@@ -79,7 +79,7 @@ public:
     void assignActiveConnection(const std::shared_ptr<Client> &client);
     void assignActiveConnection(const std::shared_ptr<Session> &thisSession, const std::shared_ptr<Client> &client,
                                 uint16_t clientReceiveMax, uint32_t sessionExpiryInterval, bool clean_start);
-    PacketDropReason writePacket(PublishCopyFactory &copyFactory, const uint8_t max_qos, bool retainAsPublished);
+    PacketDropReason writePacket(PublishCopyFactory &copyFactory, const uint8_t max_qos, bool retainAsPublished, const uint32_t subscriptionIdentifier);
     bool clearQosMessage(uint16_t packet_id, bool qosHandshakeEnds);
     void sendAllPendingQosData();
     bool hasActiveClient();

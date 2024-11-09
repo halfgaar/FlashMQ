@@ -954,20 +954,20 @@ void MainTests::testSavingSessions()
         const std::string topic1 = "one/two/three";
         std::vector<std::string> subtopics;
         subtopics = splitTopic(topic1);
-        store->addSubscription(c1, subtopics, 0, true, false);
+        store->addSubscription(c1, subtopics, 0, true, false, 0);
 
         const std::string topic2 = "four/five/six";
         subtopics = splitTopic(topic2);
-        store->addSubscription(c2, subtopics, 0, false, true);
-        store->addSubscription(c1, subtopics, 0, false, false);
+        store->addSubscription(c2, subtopics, 0, false, true, 0);
+        store->addSubscription(c1, subtopics, 0, false, false, 94612);
 
         const std::string topic3 = "";
         subtopics = splitTopic(topic3);
-        store->addSubscription(c2, subtopics, 0, false, false);
+        store->addSubscription(c2, subtopics, 0, false, false, 0);
 
         const std::string topic4 = "#";
         subtopics = splitTopic(topic4);
-        store->addSubscription(c2, subtopics, 0, false, false);
+        store->addSubscription(c2, subtopics, 0, false, false, 0);
 
         Publish publish("a/b/c", "Hello Barry", 1);
         publish.client_id = "ClientIdFromFakePublisher";
@@ -980,7 +980,7 @@ void MainTests::testSavingSessions()
         c1.reset();
         MqttPacket publishPacket(ProtocolVersion::Mqtt5, publish);
         PublishCopyFactory fac(&publishPacket);
-        c1ses->writePacket(fac, 1, false);
+        c1ses->writePacket(fac, 1, false, 6268); // TODO: subscription identifier? What to do / test?
 
         FlashMQTempDir tmpdir;
         auto dbpath = tmpdir.getPath() / "flashmqtests_sessions.db";
@@ -1019,6 +1019,7 @@ void MainTests::testSavingSessions()
 
         int noLocalCount = 0;
         int retainAsPublishedCount = 0;
+        int withSubscriptionIdentifierCount = 0;
 
         for(auto &pair : store1Subscriptions)
         {
@@ -1041,12 +1042,16 @@ void MainTests::testSavingSessions()
                     QCOMPARE(one.qos, two.qos);
                     QCOMPARE(one.noLocal, two.noLocal);
                     QCOMPARE(one.retainAsPublished, two.retainAsPublished);
+                    QCOMPARE(one.subscriptionidentifier, two.subscriptionidentifier);
 
                     if (two.noLocal)
                         noLocalCount++;
 
                     if (two.retainAsPublished)
                         retainAsPublishedCount++;
+
+                    if (two.subscriptionidentifier > 0)
+                        withSubscriptionIdentifierCount++;
                 }
                 FMQ_COMPARE(match_count, 1);
 
@@ -1056,6 +1061,7 @@ void MainTests::testSavingSessions()
 
         QVERIFY(noLocalCount > 0);
         QVERIFY(retainAsPublishedCount == 1);
+        FMQ_VERIFY(withSubscriptionIdentifierCount == 1);
 
         std::shared_ptr<Session> loadedSes = store2->sessionsById["c1"];
         std::shared_ptr<QueuedPublish> queuedPublishLoaded = loadedSes->qosPacketQueue.popNext();
@@ -1067,6 +1073,7 @@ void MainTests::testSavingSessions()
         QCOMPARE(queuedPublishLoaded->getPublish().username, "UsernameFromFakePublisher");
         QCOMPARE(queuedPublishLoaded->getPublish().expireInfo.value().expiresAfter.count(), 9);
         QCOMPARE(queuedPublishLoaded->getPublish().getAge().count(), 1);
+        QCOMPARE(queuedPublishLoaded->getPublish().subscriptionIdentifierTesting, static_cast<uint32_t>(6268));
     }
     catch (std::exception &ex)
     {
@@ -2925,7 +2932,7 @@ void MainTests::testTopicMatchingInSubscriptionTreeHelper(const std::string &sub
     client->setClientProperties(ProtocolVersion::Mqtt5, "mytestclient", "myusername", true, 60);
     store.registerClientAndKickExistingOne(client);
 
-    store.addSubscription(client, subscribe_subtopics, 0, false, false);
+    store.addSubscription(client, subscribe_subtopics, 0, false, false, 0);
 
     std::vector<ReceivingSubscriber> receivers;
     store.publishRecursively(publish_subtopics.begin(), publish_subtopics.end(), store.root.get(), receivers, 0, "fakeclientid");
