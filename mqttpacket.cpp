@@ -737,7 +737,7 @@ ConnectData MqttPacket::parseConnectData()
                     if (pcounts[1]++ > 0)
                         throw ProtocolError("Can't specify " + propertyToString(prop) + " more than once", ReasonCodes::ProtocolError);
 
-                    result.willpublish.payloadUtf8 = true;
+                    result.willpublish.payloadUtf8 = static_cast<bool>(readByte());
                     break;
                 case Mqtt5Properties::ContentType:
                 {
@@ -1775,7 +1775,7 @@ void MqttPacket::parsePublishData()
                 if (pcounts[0]++ > 0)
                     throw ProtocolError("Can't specify " + propertyToString(prop) + " more than once", ReasonCodes::ProtocolError);
 
-                publishData.payloadUtf8 = true;
+                publishData.payloadUtf8 = static_cast<bool>(readByte());
                 break;
             case Mqtt5Properties::MessageExpiryInterval:
                 if (pcounts[1]++ > 0)
