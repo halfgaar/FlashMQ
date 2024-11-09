@@ -383,7 +383,7 @@ void SubscriptionStore::registerClientAndKickExistingOne(std::shared_ptr<Client>
         }
     }
 
-    session->assignActiveConnection(session, client, clientReceiveMax, sessionExpiryInterval, clean_start, client->getProtocolVersion());
+    session->assignActiveConnection(session, client, clientReceiveMax, sessionExpiryInterval, clean_start);
 }
 
 /**

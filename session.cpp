@@ -91,7 +91,7 @@ void Session::assignActiveConnection(const std::shared_ptr<Client> &client)
 }
 
 void Session::assignActiveConnection(const std::shared_ptr<Session> &thisSession, const std::shared_ptr<Client> &client,
-                                     uint16_t clientReceiveMax, uint32_t sessionExpiryInterval, bool clean_start, ProtocolVersion protocol_version)
+                                     uint16_t clientReceiveMax, uint32_t sessionExpiryInterval, bool clean_start)
 {
     assert(this == thisSession.get());
 
