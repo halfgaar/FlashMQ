@@ -258,7 +258,7 @@ void FlashMQTestClient::publish(Publish &pub)
         pubAckPack.parsePubAckData();
 
         if (pubAckPack.packetType != PacketType::PUBACK)
-            throw std::runtime_error("First packet received from server is not a PUBACK.");
+            throw std::runtime_error("First packet received from server is not a PUBACK, but " + packetTypeToString(pubAckPack.packetType));
 
         if (pubAckPack.getPacketId() != packet_id)
             throw std::runtime_error("Packet ID mismatch between publish and ack on QoS 1 publish.");
@@ -282,7 +282,7 @@ void FlashMQTestClient::publish(Publish &pub)
         pubCompPack.parsePubComp();
 
         if (pubRecPack.packetType != PacketType::PUBREC)
-            throw std::runtime_error("First packet received from server is not a PUBREC.");
+            throw std::runtime_error("First packet received from server is not a PUBREC, but " + packetTypeToString(pubRecPack.packetType));
 
         if (pubCompPack.packetType != PacketType::PUBCOMP)
             throw std::runtime_error("Last packet received from server is not a PUBCOMP.");
