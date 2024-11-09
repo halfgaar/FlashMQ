@@ -348,17 +348,41 @@ MqttPacket::MqttPacket(const Connect &connect) :
 }
 
 MqttPacket::MqttPacket(const Subscribe &subscribe) :
-    bites(subscribe.getLengthWithoutFixedHeader()),
+    protocolVersion(subscribe.protocolVersion),
     packetType(PacketType::SUBSCRIBE)
 {
     first_byte = static_cast<char>(packetType) << 4;
     first_byte |= 2; // required reserved bit
 
+    std::optional<Mqtt5PropertyBuilder> properties;
+
+    if (subscribe.protocolVersion >= ProtocolVersion::Mqtt5)
+    {
+        if (false) // TODO: place holder
+        {
+            properties.emplace();
+        }
+    }
+
+    size_t len = 0;
+
+    // Calculate length
+    {
+        len += subscribe.topic.size() + 2;
+        len += 2; // packet id
+        len += 1; // requested QoS
+
+        if (subscribe.protocolVersion >= ProtocolVersion::Mqtt5)
+            len += properties ? properties->getLength() : 1;
+    }
+
+    bites.resize(len);
+
     writeUint16(subscribe.packetId);
 
     if (subscribe.protocolVersion >= ProtocolVersion::Mqtt5)
     {
-        writeProperties(subscribe.propertyBuilder);
+        writeProperties(properties);
     }
 
     writeString(subscribe.topic);

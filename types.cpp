@@ -419,21 +419,6 @@ Subscribe::Subscribe(const ProtocolVersion protocolVersion, uint16_t packetId, c
 
 }
 
-size_t Subscribe::getLengthWithoutFixedHeader() const
-{
-    size_t result = topic.size() + 2;
-    result += 2; // packet id
-    result += 1; // requested QoS
-
-    if (this->protocolVersion >= ProtocolVersion::Mqtt5)
-    {
-        const size_t proplen = propertyBuilder ? propertyBuilder->getLength() : 1;
-        result += proplen;
-    }
-
-    return result;
-}
-
 Unsubscribe::Unsubscribe(const ProtocolVersion protocolVersion, uint16_t packetId, const std::string &topic) :
     protocolVersion(protocolVersion),
     packetId(packetId),
