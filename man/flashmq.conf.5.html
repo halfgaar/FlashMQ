@@ -242,7 +242,7 @@
           });
         });
       });
-      </script><article id="flashmq.conf.5"><nav xmlns="http://docbook.org/ns/docbook" xmlns:dbk="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:semver="https://semver.org/spec/v2.0.0.html" xmlns:fmq="http://www.flashmq.org/man/" id="flashmq-version-nav"><select id="select-flashmq-version"><option value="" selected>latest</option><option value="1.16.0">≥ v1.16.0</option><option value="1.15.1">≥ v1.15.1</option><option value="1.14.0">≥ v1.14.0</option><option value="1.13.0">≥ v1.13.0</option><option value="1.12.0">≥ v1.12.0</option><option value="1.11.0">≥ v1.11.0</option><option value="1.10.0">≥ v1.10.0</option><option value="1.9.0">≥ v1.9.0</option><option value="1.8.4">≥ v1.8.4</option><option value="1.8.0">≥ v1.8.0</option><option value="1.7.0">≥ v1.7.0</option><option value="1.6.7">≥ v1.6.7</option><option value="1.4.4">≥ v1.4.4</option><option value="1.4.2">≥ v1.4.2</option><option value="1.2.0">≥ v1.2.0</option><option value="1.1.0">≥ v1.1.0</option></select></nav><header><h1>flashmq.conf<code class="manvolnum"> (5)</code></h1><h2 class="refpurpose">FlashMQ configuration file format</h2></header><section class="refsynopsisdiv" id="synopsis"><header><h2>Synopsis</h2></header>
+      </script><article id="flashmq.conf.5"><nav xmlns="http://docbook.org/ns/docbook" xmlns:dbk="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:semver="https://semver.org/spec/v2.0.0.html" xmlns:fmq="http://www.flashmq.org/man/" id="flashmq-version-nav"><select id="select-flashmq-version"><option value="" selected>latest</option><option value="1.18.0">≥ v1.18.0</option><option value="1.16.0">≥ v1.16.0</option><option value="1.15.1">≥ v1.15.1</option><option value="1.14.0">≥ v1.14.0</option><option value="1.13.0">≥ v1.13.0</option><option value="1.12.0">≥ v1.12.0</option><option value="1.11.0">≥ v1.11.0</option><option value="1.10.0">≥ v1.10.0</option><option value="1.9.0">≥ v1.9.0</option><option value="1.8.4">≥ v1.8.4</option><option value="1.8.0">≥ v1.8.0</option><option value="1.7.0">≥ v1.7.0</option><option value="1.6.7">≥ v1.6.7</option><option value="1.4.4">≥ v1.4.4</option><option value="1.4.2">≥ v1.4.2</option><option value="1.2.0">≥ v1.2.0</option><option value="1.1.0">≥ v1.1.0</option></select></nav><header><h1>flashmq.conf<code class="manvolnum"> (5)</code></h1><h2 class="refpurpose">FlashMQ configuration file format</h2></header><section class="refsynopsisdiv" id="synopsis"><header><h2>Synopsis</h2></header>
     <p>
        The <code class="filename">flashmq.conf</code> file is the configuration used for configuring the FlashMQ MQTT broker.
     </p>
@@ -885,6 +885,24 @@ multi-value-param one 'two' "three" "with ' char"
           </p>
           <p>
             An error is generated when the directory is not there. This is to protect against running incorrect configurations by accident, when the dir has been renamed, for example.
+          </p>
+        </dd>
+      
+
+      
+        <dt id="subscription_identifiers_enabled"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.18.0">≥ v1.18.0</div><code class="option">subscription_identifiers_enabled</code> <code class="replaceable">true</code>|<code class="replaceable">false</code><a class="hash-anchor" href="#subscription_identifiers_enabled">#</a></dt>
+        <dd>
+          <p>
+            Subscription identifiers allow clients to see which subscription was responsible for a message. Publish messages will contain the identifier included in the original subscription.
+          </p>
+          <p>
+            Enabling will prevent FlashMQ from using optimizations involving packet reuse, because the packets are unique per client when it contains a subscription identifier. Therefore you may want to assess the performance difference in high message volume deployments.
+          </p>
+          <p>
+            As per the spec, clients sending subscription identifiers when the server reported the feature as unavailable will cause them to be disconnected. This has the side effect that changing this setting on a running server will disconnect clients when they send a subscription with an identifier in it. This was chosen as behavior over the alternatives, because of simplicity and operator control (otherwise it can't be turned off at all for existing clients).
+          </p>
+          <p>
+            Default value: <code class="literal">true</code>
           </p>
         </dd>
       

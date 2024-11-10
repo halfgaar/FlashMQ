@@ -5,7 +5,7 @@
 \\$2 \(la\\$1\(ra\\$3
 ..
 .if \n(.g .mso www.tmac
-.TH flashmq.conf 5 "Nov 08 2024" "" ""
+.TH flashmq.conf 5 "Nov 10 2024" "" ""
 .SH NAME
 flashmq.conf \- FlashMQ configuration file format
 .SH SYNOPSIS
@@ -331,6 +331,15 @@ Default: \fI2000\fR
 Load *.conf files from the specified directory, to merge with the main configuration file.
 
 An error is generated when the directory is not there. This is to protect against running incorrect configurations by accident, when the dir has been renamed, for example.
+.TP
+\*(T<\fB\m[green]subscription_identifiers_enabled\m[] \fI\m[cyan]true\m[]\fR|\fI\m[cyan]false\m[]\fR\fR\*(T>
+Subscription identifiers allow clients to see which subscription was responsible for a message. Publish messages will contain the identifier included in the original subscription.
+
+Enabling will prevent FlashMQ from using optimizations involving packet reuse, because the packets are unique per client when it contains a subscription identifier. Therefore you may want to assess the performance difference in high message volume deployments.
+
+As per the spec, clients sending subscription identifiers when the server reported the feature as unavailable will cause them to be disconnected. This has the side effect that changing this setting on a running server will disconnect clients when they send a subscription with an identifier in it. This was chosen as behavior over the alternatives, because of simplicity and operator control (otherwise it can't be turned off at all for existing clients).
+
+Default value: \fItrue\fR
 .SH LISTEN PARAMETERS
 Listen parameters can only be used within \fIlisten { }\fR blocks.
 .TP

@@ -674,6 +674,24 @@ multi-value-param one 'two' "three" "with ' char"
         </listitem>
       </varlistentry>
 
+      <varlistentry xml:id="subscription_identifiers_enabled" condition="flashmq ≥ 1.18.0">
+        <term><option>subscription_identifiers_enabled</option> <replaceable>true</replaceable>|<replaceable>false</replaceable></term>
+        <listitem>
+          <para>
+            Subscription identifiers allow clients to see which subscription was responsible for a message. Publish messages will contain the identifier included in the original subscription.
+          </para>
+          <para>
+            Enabling will prevent FlashMQ from using optimizations involving packet reuse, because the packets are unique per client when it contains a subscription identifier. Therefore you may want to assess the performance difference in high message volume deployments.
+          </para>
+          <para>
+            As per the spec, clients sending subscription identifiers when the server reported the feature as unavailable will cause them to be disconnected. This has the side effect that changing this setting on a running server will disconnect clients when they send a subscription with an identifier in it. This was chosen as behavior over the alternatives, because of simplicity and operator control (otherwise it can't be turned off at all for existing clients).
+          </para>
+          <para>
+            Default value: <literal>true</literal>
+          </para>
+        </listitem>
+      </varlistentry>
+
     </variablelist>
   </refsect1>
 
