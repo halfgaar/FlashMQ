@@ -190,6 +190,9 @@ void Publish::addUserProperty(std::string &&key, std::string &&val)
     if (!userProperties)
         userProperties = std::make_shared<std::vector<std::pair<std::string, std::string>>>();
 
+    if (userProperties->size() > 50)
+        throw ProtocolError("Trying to set more than 50 user properties. Likely a bad actor.", ReasonCodes::ImplementationSpecificError);
+
     userProperties->emplace_back(std::move(key), std::move(val));
 }
 
