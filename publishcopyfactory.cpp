@@ -59,7 +59,7 @@ MqttPacket *PublishCopyFactory::getOptimumPacket(
 
         // Note that this cache also possibly contains the expiration interval, but because we're only hitting this block for on-line
         // publishers, the interval has not decreased and is fine.
-        const int cache_key = (static_cast<uint8_t>(protocolVersion) * 10) + static_cast<bool>(actualQos);
+        const int cache_key = (getPublishLayoutCompareKey(protocolVersion) * 10) + static_cast<bool>(actualQos);
         std::optional<MqttPacket> &cachedPack = constructedPacketCache[cache_key];
 
         if (!cachedPack)

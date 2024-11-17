@@ -1221,7 +1221,7 @@ void MainTests::testbufferToMqttPacketsFuzz()
 
 void testDowngradeQoSOnSubscribeHelper(const uint8_t pub_qos, const uint8_t sub_qos)
 {
-    std::vector<ProtocolVersion> protocols {ProtocolVersion::Mqtt311, ProtocolVersion::Mqtt5};
+    std::vector<ProtocolVersion> protocols {ProtocolVersion::Mqtt31, ProtocolVersion::Mqtt311, ProtocolVersion::Mqtt5};
 
     for (const ProtocolVersion senderVersion : protocols)
     {
