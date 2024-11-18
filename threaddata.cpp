@@ -45,14 +45,14 @@ ThreadData::ThreadData(int threadnr, const Settings &settings, const PluginLoade
     if (taskEventFd < 0)
         throw std::runtime_error("Can't create eventfd.");
 
-    disconnectingEventFd = eventfd(0, EFD_NONBLOCK);
-    if (disconnectingEventFd < 0)
+    disconnectingAllEventFd = eventfd(0, EFD_NONBLOCK);
+    if (disconnectingAllEventFd < 0)
         throw std::runtime_error("Can't create eventfd.");
 
     randomish.seed(get_random_int<unsigned long>());
 
     struct epoll_event ev;
-    std::array<int, 2> event_fds {taskEventFd, disconnectingEventFd};
+    std::array<int, 2> event_fds {taskEventFd, disconnectingAllEventFd};
     for (int efd : event_fds)
     {
         memset(&ev, 0, sizeof (struct epoll_event));
@@ -67,10 +67,10 @@ ThreadData::~ThreadData()
     if (taskEventFd >= 0)
         close(taskEventFd);
 
-    if (disconnectingEventFd >= 0)
+    if (disconnectingAllEventFd >= 0)
     {
-        close(disconnectingEventFd);
-        disconnectingEventFd = -1;
+        close(disconnectingAllEventFd);
+        disconnectingAllEventFd = -1;
     }
 
 }
@@ -713,7 +713,7 @@ void ThreadData::sendAllDisconnects()
     }
 
     uint64_t one = 1;
-    check<std::runtime_error>(write(disconnectingEventFd, &one, sizeof(uint64_t)));
+    check<std::runtime_error>(write(disconnectingAllEventFd, &one, sizeof(uint64_t)));
 }
 
 void ThreadData::removeQueuedClients()

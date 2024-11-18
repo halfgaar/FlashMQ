@@ -112,7 +112,7 @@ void do_thread_work(ThreadData *threadData)
                     threadData->clearQueuedRetainedMessages();
                 }
             }
-            else if (fd == threadData->disconnectingEventFd)
+            else if (fd == threadData->disconnectingAllEventFd)
             {
                 /*
                  * This block (and related) ensures all the clients get processed at least once when a shutdown

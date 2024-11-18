@@ -103,7 +103,7 @@ public:
     std::thread thread;
     int threadnr = 0;
     int taskEventFd = -1;
-    int disconnectingEventFd = -1;
+    int disconnectingAllEventFd = -1;
     std::mutex taskQueueMutex;
     std::list<std::function<void()>> taskQueue;
     QueuedTasks delayedTasks;
