@@ -712,8 +712,16 @@ void ThreadData::sendAllDisconnects()
         serverInitiatedDisconnect(c, ReasonCodes::ServerShuttingDown, "");
     }
 
-    uint64_t one = 1;
-    check<std::runtime_error>(write(disconnectingAllEventFd, &one, sizeof(uint64_t)));
+    auto queued_collect_disconnecting_clients = [clientsFound, this](){
+        for (const std::shared_ptr<Client> &c : clientsFound)
+        {
+            this->disconnectingClients.push_back(c);
+        }
+
+        uint64_t one = 1;
+        check<std::runtime_error>(write(disconnectingAllEventFd, &one, sizeof(uint64_t)));
+    };
+    addImmediateTask(queued_collect_disconnecting_clients);
 }
 
 void ThreadData::removeQueuedClients()
@@ -1029,8 +1037,6 @@ void ThreadData::serverInitiatedDisconnect(const std::shared_ptr<Client> &client
             client->setDisconnectStage(DisconnectStage::Now);
             removeClientQueued(client);
         }
-
-        disconnectingClients.push_back(client);
     };
 
     addImmediateTask(f);
