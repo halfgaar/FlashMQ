@@ -1079,7 +1079,7 @@ void Client::addPacketToAfterAsyncQueue(MqttPacket &&p)
         packetQueueAfterAsync = std::make_unique<std::vector<MqttPacket>>();
 
     if (packetQueueAfterAsync->size() > 64)
-        throw std::runtime_error("Client sending too many packets without waiting for CONNACK. This is likely an abuser");
+        throw ProtocolError("Client sending too many packets without waiting for CONNACK. This is likely an abuser", ReasonCodes::ImplementationSpecificError);
 
     packetQueueAfterAsync->push_back(std::move(p));
 }
