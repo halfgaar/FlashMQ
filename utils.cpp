@@ -558,12 +558,15 @@ BindAddr getBindAddr(int family, const std::string &bindAddress,  int port)
     return result;
 }
 
-ssize_t getFileSize(const std::string &path)
+size_t getFileSize(const std::string &path)
 {
     struct stat statbuf;
     memset(&statbuf, 0, sizeof(struct stat));
     if (stat(path.c_str(), &statbuf) < 0)
-        return -1;
+        throw std::runtime_error("Can't get size of " + path);
+
+    if (statbuf.st_size < 0)
+        throw std::runtime_error("Size of " + path + " negative?");
 
     return statbuf.st_size;
 }

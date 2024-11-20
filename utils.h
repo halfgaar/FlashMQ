@@ -191,7 +191,7 @@ std::string_view dirnameOf(std::string_view fname);
 
 BindAddr getBindAddr(int family, const std::string &bindAddress, int port);
 
-ssize_t getFileSize(const std::string &path);
+size_t getFileSize(const std::string &path);
 
 std::string sockaddrToString(const struct sockaddr *addr);
 
