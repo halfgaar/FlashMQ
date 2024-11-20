@@ -36,9 +36,10 @@ void BridgeInfoDb::openWrite()
 
 void BridgeInfoDb::openRead()
 {
-    PersistenceFile::openRead();
+    const std::string current_magic_string(MAGIC_STRING_BRIDGEINFO_FILE_V1);
+    PersistenceFile::openRead(current_magic_string);
 
-    if (detectedVersionString == MAGIC_STRING_BRIDGEINFO_FILE_V1)
+    if (detectedVersionString == current_magic_string)
         readVersion = ReadVersion::v1;
     else
         throw std::runtime_error("Unknown file version.");

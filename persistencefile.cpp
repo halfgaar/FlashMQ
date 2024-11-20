@@ -19,6 +19,7 @@ See LICENSE for license details.
 #include <stdio.h>
 #include <cstring>
 #include <libgen.h>
+#include <fstream>
 
 #include "utils.h"
 #include "logger.h"
@@ -321,7 +322,7 @@ void PersistenceFile::openWrite(const std::string &versionString)
     writeCheck(buf.data(), 1, HASH_SIZE, f);
 }
 
-void PersistenceFile::openRead()
+void PersistenceFile::openRead(const std::string &expected_version_string)
 {
     if (openMode != FileMode::unknown)
         throw std::runtime_error("File is already open.");
@@ -338,6 +339,38 @@ void PersistenceFile::openRead()
 
     readCheck(buf.data(), 1, MAGIC_STRING_LENGH, f);
     detectedVersionString = std::string(buf.data(), strlen(buf.data()));
+
+    // In case people want to downgrade, the old file is still there.
+    if (detectedVersionString != expected_version_string)
+    {
+        const std::string copy_file_path = filePath + "." + detectedVersionString;
+
+        try
+        {
+            const size_t file_size = getFileSize(filePath);
+            const size_t free_space = getFreeSpace(filePath);
+
+            if (free_space > file_size * 3)
+            {
+                logger->log(LOG_NOTICE) << "File version change detected. Copying '" << filePath << "' to '"
+                                        << copy_file_path << "' to support downgrading FlashMQ.";
+                std::ifstream  src(filePath, std::ios::binary);
+                std::ofstream  dst(copy_file_path, std::ios::binary);
+                src.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+                dst.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+                dst << src.rdbuf();
+            }
+            else
+            {
+                logger->log(LOG_NOTICE) << "File version change detected, but not copying '" << filePath << "' to '"
+                                        << copy_file_path << "' because disk space is running low.";
+            }
+        }
+        catch (std::exception &ex)
+        {
+            logger->log(LOG_ERROR) << "Backing up to '" << copy_file_path << "' failed.";
+        }
+    }
 
     fseek(f, TOTAL_HEADER_SIZE, SEEK_SET);
 }

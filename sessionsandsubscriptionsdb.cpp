@@ -84,7 +84,9 @@ void SessionsAndSubscriptionsDB::openWrite()
 
 void SessionsAndSubscriptionsDB::openRead()
 {
-    PersistenceFile::openRead();
+    const std::string current_magic_string(MAGIC_STRING_SESSION_FILE_V6);
+
+    PersistenceFile::openRead(current_magic_string);
 
     if (detectedVersionString == MAGIC_STRING_SESSION_FILE_V1)
         readVersion = ReadVersion::v1;
@@ -96,7 +98,7 @@ void SessionsAndSubscriptionsDB::openRead()
         readVersion = ReadVersion::v4;
     else if (detectedVersionString == MAGIC_STRING_SESSION_FILE_V5)
         readVersion = ReadVersion::v5;
-    else if (detectedVersionString == MAGIC_STRING_SESSION_FILE_V6)
+    else if (detectedVersionString == current_magic_string)
         readVersion = ReadVersion::v6;
     else
         throw std::runtime_error("Unknown file version.");

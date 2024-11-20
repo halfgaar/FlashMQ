@@ -38,7 +38,9 @@ void RetainedMessagesDB::openWrite()
 
 void RetainedMessagesDB::openRead()
 {
-    PersistenceFile::openRead();
+    const std::string current_magic_string(MAGIC_STRING_V4);
+
+    PersistenceFile::openRead(current_magic_string);
 
     if (detectedVersionString == MAGIC_STRING_V1)
         readVersion = ReadVersion::v1;
@@ -46,7 +48,7 @@ void RetainedMessagesDB::openRead()
         readVersion = ReadVersion::v2;
     else if (detectedVersionString == MAGIC_STRING_V3)
         readVersion = ReadVersion::v3;
-    else if (detectedVersionString == MAGIC_STRING_V4)
+    else if (detectedVersionString == current_magic_string)
         readVersion = ReadVersion::v4;
     else
         throw std::runtime_error("Unknown file version.");

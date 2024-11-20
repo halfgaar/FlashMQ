@@ -83,7 +83,7 @@ public:
     virtual ~PersistenceFile();
 
     void openWrite(const std::string &versionString);
-    void openRead();
+    void openRead(const std::string &expected_version_string);
     void closeFile();
 
     const std::string &getFilePath() const;
