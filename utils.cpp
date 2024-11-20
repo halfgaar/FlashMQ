@@ -13,6 +13,7 @@ See LICENSE for license details.
 #include "utils.h"
 
 #include <sys/time.h>
+#include <sys/statvfs.h>
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
@@ -569,6 +570,18 @@ size_t getFileSize(const std::string &path)
         throw std::runtime_error("Size of " + path + " negative?");
 
     return statbuf.st_size;
+}
+
+size_t getFreeSpace(const std::string &path)
+{
+    struct statvfs statbuf;
+    memset(&statbuf, 0, sizeof(struct statvfs));
+
+    if (statvfs(path.c_str(), &statbuf) < 0)
+        throw std::runtime_error("Can't get free space of " + path);
+
+    const size_t result {statbuf.f_bsize * statbuf.f_bfree};
+    return result;
 }
 
 std::string sockaddrToString(const sockaddr *addr)
