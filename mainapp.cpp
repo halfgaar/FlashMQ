@@ -940,6 +940,8 @@ void MainApp::start()
         }
     }
 
+    activeListenSockets.clear();
+
     this->bgWorker.stop();
 
     if (settings.willsEnabled)

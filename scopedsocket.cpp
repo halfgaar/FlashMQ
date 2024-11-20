@@ -30,6 +30,7 @@ ScopedSocket::~ScopedSocket()
 {
     if (socket >= 0)
         close(socket);
+    socket = -1;
     listener.reset();
 }
 
