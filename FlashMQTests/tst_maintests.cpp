@@ -980,7 +980,7 @@ void MainTests::testSavingSessions()
         c1.reset();
         MqttPacket publishPacket(ProtocolVersion::Mqtt5, publish);
         PublishCopyFactory fac(&publishPacket);
-        c1ses->writePacket(fac, 1, false, 6268); // TODO: subscription identifier? What to do / test?
+        c1ses->writePacket(fac, 1, false, 6268);
 
         FlashMQTempDir tmpdir;
         auto dbpath = tmpdir.getPath() / "flashmqtests_sessions.db";
