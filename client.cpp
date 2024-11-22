@@ -367,7 +367,8 @@ PacketDropReason Client::writeMqttPacketAndBlameThisClient(
     MqttPacket *p = copyFactory.getOptimumPacket(max_qos, this->protocolVersion, topic_alias, skip_topic, subscriptionIdentifier);
 
     assert(static_cast<bool>(p->getQos()) == static_cast<bool>(max_qos));
-    assert(PublishCopyFactory::getPublishLayoutCompareKey(protocolVersion) == PublishCopyFactory::getPublishLayoutCompareKey(p->getProtocolVersion()));
+    assert(PublishCopyFactory::getPublishLayoutCompareKey(this->protocolVersion, p->getQos()) ==
+           PublishCopyFactory::getPublishLayoutCompareKey(p->getProtocolVersion(), p->getQos()));
 
     if (p->getQos() > 0)
     {

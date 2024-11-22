@@ -50,17 +50,16 @@ MqttPacket *PublishCopyFactory::getOptimumPacket(
             return &*this->oneShotPacket;
         }
 
-        if (!packet->biteArrayCannotBeReused() &&
-            getPublishLayoutCompareKey(packet->getProtocolVersion()) == getPublishLayoutCompareKey(protocolVersion) &&
-            static_cast<bool>(orgQos) == static_cast<bool>(actualQos))
+        const int layout_key_target = getPublishLayoutCompareKey(protocolVersion, actualQos);
+
+        if (!packet->biteArrayCannotBeReused() && getPublishLayoutCompareKey(packet->getProtocolVersion(), orgQos) == layout_key_target)
         {
             return packet;
         }
 
         // Note that this cache also possibly contains the expiration interval, but because we're only hitting this block for on-line
         // publishers, the interval has not decreased and is fine.
-        const int cache_key = (getPublishLayoutCompareKey(protocolVersion) * 10) + static_cast<bool>(actualQos);
-        std::optional<MqttPacket> &cachedPack = constructedPacketCache[cache_key];
+        std::optional<MqttPacket> &cachedPack = constructedPacketCache[layout_key_target];
 
         if (!cachedPack)
         {
@@ -206,20 +205,28 @@ void PublishCopyFactory::setSharedSubscriptionHashKey(size_t hash)
     this->sharedSubscriptionHashKey = hash;
 }
 
-int PublishCopyFactory::getPublishLayoutCompareKey(ProtocolVersion pv)
+int PublishCopyFactory::getPublishLayoutCompareKey(ProtocolVersion pv, uint8_t qos)
 {
+    int key = 0;
+
     switch (pv)
     {
     case ProtocolVersion::None:
-        return 0;
+        key = 0;
+        break;
     case ProtocolVersion::Mqtt31:
     case ProtocolVersion::Mqtt311:
-        return 1;
+        key = 1;
+        break;
     case ProtocolVersion::Mqtt5:
-        return 2;
+        key = 2;
+        break;
     default:
-        return 3;
+        key = 3;
     }
+
+    key = (key * 10) + static_cast<bool>(qos);
+    return key;
 }
 
 

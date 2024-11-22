@@ -57,8 +57,7 @@ public:
     const std::optional<std::string> &getResponseTopic() const;
     void setSharedSubscriptionHashKey(size_t hash);
     size_t getSharedSubscriptionHashKey() const { return sharedSubscriptionHashKey; }
-    static int getPublishLayoutCompareKey(ProtocolVersion pv);
-
+    static int getPublishLayoutCompareKey(ProtocolVersion pv, uint8_t qos);
 };
 
 #endif // PUBLISHCOPYFACTORY_H
