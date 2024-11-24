@@ -729,7 +729,7 @@ void MainApp::start()
 
                 for (MqttPacket &packet : packetQueueIn)
                 {
-                    packet.handle();
+                    packet.handle(client);
                 }
 
                 subscriber->writeBufIntoFd();

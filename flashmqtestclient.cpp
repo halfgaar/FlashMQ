@@ -142,7 +142,7 @@ void FlashMQTestClient::connectClient(ProtocolVersion protocolVersion, bool clea
 
         if (pack.packetType == PacketType::PUBLISH)
         {
-            pack.parsePublishData();
+            pack.parsePublishData(client);
 
             MqttPacket copyPacket = pack;
             this->receivedPublishes.push_back(copyPacket);

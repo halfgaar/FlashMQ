@@ -351,7 +351,7 @@ void MainTests::testWebsocketCorruptLengthFrame()
 
             for (auto &pack : packets)
             {
-                pack.handle();
+                pack.handle(client);
             }
 
             QVERIFY2(false, "You shouldn't end up here.");

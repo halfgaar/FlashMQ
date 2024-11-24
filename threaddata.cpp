@@ -232,7 +232,7 @@ void ThreadData::continuationOfAuthentication(std::shared_ptr<Client> &client, A
             client->sendConnackSuccess();
             client->setAuthenticated(true);
             client->getSession()->sendAllPendingQosData();
-            client->handleAfterAsyncQueue();
+            client->handleAfterAsyncQueue(client);
         }
         else // Reauth (to authenticated clients) sends AUTH on success.
         {

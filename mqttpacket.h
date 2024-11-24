@@ -47,7 +47,6 @@ class MqttPacket
     Publish publishData;
     size_t fixed_header_length = 0; // if 0, this packet does not contain the bytes of the fixed header.
     VariableByteInt remainingLength;
-    std::shared_ptr<Client> sender;
     char first_byte = 0;
     size_t pos = 0;
     size_t packet_id_pos = 0;
@@ -128,29 +127,29 @@ public:
 
     static void bufferToMqttPackets(CirBuf &buf, std::vector<MqttPacket> &packetQueueIn, std::shared_ptr<Client> &sender);
 
-    HandleResult handle();
+    HandleResult handle(std::shared_ptr<Client> &sender);
     AuthPacketData parseAuthData();
-    ConnectData parseConnectData();
+    ConnectData parseConnectData(std::shared_ptr<Client> &sender);
     ConnAckData parseConnAckData();
-    void handleConnect();
-    void handleConnAck();
-    void handleExtendedAuth();
+    void handleConnect(std::shared_ptr<Client> &sender);
+    void handleConnAck(std::shared_ptr<Client> &sender);
+    void handleExtendedAuth(std::shared_ptr<Client> &sender);
     DisconnectData parseDisconnectData();
-    void handleDisconnect();
-    void handleSubscribe();
-    void handleSubAck();
-    void handleUnsubscribe();
-    void handlePing();
-    void parsePublishData();
-    void handlePublish();
+    void handleDisconnect(std::shared_ptr<Client> &sender);
+    void handleSubscribe(std::shared_ptr<Client> &sender);
+    void handleSubAck(std::shared_ptr<Client> &sender);
+    void handleUnsubscribe(std::shared_ptr<Client> &sender);
+    void handlePing(std::shared_ptr<Client> &sender);
+    void parsePublishData(std::shared_ptr<Client> &sender);
+    void handlePublish(std::shared_ptr<Client> &sender);
     void parsePubAckData();
-    void handlePubAck();
+    void handlePubAck(std::shared_ptr<Client> &sender);
     PubRecData parsePubRecData();
-    void handlePubRec();
+    void handlePubRec(std::shared_ptr<Client> &sender);
     void parsePubRelData();
-    void handlePubRel();
+    void handlePubRel(std::shared_ptr<Client> &sender);
     void parsePubComp();
-    void handlePubComp();
+    void handlePubComp(std::shared_ptr<Client> &sender);
     SubAckData parseSubAckData();
 
     uint8_t getFixedHeaderLength() const;
@@ -161,8 +160,6 @@ public:
     ProtocolVersion getProtocolVersion() const { return protocolVersion;}
     const std::string &getTopic() const;
     const std::vector<std::string> &getSubtopics();
-    std::shared_ptr<Client> getSender() const;
-    void setSender(const std::shared_ptr<Client> &value);
     bool containsFixedHeader() const;
     void setPacketId(uint16_t packet_id);
     uint16_t getPacketId() const;

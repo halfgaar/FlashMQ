@@ -166,7 +166,7 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV3V4V5V6()
                 cirbuf.advanceHead(packlen);
                 MqttPacket pack(cirbuf, packlen, fixed_header_length, dummyClient);
 
-                pack.parsePublishData();
+                pack.parsePublishData(dummyClient);
                 Publish pub(pack.getPublishData());
 
                 pub.client_id = sender_clientid;
@@ -232,7 +232,7 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV3V4V5V6()
                 readCheck(cirbuf.headPtr(), 1, packlen, f);
                 cirbuf.advanceHead(packlen);
                 MqttPacket publishpack(cirbuf, packlen, fixed_header_length, dummyClient);
-                publishpack.parsePublishData();
+                publishpack.parsePublishData(dummyClient);
                 WillPublish willPublish = publishpack.getPublishData();
                 willPublish.will_delay = stateAgecompensatedWillDelay;
 

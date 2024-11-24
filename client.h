@@ -252,7 +252,7 @@ public:
     void setAsyncAuthenticating() { this->asyncAuthenticating = true; }
     bool getAsyncAuthenticating() const { return this->asyncAuthenticating; }
     void addPacketToAfterAsyncQueue(MqttPacket &&p);
-    void handleAfterAsyncQueue();
+    void handleAfterAsyncQueue(std::shared_ptr<Client> &sender);
     void setAsyncAuthResult(const AsyncAuthResult &v);
     bool hasAsyncAuthResult() const { return this->asyncAuthResult.operator bool() ; }
     std::unique_ptr<AsyncAuthResult> stealAsyncAuthResult();

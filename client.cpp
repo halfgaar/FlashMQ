@@ -1085,7 +1085,7 @@ void Client::addPacketToAfterAsyncQueue(MqttPacket &&p)
     packetQueueAfterAsync->push_back(std::move(p));
 }
 
-void Client::handleAfterAsyncQueue()
+void Client::handleAfterAsyncQueue(std::shared_ptr<Client> &sender)
 {
     if (!this->asyncAuthenticating)
         return;
@@ -1100,7 +1100,7 @@ void Client::handleAfterAsyncQueue()
 
     for (MqttPacket &p : *packets)
     {
-        p.handle();
+        p.handle(sender);
     }
 }
 

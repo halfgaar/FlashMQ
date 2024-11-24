@@ -36,7 +36,7 @@ void MainTests::testWillDenialByPlugin()
     receiver.waitForMessageCount(1);
 
     MqttPacket pubPack = receiver.receivedPublishes.front();
-    pubPack.parsePublishData();
+    pubPack.parsePublishData(receiver.getClient());
 
     QCOMPARE(pubPack.getPublishData().topic, "will/allowed");
     QCOMPARE(pubPack.getPublishData().payload, "mypayload");

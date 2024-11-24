@@ -228,7 +228,7 @@ void do_thread_work(ThreadData *threadData)
                             client->onPacketReceived(packet);
                         else
 #endif
-                        if (packet.handle() == HandleResult::Defer)
+                        if (packet.handle(client) == HandleResult::Defer)
                         {
                             client->addPacketToAfterAsyncQueue(std::move(packet));
                         }

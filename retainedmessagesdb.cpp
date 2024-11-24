@@ -184,7 +184,7 @@ std::list<RetainedMessage> RetainedMessagesDB::readDataV3V4()
             cirbuf.advanceHead(packlen);
             MqttPacket pack(cirbuf, packlen, fixed_header_length, dummyClient);
 
-            pack.parsePublishData();
+            pack.parsePublishData(dummyClient);
             Publish pub(pack.getPublishData());
 
             pub.client_id = client_id;

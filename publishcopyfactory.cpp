@@ -163,13 +163,6 @@ Publish PublishCopyFactory::getNewPublish(uint8_t new_max_qos, bool retainAsPubl
     return p;
 }
 
-std::shared_ptr<Client> PublishCopyFactory::getSender()
-{
-    if (packet)
-        return packet->getSender();
-    return std::shared_ptr<Client>(0);
-}
-
 const std::vector<std::pair<std::string, std::string> > *PublishCopyFactory::getUserProperties() const
 {
     if (packet)

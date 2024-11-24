@@ -24,8 +24,7 @@ See LICENSE for license details.
 // constructor for parsing incoming packets
 MqttPacket::MqttPacket(CirBuf &buf, size_t packet_len, size_t fixed_header_length, std::shared_ptr<Client> &sender) :
     bites(packet_len),
-    fixed_header_length(fixed_header_length),
-    sender(sender)
+    fixed_header_length(fixed_header_length)
 {
     assert(packet_len > 0);
 
@@ -475,7 +474,7 @@ void MqttPacket::bufferToMqttPackets(CirBuf &buf, std::vector<MqttPacket> &packe
     }
 }
 
-HandleResult MqttPacket::handle()
+HandleResult MqttPacket::handle(std::shared_ptr<Client> &sender)
 {
     // For clients that send packets before they even receive a connack.
     if (protocolVersion == ProtocolVersion::None)
@@ -514,36 +513,36 @@ HandleResult MqttPacket::handle()
     }
 
     if (packetType == PacketType::PUBLISH)
-        handlePublish();
+        handlePublish(sender);
     else if (packetType == PacketType::PUBACK)
-        handlePubAck();
+        handlePubAck(sender);
     else if (packetType == PacketType::PUBREC)
-        handlePubRec();
+        handlePubRec(sender);
     else if (packetType == PacketType::PUBREL)
-        handlePubRel();
+        handlePubRel(sender);
     else if (packetType == PacketType::PUBCOMP)
-        handlePubComp();
+        handlePubComp(sender);
     else if (packetType == PacketType::PINGREQ)
         sender->writePingResp();
     else if (packetType == PacketType::SUBSCRIBE)
-        handleSubscribe();
+        handleSubscribe(sender);
     else if (packetType == PacketType::UNSUBSCRIBE)
-        handleUnsubscribe();
+        handleUnsubscribe(sender);
     else if (packetType == PacketType::SUBACK)
-        handleSubAck();
+        handleSubAck(sender);
     else if (packetType == PacketType::CONNECT)
-        handleConnect();
+        handleConnect(sender);
     else if (packetType == PacketType::DISCONNECT)
-        handleDisconnect();
+        handleDisconnect(sender);
     else if (packetType == PacketType::CONNACK)
-        handleConnAck();
+        handleConnAck(sender);
     else if (packetType == PacketType::AUTH)
-        handleExtendedAuth();
+        handleExtendedAuth(sender);
 
     return HandleResult::Done;
 }
 
-ConnectData MqttPacket::parseConnectData()
+ConnectData MqttPacket::parseConnectData(std::shared_ptr<Client> &sender)
 {
     if (this->packetType != PacketType::CONNECT)
         throw std::runtime_error("Packet must be connect packet.");
@@ -1018,7 +1017,7 @@ ConnAckData MqttPacket::parseConnAckData()
     return result;
 }
 
-void MqttPacket::handleConnect()
+void MqttPacket::handleConnect(std::shared_ptr<Client> &sender)
 {
     if (sender->hasConnectPacketSeen())
         throw ProtocolError("Client already sent a CONNECT.", ReasonCodes::ProtocolError);
@@ -1030,7 +1029,7 @@ void MqttPacket::handleConnect()
     ThreadData *threadData = ThreadGlobals::getThreadData();
     threadData->mqttConnectCounter.inc();
 
-    ConnectData connectData = parseConnectData();
+    ConnectData connectData = parseConnectData(sender);
     sender->setHasConnectPacketSeen();
     sender->setProtocolVersion(this->protocolVersion);
 
@@ -1204,7 +1203,7 @@ void MqttPacket::handleConnect()
     }
 }
 
-void MqttPacket::handleConnAck()
+void MqttPacket::handleConnAck(std::shared_ptr<Client> &sender)
 {
     if (!sender->isOutgoingConnection())
         return;
@@ -1358,7 +1357,7 @@ AuthPacketData MqttPacket::parseAuthData()
     return result;
 }
 
-void MqttPacket::handleExtendedAuth()
+void MqttPacket::handleExtendedAuth(std::shared_ptr<Client> &sender)
 {
     AuthPacketData data = parseAuthData();
 
@@ -1477,7 +1476,7 @@ DisconnectData MqttPacket::parseDisconnectData()
     return result;
 }
 
-void MqttPacket::handleDisconnect()
+void MqttPacket::handleDisconnect(std::shared_ptr<Client> &sender)
 {
     if (!sender)
         return;
@@ -1504,7 +1503,7 @@ void MqttPacket::handleDisconnect()
     ThreadGlobals::getThreadData()->removeClientQueued(sender);
 }
 
-void MqttPacket::handleSubscribe()
+void MqttPacket::handleSubscribe(std::shared_ptr<Client> &sender)
 {
     const char firstByteFirstNibble = (first_byte & 0x0F);
 
@@ -1682,7 +1681,7 @@ void MqttPacket::handleSubscribe()
     }
 }
 
-void MqttPacket::handleSubAck()
+void MqttPacket::handleSubAck(std::shared_ptr<Client> &sender)
 {
     if (!sender->isOutgoingConnection())
         return;
@@ -1708,7 +1707,7 @@ void MqttPacket::handleSubAck()
     }
 }
 
-void MqttPacket::handleUnsubscribe()
+void MqttPacket::handleUnsubscribe(std::shared_ptr<Client> &sender)
 {
     const char firstByteFirstNibble = (first_byte & 0x0F);
 
@@ -1768,12 +1767,12 @@ void MqttPacket::handleUnsubscribe()
         throw ProtocolError("No topics specified to unsubscribe to.", ReasonCodes::MalformedPacket);
     }
 
-    UnsubAck unsubAck(this->sender->getProtocolVersion(), packet_id, numberOfUnsubs);
+    UnsubAck unsubAck(sender->getProtocolVersion(), packet_id, numberOfUnsubs);
     MqttPacket response(unsubAck);
     sender->writeMqttPacket(response);
 }
 
-void MqttPacket::parsePublishData()
+void MqttPacket::parsePublishData(std::shared_ptr<Client> &sender)
 {
     assert(externallyReceived);
 
@@ -1936,9 +1935,9 @@ void MqttPacket::parsePublishData()
     }
 }
 
-void MqttPacket::handlePublish()
+void MqttPacket::handlePublish(std::shared_ptr<Client> &sender)
 {
-    parsePublishData();
+    parsePublishData(sender);
 
 #ifndef NDEBUG
     const bool duplicate = !!(first_byte & 0b00001000);
@@ -2053,7 +2052,7 @@ void MqttPacket::parsePubAckData()
         throw ProtocolError("QoS packets must have packet ID > 0.", ReasonCodes::ProtocolError);
 }
 
-void MqttPacket::handlePubAck()
+void MqttPacket::handlePubAck(std::shared_ptr<Client> &sender)
 {
     parsePubAckData();
     sender->getSession()->clearQosMessage(packet_id, true);
@@ -2081,7 +2080,7 @@ PubRecData MqttPacket::parsePubRecData()
 /**
  * @brief MqttPacket::handlePubRec handles QoS 2 'publish received' packets. The publisher receives these.
  */
-void MqttPacket::handlePubRec()
+void MqttPacket::handlePubRec(std::shared_ptr<Client> &sender)
 {
     PubRecData data = parsePubRecData();
 
@@ -2116,7 +2115,7 @@ void MqttPacket::parsePubRelData()
 /**
  * @brief MqttPacket::handlePubRel handles QoS 2 'publish release'. The publisher sends these.
  */
-void MqttPacket::handlePubRel()
+void MqttPacket::handlePubRel(std::shared_ptr<Client> &sender)
 {
     parsePubRelData();
 
@@ -2144,7 +2143,7 @@ void MqttPacket::parsePubComp()
 /**
  * @brief MqttPacket::handlePubComp handles QoS 2 'publish complete'. The publisher receives these.
  */
-void MqttPacket::handlePubComp()
+void MqttPacket::handlePubComp(std::shared_ptr<Client> &sender)
 {
     parsePubComp();
     sender->getSession()->removeOutgoingQoS2MessageId(packet_id);
@@ -2329,16 +2328,6 @@ const std::string &MqttPacket::getTopic() const
 const std::vector<std::string> &MqttPacket::getSubtopics()
 {
     return this->publishData.getSubtopics();
-}
-
-std::shared_ptr<Client> MqttPacket::getSender() const
-{
-    return sender;
-}
-
-void MqttPacket::setSender(const std::shared_ptr<Client> &value)
-{
-    sender = value;
 }
 
 bool MqttPacket::containsFixedHeader() const

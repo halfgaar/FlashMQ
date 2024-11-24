@@ -1118,7 +1118,7 @@ void MainTests::testParsePacketHelper(const std::string &topic, uint8_t from_qos
         MqttPacket::bufferToMqttPackets(stagingBufOne, parsedPackets, dummyClient);
         QVERIFY(parsedPackets.size() == 1);
         MqttPacket parsedPacketOne = std::move(parsedPackets.front());
-        parsedPacketOne.parsePublishData();
+        parsedPacketOne.parsePublishData(dummyClient);
         if (retain) // A normal handled packet always has retain=0, so I force setting it here.
             parsedPacketOne.setRetain(true);
 
