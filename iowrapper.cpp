@@ -400,10 +400,9 @@ void IoWrapper::setFakeUpgraded()
 ssize_t IoWrapper::readOrSslRead(int fd, void *buf, size_t nbytes, IoWrapResult *error)
 {
     *error = IoWrapResult::Success;
-    ssize_t n = 0;
     if (!ssl)
     {
-        n = read(fd, buf, nbytes);
+        ssize_t n = read(fd, buf, nbytes);
         if (n < 0)
         {
             if (errno == EINTR)
@@ -417,73 +416,80 @@ ssize_t IoWrapper::readOrSslRead(int fd, void *buf, size_t nbytes, IoWrapResult 
         {
             *error = IoWrapResult::Disconnected;
         }
+
+        return n;
     }
     else
     {
         this->sslReadWantsWrite = false;
         ERR_clear_error();
-        char sslErrorBuf[OPENSSL_ERROR_STRING_SIZE];
-        n = SSL_read(ssl, buf, nbytes);
+        ssize_t n = SSL_read(ssl, buf, nbytes);
 
-        if (n <= 0)
+        if (n > 0)
+            return n;
+
+        int err = SSL_get_error(ssl, n);
+        unsigned long error_code = ERR_get_error();
+
+        if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE)
         {
-            int err = SSL_get_error(ssl, n);
-            unsigned long error_code = ERR_get_error();
-
-            if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE)
+            *error = IoWrapResult::Wouldblock;
+            if (err == SSL_ERROR_WANT_WRITE)
             {
-                *error = IoWrapResult::Wouldblock;
-                if (err == SSL_ERROR_WANT_WRITE)
-                {
-                    sslReadWantsWrite = true;
-                    parentClient->setReadyForWriting(true);
-                }
-                n = -1;
+                sslReadWantsWrite = true;
+                parentClient->setReadyForWriting(true);
             }
-            else if (err == SSL_ERROR_ZERO_RETURN)
-            {
-                parentClient->setDisconnectReason("SSL socket close with close_notify");
-                *error = IoWrapResult::Disconnected;
-            }
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L
-            else if (err == SSL_ERROR_SSL && ERR_GET_REASON(error_code) == SSL_R_UNEXPECTED_EOF_WHILE_READING)
-            {
-                parentClient->setDisconnectReason("SSL socket close without close_notify");
-                *error = IoWrapResult::Disconnected;
-            }
-#endif
-            else if (err == SSL_ERROR_SYSCALL && errno == 0)
-            {
-                // See https://www.openssl.org/docs/man1.1.1/man3/SSL_get_error.html "BUGS" why unexpected EOF is seen as SSL_ERROR_SYSCALL.
-
-                *error = IoWrapResult::Disconnected;
-                parentClient->setDisconnectReason("SSL<3 socket close without close_notify");
-            }
-            else
-            {
-                if (err == SSL_ERROR_SYSCALL)
-                {
-                    // I don't actually know if OpenSSL hides this or passes EINTR on. The docs say
-                    // 'Some non-recoverable, fatal I/O error occurred' for SSL_ERROR_SYSCALL, so it
-                    // implies EINTR is not included?
-                    if (errno == EINTR)
-                        *error = IoWrapResult::Interrupted;
-                    else
-                    {
-                        char *err = strerror(errno);
-                        std::string msg(err);
-                        throw std::runtime_error("SSL read error: " + msg);
-                    }
-                }
-                ERR_error_string(error_code, sslErrorBuf);
-                std::string errorString(sslErrorBuf, OPENSSL_ERROR_STRING_SIZE);
-                ERR_print_errors_cb(logSslError, NULL);
-                throw std::runtime_error("SSL socket error reading: " + errorString);
-            }
+            return -1;
         }
-    }
 
-    return n;
+        if (err == SSL_ERROR_ZERO_RETURN)
+        {
+            parentClient->setDisconnectReason("SSL socket close with close_notify");
+            *error = IoWrapResult::Disconnected;
+            return 0;
+        }
+
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+        if (err == SSL_ERROR_SSL && ERR_GET_REASON(error_code) == SSL_R_UNEXPECTED_EOF_WHILE_READING)
+        {
+            parentClient->setDisconnectReason("SSL socket close without close_notify");
+            *error = IoWrapResult::Disconnected;
+            return 0;
+        }
+#endif
+
+        if (err == SSL_ERROR_SYSCALL && errno == 0)
+        {
+            // See https://www.openssl.org/docs/man1.1.1/man3/SSL_get_error.html "BUGS" why unexpected EOF is seen as SSL_ERROR_SYSCALL.
+
+            *error = IoWrapResult::Disconnected;
+            parentClient->setDisconnectReason("SSL<3 socket close without close_notify");
+            return 0;
+        }
+
+        if (err == SSL_ERROR_SYSCALL)
+        {
+            // I don't actually know if OpenSSL hides this or passes EINTR on. The docs say
+            // 'Some non-recoverable, fatal I/O error occurred' for SSL_ERROR_SYSCALL, so it
+            // implies EINTR is not included? Also, we use non-blocking sockets, which don't
+            // return EINTR.
+            if (errno == EINTR)
+            {
+                *error = IoWrapResult::Interrupted;
+                return -1;
+            }
+
+            char *err = strerror(errno);
+            std::string msg(err);
+            throw std::runtime_error("SSL read syscall error: " + msg);
+        }
+
+        char sslErrorBuf[OPENSSL_ERROR_STRING_SIZE];
+        ERR_error_string(error_code, sslErrorBuf);
+        std::string errorString(sslErrorBuf, OPENSSL_ERROR_STRING_SIZE);
+        ERR_print_errors_cb(logSslError, NULL);
+        throw std::runtime_error("SSL socket error reading: " + errorString);
+    }
 }
 
 // SSL and non-SSL sockets behave differently. This wrapper unifies behavor for the caller.

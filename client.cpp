@@ -224,7 +224,7 @@ DisconnectStage Client::readFdIntoBuffer()
 
         if (error == IoWrapResult::Interrupted)
             continue;
-        if (error == IoWrapResult::Wouldblock)
+        if (error == IoWrapResult::Wouldblock || error == IoWrapResult::Disconnected)
             break;
 
         // Make sure we either always have enough space for a next call of this method, or stop reading the fd.
