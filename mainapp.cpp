@@ -962,12 +962,23 @@ void MainApp::start()
 
     oneInstanceLock.unlock();
 
-    logger->logf(LOG_DEBUG, "Waiting for threads to finish.");
+    {
+        logger->logf(LOG_DEBUG, "Waiting for our own quit event to have been queued.");
+        int count = 0;
+        while(std::any_of(threads.begin(), threads.end(), [](std::shared_ptr<ThreadData> t){ return t->running; }))
+        {
+            if (count++ >= 30000)
+                break;
+            usleep(1000);
+        }
+    }
+
+    logger->logf(LOG_DEBUG, "Waiting for threads clean-up functions to finish.");
     int count = 0;
     bool waitTimeExpired = false;
     while(std::any_of(threads.begin(), threads.end(), [](std::shared_ptr<ThreadData> t){ return !t->finished; }))
     {
-        if (count++ >= 10000)
+        if (count++ >= 30000)
         {
             waitTimeExpired = true;
             break;
