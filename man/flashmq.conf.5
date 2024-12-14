@@ -587,6 +587,22 @@ Default: \fI0\fR
 See the documentation for the \fB\fB\m[green]tcp_nodelay\fR\m[]\fR \fBlistener\fR parameter for further elaboration.
 
 Default: \fI\m[cyan]false\m[]\fR
+.TP
+\*(T<\fB\m[green]local_prefix\m[] \fI\m[cyan]prefix\m[]\fR\fR\*(T>
+Prefixes can be used to remap topics to and from the other end of the bridge. This makes it possible to insert a topic tree into the topic tree on another server, like a shared one.
+
+When a message comes in, the \fB\m[green]remote_prefix\fR\m[] is stripped from the topic, and the \fB\m[green]local_prefix\fR\m[] is added. The resulting topic is used for authorization 'write' checking.
+
+When a message goes out, the opposite happens: the \fB\m[green]local_prefix\fR\m[] is stripped and the \fB\m[green]remote_prefix\fR\m[] is added. However, this time, the original topic is used for authorization 'read' checking.
+
+The prefixes aren't applied to the \fB\m[green]subscribe\fR\m[] and \fB\m[green]publish\fR\m[] bridge options. You'll have to include the prefix in the subscriptions you configure. This is so that you can have multiple subscriptions to the other end, and only have the prefix applied to the relevant one(s). Messages that come in and go out that don't match the prefixes, are sent and received unchanged.
+
+The prefixes removal isn't done to topics that match the prefix exactly. This is to avoid \fIone/two/three/\fR (which has a legal empty string as last subtopic), becoming an empty string (which is illegal).
+
+If you define a prefix, they are required to end with a \fI/\fR. It's valid to have only a local or remote prefix.
+.TP
+\*(T<\fB\m[green]remote_prefix\m[] \fI\m[cyan]prefix\m[]\fR\fR\*(T>
+See \fB\fB\m[green]local_prefix\fR\m[]\fR.
 .SH EXAMPLE BRIDGE
 .PP
 .nf

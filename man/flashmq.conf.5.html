@@ -242,7 +242,7 @@
           });
         });
       });
-      </script><article id="flashmq.conf.5"><nav xmlns="http://docbook.org/ns/docbook" xmlns:dbk="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:semver="https://semver.org/spec/v2.0.0.html" xmlns:fmq="http://www.flashmq.org/man/" id="flashmq-version-nav"><select id="select-flashmq-version"><option value="" selected>latest</option><option value="1.18.0">≥ v1.18.0</option><option value="1.16.0">≥ v1.16.0</option><option value="1.15.1">≥ v1.15.1</option><option value="1.14.0">≥ v1.14.0</option><option value="1.13.0">≥ v1.13.0</option><option value="1.12.0">≥ v1.12.0</option><option value="1.11.0">≥ v1.11.0</option><option value="1.10.0">≥ v1.10.0</option><option value="1.9.0">≥ v1.9.0</option><option value="1.8.4">≥ v1.8.4</option><option value="1.8.0">≥ v1.8.0</option><option value="1.7.0">≥ v1.7.0</option><option value="1.6.7">≥ v1.6.7</option><option value="1.4.4">≥ v1.4.4</option><option value="1.4.2">≥ v1.4.2</option><option value="1.2.0">≥ v1.2.0</option><option value="1.1.0">≥ v1.1.0</option></select></nav><header><h1>flashmq.conf<code class="manvolnum"> (5)</code></h1><h2 class="refpurpose">FlashMQ configuration file format</h2></header><section class="refsynopsisdiv" id="synopsis"><header><h2>Synopsis</h2></header>
+      </script><article id="flashmq.conf.5"><nav xmlns="http://docbook.org/ns/docbook" xmlns:dbk="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:semver="https://semver.org/spec/v2.0.0.html" xmlns:fmq="http://www.flashmq.org/man/" id="flashmq-version-nav"><select id="select-flashmq-version"><option value="" selected>latest</option><option value="1.19.0">≥ v1.19.0</option><option value="1.18.0">≥ v1.18.0</option><option value="1.16.0">≥ v1.16.0</option><option value="1.15.1">≥ v1.15.1</option><option value="1.14.0">≥ v1.14.0</option><option value="1.13.0">≥ v1.13.0</option><option value="1.12.0">≥ v1.12.0</option><option value="1.11.0">≥ v1.11.0</option><option value="1.10.0">≥ v1.10.0</option><option value="1.9.0">≥ v1.9.0</option><option value="1.8.4">≥ v1.8.4</option><option value="1.8.0">≥ v1.8.0</option><option value="1.7.0">≥ v1.7.0</option><option value="1.6.7">≥ v1.6.7</option><option value="1.4.4">≥ v1.4.4</option><option value="1.4.2">≥ v1.4.2</option><option value="1.2.0">≥ v1.2.0</option><option value="1.1.0">≥ v1.1.0</option></select></nav><header><h1>flashmq.conf<code class="manvolnum"> (5)</code></h1><h2 class="refpurpose">FlashMQ configuration file format</h2></header><section class="refsynopsisdiv" id="synopsis"><header><h2>Synopsis</h2></header>
     <p>
        The <code class="filename">flashmq.conf</code> file is the configuration used for configuring the FlashMQ MQTT broker.
     </p>
@@ -1421,6 +1421,44 @@ listen {
           </p>
           <p>
             Default: <code class="replaceable">false</code>
+          </p>
+        </dd>
+      
+
+      
+        <dt id="bridge__local_prefix"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.19.0">≥ v1.19.0</div><code class="option">local_prefix</code> <code class="replaceable">prefix</code><a class="hash-anchor" href="#bridge__local_prefix">#</a></dt>
+        <dd>
+          <p>
+            Prefixes can be used to remap topics to and from the other end of the bridge. This makes it possible to insert a topic tree into the topic tree on another server, like a shared one.
+          </p>
+
+          <p>
+            When a message comes in, the <code class="option">remote_prefix</code> is stripped from the topic, and the <code class="option">local_prefix</code> is added. The resulting topic is used for authorization 'write' checking.
+          </p>
+
+          <p>
+            When a message goes out, the opposite happens: the <code class="option">local_prefix</code> is stripped and the <code class="option">remote_prefix</code> is added. However, this time, the original topic is used for authorization 'read' checking.
+          </p>
+
+          <p>
+            The prefixes aren't applied to the <code class="option">subscribe</code> and <code class="option">publish</code> bridge options. You'll have to include the prefix in the subscriptions you configure. This is so that you can have multiple subscriptions to the other end, and only have the prefix applied to the relevant one(s). Messages that come in and go out that don't match the prefixes, are sent and received unchanged.
+          </p>
+
+          <p>
+            The prefixes removal isn't done to topics that match the prefix exactly. This is to avoid <code class="literal">one/two/three/</code> (which has a legal empty string as last subtopic), becoming an empty string (which is illegal).
+          </p>
+
+          <p>
+            If you define a prefix, they are required to end with a <code class="literal">/</code>. It's valid to have only a local or remote prefix.
+          </p>
+        </dd>
+      
+
+      
+        <dt id="bridge__prefixes"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.19.0">≥ v1.19.0</div><code class="option">remote_prefix</code> <code class="replaceable">prefix</code><a class="hash-anchor" href="#bridge__prefixes">#</a></dt>
+        <dd>
+          <p>
+              See <a href="#bridge__local_prefix"><code class="option">local_prefix</code></a>.
           </p>
         </dd>
       

@@ -1216,6 +1216,44 @@ listen {
         </listitem>
       </varlistentry>
 
+      <varlistentry xml:id="bridge__local_prefix" condition="flashmq ≥ 1.19.0">
+        <term><option>local_prefix</option> <replaceable>prefix</replaceable></term>
+        <listitem>
+          <para>
+            Prefixes can be used to remap topics to and from the other end of the bridge. This makes it possible to insert a topic tree into the topic tree on another server, like a shared one.
+          </para>
+
+          <para>
+            When a message comes in, the <option>remote_prefix</option> is stripped from the topic, and the <option>local_prefix</option> is added. The resulting topic is used for authorization 'write' checking.
+          </para>
+
+          <para>
+            When a message goes out, the opposite happens: the <option>local_prefix</option> is stripped and the <option>remote_prefix</option> is added. However, this time, the original topic is used for authorization 'read' checking.
+          </para>
+
+          <para>
+            The prefixes aren't applied to the <option>subscribe</option> and <option>publish</option> bridge options. You'll have to include the prefix in the subscriptions you configure. This is so that you can have multiple subscriptions to the other end, and only have the prefix applied to the relevant one(s). Messages that come in and go out that don't match the prefixes, are sent and received unchanged.
+          </para>
+
+          <para>
+            The prefixes removal isn't done to topics that match the prefix exactly. This is to avoid <literal>one/two/three/</literal> (which has a legal empty string as last subtopic), becoming an empty string (which is illegal).
+          </para>
+
+          <para>
+            If you define a prefix, they are required to end with a <literal>/</literal>. It's valid to have only a local or remote prefix.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry xml:id="bridge__prefixes" condition="flashmq ≥ 1.19.0">
+        <term><option>remote_prefix</option> <replaceable>prefix</replaceable></term>
+        <listitem>
+          <para>
+              See <link xlink:href="#bridge__local_prefix"><option>local_prefix</option></link>.
+          </para>
+        </listitem>
+      </varlistentry>
+
     </variablelist>
   </refsect1>
 
