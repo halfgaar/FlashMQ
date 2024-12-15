@@ -20,7 +20,9 @@ See LICENSE for license details.
 struct QueuedTask
 {
     std::chrono::time_point<std::chrono::steady_clock> when;
+    std::chrono::milliseconds interval;
     uint32_t id = 0;
+    bool repeat = false;
     std::weak_ptr<std::function<void()>> f;
 
     bool operator<(const QueuedTask &rhs) const;
@@ -29,7 +31,7 @@ struct QueuedTask
 /**
  * @brief Contains delayed tasks to perform.
  *
- * At this point, it's for the plugin, and therefore is thread-local, and not protected with mutexes etc.
+ * At this point, it's not for cross-thread use, so not protected with mutexes etc.
  */
 class QueuedTasks
 {
@@ -39,7 +41,7 @@ class QueuedTasks
 
 public:
     QueuedTasks();
-    uint32_t addTask(std::function<void()> f, uint32_t delayInMs);
+    uint32_t addTask(std::function<void()> f, uint32_t delayInMs, bool repeat=false);
     void eraseTask(uint32_t id);
     uint32_t getTimeTillNext() const;
     void performAll();

@@ -24,7 +24,7 @@ QueuedTasks::QueuedTasks()
 
 }
 
-uint32_t QueuedTasks::addTask(std::function<void ()> f, uint32_t delayInMs)
+uint32_t QueuedTasks::addTask(std::function<void ()> f, uint32_t delayInMs, bool repeat)
 {
     std::chrono::time_point<std::chrono::steady_clock> when = std::chrono::steady_clock::now() + std::chrono::milliseconds(delayInMs);
 
@@ -38,6 +38,8 @@ uint32_t QueuedTasks::addTask(std::function<void ()> f, uint32_t delayInMs)
     t.id = id;
     t.f = inserted;
     t.when = when;
+    t.interval = std::chrono::milliseconds(delayInMs);
+    t.repeat = repeat;
 
     queuedTasks.insert(t);
 
@@ -85,7 +87,17 @@ void QueuedTasks::performAll()
         if (tpos != tasks.end() && queued_f == tpos->second)
         {
             copiedTasks.push_back(tpos->second);
-            tasks.erase(tpos); // TODO: allow repeatable tasks?
+
+            if (pos->repeat)
+            {
+                QueuedTask requeue = *pos;
+                requeue.when = std::chrono::steady_clock::now() + pos->interval;
+                queuedTasks.insert(requeue);
+            }
+            else
+            {
+                tasks.erase(tpos);
+            }
         }
     }
 
