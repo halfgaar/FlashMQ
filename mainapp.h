@@ -26,7 +26,6 @@ See LICENSE for license details.
 #include "threaddata.h"
 #include "subscriptionstore.h"
 #include "configfileparser.h"
-#include "timer.h"
 #include "scopedsocket.h"
 #include "oneinstancelock.h"
 #include "bridgeinfodb.h"
@@ -56,7 +55,7 @@ class MainApp
     bool doQuitAction = false;
     bool doMemoryTrim = false;
     std::mutex eventMutex;
-    Timer timer;
+    QueuedTasks timed_tasks;
 
     uint overloadLogCounter = 0;
     DriftCounter drift;

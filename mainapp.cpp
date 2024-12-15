@@ -63,41 +63,41 @@ MainApp::MainApp(const std::string &configFilePath) :
         auto f = std::bind(&MainApp::queueCleanup, this);
         //const uint64_t derrivedSessionCheckInterval = std::max<uint64_t>((settings.expireSessionsAfterSeconds)*1000*2, 600000);
         //const uint64_t sessionCheckInterval = std::min<uint64_t>(derrivedSessionCheckInterval, 86400000);
-        uint64_t interval = 10000;
+        uint32_t interval = 10000;
 #ifdef TESTING
         interval = 1000;
 #endif
-        timer.addCallback(f, interval, "session expiration");
+        timed_tasks.addTask(f, interval, true);
     }
 
     {
-        uint64_t interval = 1846849; // prime
+        uint32_t interval = 1846849; // prime
         auto f = std::bind(&MainApp::queuePurgeSubscriptionTree, this);
-        timer.addCallback(f, interval, "Rebuild subscription tree");
+        timed_tasks.addTask(f, interval, true);
     }
 
     {
-        uint64_t interval = 3949193; // prime
+        uint32_t interval = 3949193; // prime
 #ifdef TESTING
         interval = 500;
 #endif
         auto f = std::bind(&MainApp::queueRetainedMessageExpiration, this);
-        timer.addCallback(f, interval, "Purge expired retained messages.");
+        timed_tasks.addTask(f, interval, true);
     }
 
     auto fKeepAlive = std::bind(&MainApp::queueKeepAliveCheckAtAllThreads, this);
-    timer.addCallback(fKeepAlive, 5000, "keep-alive check");
+    timed_tasks.addTask(fKeepAlive, 5000, true);
 
     auto fPasswordFileReload = std::bind(&MainApp::queuePasswordFileReloadAllThreads, this);
-    timer.addCallback(fPasswordFileReload, 2000, "Password file reload.");
+    timed_tasks.addTask(fPasswordFileReload, 2000, true);
 
     auto fPublishStats = std::bind(&MainApp::queuePublishStatsOnDollarTopic, this);
-    timer.addCallback(fPublishStats, 10000, "Publish stats on $SYS");
+    timed_tasks.addTask(fPublishStats, 10000, true);
 
     if (settings.pluginTimerPeriod > 0)
     {
         auto fpluginPeriodicEvent = std::bind(&MainApp::queuepluginPeriodicEventAllThreads, this);
-        timer.addCallback(fpluginPeriodicEvent, settings.pluginTimerPeriod*1000, "Auth plugin periodic event.");
+        timed_tasks.addTask(fpluginPeriodicEvent, settings.pluginTimerPeriod * 1000, true);
     }
 
     if (!settings.storageDir.empty())
@@ -112,13 +112,13 @@ MainApp::MainApp(const std::string &configFilePath) :
     }
 
     auto fSaveState = std::bind(&MainApp::queueSaveStateInThread, this);
-    timer.addCallback(fSaveState, settings.saveStateInterval.count() * 1000, "Save state.");
+    timed_tasks.addTask(fSaveState, settings.saveStateInterval.count() * 1000, true);
 
     auto fSendPendingWills = std::bind(&MainApp::queueSendQueuedWills, this);
-    timer.addCallback(fSendPendingWills, 2000, "Publish pending wills.");
+    timed_tasks.addTask(fSendPendingWills, 2000, true);
 
     auto fInternalHeartbeat = std::bind(&MainApp::queueInternalHeartbeat, this);
-    timer.addCallback(fInternalHeartbeat, HEARTBEAT_INTERVAL, "Internal heartbeat.");
+    timed_tasks.addTask(fInternalHeartbeat, HEARTBEAT_INTERVAL, true);
 }
 
 MainApp::~MainApp()
@@ -406,7 +406,7 @@ void MainApp::queueBridgeReconnectAllThreads(bool alsoQueueNexts)
     if (alsoQueueNexts)
     {
         auto fReconnectBridges = std::bind(&MainApp::queueBridgeReconnectAllThreads, this, false);
-        timer.addCallback(fReconnectBridges, 5000, "Reconnect bridges.");
+        timed_tasks.addTask(fReconnectBridges, 5000, true);
     }
 }
 
@@ -764,8 +764,6 @@ void MainApp::start()
     if (!threads.empty())
         threads.front()->queuePublishStatsOnDollarTopic(threads);
 
-    timer.start();
-
     sendBridgesToThreads();
     queueBridgeReconnectAllThreads(true);
 
@@ -779,7 +777,13 @@ void MainApp::start()
     started = true;
     while (running)
     {
-        int num_fds = epoll_wait(this->epollFdAccept, events, MAX_EVENTS, 100);
+        const uint32_t next_task_delay = timed_tasks.getTimeTillNext();
+        const uint32_t epoll_wait_time = std::min<uint32_t>(next_task_delay, 100);
+
+        int num_fds = epoll_wait(this->epollFdAccept, events, MAX_EVENTS, epoll_wait_time);
+
+        if (epoll_wait_time == 0)
+            timed_tasks.performAll();
 
         if (num_fds < 0)
         {
@@ -1024,7 +1028,6 @@ void MainApp::quit()
 
     Logger *logger = Logger::getInstance();
     logger->logf(LOG_NOTICE, "Quitting FlashMQ");
-    timer.stop();
     running = false;
 }
 
