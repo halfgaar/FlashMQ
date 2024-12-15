@@ -47,14 +47,12 @@ class MainApp
     std::vector<std::shared_ptr<ThreadData>> threads;
     std::shared_ptr<SubscriptionStore> subscriptionStore;
     std::unique_ptr<ConfigFileParser> confFileParser;
-    std::list<std::function<void()>> taskQueue;
     int epollFdAccept = -1;
     int taskEventFd = -1;
     bool doConfigReload = false;
     bool doLogFileReOpen = false;
     bool doQuitAction = false;
     bool doMemoryTrim = false;
-    std::mutex eventMutex;
     QueuedTasks timed_tasks;
 
     uint overloadLogCounter = 0;
@@ -93,12 +91,10 @@ class MainApp
     static void saveBridgeInfo(const std::string &filePath, const std::list<BridgeInfoForSerializing> &bridgeInfos);
     static std::list<std::shared_ptr<BridgeConfig>> loadBridgeInfo(Settings &settings);
     void saveStateInThread();
-    void queueSaveStateInThread();
     void queueSendQueuedWills();
     void waitForWillsQueued();
     void queueRetainedMessageExpiration();
     void sendBridgesToThreads();
-    void queueSendBridgesToThreads();
     void queueBridgeReconnectAllThreads(bool alsoQueueNexts);
     void queueInternalHeartbeat();
 

@@ -111,7 +111,7 @@ MainApp::MainApp(const std::string &configFilePath) :
         subscriptionStore->loadSessionsAndSubscriptions(settings.getSessionsDBFile());
     }
 
-    auto fSaveState = std::bind(&MainApp::queueSaveStateInThread, this);
+    auto fSaveState = std::bind(&MainApp::saveStateInThread, this);
     timed_tasks.addTask(fSaveState, settings.saveStateInterval.count() * 1000, true);
 
     auto fSendPendingWills = std::bind(&MainApp::queueSendQueuedWills, this);
@@ -274,14 +274,9 @@ void MainApp::setFuzzFile(const std::string &fuzzFilePath)
  */
 void MainApp::queuePublishStatsOnDollarTopic()
 {
-    std::lock_guard<std::mutex> locker(eventMutex);
-
     if (!threads.empty())
     {
-        auto f = std::bind(&ThreadData::queuePublishStatsOnDollarTopic, threads.front().get(), threads);
-        taskQueue.push_back(f);
-
-        wakeUpThread();
+        threads.at(0)->queuePublishStatsOnDollarTopic(threads);
     }
 }
 
@@ -294,18 +289,6 @@ void MainApp::saveStateInThread()
 
     auto f = std::bind(&MainApp::saveState, this->settings, bridgeInfos, true);
     this->bgWorker.addTask(f, true);
-}
-
-/**
- * @brief MainApp::queueSaveStateInThread is a wrapper to be called from another thread, to make sure saveStateInThread() is called
- * on the main loop.
- */
-void MainApp::queueSaveStateInThread()
-{
-    std::lock_guard<std::mutex> locker(eventMutex);
-    auto f = std::bind(&MainApp::saveStateInThread, this);
-    taskQueue.push_back(f);
-    wakeUpThread();
 }
 
 void MainApp::queueSendQueuedWills()
@@ -377,17 +360,6 @@ void MainApp::sendBridgesToThreads()
     }
 }
 
-void MainApp::queueSendBridgesToThreads()
-{
-    {
-        std::lock_guard<std::mutex> locker(eventMutex);
-        auto f = std::bind(&MainApp::sendBridgesToThreads, this);
-        taskQueue.push_back(f);
-    }
-
-    wakeUpThread();
-}
-
 void MainApp::queueBridgeReconnectAllThreads(bool alsoQueueNexts)
 {
     try
@@ -415,37 +387,29 @@ void MainApp::queueInternalHeartbeat()
     if (threads.empty())
         return;
 
-    auto set_drift = [this](std::chrono::time_point<std::chrono::steady_clock> queue_time) {
-        const std::chrono::milliseconds main_loop_drift = drift.getDrift();
-        if (main_loop_drift > settings.maxEventLoopDrift)
-        {
-            Logger::getInstance()->log(LOG_WARNING) << "Main loop thread drift is " << main_loop_drift.count() << " ms.";
-        }
-        if (this->medianThreadDrift > settings.maxEventLoopDrift)
-        {
-            Logger::getInstance()->log(LOG_WARNING) << "Median thread drift is " << this->medianThreadDrift.count() << " ms.";
-        }
+    auto queue_time = std::chrono::steady_clock::now();
 
-        drift.update(queue_time);
-
-        std::vector<std::chrono::milliseconds> drifts(threads.size());
-
-        std::transform(threads.begin(), threads.end(), drifts.begin(), [] (const std::shared_ptr<const ThreadData> &t) {
-            return t->driftCounter.getDrift();
-        });
-
-        const size_t n = drifts.size() / 2;
-        std::nth_element(drifts.begin(), drifts.begin() + n, drifts.end());
-        this->medianThreadDrift = drifts.at(n);
-    };
-
+    const std::chrono::milliseconds main_loop_drift = drift.getDrift();
+    if (main_loop_drift > settings.maxEventLoopDrift)
     {
-        auto call_set_drift = std::bind(set_drift, std::chrono::steady_clock::now());
-        std::lock_guard<std::mutex> locker(eventMutex);
-        taskQueue.push_back(call_set_drift);
+        Logger::getInstance()->log(LOG_WARNING) << "Main loop thread drift is " << main_loop_drift.count() << " ms.";
+    }
+    if (this->medianThreadDrift > settings.maxEventLoopDrift)
+    {
+        Logger::getInstance()->log(LOG_WARNING) << "Median thread drift is " << this->medianThreadDrift.count() << " ms.";
     }
 
-    wakeUpThread();
+    drift.update(queue_time);
+
+    std::vector<std::chrono::milliseconds> drifts(threads.size());
+
+    std::transform(threads.begin(), threads.end(), drifts.begin(), [] (const std::shared_ptr<const ThreadData> &t) {
+        return t->driftCounter.getDrift();
+    });
+
+    const size_t n = drifts.size() / 2;
+    std::nth_element(drifts.begin(), drifts.begin() + n, drifts.end());
+    this->medianThreadDrift = drifts.at(n);
 
     for (std::shared_ptr<ThreadData> &thread : threads)
     {
@@ -920,19 +884,6 @@ void MainApp::start()
                     if (doMemoryTrim)
                     {
                         memoryTrim();
-                    }
-
-                    std::list<std::function<void()>> tasks;
-
-                    {
-                        std::lock_guard<std::mutex> locker(eventMutex);
-                        tasks = std::move(taskQueue);
-                        taskQueue.clear();
-                    }
-
-                    for(auto &f : tasks)
-                    {
-                        f();
                     }
                 }
             }
