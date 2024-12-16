@@ -45,6 +45,7 @@ public:
     void eraseTask(uint32_t id);
     uint32_t getTimeTillNext() const;
     void performAll();
+    void clear();
 };
 
 #endif // QUEUEDTASKS_H

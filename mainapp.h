@@ -78,6 +78,7 @@ class MainApp
     void loadConfig(bool reload);
     void reloadConfig();
     void reopenLogfile();
+    void reloadTimers(bool reload, const Settings &old_settings);
     static void doHelp(const char *arg);
     static void showLicense();
     std::list<ScopedSocket> createListenSocket(const std::shared_ptr<Listener> &listener);

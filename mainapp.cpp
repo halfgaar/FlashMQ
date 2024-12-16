@@ -59,47 +59,6 @@ MainApp::MainApp(const std::string &configFilePath) :
     if (num_threads <= 0)
         throw std::runtime_error("Invalid number of CPUs: " + std::to_string(num_threads));
 
-    {
-        auto f = std::bind(&MainApp::queueCleanup, this);
-        //const uint64_t derrivedSessionCheckInterval = std::max<uint64_t>((settings.expireSessionsAfterSeconds)*1000*2, 600000);
-        //const uint64_t sessionCheckInterval = std::min<uint64_t>(derrivedSessionCheckInterval, 86400000);
-        uint32_t interval = 10000;
-#ifdef TESTING
-        interval = 1000;
-#endif
-        timed_tasks.addTask(f, interval, true);
-    }
-
-    {
-        uint32_t interval = 1846849; // prime
-        auto f = std::bind(&MainApp::queuePurgeSubscriptionTree, this);
-        timed_tasks.addTask(f, interval, true);
-    }
-
-    {
-        uint32_t interval = 3949193; // prime
-#ifdef TESTING
-        interval = 500;
-#endif
-        auto f = std::bind(&MainApp::queueRetainedMessageExpiration, this);
-        timed_tasks.addTask(f, interval, true);
-    }
-
-    auto fKeepAlive = std::bind(&MainApp::queueKeepAliveCheckAtAllThreads, this);
-    timed_tasks.addTask(fKeepAlive, 5000, true);
-
-    auto fPasswordFileReload = std::bind(&MainApp::queuePasswordFileReloadAllThreads, this);
-    timed_tasks.addTask(fPasswordFileReload, 2000, true);
-
-    auto fPublishStats = std::bind(&MainApp::queuePublishStatsOnDollarTopic, this);
-    timed_tasks.addTask(fPublishStats, 10000, true);
-
-    if (settings.pluginTimerPeriod > 0)
-    {
-        auto fpluginPeriodicEvent = std::bind(&MainApp::queuepluginPeriodicEventAllThreads, this);
-        timed_tasks.addTask(fpluginPeriodicEvent, settings.pluginTimerPeriod * 1000, true);
-    }
-
     if (!settings.storageDir.empty())
     {
         const std::string retainedDbPath = settings.getRetainedMessagesDBFile();
@@ -110,15 +69,6 @@ MainApp::MainApp(const std::string &configFilePath) :
 
         subscriptionStore->loadSessionsAndSubscriptions(settings.getSessionsDBFile());
     }
-
-    auto fSaveState = std::bind(&MainApp::saveStateInThread, this);
-    timed_tasks.addTask(fSaveState, settings.saveStateInterval.count() * 1000, true);
-
-    auto fSendPendingWills = std::bind(&MainApp::queueSendQueuedWills, this);
-    timed_tasks.addTask(fSendPendingWills, 2000, true);
-
-    auto fInternalHeartbeat = std::bind(&MainApp::queueInternalHeartbeat, this);
-    timed_tasks.addTask(fInternalHeartbeat, HEARTBEAT_INTERVAL, true);
 }
 
 MainApp::~MainApp()
@@ -1015,6 +965,7 @@ void MainApp::loadConfig(bool reload)
     // Atomic loading, first test.
     confFileParser->loadFile(true);
     confFileParser->loadFile(false);
+    const Settings oldSettings = settings;
     settings = confFileParser->getSettings();
     ThreadGlobals::assignSettings(&settings);
 
@@ -1129,6 +1080,8 @@ void MainApp::loadConfig(bool reload)
     {
         thread->queueReload(settings);
     }
+
+    reloadTimers(reload, oldSettings);
 }
 
 void MainApp::reloadConfig()
@@ -1154,6 +1107,89 @@ void MainApp::reopenLogfile()
     logger->logf(LOG_NOTICE, "Reopening log files");
     logger->queueReOpen();
     logger->logf(LOG_NOTICE, "Log files reopened");
+}
+
+void MainApp::reloadTimers(bool reload, const Settings &old_settings)
+{
+    /*
+     * Avoid postponing timed events when people continously send sighup signals.
+     *
+     * TODO: better method, that is not susceptible to forgetting adding settings here when more timers can change.
+     */
+    if (reload && settings.pluginTimerPeriod == old_settings.pluginTimerPeriod && settings.saveStateInterval == old_settings.saveStateInterval)
+    {
+        logger->log(LOG_NOTICE) << "Timer config not changed. Not re-adding timers.";
+        return;
+    }
+
+    if (reload)
+        logger->log(LOG_NOTICE) << "Settings impacting timed events changed. Re-adding timers.";
+    else
+        logger->log(LOG_NOTICE) << "Adding timers";
+
+    timed_tasks.clear();
+
+    if (settings.pluginTimerPeriod > 0)
+    {
+        auto fpluginPeriodicEvent = std::bind(&MainApp::queuepluginPeriodicEventAllThreads, this);
+        timed_tasks.addTask(fpluginPeriodicEvent, settings.pluginTimerPeriod * 1000, true);
+    }
+
+    {
+        auto fSaveState = std::bind(&MainApp::saveStateInThread, this);
+        timed_tasks.addTask(fSaveState, settings.saveStateInterval.count() * 1000, true);
+    }
+
+    {
+        auto f = std::bind(&MainApp::queueCleanup, this);
+        //const uint64_t derrivedSessionCheckInterval = std::max<uint64_t>((settings.expireSessionsAfterSeconds)*1000*2, 600000);
+        //const uint64_t sessionCheckInterval = std::min<uint64_t>(derrivedSessionCheckInterval, 86400000);
+        uint32_t interval = 10000;
+#ifdef TESTING
+        interval = 1000;
+#endif
+        timed_tasks.addTask(f, interval, true);
+    }
+
+    {
+        uint32_t interval = 1846849; // prime
+        auto f = std::bind(&MainApp::queuePurgeSubscriptionTree, this);
+        timed_tasks.addTask(f, interval, true);
+    }
+
+    {
+        uint32_t interval = 3949193; // prime
+#ifdef TESTING
+        interval = 500;
+#endif
+        auto f = std::bind(&MainApp::queueRetainedMessageExpiration, this);
+        timed_tasks.addTask(f, interval, true);
+    }
+
+    {
+        auto fKeepAlive = std::bind(&MainApp::queueKeepAliveCheckAtAllThreads, this);
+        timed_tasks.addTask(fKeepAlive, 5000, true);
+    }
+
+    {
+        auto fPasswordFileReload = std::bind(&MainApp::queuePasswordFileReloadAllThreads, this);
+        timed_tasks.addTask(fPasswordFileReload, 2000, true);
+    }
+
+    {
+        auto fPublishStats = std::bind(&MainApp::queuePublishStatsOnDollarTopic, this);
+        timed_tasks.addTask(fPublishStats, 10000, true);
+    }
+
+    {
+        auto fSendPendingWills = std::bind(&MainApp::queueSendQueuedWills, this);
+        timed_tasks.addTask(fSendPendingWills, 2000, true);
+    }
+
+    {
+        auto fInternalHeartbeat = std::bind(&MainApp::queueInternalHeartbeat, this);
+        timed_tasks.addTask(fInternalHeartbeat, HEARTBEAT_INTERVAL, true);
+    }
 }
 
 /**

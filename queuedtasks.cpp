@@ -118,4 +118,10 @@ void QueuedTasks::performAll()
     }
 }
 
+void QueuedTasks::clear()
+{
+    queuedTasks.clear();
+    tasks.clear();
+}
+
 
