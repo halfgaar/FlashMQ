@@ -122,7 +122,10 @@ multi-value-param one 'two' "three" "with ' char"
         <term><option>plugin_timer_period</option> <replaceable>seconds</replaceable></term>
         <listitem>
           <para>
-            The FlashMQ auth plugin interface has a function that is called periodically this amount of seconds. This can be used to refresh state, commit data, etc.
+            The FlashMQ auth plugin interface has an optional function that is called periodically this amount of seconds. This can be used to refresh state, commit data, etc.
+          </para>
+          <para>
+            Setting a value of 0 disables it. You can enable and disable this timer with a config reload.
           </para>
           <para>
             See <filename>flashmq_plugin.h</filename> for details.
@@ -350,7 +353,7 @@ multi-value-param one 'two' "three" "with ' char"
             The interval at which the state is saved, if enabled with <option>storage_dir</option>.
           </para>
           <para>
-            This setting is currently not applied on reload.
+            This setting is also applied on reload.
           </para>
           <para>
             Default: 3623
