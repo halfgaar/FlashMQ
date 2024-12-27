@@ -218,6 +218,14 @@ std::shared_ptr<SubscriptionNode> SubscriptionStore::getDeepestNode(const std::v
                 assert(retry_mode);
                 assert(wlock.owns_lock());
                 node = std::make_shared<SubscriptionNode>();
+
+                /*
+                 * This is not technically correct, because we haven't made a subscription yet, but it:
+                 *
+                 * 1) Only happens when we're about to make a subscription, and not when we remove one.
+                 * 2) Allows continuous subscription and unsubcription on a node without needing to update this atomic counter.
+                 */
+                subscriptionCount++;
             }
 
             deepestNode = &node;
@@ -273,7 +281,6 @@ void SubscriptionStore::addSubscription(std::shared_ptr<Client> &client, const s
         appliedSubscriptionIdentifier = subscriptionIdentifier;
 
     deepestNode->addSubscriber(ses, qos, noLocal, retainAsPublished, shareName, appliedSubscriptionIdentifier);
-    subscriptionCount++;
 
     if (authResult == AuthResult::success && shareName.empty())
         giveClientRetainedMessages(ses, subtopics, qos, appliedSubscriptionIdentifier);
@@ -300,7 +307,6 @@ void SubscriptionStore::removeSubscription(std::shared_ptr<Client> &client, cons
         if (session_it != sessionsByIdConst.end())
         {
             ses = session_it->second;
-            subscriptionCount--;
         }
     }
 
@@ -308,7 +314,6 @@ void SubscriptionStore::removeSubscription(std::shared_ptr<Client> &client, cons
         return;
 
     node->removeSubscriber(ses, shareName);
-    subscriptionCount--;
 }
 
 std::shared_ptr<Session> SubscriptionStore::getBridgeSession(std::shared_ptr<Client> &client)
@@ -1047,7 +1052,7 @@ bool SubscriptionStore::setRetainedMessage(const Publish &publish, const std::ve
 }
 
 // Clean up the weak pointers to sessions and remove nodes that are empty.
-int SubscriptionNode::cleanSubscriptions(std::deque<std::weak_ptr<SubscriptionNode>> &defferedLeafs)
+int SubscriptionNode::cleanSubscriptions(std::deque<std::weak_ptr<SubscriptionNode>> &defferedLeafs, size_t &real_subscriber_count)
 {
     const size_t children_amount = children.size();
     const bool split = children_amount > 15;
@@ -1069,7 +1074,7 @@ int SubscriptionNode::cleanSubscriptions(std::deque<std::weak_ptr<SubscriptionNo
             continue;
         }
 
-        int n = node->cleanSubscriptions(defferedLeafs);
+        int n = node->cleanSubscriptions(defferedLeafs, real_subscriber_count);
         subscribersLeftInChildren += n;
 
         if (n > 0)
@@ -1088,7 +1093,7 @@ int SubscriptionNode::cleanSubscriptions(std::deque<std::weak_ptr<SubscriptionNo
 
         if (!node_)
             continue;
-        int n = node_->cleanSubscriptions(defferedLeafs);
+        int n = node_->cleanSubscriptions(defferedLeafs, real_subscriber_count);
         subscribersLeftInChildren += n;
 
         if (n == 0)
@@ -1132,7 +1137,9 @@ int SubscriptionNode::cleanSubscriptions(std::deque<std::weak_ptr<SubscriptionNo
     const Settings *settings = ThreadGlobals::getSettings();
     const bool grace_period_expired = lastUpdate + settings->subscriptionNodeLifetime < std::chrono::steady_clock::now();
     const int grace_period_fake = static_cast<int>(!grace_period_expired);
-    return subscribers.size() + sharedSubscribers.size() + subscribersLeftInChildren + grace_period_fake;
+    const size_t node_subscriber_count = subscribers.size() + sharedSubscribers.size();
+    real_subscriber_count += node_subscriber_count;
+    return node_subscriber_count + subscribersLeftInChildren + grace_period_fake;
 }
 
 bool SubscriptionNode::empty() const
@@ -1267,7 +1274,7 @@ bool SubscriptionStore::purgeSubscriptionTree()
             if (node)
             {
                 counter++;
-                node->cleanSubscriptions(deferredSubscriptionLeafsForPurging);
+                node->cleanSubscriptions(deferredSubscriptionLeafsForPurging, subscriptionDeferredCounter);
             }
         }
 
@@ -1278,11 +1285,17 @@ bool SubscriptionStore::purgeSubscriptionTree()
         std::unique_lock locker(subscriptions_lock);
 
         logger->logf(LOG_INFO, "Rebuilding subscription tree");
-        root->cleanSubscriptions(deferredSubscriptionLeafsForPurging);
+        subscriptionDeferredCounter = 0;
+        root->cleanSubscriptions(deferredSubscriptionLeafsForPurging, subscriptionDeferredCounter);
         logger->log(LOG_INFO) << "Rebuilding subscription tree done, with " << deferredSubscriptionLeafsForPurging.size() << " deferred direct leafs to check";
     }
 
-    return deferredSubscriptionLeafsForPurging.empty();
+    const bool done = !hasDeferredSubscriptionTreeNodesForPurging();
+
+    if (done)
+        subscriptionCount = subscriptionDeferredCounter;
+
+    return done;
 }
 
 bool SubscriptionStore::hasDeferredRetainedMessageNodesForPurging()
@@ -1362,41 +1375,9 @@ uint64_t SubscriptionStore::getSessionCount() const
     return sessionsByIdConst.size();
 }
 
-/**
- * @brief SubscriptionStore::getSubscriptionCount Gets the approximate subscription count and occassionally accurately refreshes.
- * @return
- *
- * With sessions that expire, log off, etc, one would have to validate each subscription's existence to count accurately. It's just not worth
- * it to do so.
- */
-int64_t SubscriptionStore::getSubscriptionCount()
+size_t SubscriptionStore::getSubscriptionCount()
 {
-    return 0;
-
-    /*
-    if (this->lastSubscriptionCountRefreshedAt + std::chrono::minutes(30) > std::chrono::steady_clock::now())
-        return this->subscriptionCount;
-
-    int64_t count = 0;
-
-    {
-        RWLockGuard lock_guard(&sessionsAndSubscriptionsRwlock);
-        lock_guard.rdlock();
-
-        countSubscriptions(&root, count);
-        countSubscriptions(&rootDollar, count);
-    }
-
-    {
-        RWLockGuard lock_guard(&sessionsAndSubscriptionsRwlock);
-        lock_guard.wrlock();
-
-        lastSubscriptionCountRefreshedAt = std::chrono::steady_clock::now();
-        this->subscriptionCount = count;
-    }
-
-    return count;
-    */
+    return subscriptionCount;
 }
 
 void SubscriptionStore::getRetainedMessages(RetainedMessageNode *this_node, std::vector<RetainedMessage> &outputList,
@@ -1528,38 +1509,6 @@ std::unordered_map<std::string, std::list<SubscriptionForSerializing>> Subscript
     }
 
     return subscriptionCopies;
-}
-
-void SubscriptionStore::countSubscriptions(SubscriptionNode *this_node, int64_t &count) const
-{
-    if (!this_node)
-        return;
-
-    for (auto &pair : this_node->getSubscribers())
-    {
-        const Subscription &node = pair.second;
-        std::shared_ptr<Session> ses = node.session.lock();
-        if (ses)
-        {
-            count++;
-        }
-    }
-
-    for (auto &pair : this_node->children)
-    {
-        SubscriptionNode *node = pair.second.get();
-        countSubscriptions(node, count);
-    }
-
-    if (this_node->childrenPlus)
-    {
-        countSubscriptions(this_node->childrenPlus.get(), count);
-    }
-
-    if (this_node->childrenPound)
-    {
-        countSubscriptions(this_node->childrenPound.get(), count);
-    }
 }
 
 void SubscriptionStore::expireRetainedMessages(RetainedMessageNode *this_node, const std::chrono::time_point<std::chrono::steady_clock> &limit,

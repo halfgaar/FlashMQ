@@ -64,7 +64,7 @@ public:
     std::shared_ptr<SubscriptionNode> childrenPlus;
     std::shared_ptr<SubscriptionNode> childrenPound;
 
-    int cleanSubscriptions(std::deque<std::weak_ptr<SubscriptionNode>> &defferedLeafs);
+    int cleanSubscriptions(std::deque<std::weak_ptr<SubscriptionNode>> &defferedLeafs, size_t &real_subscriber_count);
     bool empty() const;
 };
 
@@ -135,13 +135,17 @@ class SubscriptionStore
     const std::shared_ptr<RetainedMessageNode> retainedMessagesRootDollar = std::make_shared<RetainedMessageNode>();
     int64_t retainedMessageCount = 0;
 
-    int64_t subscriptionCount = 0;
-    std::chrono::time_point<std::chrono::steady_clock> lastSubscriptionCountRefreshedAt;
+    /*
+     * Subscription events and expiring sessions are hard to track so this counter is not 100% correct, but it
+     * gives a good idea and it's corrected by the periodic tree maintenance.
+     */
+    std::atomic<size_t> subscriptionCount = 0;
 
     std::mutex pendingWillsMutex;
     std::map<std::chrono::seconds, std::vector<QueuedWill>> pendingWillMessages;
 
     std::deque<std::weak_ptr<SubscriptionNode>> deferredSubscriptionLeafsForPurging;
+    size_t subscriptionDeferredCounter = 0;
 
     Logger *logger = Logger::getInstance();
 
@@ -165,7 +169,6 @@ class SubscriptionStore
                           std::unordered_map<std::string, std::list<SubscriptionForSerializing>> &outputList,
                           std::deque<DeferredGetSubscription> &deferred, const std::chrono::time_point<std::chrono::steady_clock> limit) const;
     std::unordered_map<std::string, std::list<SubscriptionForSerializing>> getSubscriptions();
-    void countSubscriptions(SubscriptionNode *this_node, int64_t &count) const;
     void expireRetainedMessages(RetainedMessageNode *this_node, const std::chrono::time_point<std::chrono::steady_clock> &limit,
                                 std::deque<std::weak_ptr<RetainedMessageNode>> &deferred);
 
@@ -209,7 +212,7 @@ public:
 
     int64_t getRetainedMessageCount() const;
     uint64_t getSessionCount() const;
-    int64_t getSubscriptionCount();
+    size_t getSubscriptionCount();
 
     void saveRetainedMessages(const std::string &filePath, bool sleep_after_limit);
     void loadRetainedMessages(const std::string &filePath);
