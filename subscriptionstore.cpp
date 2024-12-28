@@ -1045,7 +1045,10 @@ bool SubscriptionStore::setRetainedMessage(const Publish &publish, const std::ve
 
     if (selected_node)
     {
-        selected_node->addPayload(publish, retainedMessageCount);
+        const ssize_t diff = selected_node->addPayload(publish);
+
+        if (diff != 0)
+            this->retainedMessageCount.fetch_add(diff);
     }
 
     return true;
@@ -1328,7 +1331,7 @@ bool SubscriptionStore::expireRetainedMessages()
             if (node)
             {
                 counter++;
-                this->expireRetainedMessages(node.get(), limit, deferredRetainedMessageNodeToPurge);
+                this->expireRetainedMessages(node.get(), limit, deferredRetainedMessageNodeToPurge, retainedMessageDeferredCounter);
             }
         }
 
@@ -1340,12 +1343,18 @@ bool SubscriptionStore::expireRetainedMessages()
 
         RWLockGuard lock_guard(&retainedMessagesRwlock);
         lock_guard.wrlock();
-        this->expireRetainedMessages(retainedMessagesRoot.get(), limit, deferredRetainedMessageNodeToPurge);
+        retainedMessageDeferredCounter = 0;
+        this->expireRetainedMessages(retainedMessagesRoot.get(), limit, deferredRetainedMessageNodeToPurge, retainedMessageDeferredCounter);
 
         logger->log(LOG_INFO) << "Expiring retained messages done, with " << deferredRetainedMessageNodeToPurge.size() << " deferred nodes to check.";
     }
 
-    return deferredRetainedMessageNodeToPurge.empty();
+    const bool done = !hasDeferredRetainedMessageNodesForPurging();
+
+    if (done)
+        retainedMessageCount = retainedMessageDeferredCounter;
+
+    return done;
 }
 
 /**
@@ -1365,7 +1374,7 @@ void SubscriptionStore::queueSessionRemoval(const std::shared_ptr<Session> &sess
     queuedSessionRemovals[secondsSinceEpoch].push_back(session);
 }
 
-int64_t SubscriptionStore::getRetainedMessageCount() const
+size_t SubscriptionStore::getRetainedMessageCount() const
 {
     return retainedMessageCount;
 }
@@ -1511,14 +1520,17 @@ std::unordered_map<std::string, std::list<SubscriptionForSerializing>> Subscript
     return subscriptionCopies;
 }
 
-void SubscriptionStore::expireRetainedMessages(RetainedMessageNode *this_node, const std::chrono::time_point<std::chrono::steady_clock> &limit,
-                                               std::deque<std::weak_ptr<RetainedMessageNode>> &deferred)
+void SubscriptionStore::expireRetainedMessages(
+    RetainedMessageNode *this_node, const std::chrono::time_point<std::chrono::steady_clock> &limit,
+    std::deque<std::weak_ptr<RetainedMessageNode>> &deferred, size_t &real_message_counter)
 {
     if (this_node->message && this_node->message->hasExpired())
     {
         this_node->message.reset();
-        this->retainedMessageCount--;
     }
+
+    if (this_node->message)
+        real_message_counter++;
 
     auto cpos = this_node->children.begin();
     while (cpos != this_node->children.end())
@@ -1533,7 +1545,7 @@ void SubscriptionStore::expireRetainedMessages(RetainedMessageNode *this_node, c
         }
 
         const std::shared_ptr<RetainedMessageNode> &child = cur->second;
-        expireRetainedMessages(child.get(), limit, deferred);
+        expireRetainedMessages(child.get(), limit, deferred, real_message_counter);
 
         if (child->isOrphaned())
         {
@@ -1689,26 +1701,28 @@ void SubscriptionStore::loadSessionsAndSubscriptions(const std::string &filePath
     }
 }
 
-void RetainedMessageNode::addPayload(const Publish &publish, int64_t &totalCount)
+ssize_t RetainedMessageNode::addPayload(const Publish &publish)
 {
     std::lock_guard<std::mutex> locker(this->messageSetMutex);
 
     const bool retained_found = message.operator bool();
+    ssize_t result = 0;
 
     if (retained_found)
-        totalCount--;
+        result--;
 
     if (publish.payload.empty())
     {
         if (retained_found)
             message.reset();
-        return;
+        return result;
     }
 
     RetainedMessage rm(publish);
     message = std::make_unique<RetainedMessage>(std::move(rm));
-    totalCount += 1;
+    result++;
     messageSetAt = std::chrono::steady_clock::now();
+    return result;
 }
 
 /**

@@ -77,7 +77,7 @@ class RetainedMessageNode
     std::unique_ptr<RetainedMessage> message;
     std::chrono::time_point<std::chrono::steady_clock> messageSetAt;
 
-    void addPayload(const Publish &publish, int64_t &totalCount);
+    ssize_t addPayload(const Publish &publish);
     std::shared_ptr<RetainedMessageNode> getChildren(const std::string &subtopic) const;
     bool isOrphaned() const;
     const std::chrono::time_point<std::chrono::steady_clock> getMessageSetAt() const;
@@ -131,9 +131,16 @@ class SubscriptionStore
 
     pthread_rwlock_t retainedMessagesRwlock = PTHREAD_RWLOCK_INITIALIZER;
     std::deque<std::weak_ptr<RetainedMessageNode>> deferredRetainedMessageNodeToPurge;
+    size_t retainedMessageDeferredCounter = 0;
+
     const std::shared_ptr<RetainedMessageNode> retainedMessagesRoot = std::make_shared<RetainedMessageNode>();
     const std::shared_ptr<RetainedMessageNode> retainedMessagesRootDollar = std::make_shared<RetainedMessageNode>();
-    int64_t retainedMessageCount = 0;
+
+    /*
+     * Retained messages are hard to count correctly because of how they expire, so this counter is not 100%
+     * correct. But, it gives a good idea and is corrected periodically by tree maintenance.
+     */
+    std::atomic<size_t> retainedMessageCount = 0;
 
     /*
      * Subscription events and expiring sessions are hard to track so this counter is not 100% correct, but it
@@ -169,8 +176,9 @@ class SubscriptionStore
                           std::unordered_map<std::string, std::list<SubscriptionForSerializing>> &outputList,
                           std::deque<DeferredGetSubscription> &deferred, const std::chrono::time_point<std::chrono::steady_clock> limit) const;
     std::unordered_map<std::string, std::list<SubscriptionForSerializing>> getSubscriptions();
-    void expireRetainedMessages(RetainedMessageNode *this_node, const std::chrono::time_point<std::chrono::steady_clock> &limit,
-                                std::deque<std::weak_ptr<RetainedMessageNode>> &deferred);
+    static void expireRetainedMessages(
+        RetainedMessageNode *this_node, const std::chrono::time_point<std::chrono::steady_clock> &limit,
+        std::deque<std::weak_ptr<RetainedMessageNode>> &deferred, size_t &real_message_counter);
 
     std::shared_ptr<SubscriptionNode> getDeepestNode(const std::vector<std::string> &subtopics, bool abort_on_dead_end=false);
 
@@ -210,7 +218,7 @@ public:
     bool hasDeferredRetainedMessageNodesForPurging();
     bool expireRetainedMessages();
 
-    int64_t getRetainedMessageCount() const;
+    size_t getRetainedMessageCount() const;
     uint64_t getSessionCount() const;
     size_t getSubscriptionCount();
 
