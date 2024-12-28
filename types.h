@@ -158,15 +158,23 @@ enum class ClientType : uint8_t
     LocalBridge
 };
 
+enum class RetainHandling: uint8_t
+{
+    SendRetainedMessagesAtSubscribe = 0,
+    SendRetainedMessagesAtNewSubscribeOnly = 1,
+    DoNotSendRetainedMessages = 2
+};
+
 struct SubscriptionOptionsByte
 {
     const uint8_t b = 0;
 
     SubscriptionOptionsByte(uint8_t byte);
-    SubscriptionOptionsByte(uint8_t qos, bool noLocal, bool retainAsPublished);
+    SubscriptionOptionsByte(uint8_t qos, bool noLocal, bool retainAsPublished, RetainHandling retainHandling);
 
     bool getNoLocal() const;
     bool getRetainAsPublished() const;
+    RetainHandling getRetainHandling() const;
     uint8_t getQos() const;
 };
 
@@ -336,6 +344,7 @@ struct Subscribe
     bool noLocal = false;
     bool retainAsPublished = false;
     uint32_t subscriptionIdentifier = 0;
+    RetainHandling retainHandling = RetainHandling::SendRetainedMessagesAtSubscribe;
 
     Subscribe(const ProtocolVersion protocolVersion, uint16_t packetId, const std::string &topic, uint8_t qos);
 };

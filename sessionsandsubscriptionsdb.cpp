@@ -69,7 +69,7 @@ SubscriptionForSerializing::SubscriptionForSerializing(const std::string &&clien
 
 SubscriptionOptionsByte SubscriptionForSerializing::getSubscriptionOptions() const
 {
-    return SubscriptionOptionsByte(qos, noLocal, retainAsPublished);
+    return SubscriptionOptionsByte(qos, noLocal, retainAsPublished, RetainHandling::SendRetainedMessagesAtSubscribe);
 }
 
 SessionsAndSubscriptionsDB::SessionsAndSubscriptionsDB(const std::string &filePath) : PersistenceFile(filePath)

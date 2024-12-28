@@ -40,6 +40,13 @@ public:
     ReceivingSubscriber(const std::weak_ptr<Session> &ses, uint8_t qos, bool retainAsPublished, const uint32_t subscriptionIdentifier);
 };
 
+enum class AddSubscriptionType
+{
+    Invalid,
+    NewSubscription,
+    ExistingSubscription
+};
+
 class SubscriptionNode
 {
     friend class SubscriptionStore;
@@ -57,7 +64,7 @@ public:
 
     const std::unordered_map<std::string, Subscription> &getSubscribers() const;
     std::unordered_map<std::string, SharedSubscribers> &getSharedSubscribers();
-    void addSubscriber(const std::shared_ptr<Session> &subscriber, uint8_t qos, bool noLocal, bool retainAsPublished,
+    AddSubscriptionType addSubscriber(const std::shared_ptr<Session> &subscriber, uint8_t qos, bool noLocal, bool retainAsPublished,
                        const std::string &shareName, const uint32_t subscriptionIdentifier);
     void removeSubscriber(const std::shared_ptr<Session> &subscriber, const std::string &shareName);
     std::unordered_map<std::string, std::shared_ptr<SubscriptionNode>> children;
@@ -186,9 +193,12 @@ class SubscriptionStore
 public:
     SubscriptionStore();
 
-    void addSubscription(std::shared_ptr<Client> &client, const std::vector<std::string> &subtopics, uint8_t qos, bool noLocal, bool retainAsPublished, uint32_t subscriptionIdentifier);
-    void addSubscription(std::shared_ptr<Client> &client, const std::vector<std::string> &subtopics, uint8_t qos, bool noLocal, bool retainAsPublished,
-                         const std::string &shareName, AuthResult authResult, const uint32_t subscriptionIdentifier);
+    AddSubscriptionType addSubscription(
+        std::shared_ptr<Client> &client, const std::vector<std::string> &subtopics, uint8_t qos, bool noLocal, bool retainAsPublished,
+        uint32_t subscriptionIdentifier);
+    AddSubscriptionType addSubscription(
+        std::shared_ptr<Client> &client, const std::vector<std::string> &subtopics, uint8_t qos, bool noLocal, bool retainAsPublished,
+        const std::string &shareName, const uint32_t subscriptionIdentifier);
     void removeSubscription(std::shared_ptr<Client> &client, const std::string &topic);
     std::shared_ptr<Session> getBridgeSession(std::shared_ptr<Client> &client);
     void registerClientAndKickExistingOne(std::shared_ptr<Client> &client);

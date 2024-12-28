@@ -56,11 +56,12 @@ std::unordered_map<std::string, SharedSubscribers> &SubscriptionNode::getSharedS
     return sharedSubscribers;
 }
 
-void SubscriptionNode::addSubscriber(const std::shared_ptr<Session> &subscriber, uint8_t qos, bool noLocal, bool retainAsPublished,
-                                     const std::string &shareName, const uint32_t subscriptionIdentifier)
+AddSubscriptionType SubscriptionNode::addSubscriber(
+    const std::shared_ptr<Session> &subscriber, uint8_t qos, bool noLocal, bool retainAsPublished,
+    const std::string &shareName, const uint32_t subscriptionIdentifier)
 {
     if (!subscriber)
-        return;
+        return AddSubscriptionType::Invalid;
 
     Subscription sub;
     sub.session = subscriber;
@@ -70,6 +71,7 @@ void SubscriptionNode::addSubscriber(const std::shared_ptr<Session> &subscriber,
     sub.subscriptionIdentifier = subscriptionIdentifier;
 
     const std::string &client_id = subscriber->getClientId();
+    AddSubscriptionType result = AddSubscriptionType::Invalid;
 
     std::unique_lock locker(lock);
 
@@ -77,14 +79,21 @@ void SubscriptionNode::addSubscriber(const std::shared_ptr<Session> &subscriber,
 
     if (shareName.empty())
     {
-        subscribers[client_id] = sub;
+        Subscription &s = subscribers[client_id];
+        result = s.session.expired() ? AddSubscriptionType::NewSubscription : AddSubscriptionType::ExistingSubscription;
+        s = sub;
     }
     else
     {
         SharedSubscribers &subscribers = sharedSubscribers[shareName];
         subscribers.setName(shareName); // c++14 doesn't have try-emplace yet, in which case this separate step wouldn't be needed.
-        subscribers[client_id] = sub;
+
+        Subscription &s = subscribers[client_id];
+        result = s.session.expired() ? AddSubscriptionType::NewSubscription : AddSubscriptionType::ExistingSubscription;
+        s = sub;
     }
+
+    return result;
 }
 
 void SubscriptionNode::removeSubscriber(const std::shared_ptr<Session> &subscriber, const std::string &shareName)
@@ -246,45 +255,24 @@ std::shared_ptr<SubscriptionNode> SubscriptionStore::getDeepestNode(const std::v
     return result;
 }
 
-void SubscriptionStore::addSubscription(std::shared_ptr<Client> &client, const std::vector<std::string> &subtopics, uint8_t qos, bool noLocal, bool retainAsPublished,
-                                        uint32_t subscriptionIdentifier)
+AddSubscriptionType SubscriptionStore::addSubscription(
+    std::shared_ptr<Client> &client, const std::vector<std::string> &subtopics, uint8_t qos, bool noLocal, bool retainAsPublished,
+    uint32_t subscriptionIdentifier)
 {
     const static std::string empty;
-    addSubscription(client, subtopics, qos, noLocal, retainAsPublished, empty, AuthResult::success, subscriptionIdentifier);
+    return addSubscription(client, subtopics, qos, noLocal, retainAsPublished, empty, subscriptionIdentifier);
 }
 
-void SubscriptionStore::addSubscription(std::shared_ptr<Client> &client, const std::vector<std::string> &subtopics, uint8_t qos, bool noLocal, bool retainAsPublished,
-                                        const std::string &shareName, AuthResult authResult, const uint32_t subscriptionIdentifier)
+AddSubscriptionType SubscriptionStore::addSubscription(
+    std::shared_ptr<Client> &client, const std::vector<std::string> &subtopics, uint8_t qos, bool noLocal, bool retainAsPublished,
+    const std::string &shareName, const uint32_t subscriptionIdentifier)
 {
     const std::shared_ptr<SubscriptionNode> deepestNode = getDeepestNode(subtopics);
 
     if (!deepestNode)
-        return;
+        return AddSubscriptionType::Invalid;
 
-    std::shared_ptr<Session> ses;
-
-    {
-        std::shared_lock lock(sessions_lock);
-
-        auto session_it = sessionsByIdConst.find(client->getClientId());
-        if (session_it == sessionsByIdConst.end())
-            return;
-
-        ses = session_it->second;
-
-        if (!ses)
-            return;
-    }
-
-    uint32_t appliedSubscriptionIdentifier = 0;
-    if (subscriptionIdentifier > 0 && ThreadGlobals::getSettings()->subscriptionIdentifierEnabled)
-        appliedSubscriptionIdentifier = subscriptionIdentifier;
-
-    deepestNode->addSubscriber(ses, qos, noLocal, retainAsPublished, shareName, appliedSubscriptionIdentifier);
-
-    if (authResult == AuthResult::success && shareName.empty())
-        giveClientRetainedMessages(ses, subtopics, qos, appliedSubscriptionIdentifier);
-
+    return deepestNode->addSubscriber(client->getSession(), qos, noLocal, retainAsPublished, shareName, subscriptionIdentifier);
 }
 
 void SubscriptionStore::removeSubscription(std::shared_ptr<Client> &client, const std::string &topic)

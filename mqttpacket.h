@@ -186,9 +186,11 @@ struct SubscriptionTuple
     const std::string shareName;
     const AuthResult authResult;
     const uint32_t subscriptionIdentifier = 0;
+    const RetainHandling retainHandling = RetainHandling::SendRetainedMessagesAtSubscribe;
 
     SubscriptionTuple(const std::string &topic, const std::vector<std::string> &subtopics, uint8_t qos, bool noLocal, bool retainAsPublished,
-                      const std::string &shareName, const AuthResult authResult, const uint32_t subscriptionIdentifier);
+                      const std::string &shareName, const AuthResult authResult, const uint32_t subscriptionIdentifier,
+                      const RetainHandling retainHandling);
 };
 
 #endif // MQTTPACKET_H

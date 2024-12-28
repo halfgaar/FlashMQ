@@ -392,7 +392,7 @@ MqttPacket::MqttPacket(const Subscribe &subscribe) :
     }
     else
     {
-        SubscriptionOptionsByte options(subscribe.qos, subscribe.noLocal, subscribe.retainAsPublished);
+        SubscriptionOptionsByte options(subscribe.qos, subscribe.noLocal, subscribe.retainAsPublished, subscribe.retainHandling);
         writeByte(options.b);
     }
 
@@ -1590,6 +1590,7 @@ void MqttPacket::handleSubscribe(std::shared_ptr<Client> &sender)
         const bool mqtt3bridge = sender->getClientType() == ClientType::Mqtt3DefactoBridge;
         const bool noLocal = mqtt3bridge || options.getNoLocal();
         const bool retainedAsPublished = mqtt3bridge || options.getRetainAsPublished();
+        const RetainHandling retainHandling = options.getRetainHandling();
 
         std::vector<std::string> subtopics = splitTopic(topic);
 
@@ -1649,7 +1650,8 @@ void MqttPacket::handleSubscribe(std::shared_ptr<Client> &sender)
 
         if (authResult == AuthResult::success || authResult == AuthResult::success_without_retained_delivery)
         {
-            deferredSubscribes.emplace_front(topic, subtopics, qos, noLocal, retainedAsPublished, shareName, authResult, subscription_identifier);
+            const uint32_t subscr_id = settings->subscriptionIdentifierEnabled ? subscription_identifier : 0;
+            deferredSubscribes.emplace_front(topic, subtopics, qos, noLocal, retainedAsPublished, shareName, authResult, subscr_id, retainHandling);
             subs_reponse_codes.push_back(static_cast<ReasonCodes>(qos));
         }
         else
@@ -1675,9 +1677,20 @@ void MqttPacket::handleSubscribe(std::shared_ptr<Client> &sender)
     // Adding the subscription will also send publishes for retained messages, so that's why we're doing it at the end.
     for(const SubscriptionTuple &tup : deferredSubscribes)
     {
-        logger->logf(LOG_SUBSCRIBE, "Client '%s' subscribed to '%s' QoS %d", sender->repr().c_str(), tup.topic.c_str(), tup.qos);
-        MainApp::getMainApp()->getSubscriptionStore()->addSubscription(
-            sender, tup.subtopics, tup.qos, tup.noLocal, tup.retainAsPublished, tup.shareName, tup.authResult, tup.subscriptionIdentifier);
+        auto store = MainApp::getMainApp()->getSubscriptionStore();
+
+        logger->log(LOG_SUBSCRIBE) << "Client '" << sender->repr() << "' subscribed to '" << tup.topic << "' QoS " << static_cast<int>(tup.qos);
+        const AddSubscriptionType add_type = store->addSubscription(
+            sender, tup.subtopics, tup.qos, tup.noLocal, tup.retainAsPublished, tup.shareName, tup.subscriptionIdentifier);
+
+        if (tup.authResult == AuthResult::success && tup.shareName.empty())
+        {
+            if ((tup.retainHandling == RetainHandling::SendRetainedMessagesAtSubscribe) ||
+                (tup.retainHandling == RetainHandling::SendRetainedMessagesAtNewSubscribeOnly && add_type == AddSubscriptionType::NewSubscription) )
+            {
+                store->giveClientRetainedMessages(sender->getSession(), tup.subtopics, tup.qos, tup.subscriptionIdentifier);
+            }
+        }
     }
 }
 
@@ -2561,7 +2574,8 @@ void MqttPacket::readIntoBuf(CirBuf &buf) const
 }
 
 SubscriptionTuple::SubscriptionTuple(const std::string &topic, const std::vector<std::string> &subtopics, uint8_t qos, bool noLocal, bool retainAsPublished,
-                                     const std::string &shareName, const AuthResult authResult, const uint32_t subscriptionIdentifier) :
+                                     const std::string &shareName, const AuthResult authResult, const uint32_t subscriptionIdentifier,
+                                     const RetainHandling retainHandling) :
     topic(topic),
     subtopics(subtopics),
     qos(qos),
@@ -2569,7 +2583,8 @@ SubscriptionTuple::SubscriptionTuple(const std::string &topic, const std::vector
     retainAsPublished(retainAsPublished),
     shareName(shareName),
     authResult(authResult),
-    subscriptionIdentifier(subscriptionIdentifier)
+    subscriptionIdentifier(subscriptionIdentifier),
+    retainHandling(retainHandling)
 {
 
 }

@@ -22,8 +22,12 @@ SubscriptionOptionsByte::SubscriptionOptionsByte(uint8_t byte) :
 
 }
 
-SubscriptionOptionsByte::SubscriptionOptionsByte(uint8_t qos, bool noLocal, bool retainAsPublished) :
-    b(qos | (static_cast<uint8_t>(noLocal) << 2) | (static_cast<uint8_t>(retainAsPublished) << 3))
+SubscriptionOptionsByte::SubscriptionOptionsByte(uint8_t qos, bool noLocal, bool retainAsPublished, RetainHandling retainHandling) :
+    b(
+        qos |
+        (static_cast<uint8_t>(noLocal) << 2) |
+        (static_cast<uint8_t>(retainAsPublished) << 3) |
+        (static_cast<uint8_t>(retainHandling) << 4) )
 {
 
 }
@@ -38,6 +42,17 @@ bool SubscriptionOptionsByte::getRetainAsPublished() const
 {
     uint8_t bit = b & 0x08;
     return static_cast<bool>(bit);
+}
+
+RetainHandling SubscriptionOptionsByte::getRetainHandling() const
+{
+    uint8_t x = b & 0b00110000;
+    x = x >> 4;
+
+    if (x == 4)
+        throw ProtocolError("Retain Handling value of 4 is protocol error", ReasonCodes::ProtocolError);
+
+    return static_cast<RetainHandling>(x);
 }
 
 uint8_t SubscriptionOptionsByte::getQos() const
