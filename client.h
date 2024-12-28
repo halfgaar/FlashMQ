@@ -176,7 +176,7 @@ public:
     bool getAuthenticated() { return authenticated; }
     bool hasConnectPacketSeen() { return connectPacketSeen; }
     void setHasConnectPacketSeen() { connectPacketSeen = true; }
-    std::string &getClientId() { return this->clientid; }
+    const std::string &getClientId() { return this->clientid; }
     void setClientId(const std::string &id);
     const std::string &getUsername() const { return this->username; }
     std::string &getMutableUsername();
