@@ -71,6 +71,8 @@ class MainTests
     void testRetainedParentOfWildcard();
     void testRetainedWildcard();
     void testRetainedAclReadCheck();
+    void testRetainHandlingDontGiveRetain();
+    void testRetainHandlingDontGiveRetainOnExistingSubscription();
 
     void test_various_packet_sizes();
 

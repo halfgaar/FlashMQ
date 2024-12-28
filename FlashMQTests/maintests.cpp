@@ -195,6 +195,8 @@ MainTests::MainTests()
     REGISTER_FUNCTION(testRetainedParentOfWildcard);
     REGISTER_FUNCTION(testRetainedWildcard);
     REGISTER_FUNCTION(testRetainedAclReadCheck);
+    REGISTER_FUNCTION(testRetainHandlingDontGiveRetain);
+    REGISTER_FUNCTION(testRetainHandlingDontGiveRetainOnExistingSubscription);
     REGISTER_FUNCTION(test_various_packet_sizes);
     REGISTER_FUNCTION3(test_acl_tree);
     REGISTER_FUNCTION3(test_acl_tree2);

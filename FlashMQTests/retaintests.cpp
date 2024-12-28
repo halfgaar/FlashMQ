@@ -760,4 +760,58 @@ void MainTests::testRetainedAclReadCheck()
     MYCASTCOMPARE(client2.receivedPublishes.size(), 1);
 }
 
+void MainTests::testRetainHandlingDontGiveRetain()
+{
+    FlashMQTestClient sender;
+    FlashMQTestClient receiver;
+
+    sender.start();
+    receiver.start();
+
+    const std::string payload = "retained payload";
+    const std::string topic = "retaintopic/one/two/three";
+
+    sender.connectClient(ProtocolVersion::Mqtt5);
+
+    Publish pub1(topic, payload, 0);
+    pub1.retain = true;
+    sender.publish(pub1);
+
+    receiver.connectClient(ProtocolVersion::Mqtt5, true, 0);
+    receiver.subscribe(topic, 0, false, false, 0, RetainHandling::DoNotSendRetainedMessages);
+
+    usleep(250000);
+    QVERIFY(receiver.receivedPublishes.empty());
+}
+
+void MainTests::testRetainHandlingDontGiveRetainOnExistingSubscription()
+{
+    FlashMQTestClient sender;
+    FlashMQTestClient receiver;
+
+    sender.start();
+    receiver.start();
+
+    const std::string payload = "retained payload";
+    const std::string topic = "retaintopic/one/two/three";
+
+    sender.connectClient(ProtocolVersion::Mqtt5);
+
+    Publish pub1(topic, payload, 0);
+    pub1.retain = true;
+    sender.publish(pub1);
+
+    receiver.connectClient(ProtocolVersion::Mqtt5, true, 0);
+    receiver.subscribe(topic, 0, false, false, 0, RetainHandling::SendRetainedMessagesAtNewSubscribeOnly);
+    receiver.waitForMessageCount(1);
+    QVERIFY(receiver.receivedPublishes.size() == 1);
+
+    receiver.clearReceivedLists();
+
+    receiver.subscribe(topic, 1, false, false, 0, RetainHandling::SendRetainedMessagesAtNewSubscribeOnly);
+
+    usleep(250000);
+    QVERIFY(receiver.receivedPublishes.empty());
+}
+
 

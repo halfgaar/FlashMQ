@@ -192,7 +192,7 @@ void FlashMQTestClient::connectClient(ProtocolVersion protocolVersion, bool clea
     }
 }
 
-void FlashMQTestClient::subscribe(const std::string topic, uint8_t qos, bool noLocal, bool retainAsPublished, uint32_t subscriptionIdentifier)
+void FlashMQTestClient::subscribe(const std::string topic, uint8_t qos, bool noLocal, bool retainAsPublished, uint32_t subscriptionIdentifier, RetainHandling retainHandling)
 {
     clearReceivedLists();
 
@@ -202,6 +202,7 @@ void FlashMQTestClient::subscribe(const std::string topic, uint8_t qos, bool noL
     sub.noLocal = noLocal;
     sub.retainAsPublished = retainAsPublished;
     sub.subscriptionIdentifier = subscriptionIdentifier;
+    sub.retainHandling = retainHandling;
     MqttPacket subPack(sub);
     client->writeMqttPacketAndBlameThisClient(subPack);
 
