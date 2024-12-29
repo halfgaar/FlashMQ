@@ -70,6 +70,25 @@ void RetainedMessagesDB::openRead()
         readVersion = ReadVersion::v4;
     else
         throw std::runtime_error("Unknown file version.");
+
+    bool eofFound = false;
+
+    if (readVersion >= ReadVersion::v4)
+    {
+        const int64_t fileSavedAt = readInt64(eofFound);
+        if (eofFound)
+            throw std::runtime_error("Error reading retained messages file age: eof reached.");
+
+        const int64_t now_epoch = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+        persistence_state_age = fileSavedAt > now_epoch ? 0 : now_epoch - fileSavedAt;
+    }
+
+    to_read_count = readUint32(eofFound);
+
+    if (eofFound)
+        throw std::runtime_error("Error reading retained messages file message count: eof reached.");
+
+    fseek(f, RESERVED_SPACE_RETAINED_DB_V2, SEEK_CUR);
 }
 
 void RetainedMessagesDB::closeFile()
@@ -128,7 +147,7 @@ void RetainedMessagesDB::saveData(const std::vector<RetainedMessage> &messages)
     fflush(f);
 }
 
-std::list<RetainedMessage> RetainedMessagesDB::readData()
+std::list<RetainedMessage> RetainedMessagesDB::readData(size_t max)
 {
     std::list<RetainedMessage> defaultResult;
 
@@ -140,12 +159,12 @@ std::list<RetainedMessage> RetainedMessagesDB::readData()
     if (readVersion == ReadVersion::v2)
         logger->logf(LOG_WARNING, "File '%s' is version 2, an internal development version that was never finalized. Not reading.", getFilePath().c_str());
     if (readVersion == ReadVersion::v3 || readVersion == ReadVersion::v4)
-        return readDataV3V4();
+        return readDataV3V4(max);
 
     return defaultResult;
 }
 
-std::list<RetainedMessage> RetainedMessagesDB::readDataV3V4()
+std::list<RetainedMessage> RetainedMessagesDB::readDataV3V4(size_t max)
 {
     std::list<RetainedMessage> messages;
 
@@ -156,66 +175,49 @@ std::list<RetainedMessage> RetainedMessagesDB::readDataV3V4()
     std::shared_ptr<Client> dummyClient(new Client(0, dummyThreadData, nullptr, false, false, nullptr, settings, false));
     dummyClient->setClientProperties(ProtocolVersion::Mqtt5, "Dummyforloadingretained", "nobody", true, 60);
 
-    while (!feof(f))
+    bool eofFound = false;
+
+    const uint32_t numberOfMessages = std::min<uint32_t>(to_read_count, max);
+
+    for(uint32_t i = 0; i < numberOfMessages; i++)
     {
-        bool eofFound = false;
+        assert(to_read_count > 0);
+        to_read_count--;
 
-        int64_t persistence_state_age = 0;
-
+        const uint16_t fixed_header_length = readUint16(eofFound);
+        uint32_t originalPubAge = 0;
         if (readVersion >= ReadVersion::v4)
         {
-            const int64_t fileSavedAt = readInt64(eofFound);
-            if (eofFound)
-                continue;
-
-            const int64_t now_epoch = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-            persistence_state_age = fileSavedAt > now_epoch ? 0 : now_epoch - fileSavedAt;
+            originalPubAge = readUint32(eofFound);
         }
+        const uint32_t newPubAge = persistence_state_age + originalPubAge;
+        const uint32_t packlen = readUint32(eofFound);
 
-        const uint32_t numberOfMessages = readUint32(eofFound);
+        const std::string client_id = readString(eofFound);
+        const std::string username = readString(eofFound);
 
         if (eofFound)
-            continue;
+            throw std::runtime_error("Error reading retained messages: unexpected end of file");
 
-        fseek(f, RESERVED_SPACE_RETAINED_DB_V2, SEEK_CUR);
+        cirbuf.reset();
+        cirbuf.ensureFreeSpace(packlen + 32);
 
-        for(uint32_t i = 0; i < numberOfMessages; i++)
-        {
-            const uint16_t fixed_header_length = readUint16(eofFound);
-            uint32_t originalPubAge = 0;
-            if (readVersion >= ReadVersion::v4)
-            {
-                originalPubAge = readUint32(eofFound);
-            }
-            const uint32_t newPubAge = persistence_state_age + originalPubAge;
-            const uint32_t packlen = readUint32(eofFound);
+        readCheck(cirbuf.headPtr(), 1, packlen, f);
+        cirbuf.advanceHead(packlen);
+        MqttPacket pack(cirbuf, packlen, fixed_header_length, dummyClient);
 
-            const std::string client_id = readString(eofFound);
-            const std::string username = readString(eofFound);
+        pack.parsePublishData(dummyClient);
+        Publish pub(pack.getPublishData());
 
-            if (eofFound)
-                continue;
+        pub.client_id = client_id;
+        pub.username = username;
 
-            cirbuf.reset();
-            cirbuf.ensureFreeSpace(packlen + 32);
+        if (pub.expireInfo)
+            pub.expireInfo.value().createdAt = timepointFromAge(newPubAge);
 
-            readCheck(cirbuf.headPtr(), 1, packlen, f);
-            cirbuf.advanceHead(packlen);
-            MqttPacket pack(cirbuf, packlen, fixed_header_length, dummyClient);
-
-            pack.parsePublishData(dummyClient);
-            Publish pub(pack.getPublishData());
-
-            pub.client_id = client_id;
-            pub.username = username;
-
-            if (pub.expireInfo)
-                pub.expireInfo.value().createdAt = timepointFromAge(newPubAge);
-
-            RetainedMessage msg(pub);
-            logger->logf(LOG_DEBUG, "Loading retained message for topic '%s' QoS %d, age %d seconds.", msg.publish.topic.c_str(), msg.publish.qos, msg.publish.getAge());
-            messages.push_back(std::move(msg));
-        }
+        RetainedMessage msg(pub);
+        logger->logf(LOG_DEBUG, "Loading retained message for topic '%s' QoS %d, age %d seconds.", msg.publish.topic.c_str(), msg.publish.qos, msg.publish.getAge());
+        messages.push_back(std::move(msg));
     }
 
     return messages;

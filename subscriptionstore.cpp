@@ -1589,12 +1589,18 @@ void SubscriptionStore::loadRetainedMessages(const std::string &filePath)
 
         RetainedMessagesDB db(filePath);
         db.openRead();
-        std::list<RetainedMessage> messages = db.readData();
 
-        for (RetainedMessage &rm : messages)
+        size_t count = 0;
+        do
         {
-            setRetainedMessage(rm.publish, rm.publish.getSubtopics());
-        }
+            std::list<RetainedMessage> messages = db.readData(1000);
+            count = messages.size();
+
+            for (RetainedMessage &rm : messages)
+            {
+                setRetainedMessage(rm.publish, rm.publish.getSubtopics());
+            }
+        } while (count > 0);
     }
     catch (PersistenceFileCantBeOpened &ex)
     {
