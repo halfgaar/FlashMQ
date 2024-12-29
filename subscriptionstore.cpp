@@ -1555,6 +1555,8 @@ void SubscriptionStore::saveRetainedMessages(const std::string &filePath, bool s
     RetainedMessagesDB db(filePath);
     db.openWrite();
 
+    size_t total_count = 0;
+
     for (; !deferred.empty(); deferred.pop_front())
     {
         std::vector<RetainedMessage> result;
@@ -1572,6 +1574,7 @@ void SubscriptionStore::saveRetainedMessages(const std::string &filePath, bool s
             getRetainedMessages(node.get(), result, limit, 10000, deferred);
         }
 
+        total_count += result.size();
         logger->log(LOG_DEBUG) << "Collected batch of " << result.size() << " retained messages to save.";
         db.saveData(result);
 
@@ -1579,6 +1582,8 @@ void SubscriptionStore::saveRetainedMessages(const std::string &filePath, bool s
         if (!Globals::getInstance().quitting && sleep_after_limit && !deferred.empty())
             std::this_thread::sleep_for(std::chrono::microseconds(100));
     }
+
+    logger->log(LOG_NOTICE) << "Done saving " << total_count << " retained messages.";
 }
 
 void SubscriptionStore::loadRetainedMessages(const std::string &filePath)
@@ -1591,16 +1596,20 @@ void SubscriptionStore::loadRetainedMessages(const std::string &filePath)
         db.openRead();
 
         size_t count = 0;
+        size_t total_count = 0;
         do
         {
             std::list<RetainedMessage> messages = db.readData(1000);
             count = messages.size();
+            total_count += count;
 
             for (RetainedMessage &rm : messages)
             {
                 setRetainedMessage(rm.publish, rm.publish.getSubtopics());
             }
         } while (count > 0);
+
+        logger->log(LOG_NOTICE) << "Done loading " << total_count << " retained messages.";
     }
     catch (PersistenceFileCantBeOpened &ex)
     {
