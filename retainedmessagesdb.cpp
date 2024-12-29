@@ -31,9 +31,27 @@ RetainedMessagesDB::RetainedMessagesDB(const std::string &filePath) : Persistenc
 
 }
 
+RetainedMessagesDB::~RetainedMessagesDB()
+{
+    closeFile();
+}
+
 void RetainedMessagesDB::openWrite()
 {
     PersistenceFile::openWrite(MAGIC_STRING_V4);
+
+    this->written_count = 0;
+
+    const int64_t now_epoch = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    logger->log(LOG_DEBUG) << "Saving current time stamp " << now_epoch << " in retained messages DB.";
+    writeInt64(now_epoch);
+
+    length_pos = ftell(f);
+    writeUint32(0);
+
+    char reserved[RESERVED_SPACE_RETAINED_DB_V2];
+    std::memset(reserved, 0, RESERVED_SPACE_RETAINED_DB_V2);
+    writeCheck(reserved, 1, RESERVED_SPACE_RETAINED_DB_V2, f);
 }
 
 void RetainedMessagesDB::openRead()
@@ -56,6 +74,15 @@ void RetainedMessagesDB::openRead()
 
 void RetainedMessagesDB::closeFile()
 {
+    if (!f)
+        return;
+
+    if (openMode == FileMode::write && length_pos > 0 && written_count > 0)
+    {
+        fseek(f, length_pos, SEEK_SET);
+        writeUint32(written_count);
+    }
+
     PersistenceFile::closeFile();
 }
 
@@ -70,19 +97,11 @@ void RetainedMessagesDB::saveData(const std::vector<RetainedMessage> &messages)
 
     CirBuf cirbuf(1024);
 
-    const int64_t now_epoch = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-    logger->log(LOG_DEBUG) << "Saving current time stamp " << now_epoch << " in retained messages DB.";
-    writeInt64(now_epoch);
-
-    writeUint32(messages.size());
-
-    char reserved[RESERVED_SPACE_RETAINED_DB_V2];
-    std::memset(reserved, 0, RESERVED_SPACE_RETAINED_DB_V2);
-    writeCheck(reserved, 1, RESERVED_SPACE_RETAINED_DB_V2, f);
-
     for (const RetainedMessage &rm : messages)
     {
         logger->logf(LOG_DEBUG, "Saving retained message for topic '%s' QoS %d, age %d seconds.", rm.publish.topic.c_str(), rm.publish.qos, rm.publish.getAge());
+
+        this->written_count++;
 
         Publish pcopy(rm.publish);
         MqttPacket pack(ProtocolVersion::Mqtt5, pcopy);

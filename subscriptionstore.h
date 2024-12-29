@@ -177,7 +177,7 @@ class SubscriptionStore
                                                       std::deque<DeferredRetainedMessageNodeDelivery> &deferred,
                                                       int &drop_count, int &processed_nodes_count);
     void getRetainedMessages(RetainedMessageNode *this_node, std::vector<RetainedMessage> &outputList,
-                             const std::chrono::time_point<std::chrono::steady_clock> &limit,
+                             const std::chrono::time_point<std::chrono::steady_clock> &limit, const size_t limit_count,
                              std::deque<std::weak_ptr<RetainedMessageNode>> &deferred) const;
     void getSubscriptions(SubscriptionNode *this_node, const std::string &composedTopic, bool root,
                           std::unordered_map<std::string, std::list<SubscriptionForSerializing>> &outputList,

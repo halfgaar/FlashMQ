@@ -1377,9 +1377,10 @@ size_t SubscriptionStore::getSubscriptionCount()
     return subscriptionCount;
 }
 
-void SubscriptionStore::getRetainedMessages(RetainedMessageNode *this_node, std::vector<RetainedMessage> &outputList,
-                                            const std::chrono::time_point<std::chrono::steady_clock> &limit,
-                                            std::deque<std::weak_ptr<RetainedMessageNode>> &deferred) const
+void SubscriptionStore::getRetainedMessages(
+    RetainedMessageNode *this_node, std::vector<RetainedMessage> &outputList,
+    const std::chrono::time_point<std::chrono::steady_clock> &limit, const size_t limit_count,
+    std::deque<std::weak_ptr<RetainedMessageNode>> &deferred) const
 {
     {
         std::lock_guard<std::mutex> locker(this_node->messageSetMutex);
@@ -1391,10 +1392,10 @@ void SubscriptionStore::getRetainedMessages(RetainedMessageNode *this_node, std:
     {
         const std::shared_ptr<RetainedMessageNode> &child = pair.second;
 
-        if (std::chrono::steady_clock::now() > limit)
+        if (std::chrono::steady_clock::now() > limit || outputList.size() >= limit_count)
             deferred.push_back(child);
         else
-            getRetainedMessages(child.get(), outputList, limit, deferred);
+            getRetainedMessages(child.get(), outputList, limit, limit_count, deferred);
     }
 }
 
@@ -1548,17 +1549,16 @@ void SubscriptionStore::saveRetainedMessages(const std::string &filePath, bool s
 {
     logger->logf(LOG_NOTICE, "Saving retained messages to '%s'", filePath.c_str());
 
-    std::vector<RetainedMessage> result;
-    int64_t reserve = std::max<int64_t>(retainedMessageCount, 0);
-    reserve = std::min<int64_t>(reserve, 1000000);
-    result.reserve(reserve);
-
     std::deque<std::weak_ptr<RetainedMessageNode>> deferred;
-
     deferred.push_back(retainedMessagesRoot);
+
+    RetainedMessagesDB db(filePath);
+    db.openWrite();
 
     for (; !deferred.empty(); deferred.pop_front())
     {
+        std::vector<RetainedMessage> result;
+
         {
             RWLockGuard locker(&retainedMessagesRwlock);
             locker.rdlock();
@@ -1569,20 +1569,16 @@ void SubscriptionStore::saveRetainedMessages(const std::string &filePath, bool s
                 continue;
 
             const std::chrono::time_point<std::chrono::steady_clock> limit = std::chrono::steady_clock::now() + std::chrono::milliseconds(5);
-            getRetainedMessages(node.get(), result, limit, deferred);
+            getRetainedMessages(node.get(), result, limit, 10000, deferred);
         }
+
+        logger->log(LOG_DEBUG) << "Collected batch of " << result.size() << " retained messages to save.";
+        db.saveData(result);
 
         // Because we only do this operation in background threads or on exit, we don't have to requeue, so can just sleep.
         if (!Globals::getInstance().quitting && sleep_after_limit && !deferred.empty())
             std::this_thread::sleep_for(std::chrono::microseconds(100));
     }
-
-    logger->log(LOG_DEBUG) << "Collected " << result.size() << " retained messages to save.";
-
-    // Then do the IO without locking the threads.
-    RetainedMessagesDB db(filePath);
-    db.openWrite();
-    db.saveData(result);
 }
 
 void SubscriptionStore::loadRetainedMessages(const std::string &filePath)
