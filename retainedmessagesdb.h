@@ -51,9 +51,13 @@ class RetainedMessagesDB : private PersistenceFile
 
     ReadVersion readVersion = ReadVersion::unknown;
 
-    std::list<RetainedMessage> readDataV3V4();
+    std::list<RetainedMessage> readDataV3V4(size_t max);
+
     uint32_t written_count = 0;
     long length_pos = 0;
+
+    uint32_t to_read_count = 0;
+    int64_t persistence_state_age = 0;
 public:
     RetainedMessagesDB(const std::string &filePath);
     virtual ~RetainedMessagesDB();
@@ -63,7 +67,7 @@ public:
     void closeFile();
 
     void saveData(const std::vector<RetainedMessage> &messages);
-    std::list<RetainedMessage> readData();
+    std::list<RetainedMessage> readData(size_t max=std::numeric_limits<size_t>::max());
 };
 
 #endif // RETAINEDMESSAGESDB_H
