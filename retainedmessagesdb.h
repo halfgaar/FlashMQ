@@ -52,8 +52,11 @@ class RetainedMessagesDB : private PersistenceFile
     ReadVersion readVersion = ReadVersion::unknown;
 
     std::list<RetainedMessage> readDataV3V4();
+    uint32_t written_count = 0;
+    long length_pos = 0;
 public:
     RetainedMessagesDB(const std::string &filePath);
+    virtual ~RetainedMessagesDB();
 
     void openWrite();
     void openRead();

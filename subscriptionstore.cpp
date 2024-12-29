@@ -1548,17 +1548,16 @@ void SubscriptionStore::saveRetainedMessages(const std::string &filePath, bool s
 {
     logger->logf(LOG_NOTICE, "Saving retained messages to '%s'", filePath.c_str());
 
-    std::vector<RetainedMessage> result;
-    int64_t reserve = std::max<int64_t>(retainedMessageCount, 0);
-    reserve = std::min<int64_t>(reserve, 1000000);
-    result.reserve(reserve);
-
     std::deque<std::weak_ptr<RetainedMessageNode>> deferred;
-
     deferred.push_back(retainedMessagesRoot);
+
+    RetainedMessagesDB db(filePath);
+    db.openWrite();
 
     for (; !deferred.empty(); deferred.pop_front())
     {
+        std::vector<RetainedMessage> result;
+
         {
             RWLockGuard locker(&retainedMessagesRwlock);
             locker.rdlock();
@@ -1572,17 +1571,13 @@ void SubscriptionStore::saveRetainedMessages(const std::string &filePath, bool s
             getRetainedMessages(node.get(), result, limit, deferred);
         }
 
+        logger->log(LOG_DEBUG) << "Collected batch of " << result.size() << " retained messages to save.";
+        db.saveData(result);
+
         // Because we only do this operation in background threads or on exit, we don't have to requeue, so can just sleep.
         if (!Globals::getInstance().quitting && sleep_after_limit && !deferred.empty())
             std::this_thread::sleep_for(std::chrono::microseconds(100));
     }
-
-    logger->log(LOG_DEBUG) << "Collected " << result.size() << " retained messages to save.";
-
-    // Then do the IO without locking the threads.
-    RetainedMessagesDB db(filePath);
-    db.openWrite();
-    db.saveData(result);
 }
 
 void SubscriptionStore::loadRetainedMessages(const std::string &filePath)
