@@ -11,6 +11,7 @@ See LICENSE for license details.
 #include "sessionsandsubscriptionsdb.h"
 
 #include <inttypes.h>
+#include <optional>
 
 #include "mqttpacket.h"
 #include "threadglobals.h"
@@ -79,12 +80,12 @@ SessionsAndSubscriptionsDB::SessionsAndSubscriptionsDB(const std::string &filePa
 
 void SessionsAndSubscriptionsDB::openWrite()
 {
-    PersistenceFile::openWrite(MAGIC_STRING_SESSION_FILE_V7);
+    PersistenceFile::openWrite(MAGIC_STRING_SESSION_FILE_V8);
 }
 
 void SessionsAndSubscriptionsDB::openRead()
 {
-    const std::string current_magic_string(MAGIC_STRING_SESSION_FILE_V7);
+    const std::string current_magic_string(MAGIC_STRING_SESSION_FILE_V8);
 
     PersistenceFile::openRead(current_magic_string);
 
@@ -102,6 +103,8 @@ void SessionsAndSubscriptionsDB::openRead()
         readVersion = ReadVersion::v6;
     else if (detectedVersionString == MAGIC_STRING_SESSION_FILE_V7)
         readVersion = ReadVersion::v7;
+    else if (detectedVersionString == current_magic_string)
+        readVersion = ReadVersion::v8;
     else
         throw std::runtime_error("Unknown file version.");
 }
@@ -135,7 +138,7 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV3V4V5V6V7()
 
         std::shared_ptr<ThreadData> dummyThreadData; // which thread am I going get/use here?
         std::shared_ptr<Client> dummyClient(std::make_shared<Client>(ClientType::Normal, 0, dummyThreadData, nullptr, ConnectionProtocol::Mqtt, false, nullptr, settings, false));
-        dummyClient->setClientProperties(ProtocolVersion::Mqtt5, "Dummyforloadingqueuedqos", "nobody", true, 60);
+        dummyClient->setClientProperties(ProtocolVersion::Mqtt5, "Dummyforloadingqueuedqos", {}, "nobody", true, 60);
 
         for (uint32_t i = 0; i < nrOfSessions; i++)
         {
@@ -144,7 +147,11 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV3V4V5V6V7()
             std::string username = readString(eofFound);
             std::string clientId = readString(eofFound);
 
-            std::shared_ptr<Session> ses = std::make_shared<Session>(clientId, username);
+            std::optional<std::string> fmq_client_group_id;
+            if (readVersion >= ReadVersion::v8)
+                fmq_client_group_id = readOptionalString(eofFound);
+
+            std::shared_ptr<Session> ses = std::make_shared<Session>(clientId, username, fmq_client_group_id);
             result.sessions.push_back(ses);
 
             logger->logf(LOG_DEBUG, "Loading session '%s'.", ses->getClientId().c_str());
@@ -328,6 +335,7 @@ void SessionsAndSubscriptionsDB::saveData(const std::vector<std::shared_ptr<Sess
 
             writeString(ses->username);
             writeString(ses->client_id);
+            writeOptionalString(ses->fmq_client_group_id);
 
             const size_t qosPacketsExpected = qos_locked->qosPacketQueue.size();
             size_t qosPacketsCounted = 0;

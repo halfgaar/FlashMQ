@@ -190,7 +190,7 @@ void flashmq_publish_message(const std::string &topic, const uint8_t qos, const 
     }
 
     PublishCopyFactory factory(&pub);
-    store->queuePacketAtSubscribers(factory, "");
+    store->queuePacketAtSubscribers(factory, "", {});
 }
 
 

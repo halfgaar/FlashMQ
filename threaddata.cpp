@@ -609,7 +609,7 @@ void ThreadData::publishWithAcl(Publish &pub, bool setRetain)
 
     PublishCopyFactory factory(&pub);
     std::shared_ptr<SubscriptionStore> subscriptionStore = globals->subscriptionStore;
-    subscriptionStore->queuePacketAtSubscribers(factory, "", true);
+    subscriptionStore->queuePacketAtSubscribers(factory, "", {}, true);
 
     if (setRetain)
         subscriptionStore->setRetainedMessage(pub, factory.getSubtopics());

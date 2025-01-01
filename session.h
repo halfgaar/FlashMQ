@@ -72,6 +72,7 @@ class Session
     LockedWeakPtr<Client> client;
     const std::string client_id;
     const std::string username;
+    const std::optional<std::string> fmq_client_group_id;
     MutexOwned<QoSData> qos;
 
     // Note, we set these write-once to avoid threading issues. As a work-around to avoid mutexing in a hot path.
@@ -90,13 +91,14 @@ class Session
 
     Session(const Session &other) = delete;
 public:
-    Session(const std::string &clientid, const std::string &username);
+    Session(const std::string &clientid, const std::string &username, const std::optional<std::string> &fmq_client_group_id);
 
     Session(Session &&other) = delete;
     ~Session();
 
     const std::string &getClientId() const { return client_id; }
     const std::string &getUsername() const { return username; }
+    const std::optional<std::string> &getFmqClientGroupId() const { return fmq_client_group_id; }
     std::shared_ptr<Client> makeSharedClient();
     void assignActiveConnection(const std::shared_ptr<Client> &client);
     void assignActiveConnection(const std::shared_ptr<Session> &thisSession, const std::shared_ptr<Client> &client,

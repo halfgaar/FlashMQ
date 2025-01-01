@@ -129,7 +129,7 @@ void FlashMQTestClient::connectClient(ProtocolVersion protocolVersion, bool clea
     std::shared_ptr<Client> client = std::make_shared<Client>(
         ClientType::Normal, sockfd, testServerWorkerThreadData.getThreadData(), nullptr, ConnectionProtocol::Mqtt, false, reinterpret_cast<struct sockaddr*>(&servaddr), settings);
     this->client_weak = client;
-    client->setClientProperties(protocolVersion, clientid, "user", false, 60);
+    client->setClientProperties(protocolVersion, clientid, {}, "user", false, 60);
 
     {
         // Hack to make it work with the rvalue argument whilest not voiding our own client.

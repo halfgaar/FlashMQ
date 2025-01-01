@@ -203,6 +203,21 @@ void Publish::addUserProperty(std::string &&key, std::string &&val)
     userProperties->emplace_back(std::move(key), std::move(val));
 }
 
+std::optional<std::string> Publish::getFirstUserProperty(const std::string &key) const
+{
+    if (!userProperties)
+        return {};
+
+    auto pos = std::find_if(userProperties->begin(), userProperties->end(), [&key](const std::pair<std::string, std::string> &p) {
+        return (p.first == key);
+    });
+
+    if (pos == userProperties->end())
+        return {};
+
+    return pos->second;
+}
+
 std::optional<Mqtt5PropertyBuilder> Publish::getPropertyBuilder() const
 {
     std::optional<Mqtt5PropertyBuilder> property_builder;

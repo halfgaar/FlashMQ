@@ -18,10 +18,10 @@ See LICENSE for license details.
 #include "plugin.h"
 #include "settings.h"
 
-
-Session::Session(const std::string &clientid, const std::string &username) :
+Session::Session(const std::string &clientid, const std::string &username, const std::optional<std::string> &fmq_client_group_id) :
     client_id(clientid),
     username(username),
+    fmq_client_group_id(fmq_client_group_id),
 
     // Sessions also get defaults from the handleConnect() method, but when you create sessions elsewhere, we do need some sensible defaults.
     qos(ThreadGlobals::getSettings()->maxQosMsgPendingPerClient)

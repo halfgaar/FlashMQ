@@ -279,6 +279,9 @@ MqttPacket::MqttPacket(const Connect &connect) :
     if (connect.authenticationData)
         non_optional(properties)->writeAuthenticationData(connect.authenticationData.value());
 
+    if (connect.fmq_client_group_id)
+        non_optional(properties)->writeUserProperty(FMQ_CLIENT_GROUP_ID, connect.fmq_client_group_id.value());
+
     std::optional<Mqtt5PropertyBuilder> will_properties;
 
     if (connect.will && this->protocolVersion >= ProtocolVersion::Mqtt5)
@@ -731,6 +734,11 @@ ConnectData MqttPacket::parseConnectData(std::shared_ptr<Client> &sender)
                 throw ProtocolError("Invalid connect property.", ReasonCodes::ProtocolError);
             }
         }
+
+        result.fmq_client_group_id = publishData.getFirstUserProperty(FMQ_CLIENT_GROUP_ID);
+
+        if (result.fmq_client_group_id.has_value() && result.fmq_client_group_id.value().size() > 24)
+            throw ProtocolError("FMQ Client group ID can't be longer than 24 chars.", ReasonCodes::ImplementationSpecificError);
     }
 
     if (result.authenticationMethod.empty() && !result.authenticationData.empty())
@@ -1142,7 +1150,7 @@ void MqttPacket::handleConnect(std::shared_ptr<Client> &sender)
         username = certificateUsername.value();
     }
 
-    sender->setClientProperties(protocolVersion, connectData.client_id, username, true, connectData.keep_alive,
+    sender->setClientProperties(protocolVersion, connectData.client_id, connectData.fmq_client_group_id, username, true, connectData.keep_alive,
                                 connectData.max_outgoing_packet_size, connectData.max_outgoing_topic_aliases);
 
     if (settings.willsEnabled && connectData.will_flag)
@@ -1295,7 +1303,14 @@ void MqttPacket::handleConnAck(std::shared_ptr<Client> &sender)
                                << static_cast<int>(real_qos) << ".";
 
         Subscribe s(this->getProtocolVersion(), session->getNextPacketIdLocked(), sub.topic, real_qos);
-        s.noLocal = true;
+
+        /*
+         * 'No local' is not allowed for shared subscriptions in MQTT5. However, when the other side is also FlashMQ,
+         * that behavor can be achieved with the 'fmq_client_group_id' user property.
+         */
+        if (!startsWith(sub.topic, "$share/"))
+            s.noLocal = true;
+
         s.retainAsPublished = true;
         MqttPacket subPacket(s);
         sender->writeMqttPacketAndBlameThisClient(subPacket);
@@ -1313,7 +1328,8 @@ void MqttPacket::handleConnAck(std::shared_ptr<Client> &sender)
         std::string shareName;
         std::string _;
         parseSubscriptionShare(subtopics, shareName, _);
-        store->addSubscription(session, subtopics, pub.qos, true, true, shareName, 0);
+        const bool no_local = shareName.empty(); // See above about no-local.
+        store->addSubscription(session, subtopics, pub.qos, no_local, true, shareName, 0);
     }
 
     ThreadGlobals::getThreadData()->publishBridgeState(bridgeState, true, {});
@@ -2110,7 +2126,7 @@ void MqttPacket::handlePublish(std::shared_ptr<Client> &sender)
 
                 PublishCopyFactory factory(this);
                 ackSender.sendNow();
-                globals->subscriptionStore->queuePacketAtSubscribers(factory, sender->getClientId());
+                globals->subscriptionStore->queuePacketAtSubscribers(factory, sender->getClientId(), sender->getFmqClientGroupId());
             }
         }
         else if (authResult == AuthResult::success_but_drop_publish)

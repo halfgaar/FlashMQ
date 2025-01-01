@@ -16,21 +16,21 @@ void MainTests::testSharedSubscribersUnit()
     ThreadGlobals::assignThreadData(t);
 
     std::shared_ptr<Client> c1(new Client(ClientType::Normal, 0, t, nullptr, ConnectionProtocol::Mqtt, false, nullptr, settings, false));
-    c1->setClientProperties(ProtocolVersion::Mqtt5, "clientid1", "user1", true, 60);
+    c1->setClientProperties(ProtocolVersion::Mqtt5, "clientid1", {}, "user1", true, 60);
 
     std::shared_ptr<Client> c2(new Client(ClientType::Normal, 0, t, nullptr, ConnectionProtocol::Mqtt, false, nullptr, settings, false));
-    c2->setClientProperties(ProtocolVersion::Mqtt5, "clientid2", "user2", true, 60);
+    c2->setClientProperties(ProtocolVersion::Mqtt5, "clientid2", {}, "user2", true, 60);
 
     std::shared_ptr<Client> c3(new Client(ClientType::Normal, 0, t, nullptr, ConnectionProtocol::Mqtt, false, nullptr, settings, false));
-    c3->setClientProperties(ProtocolVersion::Mqtt5, "clientid3", "user3", true, 60);
+    c3->setClientProperties(ProtocolVersion::Mqtt5, "clientid3", {}, "user3", true, 60);
 
-    std::shared_ptr<Session> ses1 = std::make_shared<Session>(c1->getClientId(), c1->getUsername());
+    std::shared_ptr<Session> ses1 = std::make_shared<Session>(c1->getClientId(), c1->getUsername(), std::optional<std::string>());
     ses1->assignActiveConnection(c1);
 
-    std::shared_ptr<Session> ses2 = std::make_shared<Session>(c2->getClientId(), c2->getUsername());
+    std::shared_ptr<Session> ses2 = std::make_shared<Session>(c2->getClientId(), c2->getUsername(), std::optional<std::string>());
     ses2->assignActiveConnection(c2);
 
-    std::shared_ptr<Session> ses3 = std::make_shared<Session>(c3->getClientId(), c3->getUsername());
+    std::shared_ptr<Session> ses3 = std::make_shared<Session>(c3->getClientId(), c3->getUsername(), std::optional<std::string>());
     ses3->assignActiveConnection(c3);
 
     SharedSubscribers s;

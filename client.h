@@ -116,6 +116,7 @@ class Client
     std::string ssl_version;
     std::string clientid;
     std::string username;
+    std::optional<std::string> fmq_client_group_id;
     uint16_t keepalive = 10;
     bool clean_start = false;
     X509ClientVerification x509ClientVerification = X509ClientVerification::None;
@@ -183,9 +184,10 @@ public:
     bool tryAcmeRedirect();
     void respondWithRedirectURL(const std::string &request);
     void bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn, std::shared_ptr<Client> &sender);
-    void setClientProperties(ProtocolVersion protocolVersion, const std::string &clientId, const std::string username, bool connectPacketSeen, uint16_t keepalive);
-    void setClientProperties(ProtocolVersion protocolVersion, const std::string &clientId, const std::string username, bool connectPacketSeen, uint16_t keepalive,
-                             uint32_t maxOutgoingPacketSize, uint16_t maxOutgoingTopicAliasValue);
+    void setClientProperties(ProtocolVersion protocolVersion, const std::string &clientId, const std::optional<std::string> &fmq_client_group_id,
+                             const std::string username, bool connectPacketSeen, uint16_t keepalive);
+    void setClientProperties(ProtocolVersion protocolVersion, const std::string &clientId, const std::optional<std::string> &fmq_client_group_id,
+                             const std::string username, bool connectPacketSeen, uint16_t keepalive, uint32_t maxOutgoingPacketSize, uint16_t maxOutgoingTopicAliasValue);
     void setClientProperties(bool connectPacketSeen, uint16_t keepalive, uint32_t maxOutgoingPacketSize, uint16_t maxOutgoingTopicAliasValue, bool supportsRetained);
     void setWill(const std::string &topic, const std::string &payload, bool retain, uint8_t qos);
     void stageWill(WillPublish &&willPublish);
@@ -198,6 +200,7 @@ public:
     const std::string &getClientId() { return this->clientid; }
     void setClientId(const std::string &id);
     const std::string &getUsername() const { return this->username; }
+    const std::optional<std::string> &getFmqClientGroupId() const { return this->fmq_client_group_id; }
     std::string &getMutableUsername();
     std::shared_ptr<WillPublish> &getWill() { return this->willPublish; }
     const std::shared_ptr<WillPublish> &getStagedWill() { return this->stagedWillPublish; }

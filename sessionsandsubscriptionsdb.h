@@ -25,6 +25,7 @@ See LICENSE for license details.
 #define MAGIC_STRING_SESSION_FILE_V5 "FlashMQSessionDBv5"
 #define MAGIC_STRING_SESSION_FILE_V6 "FlashMQSessionDBv6"
 #define MAGIC_STRING_SESSION_FILE_V7 "FlashMQSessionDBv7"
+#define MAGIC_STRING_SESSION_FILE_V8 "FlashMQSessionDBv8"
 #define RESERVED_SPACE_SESSIONS_DB_V2 32
 
 /**
@@ -66,7 +67,8 @@ class SessionsAndSubscriptionsDB : private PersistenceFile
         v4,
         v5,
         v6,
-        v7
+        v7,
+        v8
     };
 
     ReadVersion readVersion = ReadVersion::unknown;

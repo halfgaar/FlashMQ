@@ -164,10 +164,12 @@ class SubscriptionStore
     Logger *logger = Logger::getInstance();
 
     static void publishNonRecursively(
-        SubscriptionNode *this_node, std::vector<ReceivingSubscriber> &targetSessions, const std::string &senderClientId) noexcept;
+        SubscriptionNode *this_node, std::vector<ReceivingSubscriber> &targetSessions,
+        const std::string &senderClientId, const std::optional<std::string> &fmq_client_group_id) noexcept;
     static void publishRecursively(
         std::vector<std::string>::const_iterator cur_subtopic_it, std::vector<std::string>::const_iterator end,
-        SubscriptionNode *this_node, std::vector<ReceivingSubscriber> &targetSessions, const std::string &senderClientId) noexcept;
+        SubscriptionNode *this_node, std::vector<ReceivingSubscriber> &targetSessions, const std::string &senderClientId,
+        const std::optional<std::string> &fmq_client_group_id) noexcept;
     static void giveClientRetainedMessagesRecursively(std::vector<std::string>::const_iterator cur_subtopic_it,
                                                       std::vector<std::string>::const_iterator end, const std::shared_ptr<RetainedMessageNode> &this_node, bool poundMode,
                                                       const std::shared_ptr<Session> &session, const uint8_t max_qos,
@@ -208,7 +210,8 @@ public:
     void queueOrSendWillMessage(
         const std::shared_ptr<WillPublish> &willMessage, const std::shared_ptr<Session> &session, bool forceNow = false);
     void queueWillMessage(const std::shared_ptr<WillPublish> &willMessage, const std::shared_ptr<Session> &session);
-    void queuePacketAtSubscribers(PublishCopyFactory &copyFactory, const std::string &senderClientId, bool dollar = false);
+    void queuePacketAtSubscribers(
+        PublishCopyFactory &copyFactory, const std::string &senderClientId, const std::optional<std::string> &fmq_client_group_id, bool dollar = false);
     void giveClientRetainedMessages(const std::shared_ptr<Session> &ses,
                                     const std::vector<std::string> &subscribeSubtopics, uint8_t max_qos, const uint32_t subscriptionIdentifier);
     void giveClientRetainedMessagesInitiateDeferred(const std::weak_ptr<Session> ses,

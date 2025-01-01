@@ -441,6 +441,7 @@ void Client::writeLoginPacket()
     connectInfo.sessionExpiryInterval = config->c.remoteSessionExpiryInterval;
     connectInfo.maxIncomingTopicAliasValue = config->c.maxIncomingTopicAliases;
     connectInfo.bridgeProtocolBit = config->c.bridgeProtocolBit;
+    connectInfo.fmq_client_group_id = config->c.fmq_client_group_id;
 
     MqttPacket pack(connectInfo);
     writeMqttPacket(pack);
@@ -502,9 +503,20 @@ std::string Client::repr()
         transport = transport + " (" + ssl_version + ")";
     }
 
-    std::string s = formatString("[%sClientID='%s', username='%s', fd=%d, keepalive=%ds, transport='%s', address='%s', prot=%s, clean=%d]",
-                                 bridge.c_str(), clientid.c_str(), username.c_str(), fd.get(), keepalive, transport.c_str(), this->addr.getText().c_str(),
-                                 protocolVersionString(protocolVersion).c_str(), this->clean_start);
+    std::string fmq_client_group_id_part;
+
+    if (this->fmq_client_group_id)
+    {
+        fmq_client_group_id_part.append("fmq_client_group_id='");
+        fmq_client_group_id_part.append(this->fmq_client_group_id.value());
+        fmq_client_group_id_part.append("', ");
+    }
+
+    std::string s = formatString(
+        "[%sClientID='%s', %susername='%s', fd=%d, keepalive=%ds, transport='%s', address='%s', prot=%s, clean=%d]",
+        bridge.c_str(), clientid.c_str(), fmq_client_group_id_part.c_str(), username.c_str(), fd.get(), keepalive,
+        transport.c_str(), this->addr.getText().c_str(), protocolVersionString(protocolVersion).c_str(), this->clean_start);
+
     return s;
 }
 
@@ -712,6 +724,7 @@ void Client::setBridgeState(std::shared_ptr<BridgeState> bridgeState)
         this->protocolVersion = bridgeState->c.protocolVersion;
         this->clean_start = bridgeState->c.localCleanStart;
         this->clientid = bridgeState->c.getClientid();
+        this->fmq_client_group_id = bridgeState->c.fmq_client_group_id;
         this->username = bridgeState->c.local_username.value_or(std::string());
         this->keepalive = bridgeState->c.keepalive;
         this->addr.setAddressName(bridgeState->c.address);
@@ -912,19 +925,23 @@ void Client::bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn, std::sh
     setReadyForReading(readbuf.freeSpace() > 0);
 }
 
-void Client::setClientProperties(ProtocolVersion protocolVersion, const std::string &clientId, const std::string username, bool connectPacketSeen, uint16_t keepalive)
+void Client::setClientProperties(
+    ProtocolVersion protocolVersion, const std::string &clientId, const std::optional<std::string> &fmq_client_group_id, const std::string username,
+    bool connectPacketSeen, uint16_t keepalive)
 {
     const Settings *settings = ThreadGlobals::getSettings();
 
-    setClientProperties(protocolVersion, clientId, username, connectPacketSeen, keepalive, settings->maxPacketSize, 0);
+    setClientProperties(protocolVersion, clientId, fmq_client_group_id, username, connectPacketSeen, keepalive, settings->maxPacketSize, 0);
 }
 
 
-void Client::setClientProperties(ProtocolVersion protocolVersion, const std::string &clientId, const std::string username, bool connectPacketSeen, uint16_t keepalive,
-                                 uint32_t maxOutgoingPacketSize, uint16_t maxOutgoingTopicAliasValue)
+void Client::setClientProperties(
+    ProtocolVersion protocolVersion, const std::string &clientId, const std::optional<std::string> &fmq_client_group_id, const std::string username,
+    bool connectPacketSeen, uint16_t keepalive, uint32_t maxOutgoingPacketSize, uint16_t maxOutgoingTopicAliasValue)
 {
     this->protocolVersion = protocolVersion;
     this->clientid = clientId;
+    this->fmq_client_group_id = fmq_client_group_id;
     this->username = username;
     this->connectPacketSeen = connectPacketSeen;
     this->keepalive = keepalive;

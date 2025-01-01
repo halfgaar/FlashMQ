@@ -22,6 +22,8 @@ See LICENSE for license details.
 #include "forward_declarations.h"
 #include "nocopy.h"
 
+#define FMQ_CLIENT_GROUP_ID "fmq_client_group_id"
+
 enum class PacketType
 {
     Reserved = 0,
@@ -267,6 +269,7 @@ public:
     std::vector<std::pair<std::string, std::string>> *getUserProperties() const;
     void addUserProperty(const std::string &key, const std::string &val);
     void addUserProperty(std::string &&key, std::string &&val);
+    std::optional<std::string> getFirstUserProperty(const std::string &key) const;
     std::optional<Mqtt5PropertyBuilder> getPropertyBuilder() const;
 
     void setExpireAfter(uint32_t s);
@@ -329,6 +332,7 @@ struct Connect
     bool clean_start = true;
     bool bridgeProtocolBit = false;
     std::string clientid;
+    std::optional<std::string> fmq_client_group_id;
     std::optional<std::string> username;
     std::optional<std::string> password;
     uint16_t keepalive = 60;

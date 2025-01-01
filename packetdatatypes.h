@@ -40,6 +40,8 @@ struct ConnectData
     std::string authenticationMethod;
     std::string authenticationData;
 
+    std::optional<std::string> fmq_client_group_id;
+
     // Content from Payload
     std::string client_id;
     WillPublish willpublish;

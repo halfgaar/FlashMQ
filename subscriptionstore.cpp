@@ -292,7 +292,7 @@ std::shared_ptr<Session> SubscriptionStore::getBridgeSession(std::shared_ptr<Cli
     std::shared_ptr<Session> &session = sessionsById[client_id];
 
     if (!session || session->getDestroyOnDisconnect() || client->getCleanStart())
-        session = std::make_shared<Session>(client_id, client->getUsername());
+        session = std::make_shared<Session>(client_id, client->getUsername(), client->getFmqClientGroupId());
 
     session->assignActiveConnection(client);
     client->assignSession(session);
@@ -346,6 +346,9 @@ void SubscriptionStore::registerClientAndKickExistingOne(std::shared_ptr<Client>
                 if (session->getUsername() != client->getUsername())
                     throw ProtocolError("Cannot take over session with different username", ReasonCodes::NotAuthorized);
 
+                if (session->getFmqClientGroupId() != client->getFmqClientGroupId())
+                    throw ProtocolError("Cannot take over session with different FMQ client group ID", ReasonCodes::NotAuthorized);
+
                 std::shared_ptr<Client> clientOfOtherSession = session->makeSharedClient();
 
                 if (clientOfOtherSession)
@@ -361,7 +364,7 @@ void SubscriptionStore::registerClientAndKickExistingOne(std::shared_ptr<Client>
         if (!session || session->getDestroyOnDisconnect() || clean_start)
         {
             // Don't use sdt::make_shared to avoid the weak pointers from retaining the size of session in the control block.
-            session = std::shared_ptr<Session>(new Session(client->getClientId(), client->getUsername()));
+            session = std::shared_ptr<Session>(new Session(client->getClientId(), client->getUsername(), client->getFmqClientGroupId()));
 
             sessionsById[client->getClientId()] = session;
         }
@@ -413,7 +416,10 @@ void SubscriptionStore::sendWill(const std::shared_ptr<WillPublish> will, const 
     if (authResult == AuthResult::success || authResult == AuthResult::success_without_setting_retained)
     {
         PublishCopyFactory factory(will.get());
-        queuePacketAtSubscribers(factory, will->client_id);
+
+        // Not having a stored fmq_client_group_id to pass. Theoretically, it should not be needed,
+        // because a client cannot get its own will.
+        queuePacketAtSubscribers(factory, will->client_id, {});
 
         if (will->retain && authResult == AuthResult::success)
             setRetainedMessage(*will, will->getSubtopics());
@@ -500,7 +506,8 @@ void SubscriptionStore::queueWillMessage(const std::shared_ptr<WillPublish> &wil
 }
 
 void SubscriptionStore::publishNonRecursively(
-    SubscriptionNode *this_node, std::vector<ReceivingSubscriber> &targetSessions, const std::string &senderClientId) noexcept
+    SubscriptionNode *this_node, std::vector<ReceivingSubscriber> &targetSessions,
+    const std::string &senderClientId, const std::optional<std::string> &fmq_client_group_id) noexcept
 {
     std::shared_lock locker(this_node->lock);
 
@@ -561,10 +568,16 @@ void SubscriptionStore::publishNonRecursively(
         }
 
         /*
-         * We don't filter out 'no local' subscriptions:
-         *
-         * It is a Protocol Error to set the No Local bit to 1 on a Shared Subscription [MQTT-3.8.3-4]
+         * Normal shared subscriptions are not supposed to filter out the 'no local' subscriptions (MQTT-3.8.3-4),
+         * because it would create inconsistent behavior depending on which client gets it. So, we implement a
+         * custom feature.
          */
+        const std::optional<std::string> &session_group_id = targetSessions.back().session->getFmqClientGroupId();
+        if (session_group_id && session_group_id == fmq_client_group_id)
+        {
+            targetSessions.pop_back();
+            continue;
+        }
     }
 }
 
@@ -582,18 +595,18 @@ void SubscriptionStore::publishNonRecursively(
 void SubscriptionStore::publishRecursively(
     std::vector<std::string>::const_iterator cur_subtopic_it, std::vector<std::string>::const_iterator end,
     SubscriptionNode *this_node, std::vector<ReceivingSubscriber> &targetSessions,
-    const std::string &senderClientId) noexcept
+    const std::string &senderClientId, const std::optional<std::string> &fmq_client_group_id) noexcept
 {
     if (cur_subtopic_it == end) // This is the end of the topic path, so look for subscribers here.
     {
         if (this_node)
         {
-            publishNonRecursively(this_node, targetSessions, senderClientId);
+            publishNonRecursively(this_node, targetSessions, senderClientId, fmq_client_group_id);
 
             // Subscribing to 'one/two/three/#' also gives you 'one/two/three'.
             if (this_node->childrenPound)
             {
-                publishNonRecursively(this_node->childrenPound.get(), targetSessions, senderClientId);
+                publishNonRecursively(this_node->childrenPound.get(), targetSessions, senderClientId, fmq_client_group_id);
             }
         }
         return;
@@ -612,23 +625,24 @@ void SubscriptionStore::publishRecursively(
 
     if (this_node->childrenPound)
     {
-        publishNonRecursively(this_node->childrenPound.get(), targetSessions, senderClientId);
+        publishNonRecursively(this_node->childrenPound.get(), targetSessions, senderClientId, fmq_client_group_id);
     }
 
     const auto &sub_node = this_node->children.find(cur_subtop);
 
     if (this_node->childrenPlus)
     {
-        publishRecursively(next_subtopic, end, this_node->childrenPlus.get(), targetSessions, senderClientId);
+        publishRecursively(next_subtopic, end, this_node->childrenPlus.get(), targetSessions, senderClientId, fmq_client_group_id);
     }
 
     if (sub_node != this_node->children.end())
     {
-        publishRecursively(next_subtopic, end, sub_node->second.get(), targetSessions, senderClientId);
+        publishRecursively(next_subtopic, end, sub_node->second.get(), targetSessions, senderClientId, fmq_client_group_id);
     }
 }
 
-void SubscriptionStore::queuePacketAtSubscribers(PublishCopyFactory &copyFactory, const std::string &senderClientId, bool dollar)
+void SubscriptionStore::queuePacketAtSubscribers(
+    PublishCopyFactory &copyFactory, const std::string &senderClientId, const std::optional<std::string> &fmq_client_group_id, bool dollar)
 {
     /*
      * Sometimes people publish or set as will topics with dollar. Node-to-Node communication for bridges for instance.
@@ -649,7 +663,7 @@ void SubscriptionStore::queuePacketAtSubscribers(PublishCopyFactory &copyFactory
     {
         const std::vector<std::string> &subtopics = copyFactory.getSubtopics();
         std::shared_lock locker(subscriptions_lock);
-        publishRecursively(subtopics.begin(), subtopics.end(), startNode, subscriberSessions, senderClientId);
+        publishRecursively(subtopics.begin(), subtopics.end(), startNode, subscriberSessions, senderClientId, fmq_client_group_id);
     }
 
     if (subscriberSessions.size() > reserve && subscriberSessions.size() <= 1048576)

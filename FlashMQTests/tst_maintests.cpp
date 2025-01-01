@@ -965,13 +965,13 @@ void MainTests::testSavingSessions()
         std::shared_ptr<ThreadData> t(new ThreadData(0, settings, pluginLoader));
 
         std::shared_ptr<Client> c1(new Client(ClientType::Normal, 0, t, nullptr, ConnectionProtocol::Mqtt, false, nullptr, settings, false));
-        c1->setClientProperties(ProtocolVersion::Mqtt5, "c1", "user1", true, 60);
+        c1->setClientProperties(ProtocolVersion::Mqtt5, "c1", {}, "user1", true, 60);
         store->registerClientAndKickExistingOne(c1, false, 512, 120);
         c1->getSession()->addIncomingQoS2MessageId(2);
         c1->getSession()->addIncomingQoS2MessageId(3);
 
         std::shared_ptr<Client> c2(new Client(ClientType::Normal, 0, t, nullptr, ConnectionProtocol::Mqtt, false, nullptr, settings, false));
-        c2->setClientProperties(ProtocolVersion::Mqtt5, "c2", "user2", true, 60);
+        c2->setClientProperties(ProtocolVersion::Mqtt5, "c2", {}, "user2", true, 60);
         store->registerClientAndKickExistingOne(c2, false, 512, 120);
         c2->getSession()->addOutgoingQoS2MessageId(55);
         c2->getSession()->addOutgoingQoS2MessageId(66);
@@ -1123,7 +1123,7 @@ void MainTests::testParsePacketHelper(const std::string &topic, uint8_t from_qos
     std::shared_ptr<ThreadData> t(new ThreadData(0, settings, pluginLoader));
 
     std::shared_ptr<Client> dummyClient(new Client(ClientType::Normal, 0, t, nullptr, ConnectionProtocol::Mqtt, false, nullptr, settings, false));
-    dummyClient->setClientProperties(ProtocolVersion::Mqtt311, "qostestclient", "user1", true, 60);
+    dummyClient->setClientProperties(ProtocolVersion::Mqtt311, "qostestclient", {}, "user1", true, 60);
     store->registerClientAndKickExistingOne(dummyClient, false, 512, 120);
 
     uint16_t packetid = 66;
@@ -1193,7 +1193,7 @@ void MainTests::testbufferToMqttPacketsFuzz()
     settings.maxPacketSize = 32768;
 
     std::shared_ptr<Client> dummyClient(new Client(ClientType::Normal, 0, t, nullptr, ConnectionProtocol::Mqtt, false, nullptr, settings, false));
-    dummyClient->setClientProperties(ProtocolVersion::Mqtt311, "dummy", "user1", true, 60);
+    dummyClient->setClientProperties(ProtocolVersion::Mqtt311, "dummy", {}, "user1", true, 60);
     store->registerClientAndKickExistingOne(dummyClient, false, 512, 120);
 
     // To avoid the restriction on packet size for unauthenticated clients.
@@ -3062,13 +3062,13 @@ void MainTests::testTopicMatchingInSubscriptionTreeHelper(const std::string &sub
     std::shared_ptr<ThreadData> td;
     const Settings *settings = ThreadGlobals::getSettings();
     std::shared_ptr<Client> client = std::make_shared<Client>(ClientType::Normal, 0, td, nullptr, ConnectionProtocol::Mqtt, false, nullptr, *settings, false);
-    client->setClientProperties(ProtocolVersion::Mqtt5, "mytestclient", "myusername", true, 60);
+    client->setClientProperties(ProtocolVersion::Mqtt5, "mytestclient", {}, "myusername", true, 60);
     store.registerClientAndKickExistingOne(client);
 
     store.addSubscription(client->getSession(), subscribe_subtopics, 0, false, false, "", 0);
 
     std::vector<ReceivingSubscriber> receivers;
-    store.publishRecursively(publish_subtopics.begin(), publish_subtopics.end(), store.root.get(), receivers, "fakeclientid");
+    store.publishRecursively(publish_subtopics.begin(), publish_subtopics.end(), store.root.get(), receivers, "fakeclientid", {});
 
     QVERIFY2(std::distance(receivers.begin(), receivers.end()) == match_count, publish_topic.c_str());
 }

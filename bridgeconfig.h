@@ -44,6 +44,7 @@ public:
     ProtocolVersion protocolVersion = ProtocolVersion::Mqtt311;
     bool bridgeProtocolBit = true;
     std::string clientidPrefix = "fmqbridge";
+    std::optional<std::string> fmq_client_group_id;
     std::optional<std::string> local_username;
     std::optional<std::string> remote_username;
     std::optional<std::string> remote_password;
