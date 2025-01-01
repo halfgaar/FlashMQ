@@ -177,8 +177,7 @@ void FlashMQTestClient::connectClient(ProtocolVersion protocolVersion, bool clea
     Connect connect(protocolVersion, client->getClientId());
     connect.will = this->will;
     connect.clean_start = clean_start;
-    connect.constructPropertyBuilder();
-    connect.propertyBuilder->writeSessionExpiry(session_expiry_interval);
+    connect.sessionExpiryInterval = session_expiry_interval;
 
     manipulateConnect(connect);
 

@@ -1707,7 +1707,7 @@ void MainTests::testOutgoingTopicAlias()
     FlashMQTestClient receiver1;
     receiver1.start();
     receiver1.connectClient(ProtocolVersion::Mqtt5, true, 300, [](Connect &connect){
-        connect.propertyBuilder->writeMaxTopicAliases(10);
+        connect.maxIncomingTopicAliasValue = 10;
     });
     receiver1.subscribe("don't/be/a/laywer", 0);
 
@@ -1758,7 +1758,7 @@ void MainTests::testOutgoingTopicAliasBeyondMax()
     FlashMQTestClient receiver1;
     receiver1.start();
     receiver1.connectClient(ProtocolVersion::Mqtt5, true, 300, [](Connect &connect){
-        connect.propertyBuilder->writeMaxTopicAliases(5);
+        connect.maxIncomingTopicAliasValue = 5;
     });
     receiver1.subscribe("+/bottles/of/beer/on/the/wall/take/one/down/pass/it/around", 0);
 
@@ -1816,7 +1816,7 @@ void MainTests::testOutgoingTopicAliasStoredPublishes()
     FlashMQTestClient receiver1;
     receiver1.start();
     receiver1.connectClient(ProtocolVersion::Mqtt5, true, 300, [](Connect &connect){
-        connect.propertyBuilder->writeMaxTopicAliases(10);
+        connect.maxIncomingTopicAliasValue = 10;
     });
     receiver1.subscribe("last/dance/#", 0);
 

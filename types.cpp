@@ -423,14 +423,6 @@ std::string_view Connect::getMagicString() const
         return "MQTT";
 }
 
-void Connect::constructPropertyBuilder()
-{
-    if (this->propertyBuilder)
-        return;
-
-    this->propertyBuilder = std::make_shared<Mqtt5PropertyBuilder>();
-}
-
 Subscribe::Subscribe(const ProtocolVersion protocolVersion, uint16_t packetId, const std::string &topic, uint8_t qos) :
     protocolVersion(protocolVersion),
     packetId(packetId),

@@ -264,6 +264,23 @@ MqttPacket::MqttPacket(const Connect &connect) :
 {
     first_byte = static_cast<char>(packetType) << 4;
     const std::string_view magicString = connect.getMagicString();
+
+    std::optional<Mqtt5PropertyBuilder> properties;
+
+    // If absent, the other side has to assume 0.
+    if (connect.sessionExpiryInterval)
+        non_optional(properties)->writeSessionExpiry(connect.sessionExpiryInterval);
+
+    // We tell the other side they can send us topics with aliases, if set.
+    if (connect.maxIncomingTopicAliasValue)
+        non_optional(properties)->writeMaxTopicAliases(connect.maxIncomingTopicAliasValue);
+
+    if (connect.authenticationMethod)
+        non_optional(properties)->writeAuthenticationMethod(connect.authenticationMethod.value());
+
+    if (connect.authenticationData)
+        non_optional(properties)->writeAuthenticationData(connect.authenticationData.value());
+
     std::optional<Mqtt5PropertyBuilder> will_properties;
 
     if (connect.will && this->protocolVersion >= ProtocolVersion::Mqtt5)
@@ -279,7 +296,7 @@ MqttPacket::MqttPacket(const Connect &connect) :
         len += 6; // header stuff, lengths, keep-alive
 
         if (this->protocolVersion >= ProtocolVersion::Mqtt5)
-            len += connect.propertyBuilder ? connect.propertyBuilder->getLength() : 1;
+            len += properties ? properties->getLength() : 1;
 
         if (connect.will)
         {
@@ -323,7 +340,7 @@ MqttPacket::MqttPacket(const Connect &connect) :
 
     if (connect.protocolVersion >= ProtocolVersion::Mqtt5)
     {
-        writeProperties(connect.propertyBuilder);
+        writeProperties(properties);
     }
 
     writeString(connect.clientid);

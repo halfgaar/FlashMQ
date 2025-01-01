@@ -435,20 +435,9 @@ void Client::writeLoginPacket()
     connectInfo.password = config->c.remote_password;
     connectInfo.clean_start = config->c.remoteCleanStart;
     connectInfo.keepalive = config->c.keepalive;
+    connectInfo.sessionExpiryInterval = config->c.remoteSessionExpiryInterval;
+    connectInfo.maxIncomingTopicAliasValue = config->c.maxIncomingTopicAliases;
     connectInfo.bridgeProtocolBit = config->c.bridgeProtocolBit;
-
-    if (config->c.remoteSessionExpiryInterval)
-    {
-        connectInfo.constructPropertyBuilder();
-        connectInfo.propertyBuilder->writeSessionExpiry(config->c.remoteSessionExpiryInterval);
-    }
-
-    // We tell the other side they can send us topics with aliases, if set.
-    if (this->maxIncomingTopicAliasValue)
-    {
-        connectInfo.constructPropertyBuilder();
-        connectInfo.propertyBuilder->writeMaxTopicAliases(this->maxIncomingTopicAliasValue);
-    }
 
     MqttPacket pack(connectInfo);
     writeMqttPacket(pack);

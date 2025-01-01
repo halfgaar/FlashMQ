@@ -145,10 +145,8 @@ void MainTests::testExtendedAuthOneStepSucceed()
         connect.username = "me";
         connect.password = "me me";
 
-        connect.constructPropertyBuilder();
-
-        connect.propertyBuilder->writeAuthenticationMethod("always_good_passing_back_the_auth_data");
-        connect.propertyBuilder->writeAuthenticationData("I have a proposal to put to ye.");
+        connect.authenticationMethod = "always_good_passing_back_the_auth_data";
+        connect.authenticationData = "I have a proposal to put to ye.";
     });
 
     QVERIFY(client.receivedPackets.size() == 1);
@@ -176,9 +174,7 @@ void MainTests::testExtendedAuthOneStepDeny()
         connect.username = "me";
         connect.password = "me me";
 
-        connect.constructPropertyBuilder();
-
-        connect.propertyBuilder->writeAuthenticationMethod("always_fail");
+        connect.authenticationMethod = "always_fail";
     });
 
     QVERIFY(client.receivedPackets.size() == 1);
@@ -205,9 +201,7 @@ void MainTests::testExtendedAuthOneStepBadAuthMethod()
         connect.username = "me";
         connect.password = "me me";
 
-        connect.constructPropertyBuilder();
-
-        connect.propertyBuilder->writeAuthenticationMethod("doesnt_exist");
+        connect.authenticationMethod = "doesnt_exist";
     });
 
     QVERIFY(client.receivedPackets.size() == 1);
@@ -234,10 +228,8 @@ void MainTests::testExtendedAuthTwoStep()
         connect.username = "me";
         connect.password = "me me";
 
-        connect.constructPropertyBuilder();
-
-        connect.propertyBuilder->writeAuthenticationMethod("two_step");
-        connect.propertyBuilder->writeAuthenticationData("Hello");
+        connect.authenticationMethod = "two_step";
+        connect.authenticationData = "Hello";
     });
 
     QVERIFY(client.receivedPackets.size() == 1);
@@ -279,10 +271,8 @@ void MainTests::testExtendedAuthTwoStepSecondStepFail()
         connect.username = "me";
         connect.password = "me me";
 
-        connect.constructPropertyBuilder();
-
-        connect.propertyBuilder->writeAuthenticationMethod("two_step");
-        connect.propertyBuilder->writeAuthenticationData("Hello");
+        connect.authenticationMethod = "two_step";
+        connect.authenticationData = "Hello";
     });
 
     QVERIFY(client.receivedPackets.size() == 1);
@@ -323,9 +313,8 @@ void MainTests::testExtendedReAuth()
         connect.username = "me";
         connect.password = "me me";
 
-        connect.constructPropertyBuilder();
-        connect.propertyBuilder->writeAuthenticationMethod("always_good_passing_back_the_auth_data");
-        connect.propertyBuilder->writeAuthenticationData("Santa Claus");
+        connect.authenticationMethod = "always_good_passing_back_the_auth_data";
+        connect.authenticationData = "Santa Claus";
     });
 
     QVERIFY(client.receivedPackets.size() == 1);
@@ -368,10 +357,8 @@ void MainTests::testExtendedReAuthTwoStep()
         connect.username = "me";
         connect.password = "me me";
 
-        connect.constructPropertyBuilder();
-
-        connect.propertyBuilder->writeAuthenticationMethod("two_step");
-        connect.propertyBuilder->writeAuthenticationData("Hello");
+        connect.authenticationMethod = "two_step";
+        connect.authenticationData = "Hello";
     });
 
     QVERIFY(client.receivedPackets.size() == 1);
@@ -442,10 +429,8 @@ void MainTests::testExtendedReAuthFail()
         connect.username = "me";
         connect.password = "me me";
 
-        connect.constructPropertyBuilder();
-
-        connect.propertyBuilder->writeAuthenticationMethod("always_good_passing_back_the_auth_data");
-        connect.propertyBuilder->writeAuthenticationData("I have a proposal to put to ye.");
+        connect.authenticationMethod = "always_good_passing_back_the_auth_data";
+        connect.authenticationData = "I have a proposal to put to ye.";
     });
 
     QVERIFY(client.receivedPackets.size() == 1);

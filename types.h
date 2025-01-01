@@ -322,12 +322,14 @@ struct Connect
     std::optional<std::string> username;
     std::optional<std::string> password;
     uint16_t keepalive = 60;
+    uint32_t sessionExpiryInterval = 0;
+    uint16_t maxIncomingTopicAliasValue = 0;
     std::shared_ptr<WillPublish> will;
-    std::shared_ptr<Mqtt5PropertyBuilder> propertyBuilder;
+    std::optional<std::string> authenticationMethod;
+    std::optional<std::string> authenticationData;
 
     Connect(ProtocolVersion protocolVersion, const std::string &clientid);
     std::string_view getMagicString() const;
-    void constructPropertyBuilder();
 };
 
 /**
