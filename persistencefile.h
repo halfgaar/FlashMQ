@@ -18,6 +18,7 @@ See LICENSE for license details.
 #include <openssl/evp.h>
 #include <stdexcept>
 #include <cstring>
+#include <optional>
 
 #include "logger.h"
 
@@ -73,11 +74,13 @@ protected:
     void writeUint16(const uint16_t val);
     void writeUint8(const uint8_t val);
     void writeString(const std::string &s);
+    void writeOptionalString(const std::optional<std::string> &s);
     int64_t readInt64(bool &eofFound);
     uint32_t readUint32(bool &eofFound);
     uint16_t readUint16(bool &eofFound);
     uint8_t readUint8(bool &eofFound);
     std::string readString(bool &eofFound);
+    std::optional<std::string> readOptionalString(bool &eofFound);
 
 public:
     PersistenceFile(const std::string &filePath);

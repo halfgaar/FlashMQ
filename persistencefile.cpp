@@ -239,6 +239,18 @@ void PersistenceFile::writeString(const std::string &s)
     writeCheck(s.c_str(), 1, s.size(), f);
 }
 
+void PersistenceFile::writeOptionalString(const std::optional<std::string> &s)
+{
+    if (!s)
+    {
+        writeUint8(0);
+        return;
+    }
+
+    writeUint8(1);
+    writeString(s.value());
+}
+
 int64_t PersistenceFile::readInt64(bool &eofFound)
 {
     if (readCheck(buf.data(), 1, 8, f) < 0)
@@ -293,6 +305,17 @@ std::string PersistenceFile::readString(bool &eofFound)
     makeSureBufSize(size);
     readCheck(buf.data(), 1, size, f);
     std::string result(buf.data(), size);
+    return result;
+}
+
+std::optional<std::string> PersistenceFile::readOptionalString(bool &eofFound)
+{
+    uint8_t x = readUint8(eofFound);
+
+    if (!x)
+        return {};
+
+    std::optional<std::string> result = readString(eofFound);
     return result;
 }
 
