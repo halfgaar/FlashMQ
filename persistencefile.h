@@ -40,6 +40,7 @@ class PersistenceFile
     std::string filePathTemp;
     std::string filePathCorrupt;
     std::string dirPath;
+    bool discard = false;
 
     EVP_MD_CTX *digestContext = nullptr;
     const EVP_MD *sha512 = EVP_sha512();
@@ -84,6 +85,7 @@ public:
 
     void openWrite(const std::string &versionString);
     void openRead(const std::string &expected_version_string);
+    void dontSaveTmpFile();
     void closeFile();
 
     const std::string &getFilePath() const;

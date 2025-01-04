@@ -375,6 +375,11 @@ void PersistenceFile::openRead(const std::string &expected_version_string)
     fseek(f, TOTAL_HEADER_SIZE, SEEK_SET);
 }
 
+void PersistenceFile::dontSaveTmpFile()
+{
+    this->discard = true;
+}
+
 void PersistenceFile::closeFile()
 {
     if (!f)
@@ -382,7 +387,8 @@ void PersistenceFile::closeFile()
 
     if (openMode == FileMode::write)
     {
-        hashFile();
+        if (!discard)
+            hashFile();
 
         if (fflush(f) != 0)
         {
@@ -407,12 +413,19 @@ void PersistenceFile::closeFile()
 
     if (openMode == FileMode::write && !filePathTemp.empty() && ! filePath.empty())
     {
-        if (rename(filePathTemp.c_str(), filePath.c_str()) < 0)
-            throw std::runtime_error(formatString("Saving '%s' failed: rename of temp file to target failed with: %s", filePath.c_str(), strerror(errno)));
+        if (discard)
+        {
+            unlink(filePathTemp.c_str());
+        }
+        else
+        {
+            if (rename(filePathTemp.c_str(), filePath.c_str()) < 0)
+                throw std::runtime_error(formatString("Saving '%s' failed: rename of temp file to target failed with: %s", filePath.c_str(), strerror(errno)));
 
-        int dir_fd = open(this->dirPath.c_str(), O_RDONLY);
-        fsync(dir_fd);
-        close(dir_fd);
+            int dir_fd = open(this->dirPath.c_str(), O_RDONLY);
+            fsync(dir_fd);
+            close(dir_fd);
+        }
     }
 }
 
