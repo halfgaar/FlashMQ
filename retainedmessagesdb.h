@@ -65,6 +65,7 @@ public:
     void openWrite();
     void openRead();
     void closeFile();
+    void dontSaveTmpFile();
 
     void saveData(const std::vector<RetainedMessage> &messages);
     std::list<RetainedMessage> readData(size_t max=std::numeric_limits<size_t>::max());

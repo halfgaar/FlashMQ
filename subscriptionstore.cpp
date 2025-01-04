@@ -1545,7 +1545,7 @@ void SubscriptionStore::expireRetainedMessages(
     }
 }
 
-void SubscriptionStore::saveRetainedMessages(const std::string &filePath, bool sleep_after_limit)
+void SubscriptionStore::saveRetainedMessages(const std::string &filePath, bool in_background)
 {
     logger->logf(LOG_NOTICE, "Saving retained messages to '%s'", filePath.c_str());
 
@@ -1574,12 +1574,19 @@ void SubscriptionStore::saveRetainedMessages(const std::string &filePath, bool s
             getRetainedMessages(node.get(), result, limit, 10000, deferred);
         }
 
+        if (Globals::getInstance().quitting && in_background)
+        {
+            logger->log(LOG_NOTICE) << "Aborted background saving of retained messages because we're quitting. It will be reinitiated.";
+            db.dontSaveTmpFile();
+            return;
+        }
+
         total_count += result.size();
         logger->log(LOG_DEBUG) << "Collected batch of " << result.size() << " retained messages to save.";
         db.saveData(result);
 
         // Because we only do this operation in background threads or on exit, we don't have to requeue, so can just sleep.
-        if (!Globals::getInstance().quitting && sleep_after_limit && !deferred.empty())
+        if (in_background && !deferred.empty())
             std::this_thread::sleep_for(std::chrono::microseconds(100));
     }
 

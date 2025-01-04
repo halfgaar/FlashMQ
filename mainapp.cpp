@@ -373,7 +373,7 @@ void MainApp::queueInternalHeartbeat()
  * @param settings A local settings, copied from a std::bind copy when running in a thread, because of thread safety.
  * @param bridgeInfos is a list of objects already prepared from the original bridge configs, to avoid concurrent access.
  */
-void MainApp::saveState(const Settings &settings, const std::list<BridgeInfoForSerializing> &bridgeInfos, bool sleep_after_limit)
+void MainApp::saveState(const Settings &settings, const std::list<BridgeInfoForSerializing> &bridgeInfos, bool in_background)
 {
     Logger *logger = Logger::getInstance();
 
@@ -385,7 +385,7 @@ void MainApp::saveState(const Settings &settings, const std::list<BridgeInfoForS
 
             const std::string retainedDBPath = settings.getRetainedMessagesDBFile();
             if (settings.retainedMessagesMode == RetainedMessagesMode::Enabled)
-                subscriptionStore->saveRetainedMessages(retainedDBPath, sleep_after_limit);
+                subscriptionStore->saveRetainedMessages(retainedDBPath, in_background);
             else
                 logger->logf(LOG_INFO, "Not saving '%s', because 'retained_messages_mode' is not 'enabled'.", retainedDBPath.c_str());
 

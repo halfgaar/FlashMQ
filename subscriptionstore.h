@@ -232,7 +232,7 @@ public:
     uint64_t getSessionCount() const;
     size_t getSubscriptionCount();
 
-    void saveRetainedMessages(const std::string &filePath, bool sleep_after_limit);
+    void saveRetainedMessages(const std::string &filePath, bool in_background);
     void loadRetainedMessages(const std::string &filePath);
 
     void saveSessionsAndSubscriptions(const std::string &filePath);
