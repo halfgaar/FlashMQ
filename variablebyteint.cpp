@@ -22,7 +22,7 @@ VariableByteInt::VariableByteInt(uint32_t val)
 void VariableByteInt::readIntoBuf(CirBuf &buf) const
 {
     assert(len > 0);
-    buf.write(bytes, len);
+    buf.writerange(bytes.begin(), bytes.begin() + len);
 }
 
 VariableByteInt &VariableByteInt::operator=(uint32_t x)

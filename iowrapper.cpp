@@ -964,7 +964,7 @@ ssize_t IoWrapper::writeAsMuchOfBufAsWebsocketFrame(const void *buf, const size_
         }
 
         int x = 0;
-        char header[WEBSOCKET_MAX_SENDING_HEADER_SIZE];
+        std::array<char, WEBSOCKET_MAX_SENDING_HEADER_SIZE> header;
         header[x++] = (0b10000000 | static_cast<char>(opcode));
         header[x++] = payload_length;
 
@@ -979,7 +979,7 @@ ssize_t IoWrapper::writeAsMuchOfBufAsWebsocketFrame(const void *buf, const size_
         assert(x <= WEBSOCKET_MAX_SENDING_HEADER_SIZE);
         assert(x == header_length);
 
-        websocketWriteRemainder.write(header, header_length);
+        websocketWriteRemainder.writerange(header.begin(), header.begin() + header_length);
         websocketWriteRemainder.write(buf, nBytesReal);
     }
 

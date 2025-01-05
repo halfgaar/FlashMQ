@@ -262,8 +262,7 @@ void Client::writeText(const std::string &text)
     // Not necessary, because at this point, no other threads write to this client, but including for clarity.
     std::lock_guard<std::mutex> locker(writeBufMutex);
 
-    writebuf.ensureFreeSpace(text.size());
-    writebuf.write(text.c_str(), text.length());
+    writebuf.writerange(text.begin(), text.end());
 
     setReadyForWriting(true);
 }
@@ -271,14 +270,7 @@ void Client::writeText(const std::string &text)
 void Client::writePing()
 {
     std::lock_guard<std::mutex> locker(writeBufMutex);
-
-    writebuf.ensureFreeSpace(2);
-
-    writebuf.headPtr()[0] = 0b11000000;
-    writebuf.advanceHead(1);
-    writebuf.headPtr()[0] = 0;
-    writebuf.advanceHead(1);
-
+    writebuf.write(0b11000000, 0);
     setReadyForWriting(true);
 }
 
@@ -412,14 +404,7 @@ PacketDropReason Client::writeMqttPacketAndBlameThisClient(const MqttPacket &pac
 void Client::writePingResp()
 {
     std::lock_guard<std::mutex> locker(writeBufMutex);
-
-    writebuf.ensureFreeSpace(2);
-
-    writebuf.headPtr()[0] = 0b11010000;
-    writebuf.advanceHead(1);
-    writebuf.headPtr()[0] = 0;
-    writebuf.advanceHead(1);
-
+    writebuf.write(0b11010000, 0);
     setReadyForWriting(true);
 }
 

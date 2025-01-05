@@ -11,11 +11,13 @@ See LICENSE for license details.
 #ifndef VARIABLEBYTEINT_H
 #define VARIABLEBYTEINT_H
 
+#include <array>
+
 #include "cirbuf.h"
 
 class VariableByteInt
 {
-    char bytes[4];
+    std::array<char, 4> bytes;
     uint8_t len = 0;
 
 public:

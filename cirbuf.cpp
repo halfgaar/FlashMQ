@@ -214,11 +214,26 @@ void CirBuf::reset()
 #endif
 }
 
-// When you know the data you want to write fits in the buffer, use this.
+void CirBuf::write(uint8_t b)
+{
+    ensureFreeSpace(1);
+    buf[head] = b;
+    advanceHead(1);
+}
+
+void CirBuf::write(uint8_t b, uint8_t b2)
+{
+    ensureFreeSpace(2);
+    buf[head] = b;
+    advanceHead(1);
+    buf[head] = b2;
+    advanceHead(1);
+}
+
 void CirBuf::write(const void *buf, size_t count)
 {
-    assert(count <= freeSpace());
     assert(size > 0);
+    ensureFreeSpace(count);
 
     ssize_t len_left = count;
     size_t src_i = 0;

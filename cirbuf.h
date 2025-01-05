@@ -53,9 +53,34 @@ public:
     void resetSize(size_t size);
     void reset();
 
+    void write(uint8_t b);
+    void write(uint8_t b, uint8_t b2);
     void write(const void *buf, size_t count);
     std::vector<char> readToVector(const uint32_t max);
     std::vector<char> readAllToVector();
+
+    /**
+     * Write the whole range into the buf, making space as needed.
+     */
+    template<class InputIt>
+    void writerange(InputIt begin, InputIt end)
+    {
+        const auto input_size = end - begin;
+        ensureFreeSpace(input_size);
+        size_t len_left = input_size;
+        int guard = 0;
+        auto pos = begin;
+        while (len_left > 0 && guard++ < 10)
+        {
+            const size_t len = std::min<size_t>(len_left, maxWriteSize());
+            std::copy(pos, pos + len, headPtr());
+            advanceHead(len);
+            pos += len;
+            len_left -= len;
+        }
+        assert(len_left == 0);
+        assert(pos == end);
+    }
 
     bool operator==(const CirBuf &other) const;
 };

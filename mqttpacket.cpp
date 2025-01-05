@@ -2573,12 +2573,9 @@ void MqttPacket::readIntoBuf(CirBuf &buf) const
     assert(packetType != PacketType::PUBLISH || (first_byte & 0b00000110) >> 1 == publishData.qos);
     assert(publishData.qos == 0 || packet_id > 0);
 
-    buf.ensureFreeSpace(getSizeIncludingNonPresentHeader());
-
     if (!containsFixedHeader())
     {
-        buf.headPtr()[0] = first_byte;
-        buf.advanceHead(1);
+        buf.write(first_byte);
         remainingLength.readIntoBuf(buf);
     }
     else
@@ -2586,7 +2583,7 @@ void MqttPacket::readIntoBuf(CirBuf &buf) const
         assert(bites.data()[0] == first_byte);
     }
 
-    buf.write(bites.data(), bites.size());
+    buf.writerange(bites.begin(), bites.end());
 }
 
 SubscriptionTuple::SubscriptionTuple(const std::string &topic, const std::vector<std::string> &subtopics, uint8_t qos, bool noLocal, bool retainAsPublished,
