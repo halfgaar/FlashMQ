@@ -211,7 +211,7 @@ std::list<RetainedMessage> RetainedMessagesDB::readDataV3V4(size_t max)
 
         readCheck(cirbuf.headPtr(), 1, packlen, f);
         cirbuf.advanceHead(packlen);
-        MqttPacket pack(cirbuf, packlen, fixed_header_length, dummyClient);
+        MqttPacket pack(cirbuf.readToVector(packlen), fixed_header_length, dummyClient);
 
         pack.parsePublishData(dummyClient);
         Publish pub(pack.getPublishData());

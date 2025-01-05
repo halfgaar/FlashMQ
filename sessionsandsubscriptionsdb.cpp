@@ -164,7 +164,7 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV3V4V5V6()
 
                 readCheck(cirbuf.headPtr(), 1, packlen, f);
                 cirbuf.advanceHead(packlen);
-                MqttPacket pack(cirbuf, packlen, fixed_header_length, dummyClient);
+                MqttPacket pack(cirbuf.readToVector(packlen), fixed_header_length, dummyClient);
 
                 pack.parsePublishData(dummyClient);
                 Publish pub(pack.getPublishData());
@@ -231,7 +231,7 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV3V4V5V6()
 
                 readCheck(cirbuf.headPtr(), 1, packlen, f);
                 cirbuf.advanceHead(packlen);
-                MqttPacket publishpack(cirbuf, packlen, fixed_header_length, dummyClient);
+                MqttPacket publishpack(cirbuf.readToVector(packlen), fixed_header_length, dummyClient);
                 publishpack.parsePublishData(dummyClient);
                 WillPublish willPublish = publishpack.getPublishData();
                 willPublish.will_delay = stateAgecompensatedWillDelay;

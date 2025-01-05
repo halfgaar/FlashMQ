@@ -15,6 +15,8 @@ See LICENSE for license details.
 #include <stdlib.h>
 #include <stdint.h>
 #include <limits.h>
+#include <cassert>
+#include <algorithm>
 
 // Optimized circular buffer, works only with sizes power of two.
 class CirBuf
@@ -52,7 +54,8 @@ public:
     void reset();
 
     void write(const void *buf, size_t count);
-    void read(void *buf, const size_t count);
+    std::vector<char> readToVector(const uint32_t max);
+    std::vector<char> readAllToVector();
 
     bool operator==(const CirBuf &other) const;
 };

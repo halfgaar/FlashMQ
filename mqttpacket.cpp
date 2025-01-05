@@ -22,18 +22,16 @@ See LICENSE for license details.
 #include "acksender.h"
 
 // constructor for parsing incoming packets
-MqttPacket::MqttPacket(CirBuf &buf, size_t packet_len, size_t fixed_header_length, std::shared_ptr<Client> &sender) :
-    bites(packet_len),
+MqttPacket::MqttPacket(std::vector<char> &&packet_bytes, size_t fixed_header_length, std::shared_ptr<Client> &sender) :
+    bites(std::move(packet_bytes)),
     fixed_header_length(fixed_header_length)
 {
-    assert(packet_len > 0);
+    assert(bites.size() > 0);
 
-    if (packet_len > sender->getMaxIncomingPacketSize())
+    if (bites.size() > sender->getMaxIncomingPacketSize())
     {
         throw ProtocolError("Incoming packet size exceeded.", ReasonCodes::PacketTooLarge);
     }
-
-    buf.read(bites.data(), packet_len);
 
     protocolVersion = sender->getProtocolVersion();
     first_byte = bites[0];
@@ -484,7 +482,8 @@ void MqttPacket::bufferToMqttPackets(CirBuf &buf, std::vector<MqttPacket> &packe
 
         if (packet_length <= buf.usedBytes())
         {
-            packetQueueIn.emplace_back(buf, packet_length, fixed_header_length, sender);
+            std::vector<char> packet_bytes = buf.readToVector(packet_length);
+            packetQueueIn.emplace_back(std::move(packet_bytes), fixed_header_length, sender);
         }
         else
             break;

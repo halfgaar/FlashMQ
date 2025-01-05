@@ -841,23 +841,18 @@ ssize_t IoWrapper::websocketBytesToReadBuffer(void *buf, const size_t nbytes, Io
 
             logger->logf(LOG_DEBUG, "Ponging websocket");
 
-            const size_t bufLen = std::min<size_t>(incompleteWebsocketRead.frame_bytes_left, websocketPendingBytes.usedBytes());
+            std::vector<char> masked_payload = websocketPendingBytes.readToVector(incompleteWebsocketRead.frame_bytes_left);
 
-            // Constructing a new temporary buffer because I need the reponse in one frame for writeAsMuchOfBufAsWebsocketFrame().
-            std::vector<char> masked_payload(bufLen);
-            websocketPendingBytes.read(masked_payload.data(), masked_payload.size());
-
-            std::vector<char> response(bufLen);
-            for (size_t i = 0; i < bufLen; i++)
+            for (size_t i = 0; i < masked_payload.size(); i++)
             {
-                response[i] = masked_payload[i] ^ incompleteWebsocketRead.getNextMaskingByte();
+                masked_payload.at(i) = masked_payload.at(i) ^ incompleteWebsocketRead.getNextMaskingByte();
             }
 
-            websocketWriteRemainder.ensureFreeSpace(response.size() + WEBSOCKET_MAX_SENDING_HEADER_SIZE);
-            writeAsMuchOfBufAsWebsocketFrame(response.data(), response.size(), WebsocketOpcode::Pong);
+            websocketWriteRemainder.ensureFreeSpace(masked_payload.size() + WEBSOCKET_MAX_SENDING_HEADER_SIZE);
+            writeAsMuchOfBufAsWebsocketFrame(masked_payload.data(), masked_payload.size(), WebsocketOpcode::Pong);
             parentClient->setReadyForWriting(true);
 
-            incompleteWebsocketRead.frame_bytes_left -= bufLen;
+            incompleteWebsocketRead.frame_bytes_left -= masked_payload.size();
         }
         else if (incompleteWebsocketRead.opcode == WebsocketOpcode::Pong)
         {
@@ -871,11 +866,9 @@ ssize_t IoWrapper::websocketBytesToReadBuffer(void *buf, const size_t nbytes, Io
             if (incompleteWebsocketRead.frame_bytes_left > websocketPendingBytes.usedBytes())
                 break;
 
-            const size_t ponglen = std::min<size_t>(incompleteWebsocketRead.frame_bytes_left, websocketPendingBytes.usedBytes());
-            logger->log(LOG_DEBUG) << "Received websocket pong (with length " << ponglen << ")? We never sent a ping...";
-            std::vector<char> payload(ponglen);
-            websocketPendingBytes.read(payload.data(), payload.size());
-            incompleteWebsocketRead.frame_bytes_left -= ponglen;
+            std::vector<char> payload = websocketPendingBytes.readToVector(incompleteWebsocketRead.frame_bytes_left);
+            logger->log(LOG_DEBUG) << "Received websocket pong (with length " << payload.size() << ")? We never sent a ping...";
+            incompleteWebsocketRead.frame_bytes_left -= payload.size();
         }
         else if (incompleteWebsocketRead.opcode == WebsocketOpcode::Close)
         {

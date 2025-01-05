@@ -236,26 +236,34 @@ void CirBuf::write(const void *buf, size_t count)
     assert(src_i == count);
 }
 
-// When you know 'count' bytes are present and you want to read them into buf
-void CirBuf::read(void *buf, const size_t count)
+std::vector<char> CirBuf::readToVector(const uint32_t max)
 {
-    assert(count <= usedBytes());
     assert(size > 0);
 
-    char *_buf = static_cast<char*>(buf);
-    int i = 0;
-    ssize_t _packet_len = count;
-    while (_packet_len > 0)
+    uint32_t bytes_left = std::min<uint32_t>(max, usedBytes());
+    std::vector<char> result(bytes_left);
+
+    int guard = 0;
+    auto pos = result.begin();
+    while (bytes_left > 0 && guard++ < 10)
     {
-        const int readlen = std::min<ssize_t>(maxReadSize(), _packet_len);
-        assert(readlen > 0);
-        std::memcpy(&_buf[i], tailPtr(), readlen);
+        const uint32_t readlen = std::min<uint32_t>(maxReadSize(), bytes_left);
+        assert(readlen <= maxReadSize());
+        std::copy(tailPtr(), tailPtr() + readlen, pos);
         advanceTail(readlen);
-        i += readlen;
-        _packet_len -= readlen;
+        pos += readlen;
+        bytes_left -= readlen;
     }
-    assert(_packet_len == 0);
-    assert(i == static_cast<int>(count));
+    assert(guard < 3);
+    assert(bytes_left == 0);
+    assert(pos == result.end());
+
+    return result;
+}
+
+std::vector<char> CirBuf::readAllToVector()
+{
+    return readToVector(std::numeric_limits<uint32_t>::max());
 }
 
 /**

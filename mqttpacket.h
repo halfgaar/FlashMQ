@@ -108,7 +108,7 @@ public:
 #endif
     PacketType packetType = PacketType::Reserved;
 
-    MqttPacket(CirBuf &buf, size_t packet_len, size_t fixed_header_length, std::shared_ptr<Client> &sender); // Constructor for parsing incoming packets.
+    MqttPacket(std::vector<char> &&packet_bytes, size_t fixed_header_length, std::shared_ptr<Client> &sender); // Constructor for parsing incoming packets.
     MqttPacket(MqttPacket &&other) = default;
 
     // Constructor for outgoing packets. These may not allocate room for the fixed header, because we don't (always) know the length in advance.
