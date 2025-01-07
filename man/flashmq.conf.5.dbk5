@@ -1057,6 +1057,36 @@ listen {
         </listitem>
       </varlistentry>
 
+      <varlistentry xml:id="bridge__topic_prefix" condition="flashmq ≥ 1.7.0">
+      <term><option>topic_prefix</option> <replaceable>prefix</replaceable></term>
+      <listitem>
+        <para>
+          When sending messages to a remote server, the topic defined in <option>subscribe</option> or <option>publish</option> will be prepended with <replaceable>prefix</replaceable>. This gives the ability to publish all topics from this broker under a common topic on the remote site.
+        </para>
+        <para>
+          The difference in using <option>topic_prefix</option> instead of adding it manually to <option>subscribe</option> or <option>publish</option> is, that the <replaceable>prefix</replaceable> is being dynamically added or removed when messages are sent or received to/from the broker. This applies to all <option>subscribe</option> or <option>publish</option> options at once.
+        </para>
+        <para>
+          Always add a trailing slash (/) to the prefix! Otherwise something like <literal>topic1/</literal> on the local site becomes <literal>prefixtopic1/</literal> on the remote site and this is probably not intended.
+        </para>
+        <para>
+          Example 1: Publish all messages in all local topics to the remote system under topic <literal>bridge1/</literal> and receive all messages from the remote system in topic <literal>bridge1/</literal> in local. For instance, the local topic <literal>home/sensor1/temp</literal> becomes <literal>bridge1/home/sensor1/temp</literal> on the remote site and vice versa.
+        </para>
+        <para>
+          Example 2: Publish all messages from local <literal>topic1/</literal> to the remote system under <literal>bridge1/topic1/</literal> and receive all messages from the remote system under <literal>bridge1/topic2/</literal> to local <literal>topic2/</literal>.
+        </para>
+        <literallayout language="flashmq.conf" class="monospaced"><![CDATA[# Example 1:
+topic_prefix bridge1/
+publish #
+subscribe #
+
+# Example 2:
+topic_prefix bridge1/
+publish topic1/#
+subscribe topic2/#]]></literallayout>
+      </listitem>
+    </varlistentry>
+
       <varlistentry xml:id="bridge__local_username" condition="flashmq ≥ 1.7.0">
         <term><option>local_username</option> <replaceable>username</replaceable></term>
         <listitem>

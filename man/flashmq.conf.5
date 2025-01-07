@@ -5,7 +5,7 @@
 \\$2 \(la\\$1\(ra\\$3
 ..
 .if \n(.g .mso www.tmac
-.TH flashmq.conf 5 "Dec 23 2024" "" ""
+.TH flashmq.conf 5 "Jan 07 2025" "" ""
 .SH NAME
 flashmq.conf \- FlashMQ configuration file format
 .SH SYNOPSIS
@@ -517,6 +517,31 @@ Subscriptions for this filter is placed at the other side. Examples: \fI#\fR or 
 The QoS value is like any subscription at a server. Messages received by the other end will be given this QoS level at most.
 
 Default: \fI0\fR
+.TP
+\*(T<\fB\m[green]topic_prefix\m[] \fI\m[cyan]prefix\m[]\fR\fR\*(T>
+When sending messages to a remote server, the topic defined in \fB\m[green]subscribe\fR\m[] or \fB\m[green]publish\fR\m[] will be prepended with \fI\m[cyan]prefix\m[]\fR. This gives the ability to publish all topics from this broker under a common topic on the remote site.
+
+The difference in using \fB\m[green]topic_prefix\fR\m[] instead of adding it manually to \fB\m[green]subscribe\fR\m[] or \fB\m[green]publish\fR\m[] is, that the \fI\m[cyan]prefix\m[]\fR is being dynamically added or removed when messages are sent or received to/from the broker. This applies to all \fB\m[green]subscribe\fR\m[] or \fB\m[green]publish\fR\m[] options at once.
+
+Always add a trailing slash (/) to the prefix! Otherwise something like \fItopic1/\fR on the local site becomes \fIprefixtopic1/\fR on the remote site and this is probably not intended.
+
+Example 1: Publish all messages in all local topics to the remote system under topic \fIbridge1/\fR and receive all messages from the remote system in topic \fIbridge1/\fR in local. For instance, the local topic \fIhome/sensor1/temp\fR becomes \fIbridge1/home/sensor1/temp\fR on the remote site and vice versa.
+
+Example 2: Publish all messages from local \fItopic1/\fR to the remote system under \fIbridge1/topic1/\fR and receive all messages from the remote system under \fIbridge1/topic2/\fR to local \fItopic2/\fR.
+.PP
+.nf
+.in +7
+\m[blue]# Example 1:\m[]
+\m[green]topic_prefix \m[]\m[cyan]bridge1/\m[]
+\m[green]publish \m[]\m[cyan]#\m[]
+\m[green]subscribe \m[]\m[cyan]#\m[]
+\m[blue]# Example 2:\m[]
+\m[green]topic_prefix \m[]\m[cyan]bridge1/\m[]
+\m[green]publish \m[]\m[cyan]topic1/#\m[]
+\m[green]subscribe \m[]\m[cyan]topic2/#\m[]
+
+.in
+.fi
 .TP
 \*(T<\fB\m[green]local_username\m[] \fI\m[cyan]username\m[]\fR\fR\*(T>
 Username as seen by the local FlashMQ's plugin or ACL checks. This is not always necessary.
