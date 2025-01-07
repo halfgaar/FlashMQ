@@ -1261,10 +1261,14 @@ void MqttPacket::handleConnAck(std::shared_ptr<Client> &sender)
     {
         const uint8_t real_qos = std::min<uint8_t>(data.max_qos, sub.qos);
 
-        logger->log(LOG_DEBUG) << "Bridge '" << sender->repr() << "' subscribing remotely to '" << sub.topic << "', QoS="
+        std::string topic = bridgeState->c.topicPrefix.value_or("")+sub.topic;
+
+        logger->log(LOG_DEBUG) << "Bridge '" << sender->repr() << "' subscribing remotely to '" << topic << "', QoS="
                                << static_cast<int>(real_qos) << ".";
 
-        Subscribe s(this->getProtocolVersion(), session->getNextPacketIdLocked(), sub.topic, real_qos);
+        // TODO: Add prefix to sub.topic
+
+        Subscribe s(this->getProtocolVersion(), session->getNextPacketIdLocked(), topic, real_qos);
         s.noLocal = true;
         s.retainAsPublished = true;
         MqttPacket subPacket(s);
@@ -1278,6 +1282,8 @@ void MqttPacket::handleConnAck(std::shared_ptr<Client> &sender)
     {
         logger->log(LOG_DEBUG) << "Bridge '" << sender->repr() << "' subscribing locally to '" << pub.topic << "', QoS="
                                << static_cast<int>(pub.qos) << ".";
+
+        // TODO: Add prefix to pub.topic
 
         const std::vector<std::string> subtopics = splitTopic(pub.topic);
         store->addSubscription(sender, subtopics, pub.qos, true, true, 0);
@@ -1958,6 +1964,10 @@ void MqttPacket::handlePublish(std::shared_ptr<Client> &sender)
                            << ". Retain=" << publishData.retain << ". Dup=" << duplicate << ". Alias=" << publishData.topicAlias << ".";
 #endif
 
+    // If sender is a bridge, remove the topic prefix, if set.
+    if (sender->getBridgeState() && sender->getBridgeState()->c.topicPrefix)
+        removeTopicPrefix(sender->getBridgeState()->c.topicPrefix.value());
+
     ThreadGlobals::getThreadData()->receivedMessageCounter.inc();
 
     Authentication &authentication = *ThreadGlobals::getAuth();
@@ -2050,6 +2060,119 @@ void MqttPacket::handlePublish(std::shared_ptr<Client> &sender)
     if (publishData.qos > 0)
         this->setPacketId(0);
 #endif
+}
+
+void MqttPacket::removeTopicPrefix() {
+    removeTopicPrefix(publishData.topicPrefix);
+}
+
+/**
+ * When a packet is received from the bridge, we should remove the topic prefix, if some is set.
+ * Removing the topic prefix by mangling the bites field. The MQTT fixed header and MQTT topic header are being removed from the beginning of the bites field. Then, the topic
+ * prefix is being removed. After that, the new MQTT topic header (which is just the length of the topic) are recalculated and inserted at the beginning, as well as the remaining
+ * length header field, which is part of the MQTT fixed header. After that, some fields (remainingLength, fixed_header_length, payloadStart) must be reset to the correct values,
+ * because they changed due to removing the prefix from the topic.
+ * changed while
+ * @param topicPrefix
+ */
+void MqttPacket::removeTopicPrefix(const std::string &topicPrefix)
+{
+    if (topicPrefix.empty())
+        return;
+    if (publishData.topic.compare(0, topicPrefix.length(), topicPrefix) == 0)
+    {
+        auto topic_header_length = 2;
+
+        // Remove all headers from bites so only original topic name an payload is left
+        bites.erase(bites.begin(), bites.begin() + fixed_header_length + topic_header_length);
+        // Remove topic prefix from bites and class fields
+        bites.erase(bites.begin(), bites.begin() + topicPrefix.length());
+        publishData.topic.erase(0, topicPrefix.length());
+        publishData.topicPrefix.clear();
+        publishData.resplitTopic();
+
+        // Insert length of new topic (always 2 bytes)
+        bites.insert(bites.begin(), topic_header_length, 0);
+        pos = 0;
+        auto new_topic_length = publishData.topic.length();
+        writeUint16(new_topic_length);
+
+        // Calculate the remaining length header field (see https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc398718023)
+        remainingLength = bites.size();
+
+        if (fixed_header_length > 0)
+        {
+            bites.insert(bites.begin(), remainingLength.getLen(), 0);
+            pos = 0;
+            writeVariableByteInt(remainingLength);
+
+            // Finally add the original first byte
+            bites.insert(bites.begin(), first_byte);
+
+            // Update fixed_header_length, it may have changed after adding the remaining_length_header_field
+            fixed_header_length = 1 + remainingLength.getLen();
+        }
+
+        payloadStart = fixed_header_length + topic_header_length + new_topic_length;
+        // Take care if QoS is set, as then 2 bytes are in front of the payload.
+        if (publishData.qos > 0)
+            payloadStart+=2;
+        pos = bites.size();
+    }
+}
+
+/**
+ * When a packet is sent to a bridge, then the topic prefix schould be added.
+ * Adding the topic prefix by mangling the bites field. The MQTT fixed header and MQTT topic header are being removed from the beginning of the bites field. Then, the topic
+ * prefix is being added to the beginning. After that, the new MQTT topic header (which is just the length of the topic) are recalculated and inserted at the beginning, as well
+ * as the remaining length header field, which is part of the MQTT fixed header. After that, some fields (remainingLength, fixed_header_length, payloadStart) must be reset to
+ * the correct values, because they changed due to adding the prefix to the topic.
+ * @param topicPrefix
+ */
+void MqttPacket::addTopicPrefix(const std::string &topicPrefix)
+{
+    if (publishData.topic.compare(0, topicPrefix.length(), topicPrefix) != 0)
+    {
+        publishData.topicPrefix = topicPrefix;
+        publishData.topic.insert(0, topicPrefix);
+        publishData.resplitTopic();
+
+        auto topic_header_length = 2;
+
+        // Remove all headers from bites so only original topic name an payload is left
+        bites.erase(bites.begin(), bites.begin() + fixed_header_length + topic_header_length);
+        // Inject topic prefix
+        bites.insert(bites.begin(), topicPrefix.begin(), topicPrefix.end());
+
+        // Insert length of new topic (always 2 bytes)
+        bites.insert(bites.begin(), topic_header_length, 0);
+        pos = 0;
+        auto new_topic_length = publishData.topic.length();
+        writeUint16(new_topic_length);
+
+        // Calculate the remaining length header field (see https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc398718023)
+        remainingLength = bites.size();
+
+        // When message is generated by plugin, there is no fixed header already.
+        if (fixed_header_length > 0)
+        {
+            bites.insert(bites.begin(), remainingLength.getLen(), 0);
+            pos = 0;
+            writeVariableByteInt(remainingLength);
+
+            // Finally add the original first byte
+            bites.insert(bites.begin(), first_byte);
+
+            // Update fixed_header_length, it may have changed after adding the remaining_length_header_field
+            fixed_header_length = 1 + remainingLength.getLen();
+        }
+
+        payloadStart = fixed_header_length + topic_header_length + new_topic_length;
+        // Take care if QoS is set, as then 2 bytes are in front of the payload.
+        if (publishData.qos > 0)
+            payloadStart+=2;
+        pos = bites.size();
+    }
 }
 
 void MqttPacket::parsePubAckData()

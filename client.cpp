@@ -366,6 +366,14 @@ PacketDropReason Client::writeMqttPacketAndBlameThisClient(
 
     MqttPacket *p = copyFactory.getOptimumPacket(max_qos, this->protocolVersion, topic_alias, skip_topic, subscriptionIdentifier);
 
+    // If client is a bridge, add the topic prefix, if set.
+    if (getBridgeState() && getBridgeState()->c.topicPrefix)
+        p->addTopicPrefix(getBridgeState()->c.topicPrefix.value());
+    else
+        p->removeTopicPrefix();
+
+    logger->log(LOG_DEBUG) << "writeMqttPacketAndBlameThisClient(): " << p->getTopic();
+
     assert(static_cast<bool>(p->getQos()) == static_cast<bool>(max_qos));
     assert(PublishCopyFactory::getPublishLayoutCompareKey(this->protocolVersion, p->getQos()) ==
            PublishCopyFactory::getPublishLayoutCompareKey(p->getProtocolVersion(), p->getQos()));

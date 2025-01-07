@@ -142,6 +142,9 @@ public:
     void handlePing(std::shared_ptr<Client> &sender);
     void parsePublishData(std::shared_ptr<Client> &sender);
     void handlePublish(std::shared_ptr<Client> &sender);
+    void removeTopicPrefix();
+    void removeTopicPrefix(const std::string& topicPrefix);
+    void addTopicPrefix(const std::string& topicPrefix);
     void parsePubAckData();
     void handlePubAck(std::shared_ptr<Client> &sender);
     PubRecData parsePubRecData();
