@@ -1399,6 +1399,21 @@ void SubscriptionStore::getRetainedMessages(
     }
 }
 
+#ifdef TESTING
+std::vector<RetainedMessage> SubscriptionStore::getAllRetainedMessages()
+{
+    RWLockGuard locker(&retainedMessagesRwlock);
+    locker.rdlock();
+
+    const std::shared_ptr<RetainedMessageNode> node = retainedMessagesRoot;
+    std::vector<RetainedMessage> result;
+    std::deque<std::weak_ptr<RetainedMessageNode>> deferred;
+    auto time_limit = std::chrono::time_point<std::chrono::steady_clock>::max();
+    getRetainedMessages(node.get(), result, time_limit, std::numeric_limits<size_t>::max(), deferred);
+    return result;
+}
+#endif
+
 /**
  * @brief SubscriptionStore::getSubscriptions
  * @param this_node

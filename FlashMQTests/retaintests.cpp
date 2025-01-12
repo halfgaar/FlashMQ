@@ -518,9 +518,9 @@ void MainTests::test_retained_tree_purging()
         store->setRetainedMessage(pubStray, subtopics);
     }
 
-    usleep(2000000);
+    const int beforeCount = store->getAllRetainedMessages().size();
 
-    const int beforeCount = store->getRetainedMessageCount();
+    usleep(2000000);
 
     store->expireRetainedMessages();
 
@@ -539,7 +539,7 @@ void MainTests::test_retained_tree_purging()
         return rm.publish.payload == "willnotexpire";
     }));
 
-    MYCASTCOMPARE(store->getRetainedMessageCount(), beforeCount - toDeleteCount);
+    MYCASTCOMPARE(store->getAllRetainedMessages().size(), beforeCount - toDeleteCount);
 }
 
 void MainTests::testRetainAsPublished()
