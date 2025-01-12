@@ -253,6 +253,16 @@ public:
     Publish() = default;
     Publish(const std::string &topic, const std::string &payload, uint8_t qos);
     bool hasExpired() const;
+
+    template<typename T>
+    T getAge() const
+    {
+        if (!expireInfo)
+            return T(0);
+
+        return std::chrono::duration_cast<T>(std::chrono::steady_clock::now() - this->expireInfo->createdAt);
+    }
+
     std::chrono::seconds getAge() const;
     std::vector<std::pair<std::string, std::string>> *getUserProperties() const;
     void addUserProperty(const std::string &key, const std::string &val);
@@ -260,7 +270,7 @@ public:
     std::optional<Mqtt5PropertyBuilder> getPropertyBuilder() const;
 
     void setExpireAfter(uint32_t s);
-    void setExpireAfterToCeiling(uint32_t s);
+    void setExpireAfterToCeiling(std::chrono::seconds s);
 
     const std::vector<std::string> &getSubtopics();
     void resplitTopic();

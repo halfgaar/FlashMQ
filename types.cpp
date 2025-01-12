@@ -176,15 +176,7 @@ bool Publish::hasExpired() const
     if (!expireInfo)
         return false;
 
-    return (getAge() > expireInfo->expiresAfter);
-}
-
-std::chrono::seconds Publish::getAge() const
-{
-    if (!expireInfo)
-        return std::chrono::seconds(0);
-
-    return std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - this->expireInfo->createdAt);
+    return (getAge<std::chrono::milliseconds>() > expireInfo->expiresAfter);
 }
 
 std::vector<std::pair<std::string, std::string>> *Publish::getUserProperties() const
@@ -248,18 +240,16 @@ void Publish::setExpireAfter(uint32_t s)
     this->expireInfo->expiresAfter = std::chrono::seconds(s);
 }
 
-void Publish::setExpireAfterToCeiling(uint32_t ceiling)
+void Publish::setExpireAfterToCeiling(std::chrono::seconds ceiling)
 {
-    std::chrono::seconds ceiling_s(ceiling);
-
     if (expireInfo)
     {
-        this->expireInfo->expiresAfter = std::min(this->expireInfo->expiresAfter, ceiling_s);
+        this->expireInfo->expiresAfter = std::min(this->expireInfo->expiresAfter, ceiling);
         return;
     }
 
     this->expireInfo.emplace();
-    this->expireInfo->expiresAfter = ceiling_s;
+    this->expireInfo->expiresAfter = ceiling;
 }
 
 const std::vector<std::string> &Publish::getSubtopics()

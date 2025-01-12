@@ -45,9 +45,9 @@ bool RetainedMessage::hasExpired() const
         return true;
 
     const Settings *settings = ThreadGlobals::getSettings();
-    std::chrono::seconds expireAge(settings->expireRetainedMessagesAfterSeconds);
+    std::chrono::milliseconds expireAge(settings->expireRetainedMessagesAfterSeconds);
 
-    if (this->publish.getAge() > expireAge)
+    if (this->publish.getAge<std::chrono::milliseconds>() > expireAge)
         return true;
 
     return false;

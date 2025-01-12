@@ -1001,7 +1001,7 @@ void ConfigFileParser::loadFile(bool test)
                     {
                         throw ConfigFileException(formatString("expire_retained_messages_after_seconds value '%d' is invalid. Valid values are between 1 and 4294967296.", newVal));
                     }
-                    tmpSettings.expireRetainedMessagesAfterSeconds = newVal;
+                    tmpSettings.expireRetainedMessagesAfterSeconds = std::chrono::seconds(newVal);
                 }
 
                 if (testKeyValidity(key, "retained_message_node_lifetime", validKeys))

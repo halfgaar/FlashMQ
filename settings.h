@@ -92,7 +92,7 @@ public:
     bool allowAnonymous = false;
     int rlimitNoFile = 1000000;
     uint32_t expireSessionsAfterSeconds = 1209600;
-    uint32_t expireRetainedMessagesAfterSeconds = std::numeric_limits<uint32_t>::max();
+    std::chrono::seconds expireRetainedMessagesAfterSeconds = std::chrono::seconds(std::numeric_limits<int32_t>::max());
     int pluginTimerPeriod = 60;
     std::string storageDir;
     int threadCount = 0;
