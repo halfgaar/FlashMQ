@@ -88,22 +88,37 @@ void MainTests::test_retained_double_set()
     pub1.payload = "We are setting twice";
     sender.publish(pub1);
 
+    {
+        // Confirm the retained messages are present.
+        FlashMQTestClient c;
+        c.start();
+        c.connectClient(ProtocolVersion::Mqtt5);
+        c.subscribe("one/#", 0);
+        c.waitForMessageCount(2);
+    }
+
     receiver.connectClient(ProtocolVersion::Mqtt5);
-    receiver.subscribe("#", 0);
+    receiver.subscribe("one/#", 0);
 
     receiver.waitForMessageCount(2);
 
     MYCASTCOMPARE(receiver.receivedPublishes.size(), 2);
 
-    MqttPacket &msg = *std::find_if(receiver.receivedPublishes.begin(), receiver.receivedPublishes.end(), [](const MqttPacket &p) {return p.getTopic() == "one";});
-    QCOMPARE(msg.getPayloadCopy(), "dummy node creator");
-    QCOMPARE(msg.getTopic(), "one");
-    QVERIFY(msg.getRetain());
+    {
+        auto msg = std::find_if(receiver.receivedPublishes.begin(), receiver.receivedPublishes.end(), [](const MqttPacket &p) {return p.getTopic() == "one";});
+        FMQ_VERIFY(msg != receiver.receivedPublishes.end());
+        QCOMPARE(msg->getPayloadCopy(), "dummy node creator");
+        QCOMPARE(msg->getTopic(), "one");
+        QVERIFY(msg->getRetain());
+    }
 
-    MqttPacket &msg2 = *std::find_if(receiver.receivedPublishes.begin(), receiver.receivedPublishes.end(), [&](const MqttPacket &p) {return p.getTopic() == topic;});
-    QCOMPARE(msg2.getPayloadCopy(), "We are setting twice");
-    QCOMPARE(msg2.getTopic(), topic);
-    QVERIFY(msg2.getRetain());
+    {
+        auto msg2 = std::find_if(receiver.receivedPublishes.begin(), receiver.receivedPublishes.end(), [&](const MqttPacket &p) {return p.getTopic() == topic;});
+        FMQ_VERIFY(msg2 != receiver.receivedPublishes.end());
+        QCOMPARE(msg2->getPayloadCopy(), "We are setting twice");
+        QCOMPARE(msg2->getTopic(), topic);
+        QVERIFY(msg2->getRetain());
+    }
 }
 
 /**
