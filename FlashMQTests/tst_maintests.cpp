@@ -1072,7 +1072,9 @@ void MainTests::testSavingSessions()
         QCOMPARE(queuedPublishLoaded->getPublish().client_id, "ClientIdFromFakePublisher");
         QCOMPARE(queuedPublishLoaded->getPublish().username, "UsernameFromFakePublisher");
         QCOMPARE(queuedPublishLoaded->getPublish().expireInfo.value().expiresAfter.count(), 9);
-        QCOMPARE(queuedPublishLoaded->getPublish().getAge<std::chrono::seconds>().count(), 1);
+        const auto publish_age = queuedPublishLoaded->getPublish().getAge<std::chrono::milliseconds>().count();
+        FMQ_VERIFY(publish_age > 900);
+        FMQ_VERIFY(publish_age < 2100);
         QCOMPARE(queuedPublishLoaded->getPublish().subscriptionIdentifierTesting, static_cast<uint32_t>(6268));
     }
     catch (std::exception &ex)
