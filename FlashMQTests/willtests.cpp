@@ -35,7 +35,8 @@ void MainTests::testMqtt3will()
     receiver2.waitForMessageCount(1);
 
     MqttPacket pubPack = receiver.receivedPublishes.front();
-    pubPack.parsePublishData(receiver.getClient());
+    std::shared_ptr<Client> client = receiver.getClient();
+    pubPack.parsePublishData(client);
 
     QCOMPARE(pubPack.getPublishData().topic, "my/will");
     QCOMPARE(pubPack.getPublishData().payload, "mypayload");
@@ -44,7 +45,7 @@ void MainTests::testMqtt3will()
     // The second receiver subscribed at a QoS non-0, and we want to see if we actually get it, and that it wasn't demoted by the other subscriber.
 
     MqttPacket pubPack2 = receiver2.receivedPublishes.front();
-    pubPack2.parsePublishData(receiver2.getClient());
+    pubPack2.parsePublishData(client);
 
     QCOMPARE(pubPack2.getPublishData().topic, "my/will");
     QCOMPARE(pubPack2.getPublishData().payload, "mypayload");
@@ -127,7 +128,8 @@ void MainTests::testMqtt5DelayedWill()
     receiver.waitForMessageCount(1, 5);
 
     MqttPacket pubPack = receiver.receivedPublishes.front();
-    pubPack.parsePublishData(receiver.getClient());
+    std::shared_ptr<Client> client = receiver.getClient();
+    pubPack.parsePublishData(client);
 
     QCOMPARE(pubPack.getPublishData().topic, "my/will/testMqtt5DelayedWill");
     QCOMPARE(pubPack.getPublishData().payload, "mypayload");
@@ -160,7 +162,8 @@ void MainTests::testMqtt5DelayedWillAlwaysOnSessionEnd()
     receiver.waitForMessageCount(1, 2);
 
     MqttPacket pubPack = receiver.receivedPublishes.front();
-    pubPack.parsePublishData(receiver.getClient());
+    std::shared_ptr<Client> client = receiver.getClient();
+    pubPack.parsePublishData(client);
 
     QCOMPARE(pubPack.getPublishData().topic, "my/will/testMqtt5DelayedWillAlwaysOnSessionEnd");
     QCOMPARE(pubPack.getPublishData().payload, "mypayload");
@@ -211,7 +214,8 @@ void MainTests::testWillOnSessionTakeOvers()
         receiver.waitForMessageCount(1);
 
         MqttPacket pubPack = receiver.receivedPublishes.front();
-        pubPack.parsePublishData(receiver.getClient());
+        std::shared_ptr<Client> client = receiver.getClient();
+        pubPack.parsePublishData(client);
 
         QCOMPARE(pubPack.getPublishData().topic, "my/will");
         QCOMPARE(pubPack.getPublishData().payload, "mypayload");
@@ -256,7 +260,8 @@ void MainTests::testOverrideWillDelayOnSessionDestructionByTakeOver()
     receiver.waitForMessageCount(1);
 
     MqttPacket pubPack = receiver.receivedPublishes.front();
-    pubPack.parsePublishData(receiver.getClient());
+    std::shared_ptr<Client> client = receiver.getClient();
+    pubPack.parsePublishData(client);
 
     QCOMPARE(pubPack.getPublishData().topic, "my/will");
     QCOMPARE(pubPack.getPublishData().payload, "mypayload");

@@ -17,6 +17,7 @@ See LICENSE for license details.
 #include "pluginloader.h"
 #include "settings.h"
 #include "threaddata.h"
+#include "checkedweakptr.h"
 
 class SubAckIsError : public std::runtime_error
 {
@@ -32,7 +33,7 @@ class FlashMQTestClient
     PluginLoader pluginLoader;
     Settings settings;
     std::shared_ptr<ThreadData> testServerWorkerThreadData;
-    std::shared_ptr<Client> client;
+    CheckedWeakPtr<Client> client_weak;
     std::shared_ptr<WillPublish> will;
 
     std::shared_ptr<ThreadData> dummyThreadData;
@@ -72,7 +73,10 @@ public:
     void waitForMessageCount(const size_t count, int timeout = 1);
     void waitForPacketCount(const size_t count, int timeout = 1);
 
-    std::shared_ptr<Client> &getClient();
+    std::shared_ptr<Client> getClient();
+    std::string getClientId();
+    ProtocolVersion getProtocolVersion();
+    bool clientExpired() const;
 };
 
 #endif // FLASHMQTESTCLIENT_H

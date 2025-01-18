@@ -36,7 +36,8 @@ void MainTests::testWillDenialByPlugin()
     receiver.waitForMessageCount(1);
 
     MqttPacket pubPack = receiver.receivedPublishes.front();
-    pubPack.parsePublishData(receiver.getClient());
+    std::shared_ptr<Client> client = receiver.getClient();
+    pubPack.parsePublishData(client);
 
     QCOMPARE(pubPack.getPublishData().topic, "will/allowed");
     QCOMPARE(pubPack.getPublishData().payload, "mypayload");
@@ -525,13 +526,18 @@ void MainTests::testFailedAsyncClientCrashOnSession()
     // Because it crashed, we don't have events to wait for.
     std::this_thread::sleep_for(std::chrono::seconds(1));
 
-    FlashMQTestClient &second_client = clients.back();
-
-    Publish pub("sdf", "wer", 2);
-    MqttPacket pubPack(second_client.getClient()->getProtocolVersion(), pub);
-    if (pub.qos > 0)
-        pubPack.setPacketId(3);
-    second_client.getClient()->writeMqttPacketAndBlameThisClient(pubPack);
+    /*
+     * An if statement in a test is dodgy, but the underlying client was made weak after this
+     * test was written, so when the original problem occurs, the client hasn't disconnected nor expired.
+     */
+    if (!clients.back().clientExpired())
+    {
+        Publish pub("sdf", "wer", 2);
+        MqttPacket pubPack(ProtocolVersion::Mqtt5, pub);
+        if (pub.qos > 0)
+            pubPack.setPacketId(3);
+        clients.back().getClient()->writeMqttPacketAndBlameThisClient(pubPack);
+    }
 
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
@@ -667,6 +673,7 @@ void MainTests::testClientRemovalByPlugin()
         FlashMQTestClient sender;
         sender.start();
         sender.connectClient(ProtocolVersion::Mqtt5, false, 120);
+        const std::string sender_client_id = sender.getClientId();
 
         FlashMQTestClient receiver;
         receiver.start();
@@ -681,7 +688,7 @@ void MainTests::testClientRemovalByPlugin()
         QVERIFY(sender.receivedPackets.front().packetType == PacketType::DISCONNECT);
 
         std::shared_ptr<SubscriptionStore> store = mainApp->getStore();
-        std::shared_ptr<Session> session = store->lockSession(sender.getClient()->getClientId());
+        std::shared_ptr<Session> session = store->lockSession(sender_client_id);
 
         if (method == "removeclient")
         {

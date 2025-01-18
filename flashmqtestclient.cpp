@@ -78,8 +78,10 @@ void FlashMQTestClient::setWill(std::shared_ptr<WillPublish> &will)
 
 void FlashMQTestClient::disconnect(ReasonCodes reason)
 {
+    std::shared_ptr<Client> client = client_weak.lock();
+
     client->setDisconnectStage(DisconnectStage::SendPendingAppData);
-    Disconnect d(this->client->getProtocolVersion(), reason);
+    Disconnect d(client->getProtocolVersion(), reason);
     client->writeMqttPacket(d);
 }
 
@@ -124,20 +126,22 @@ void FlashMQTestClient::connectClient(ProtocolVersion protocolVersion, bool clea
 
     const std::string clientid = formatString("testclient_%d", clientCount++);
 
-    this->client = std::make_shared<Client>(sockfd, testServerWorkerThreadData, nullptr, false, false, reinterpret_cast<struct sockaddr*>(&servaddr), settings);
-    this->client->setClientProperties(protocolVersion, clientid, "user", false, 60);
+    std::shared_ptr<Client> client = std::make_shared<Client>(sockfd, testServerWorkerThreadData, nullptr, false, false, reinterpret_cast<struct sockaddr*>(&servaddr), settings);
+    this->client_weak = client;
+    client->setClientProperties(protocolVersion, clientid, "user", false, 60);
 
     {
-        // Hack to make it work with the rvalue argument. Because our test client retains ownership of 'client', we can get away
-        // with this. See git what caused this change.
-        std::shared_ptr<Client> dummyToMoveFrom = this->client;
+        // Hack to make it work with the rvalue argument whilest not voiding our own client.
+        std::shared_ptr<Client> dummyToMoveFrom = client;
         testServerWorkerThreadData->giveClient(std::move(dummyToMoveFrom));
     }
 
     // This gets called in the test client's worker thread, but the STL container's minimal thread safety should be enough: only list manipulation is
     // mutexed, elements within are not.
-    client->onPacketReceived = [&](MqttPacket &pack)
+    client->onPacketReceived = [this](MqttPacket &pack)
     {
+        std::shared_ptr<Client> client = this->client_weak.lock();
+
         std::lock_guard<std::mutex> locker(receivedListMutex);
 
         if (pack.packetType == PacketType::PUBLISH)
@@ -149,26 +153,26 @@ void FlashMQTestClient::connectClient(ProtocolVersion protocolVersion, bool clea
 
             if (pack.getPublishData().qos == 1)
             {
-                PubResponse pubAck(this->client->getProtocolVersion(), PacketType::PUBACK, ReasonCodes::Success, pack.getPacketId());
-                this->client->writeMqttPacketAndBlameThisClient(pubAck);
+                PubResponse pubAck(client->getProtocolVersion(), PacketType::PUBACK, ReasonCodes::Success, pack.getPacketId());
+                client->writeMqttPacketAndBlameThisClient(pubAck);
             }
             else if (pack.getPublishData().qos == 2)
             {
-                PubResponse pubAck(this->client->getProtocolVersion(), PacketType::PUBREC, ReasonCodes::Success, pack.getPacketId());
-                this->client->writeMqttPacketAndBlameThisClient(pubAck);
+                PubResponse pubAck(client->getProtocolVersion(), PacketType::PUBREC, ReasonCodes::Success, pack.getPacketId());
+                client->writeMqttPacketAndBlameThisClient(pubAck);
             }
         }
         else if (pack.packetType == PacketType::PUBREL)
         {
             pack.parsePubRelData();
-            PubResponse pubComp(this->client->getProtocolVersion(), PacketType::PUBCOMP, ReasonCodes::Success, pack.getPacketId());
-            this->client->writeMqttPacketAndBlameThisClient(pubComp);
+            PubResponse pubComp(client->getProtocolVersion(), PacketType::PUBCOMP, ReasonCodes::Success, pack.getPacketId());
+            client->writeMqttPacketAndBlameThisClient(pubComp);
         }
         else if (pack.packetType == PacketType::PUBREC)
         {
             pack.parsePubRecData();
-            PubResponse pubRel(this->client->getProtocolVersion(), PacketType::PUBREL, ReasonCodes::Success, pack.getPacketId());
-            this->client->writeMqttPacketAndBlameThisClient(pubRel);
+            PubResponse pubRel(client->getProtocolVersion(), PacketType::PUBREL, ReasonCodes::Success, pack.getPacketId());
+            client->writeMqttPacketAndBlameThisClient(pubRel);
         }
 
         this->receivedPackets.push_back(std::move(pack));
@@ -182,17 +186,19 @@ void FlashMQTestClient::connectClient(ProtocolVersion protocolVersion, bool clea
     manipulateConnect(connect);
 
     MqttPacket connectPack(connect);
-    this->client->writeMqttPacketAndBlameThisClient(connectPack);
+    client->writeMqttPacketAndBlameThisClient(connectPack);
 
     if (_waitForConnack)
     {
         waitForConnack();
-        this->client->setAuthenticated(true);
+        client->setAuthenticated(true);
     }
 }
 
 void FlashMQTestClient::subscribe(const std::string topic, uint8_t qos, bool noLocal, bool retainAsPublished, uint32_t subscriptionIdentifier, RetainHandling retainHandling)
 {
+    std::shared_ptr<Client> client = client_weak.lock();
+
     clearReceivedLists();
 
     const uint16_t packet_id = 66;
@@ -223,6 +229,8 @@ void FlashMQTestClient::subscribe(const std::string topic, uint8_t qos, bool noL
 
 void FlashMQTestClient::unsubscribe(const std::string &topic)
 {
+    std::shared_ptr<Client> client = client_weak.lock();
+
     clearReceivedLists();
 
     const uint16_t packet_id = 66;
@@ -240,6 +248,8 @@ void FlashMQTestClient::unsubscribe(const std::string &topic)
 
 void FlashMQTestClient::publish(Publish &pub)
 {
+    std::shared_ptr<Client> client = client_weak.lock();
+
     clearReceivedLists();
 
     const uint16_t packet_id = 77;
@@ -295,6 +305,8 @@ void FlashMQTestClient::publish(Publish &pub)
 
 void FlashMQTestClient::writeAuth(const Auth &auth)
 {
+    std::shared_ptr<Client> client = client_weak.lock();
+
     MqttPacket pack(auth);
     client->writeMqttPacketAndBlameThisClient(pack);
 }
@@ -343,7 +355,25 @@ void FlashMQTestClient::waitForPacketCount(const size_t count, int timeout)
     }, timeout);
 }
 
-std::shared_ptr<Client> &FlashMQTestClient::getClient()
+std::shared_ptr<Client> FlashMQTestClient::getClient()
 {
-    return this->client;
+    std::shared_ptr<Client> client = client_weak.lock();
+    return client;
+}
+
+std::string FlashMQTestClient::getClientId()
+{
+    std::shared_ptr<Client> client = client_weak.lock();
+    return client->getClientId();
+}
+
+ProtocolVersion FlashMQTestClient::getProtocolVersion()
+{
+    std::shared_ptr<Client> client = client_weak.lock();
+    return client->getProtocolVersion();
+}
+
+bool FlashMQTestClient::clientExpired() const
+{
+    return client_weak.expired();
 }
