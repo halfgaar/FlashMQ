@@ -39,23 +39,31 @@ void MainTests::test_retained()
 
             receiver.waitForMessageCount(1);
 
-            MYCASTCOMPARE(receiver.receivedPublishes.size(), 1);
+            {
+                auto ro = receiver.receivedObjects.lock();
 
-            MqttPacket &msg = receiver.receivedPublishes.front();
-            QCOMPARE(msg.getPayloadCopy(), payload);
-            QCOMPARE(msg.getTopic(), topic);
-            QVERIFY(msg.getRetain());
+                MYCASTCOMPARE(ro->receivedPublishes.size(), 1);
 
-            receiver.clearReceivedLists();
+                MqttPacket &msg = ro->receivedPublishes.front();
+                QCOMPARE(msg.getPayloadCopy(), payload);
+                QCOMPARE(msg.getTopic(), topic);
+                QVERIFY(msg.getRetain());
+
+                ro->clear();
+            }
 
             sender.publish(pub1);
             receiver.waitForMessageCount(1);
 
-            QVERIFY2(receiver.receivedPublishes.size() == 1, "There must be one message in the received list");
-            MqttPacket &msg2 = receiver.receivedPublishes.front();
-            QCOMPARE(msg2.getPayloadCopy(), payload);
-            QCOMPARE(msg2.getTopic(), topic);
-            QVERIFY2(!msg2.getRetain(), "Getting a retained message while already being subscribed must be marked as normal, not retain.");
+            {
+                auto ro = receiver.receivedObjects.lock();
+
+                QVERIFY2(ro->receivedPublishes.size() == 1, "There must be one message in the received list");
+                MqttPacket &msg2 = ro->receivedPublishes.front();
+                QCOMPARE(msg2.getPayloadCopy(), payload);
+                QCOMPARE(msg2.getTopic(), topic);
+                QVERIFY2(!msg2.getRetain(), "Getting a retained message while already being subscribed must be marked as normal, not retain.");
+            }
         }
     }
 }
@@ -102,19 +110,21 @@ void MainTests::test_retained_double_set()
 
     receiver.waitForMessageCount(2);
 
-    MYCASTCOMPARE(receiver.receivedPublishes.size(), 2);
+    MYCASTCOMPARE(receiver.receivedObjects.lock()->receivedPublishes.size(), 2);
 
     {
-        auto msg = std::find_if(receiver.receivedPublishes.begin(), receiver.receivedPublishes.end(), [](const MqttPacket &p) {return p.getTopic() == "one";});
-        FMQ_VERIFY(msg != receiver.receivedPublishes.end());
+        auto ro = receiver.receivedObjects.lock();
+        auto msg = std::find_if(ro->receivedPublishes.begin(), ro->receivedPublishes.end(), [](const MqttPacket &p) {return p.getTopic() == "one";});
+        FMQ_VERIFY(msg != ro->receivedPublishes.end());
         QCOMPARE(msg->getPayloadCopy(), "dummy node creator");
         QCOMPARE(msg->getTopic(), "one");
         QVERIFY(msg->getRetain());
     }
 
     {
-        auto msg2 = std::find_if(receiver.receivedPublishes.begin(), receiver.receivedPublishes.end(), [&](const MqttPacket &p) {return p.getTopic() == topic;});
-        FMQ_VERIFY(msg2 != receiver.receivedPublishes.end());
+        auto ro = receiver.receivedObjects.lock();
+        auto msg2 = std::find_if(ro->receivedPublishes.begin(), ro->receivedPublishes.end(), [&](const MqttPacket &p) {return p.getTopic() == topic;});
+        FMQ_VERIFY(msg2 != ro->receivedPublishes.end());
         QCOMPARE(msg2->getPayloadCopy(), "We are setting twice");
         QCOMPARE(msg2->getTopic(), topic);
         QVERIFY(msg2->getRetain());
@@ -168,7 +178,11 @@ void MainTests::test_retained_mode_drop()
             usleep(250000);
 
             receiver.waitForMessageCount(0);
-            QVERIFY2(receiver.receivedPublishes.empty(), "In drop mode, retained publishes should be stored as retained messages.");
+
+            {
+                auto ro = receiver.receivedObjects.lock();
+                QVERIFY2(ro->receivedPublishes.empty(), "In drop mode, retained publishes should be stored as retained messages.");
+            }
 
             receiver.clearReceivedLists();
 
@@ -177,7 +191,10 @@ void MainTests::test_retained_mode_drop()
             usleep(250000);
             receiver.waitForMessageCount(0);
 
-            QVERIFY(receiver.receivedPublishes.empty());
+            {
+                auto ro = receiver.receivedObjects.lock();
+                QVERIFY(ro->receivedPublishes.empty());
+            }
         }
     }
 }
@@ -229,18 +246,25 @@ void MainTests::test_retained_mode_downgrade()
             usleep(250000);
 
             receiver.waitForMessageCount(0);
-            QVERIFY2(receiver.receivedPublishes.empty(), "In downgrade mode, retained publishes should not be stored as retained messages.");
+
+            {
+                auto ro = receiver.receivedObjects.lock();
+                QVERIFY2(ro->receivedPublishes.empty(), "In downgrade mode, retained publishes should not be stored as retained messages.");
+            }
 
             receiver.clearReceivedLists();
 
             sender.publish(pub1);
             receiver.waitForMessageCount(1);
 
-            MYCASTCOMPARE(receiver.receivedPublishes.size(), 1);
-            MqttPacket &msg2 = receiver.receivedPublishes.front();
-            QCOMPARE(msg2.getPayloadCopy(), payload);
-            QCOMPARE(msg2.getTopic(), topic);
-            QVERIFY2(!msg2.getRetain(), "Getting a retained message while already being subscribed must be marked as normal, not retain.");
+            {
+                auto ro = receiver.receivedObjects.lock();
+                MYCASTCOMPARE(ro->receivedPublishes.size(), 1);
+                MqttPacket &msg2 = ro->receivedPublishes.front();
+                QCOMPARE(msg2.getPayloadCopy(), payload);
+                QCOMPARE(msg2.getTopic(), topic);
+                QVERIFY2(!msg2.getRetain(), "Getting a retained message while already being subscribed must be marked as normal, not retain.");
+            }
         }
     }
 }
@@ -279,12 +303,17 @@ void MainTests::test_retained_mode_no_retain()
     sender.publish(pub1);
 
     receiver.waitForMessageCount(1);
-    QVERIFY(receiver.receivedPublishes.size() == 1);
 
-    MqttPacket &msg = receiver.receivedPublishes.front();
-    QCOMPARE(msg.getPayloadCopy(), payload);
-    QCOMPARE(msg.getTopic(), topic);
-    QVERIFY2(msg.getRetain(), "We were supposed to have seen the retain flag, because 'retain as published' was on.");
+    {
+        auto ro = receiver.receivedObjects.lock();
+
+        QVERIFY(ro->receivedPublishes.size() == 1);
+
+        MqttPacket &msg = ro->receivedPublishes.front();
+        QCOMPARE(msg.getPayloadCopy(), payload);
+        QCOMPARE(msg.getTopic(), topic);
+        QVERIFY2(msg.getRetain(), "We were supposed to have seen the retain flag, because 'retain as published' was on.");
+    }
 
     FlashMQTestClient late_receiver;
     late_receiver.start();
@@ -294,7 +323,7 @@ void MainTests::test_retained_mode_no_retain()
     usleep(250000);
 
     receiver.waitForMessageCount(0);
-    QVERIFY2(late_receiver.receivedPublishes.empty(), "In enabled_without_retaining mode, retained publishes should not be stored as retained messages.");
+    QVERIFY2(late_receiver.receivedObjects.lock()->receivedPublishes.empty(), "In enabled_without_retaining mode, retained publishes should not be stored as retained messages.");
 }
 
 void MainTests::test_retained_changed()
@@ -319,9 +348,11 @@ void MainTests::test_retained_changed()
 
     receiver.waitForMessageCount(1);
 
-    MYCASTCOMPARE(receiver.receivedPublishes.size(), 1);
+    auto ro = receiver.receivedObjects.lock();
 
-    MqttPacket &pack = receiver.receivedPublishes.front();
+    MYCASTCOMPARE(ro->receivedPublishes.size(), 1);
+
+    MqttPacket &pack = ro->receivedPublishes.front();
     QCOMPARE(pack.getPayloadCopy(), p.payload);
     QVERIFY(pack.getRetain());
 }
@@ -352,7 +383,8 @@ void MainTests::test_retained_removed()
     usleep(100000);
     receiver.waitForMessageCount(0);
 
-    QVERIFY2(receiver.receivedPublishes.empty(), "We erased the retained message. We shouldn't have received any.");
+    auto ro = receiver.receivedObjects.lock();
+    QVERIFY2(ro->receivedPublishes.empty(), "We erased the retained message. We shouldn't have received any.");
 }
 
 /**
@@ -391,11 +423,13 @@ void MainTests::test_retained_tree()
 
     receiver.waitForMessageCount(3);
 
-    QCOMPARE(receiver.receivedPublishes.size(), topics.size());
+    auto ro = receiver.receivedObjects.lock();
+
+    QCOMPARE(ro->receivedPublishes.size(), topics.size());
 
     for (const std::string &s : topics)
     {
-        bool r = std::any_of(receiver.receivedPublishes.begin(), receiver.receivedPublishes.end(), [&](MqttPacket &pack)
+        bool r = std::any_of(ro->receivedPublishes.begin(), ro->receivedPublishes.end(), [&](MqttPacket &pack)
         {
             return pack.getTopic() == s && pack.getPayloadCopy() == payload;
         });
@@ -449,7 +483,8 @@ void MainTests::test_retained_global_expire()
             usleep(500000);
             receiver.waitForMessageCount(0);
 
-            MYCASTCOMPARE(receiver.receivedPublishes.size(), 0);
+            auto ro = receiver.receivedObjects.lock();
+            MYCASTCOMPARE(ro->receivedPublishes.size(), 0);
         }
     }
 }
@@ -493,9 +528,11 @@ void MainTests::test_retained_per_message_expire()
     usleep(500000);
     receiver.waitForMessageCount(1);
 
-    MYCASTCOMPARE(receiver.receivedPublishes.size(), 1);
+    auto ro = receiver.receivedObjects.lock();
 
-    MqttPacket &msg = receiver.receivedPublishes.front();
+    MYCASTCOMPARE(ro->receivedPublishes.size(), 1);
+
+    MqttPacket &msg = ro->receivedPublishes.front();
     QCOMPARE(msg.getPayloadCopy(), "We are testing");
     QCOMPARE(msg.getTopic(), "retaintopic/1");
     QVERIFY(msg.getRetain());
@@ -595,10 +632,9 @@ void MainTests::testRetainAsPublished()
         QVERIFY2(false, ex.what());
     }
 
-    MYCASTCOMPARE(client.receivedPublishes.size(), 1);
-
-    const MqttPacket &first = client.receivedPublishes.front();
-
+    auto ro = client.receivedObjects.lock();
+    MYCASTCOMPARE(ro->receivedPublishes.size(), 1);
+    const MqttPacket &first = ro->receivedPublishes.front();
     QVERIFY(first.getRetain());
 }
 
@@ -630,10 +666,9 @@ void MainTests::testRetainAsPublishedNegative()
         QVERIFY2(false, ex.what());
     }
 
-    MYCASTCOMPARE(client.receivedPublishes.size(), 1);
-
-    const MqttPacket &first = client.receivedPublishes.front();
-
+    auto ro = client.receivedObjects.lock();
+    MYCASTCOMPARE(ro->receivedPublishes.size(), 1);
+    const MqttPacket &first = ro->receivedPublishes.front();
     QVERIFY(!first.getRetain());
 }
 
@@ -670,9 +705,11 @@ void MainTests::testRetainedParentOfWildcard()
         QVERIFY2(false, "Exception happened. Likely waited for retained messages, but none received.");
     }
 
-    MYCASTCOMPARE(receiver.receivedPublishes.size(), 1);
+    auto ro = receiver.receivedObjects.lock();
 
-    MqttPacket &msg = receiver.receivedPublishes.front();
+    MYCASTCOMPARE(ro->receivedPublishes.size(), 1);
+
+    MqttPacket &msg = ro->receivedPublishes.front();
     QCOMPARE(msg.getPayloadCopy(), payload);
     QCOMPARE(msg.getTopic(), publish_topic);
     QVERIFY(msg.getRetain());
@@ -712,9 +749,11 @@ void MainTests::testRetainedWildcard()
         QVERIFY2(false, "Exception happened. Likely waited for retained messages, but none received.");
     }
 
-    MYCASTCOMPARE(receiver.receivedPublishes.size(), 1);
+    auto ro = receiver.receivedObjects.lock();
 
-    MqttPacket &msg = receiver.receivedPublishes.front();
+    MYCASTCOMPARE(ro->receivedPublishes.size(), 1);
+
+    MqttPacket &msg = ro->receivedPublishes.front();
     QCOMPARE(msg.getPayloadCopy(), payload);
     QCOMPARE(msg.getTopic(), publish_topic);
     QVERIFY(msg.getRetain());
@@ -771,8 +810,11 @@ void MainTests::testRetainedAclReadCheck()
         QVERIFY2(false, ex.what());
     }
 
-    MYCASTCOMPARE(client.receivedPublishes.size(), 1);
-    MYCASTCOMPARE(client2.receivedPublishes.size(), 1);
+    auto ro = client.receivedObjects.lock();
+    auto ro2 = client2.receivedObjects.lock();
+
+    MYCASTCOMPARE(ro->receivedPublishes.size(), 1);
+    MYCASTCOMPARE(ro2->receivedPublishes.size(), 1);
 }
 
 void MainTests::testRetainHandlingDontGiveRetain()
@@ -796,7 +838,8 @@ void MainTests::testRetainHandlingDontGiveRetain()
     receiver.subscribe(topic, 0, false, false, 0, RetainHandling::DoNotSendRetainedMessages);
 
     usleep(250000);
-    QVERIFY(receiver.receivedPublishes.empty());
+    auto ro = receiver.receivedObjects.lock();
+    QVERIFY(ro->receivedPublishes.empty());
 }
 
 void MainTests::testRetainHandlingDontGiveRetainOnExistingSubscription()
@@ -816,17 +859,21 @@ void MainTests::testRetainHandlingDontGiveRetainOnExistingSubscription()
     pub1.retain = true;
     sender.publish(pub1);
 
-    receiver.connectClient(ProtocolVersion::Mqtt5, true, 0);
-    receiver.subscribe(topic, 0, false, false, 0, RetainHandling::SendRetainedMessagesAtNewSubscribeOnly);
-    receiver.waitForMessageCount(1);
-    QVERIFY(receiver.receivedPublishes.size() == 1);
+    {
+        receiver.connectClient(ProtocolVersion::Mqtt5, true, 0);
+        receiver.subscribe(topic, 0, false, false, 0, RetainHandling::SendRetainedMessagesAtNewSubscribeOnly);
+        receiver.waitForMessageCount(1);
+        auto ro = receiver.receivedObjects.lock();
+        QVERIFY(ro->receivedPublishes.size() == 1);
+    }
 
     receiver.clearReceivedLists();
 
     receiver.subscribe(topic, 1, false, false, 0, RetainHandling::SendRetainedMessagesAtNewSubscribeOnly);
 
     usleep(250000);
-    QVERIFY(receiver.receivedPublishes.empty());
+    auto ro = receiver.receivedObjects.lock();
+    QVERIFY(ro->receivedPublishes.empty());
 }
 
 

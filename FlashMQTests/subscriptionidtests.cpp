@@ -34,21 +34,24 @@ void MainTests::testSubscriptionIdOnlineClient()
     client3.waitForMessageCount(1);
 
     {
-        auto &pack = client1.receivedPublishes.at(0);
+        auto ro = client1.receivedObjects.lock();
+        auto &pack = ro->receivedPublishes.at(0);
         FMQ_COMPARE(pack.publishData.subscriptionIdentifierTesting, static_cast<uint32_t>(666));
         FMQ_COMPARE(pack.getTopic(), "several/sub/topics");
         FMQ_COMPARE(pack.getPayloadView(), "payload");
     }
 
     {
-        auto &pack = client2.receivedPublishes.at(0);
+        auto ro = client2.receivedObjects.lock();
+        auto &pack = ro->receivedPublishes.at(0);
         FMQ_COMPARE(pack.publishData.subscriptionIdentifierTesting, static_cast<uint32_t>(777));
         FMQ_COMPARE(pack.getTopic(), "several/sub/topics");
         FMQ_COMPARE(pack.getPayloadView(), "payload");
     }
 
     {
-        auto &pack = client3.receivedPublishes.at(0);
+        auto ro = client3.receivedObjects.lock();
+        auto &pack = ro->receivedPublishes.at(0);
         FMQ_COMPARE(pack.publishData.subscriptionIdentifierTesting, static_cast<uint32_t>(0));
         FMQ_COMPARE(pack.getTopic(), "several/sub/topics");
         FMQ_COMPARE(pack.getPayloadView(), "payload");
@@ -100,14 +103,16 @@ void MainTests::testSubscriptionIdOfflineClient()
     client2->waitForMessageCount(1);
 
     {
-        auto &pack = client1->receivedPublishes.at(0);
+        auto ro = client1.value().receivedObjects.lock();
+        auto &pack = ro->receivedPublishes.at(0);
         FMQ_COMPARE(pack.publishData.subscriptionIdentifierTesting, static_cast<uint32_t>(42));
         FMQ_COMPARE(pack.getTopic(), "several/sub/topics");
         FMQ_COMPARE(pack.getPayloadView(), "payload");
     }
 
     {
-        auto &pack = client2->receivedPublishes.at(0);
+        auto ro = client2.value().receivedObjects.lock();
+        auto &pack = ro->receivedPublishes.at(0);
         FMQ_COMPARE(pack.publishData.subscriptionIdentifierTesting, static_cast<uint32_t>(99));
         FMQ_COMPARE(pack.getTopic(), "several/sub/topics");
         FMQ_COMPARE(pack.getPayloadView(), "payload");
@@ -142,16 +147,22 @@ void MainTests::testSubscriptionIdRetainedMessages()
     receiver2.subscribe(topic, 0, false, false, 1000000);
     receiver2.waitForMessageCount(1);
 
-    MYCASTCOMPARE(receiver1.receivedPublishes.size(), 1);
-    MYCASTCOMPARE(receiver2.receivedPublishes.size(), 1);
+    {
+        auto ro1 = receiver1.receivedObjects.lock();
+        auto ro2 = receiver2.receivedObjects.lock();
 
-    MqttPacket &msg = receiver1.receivedPublishes.front();
-    QCOMPARE(msg.getPayloadCopy(), payload);
-    QCOMPARE(msg.getTopic(), topic);
-    QVERIFY(msg.getRetain());
+        MYCASTCOMPARE(ro1->receivedPublishes.size(), 1);
+        MYCASTCOMPARE(ro2->receivedPublishes.size(), 1);
+
+        MqttPacket &msg = ro1->receivedPublishes.front();
+        QCOMPARE(msg.getPayloadCopy(), payload);
+        QCOMPARE(msg.getTopic(), topic);
+        QVERIFY(msg.getRetain());
+    }
 
     {
-        auto &pack = receiver1.receivedPublishes.at(0);
+        auto ro1 = receiver1.receivedObjects.lock();
+        auto &pack = ro1->receivedPublishes.at(0);
         FMQ_COMPARE(pack.publishData.subscriptionIdentifierTesting, static_cast<uint32_t>(123));
         FMQ_COMPARE(pack.getTopic(), topic);
         FMQ_COMPARE(pack.getPayloadView(), payload);
@@ -159,7 +170,8 @@ void MainTests::testSubscriptionIdRetainedMessages()
     }
 
     {
-        auto &pack = receiver2.receivedPublishes.at(0);
+        auto ro2 = receiver2.receivedObjects.lock();
+        auto &pack = ro2->receivedPublishes.at(0);
         FMQ_COMPARE(pack.publishData.subscriptionIdentifierTesting, static_cast<uint32_t>(1000000));
         FMQ_COMPARE(pack.getTopic(), topic);
         FMQ_COMPARE(pack.getPayloadView(), payload);
@@ -200,24 +212,27 @@ void MainTests::testSubscriptionIdSharedSubscriptions()
     client3.waitForMessageCount(1);
 
     {
-        FMQ_COMPARE(client1.receivedPublishes.size(), static_cast<size_t>(1));
-        auto &pack = client1.receivedPublishes.at(0);
+        auto ro1 = client1.receivedObjects.lock();
+        FMQ_COMPARE(ro1->receivedPublishes.size(), static_cast<size_t>(1));
+        auto &pack = ro1->receivedPublishes.at(0);
         FMQ_COMPARE(pack.publishData.subscriptionIdentifierTesting, static_cast<uint32_t>(666));
         FMQ_COMPARE(pack.getTopic(), "several/sub/topics");
         FMQ_COMPARE(pack.getPayloadView(), "payload");
     }
 
     {
-        FMQ_COMPARE(client2.receivedPublishes.size(), static_cast<size_t>(1));
-        auto &pack = client2.receivedPublishes.at(0);
+        auto ro2 = client2.receivedObjects.lock();
+        FMQ_COMPARE(ro2->receivedPublishes.size(), static_cast<size_t>(1));
+        auto &pack = ro2->receivedPublishes.at(0);
         FMQ_COMPARE(pack.publishData.subscriptionIdentifierTesting, static_cast<uint32_t>(777));
         FMQ_COMPARE(pack.getTopic(), "several/sub/topics");
         FMQ_COMPARE(pack.getPayloadView(), "payload");
     }
 
     {
-        FMQ_COMPARE(client3.receivedPublishes.size(), static_cast<size_t>(1));
-        auto &pack = client3.receivedPublishes.at(0);
+        auto ro3 = client3.receivedObjects.lock();
+        FMQ_COMPARE(ro3->receivedPublishes.size(), static_cast<size_t>(1));
+        auto &pack = ro3->receivedPublishes.at(0);
         FMQ_COMPARE(pack.publishData.subscriptionIdentifierTesting, static_cast<uint32_t>(0));
         FMQ_COMPARE(pack.getTopic(), "several/sub/topics");
         FMQ_COMPARE(pack.getPayloadView(), "payload");
@@ -241,7 +256,8 @@ void MainTests::testSubscriptionIdChange()
     client1.waitForMessageCount(1);
 
     {
-        auto &pack = client1.receivedPublishes.at(0);
+        auto ro = client1.receivedObjects.lock();
+        auto &pack = ro->receivedPublishes.at(0);
         FMQ_COMPARE(pack.publishData.subscriptionIdentifierTesting, static_cast<uint32_t>(666));
         FMQ_COMPARE(pack.getTopic(), "several/sub/topics");
         FMQ_COMPARE(pack.getPayloadView(), "payload");
@@ -255,7 +271,8 @@ void MainTests::testSubscriptionIdChange()
     client1.waitForMessageCount(1);
 
     {
-        auto &pack = client1.receivedPublishes.at(0);
+        auto ro = client1.receivedObjects.lock();
+        auto &pack = ro->receivedPublishes.at(0);
         FMQ_COMPARE(pack.publishData.subscriptionIdentifierTesting, static_cast<uint32_t>(667));
         FMQ_COMPARE(pack.getTopic(), "several/sub/topics");
         FMQ_COMPARE(pack.getPayloadView(), "payload");
@@ -283,11 +300,13 @@ void MainTests::testSubscriptionIdOverlappingSubscriptions()
     client1.waitForMessageCount(2);
 
     {
-        auto pos = std::find_if(client1.receivedPublishes.begin(), client1.receivedPublishes.end(), [] (MqttPacket &p) {
+        auto ro = client1.receivedObjects.lock();
+
+        auto pos = std::find_if(ro->receivedPublishes.begin(), ro->receivedPublishes.end(), [] (MqttPacket &p) {
             return p.publishData.subscriptionIdentifierTesting == 999;
         });
 
-        FMQ_VERIFY(pos != client1.receivedPublishes.end());
+        FMQ_VERIFY(pos != ro->receivedPublishes.end());
 
         FMQ_COMPARE(pos->publishData.subscriptionIdentifierTesting, static_cast<uint32_t>(999));
         FMQ_COMPARE(pos->getTopic(), "several/sub/topics");
@@ -295,11 +314,13 @@ void MainTests::testSubscriptionIdOverlappingSubscriptions()
     }
 
     {
-        auto pos = std::find_if(client1.receivedPublishes.begin(), client1.receivedPublishes.end(), [] (MqttPacket &p) {
+        auto ro = client1.receivedObjects.lock();
+
+        auto pos = std::find_if(ro->receivedPublishes.begin(), ro->receivedPublishes.end(), [] (MqttPacket &p) {
             return p.publishData.subscriptionIdentifierTesting == 666;
         });
 
-        FMQ_VERIFY(pos != client1.receivedPublishes.end());
+        FMQ_VERIFY(pos != ro->receivedPublishes.end());
 
         FMQ_COMPARE(pos->publishData.subscriptionIdentifierTesting, static_cast<uint32_t>(666));
         FMQ_COMPARE(pos->getTopic(), "several/sub/topics");

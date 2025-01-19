@@ -24,6 +24,12 @@ See LICENSE for license details.
 
 int FlashMQTestClient::clientCount = 0;
 
+void FlashMQTestClient::ReceivedObjects::clear()
+{
+    receivedPackets.clear();
+    receivedPublishes.clear();
+}
+
 FlashMQTestClient::FlashMQTestClient() :
     testServerWorkerThreadData(std::make_shared<ThreadData>(0, settings, pluginLoader)),
     dummyThreadData(std::make_shared<ThreadData>(666, settings, pluginLoader))
@@ -50,13 +56,9 @@ void FlashMQTestClient::waitForCondition(std::function<bool()> f, int timeout)
     {
         usleep(10000);
 
-        std::lock_guard<std::mutex> locker(receivedListMutex);
-
         if (f())
             break;
     }
-
-    std::lock_guard<std::mutex> locker(receivedListMutex);
 
     if (!f())
     {
@@ -66,9 +68,8 @@ void FlashMQTestClient::waitForCondition(std::function<bool()> f, int timeout)
 
 void FlashMQTestClient::clearReceivedLists()
 {
-    std::lock_guard<std::mutex> locker(receivedListMutex);
-    receivedPackets.clear();
-    receivedPublishes.clear();
+    auto received_objects_locked = receivedObjects.lock();
+    received_objects_locked->clear();
 }
 
 void FlashMQTestClient::setWill(std::shared_ptr<WillPublish> &will)
@@ -142,14 +143,14 @@ void FlashMQTestClient::connectClient(ProtocolVersion protocolVersion, bool clea
     {
         std::shared_ptr<Client> client = this->client_weak.lock();
 
-        std::lock_guard<std::mutex> locker(receivedListMutex);
-
         if (pack.packetType == PacketType::PUBLISH)
         {
             pack.parsePublishData(client);
 
+            auto received_objects_locked = receivedObjects.lock();
+
             MqttPacket copyPacket = pack;
-            this->receivedPublishes.push_back(copyPacket);
+            received_objects_locked->receivedPublishes.push_back(copyPacket);
 
             if (pack.getPublishData().qos == 1)
             {
@@ -175,7 +176,8 @@ void FlashMQTestClient::connectClient(ProtocolVersion protocolVersion, bool clea
             client->writeMqttPacketAndBlameThisClient(pubRel);
         }
 
-        this->receivedPackets.push_back(std::move(pack));
+        auto received_objects_locked = receivedObjects.lock();
+        received_objects_locked->receivedPackets.push_back(std::move(pack));
     };
 
     Connect connect(protocolVersion, client->getClientId());
@@ -212,10 +214,13 @@ void FlashMQTestClient::subscribe(const std::string topic, uint8_t qos, bool noL
     client->writeMqttPacketAndBlameThisClient(subPack);
 
     waitForCondition([&]() {
-        return  !this->receivedPackets.empty() && this->receivedPackets.front().packetType == PacketType::SUBACK;
+        auto ro = receivedObjects.lock();
+        return !ro->receivedPackets.empty() && ro->receivedPackets.front().packetType == PacketType::SUBACK;
     });
 
-    MqttPacket &subAck = this->receivedPackets.front();
+    auto ro = receivedObjects.lock();
+
+    MqttPacket &subAck = ro->receivedPackets.front();
     SubAckData data = subAck.parseSubAckData();
 
     if (data.packet_id != packet_id)
@@ -240,7 +245,8 @@ void FlashMQTestClient::unsubscribe(const std::string &topic)
     client->writeMqttPacketAndBlameThisClient(unsubPack);
 
     waitForCondition([&]() {
-        return  !this->receivedPackets.empty() && this->receivedPackets.front().packetType == PacketType::UNSUBACK;
+        auto ro = receivedObjects.lock();
+        return  !ro->receivedPackets.empty() && ro->receivedPackets.front().packetType == PacketType::UNSUBACK;
     });
 
     // TODO: parse the UNSUBACK and check reason codes.
@@ -262,10 +268,13 @@ void FlashMQTestClient::publish(Publish &pub)
     if (pub.qos == 1)
     {
         waitForCondition([&]() {
-           return !this->receivedPackets.empty();
+            auto ro = receivedObjects.lock();
+            return !ro->receivedPackets.empty();
         });
 
-        MqttPacket &pubAckPack = this->receivedPackets.front();
+        auto ro = receivedObjects.lock();
+
+        MqttPacket &pubAckPack = ro->receivedPackets.front();
         pubAckPack.parsePubAckData();
 
         if (pubAckPack.packetType != PacketType::PUBACK)
@@ -276,7 +285,7 @@ void FlashMQTestClient::publish(Publish &pub)
 
         // We may have received publishes along with our acks, if we publish and subscribe to the same topic with
         // one client, so we have to filter out the publishes.
-        int metaPacketCount = std::count_if(receivedPackets.begin(), receivedPackets.end(), [](MqttPacket &pack){return pack.packetType != PacketType::PUBLISH;});
+        int metaPacketCount = std::count_if(ro->receivedPackets.begin(), ro->receivedPackets.end(), [](MqttPacket &pack){return pack.packetType != PacketType::PUBLISH;});
 
         if (metaPacketCount != 1)
             throw std::runtime_error("Packet ID mismatch on QoS 1 publish or packet count wrong.");
@@ -284,12 +293,15 @@ void FlashMQTestClient::publish(Publish &pub)
     else if (pub.qos == 2)
     {
         waitForCondition([&]() {
-           return this->receivedPackets.size() >= 2;
+            auto ro = receivedObjects.lock();
+            return ro->receivedPackets.size() >= 2;
         });
 
-        MqttPacket &pubRecPack = this->receivedPackets.front();
+        auto ro = receivedObjects.lock();
+
+        MqttPacket &pubRecPack = ro->receivedPackets.front();
         pubRecPack.parsePubRecData();
-        MqttPacket &pubCompPack = this->receivedPackets.back();
+        MqttPacket &pubCompPack = ro->receivedPackets.back();
         pubCompPack.parsePubComp();
 
         if (pubRecPack.packetType != PacketType::PUBREC)
@@ -326,7 +338,9 @@ void FlashMQTestClient::waitForQuit()
 void FlashMQTestClient::waitForConnack()
 {
     waitForCondition([&]() {
-        return std::any_of(this->receivedPackets.begin(), this->receivedPackets.end(), [](const MqttPacket &p) {
+        auto ro = receivedObjects.lock();
+
+        return std::any_of(ro->receivedPackets.begin(), ro->receivedPackets.end(), [](const MqttPacket &p) {
             return p.packetType == PacketType::CONNACK || p.packetType == PacketType::AUTH;
         });
     });
@@ -335,7 +349,9 @@ void FlashMQTestClient::waitForConnack()
 void FlashMQTestClient::waitForDisconnectPacket()
 {
     waitForCondition([&]() {
-        return std::any_of(this->receivedPackets.begin(), this->receivedPackets.end(), [](const MqttPacket &p) {
+        auto ro = receivedObjects.lock();
+
+        return std::any_of(ro->receivedPackets.begin(), ro->receivedPackets.end(), [](const MqttPacket &p) {
             return p.packetType == PacketType::DISCONNECT;
         });
     });
@@ -344,14 +360,17 @@ void FlashMQTestClient::waitForDisconnectPacket()
 void FlashMQTestClient::waitForMessageCount(const size_t count, int timeout)
 {
     waitForCondition([&]() {
-        return this->receivedPublishes.size() >= count;
+        auto ro = receivedObjects.lock();
+
+        return ro->receivedPublishes.size() >= count;
     }, timeout);
 }
 
 void FlashMQTestClient::waitForPacketCount(const size_t count, int timeout)
 {
     waitForCondition([&]() {
-        return this->receivedPackets.size() >= count;
+        auto ro = receivedObjects.lock();
+        return ro->receivedPackets.size() >= count;
     }, timeout);
 }
 

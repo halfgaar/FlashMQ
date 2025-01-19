@@ -18,6 +18,7 @@ See LICENSE for license details.
 #include "settings.h"
 #include "threaddata.h"
 #include "checkedweakptr.h"
+#include "mutexowned.h"
 
 class SubAckIsError : public std::runtime_error
 {
@@ -30,6 +31,14 @@ public:
  */
 class FlashMQTestClient
 {
+    struct ReceivedObjects
+    {
+        std::vector<MqttPacket> receivedPackets;
+        std::vector<MqttPacket> receivedPublishes;
+
+        void clear();
+    };
+
     PluginLoader pluginLoader;
     Settings settings;
     std::shared_ptr<ThreadData> testServerWorkerThreadData;
@@ -38,16 +47,13 @@ class FlashMQTestClient
 
     std::shared_ptr<ThreadData> dummyThreadData;
 
-    std::mutex receivedListMutex;
-
     static int clientCount;
 
     void waitForCondition(std::function<bool()> f, int timeout = 1);
 
 
 public:
-    std::vector<MqttPacket> receivedPackets;
-    std::vector<MqttPacket> receivedPublishes;
+    MutexOwned<ReceivedObjects> receivedObjects;
 
     FlashMQTestClient();
     ~FlashMQTestClient();

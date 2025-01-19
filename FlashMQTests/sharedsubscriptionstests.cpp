@@ -95,12 +95,15 @@ void MainTests::testSharedSubscribers()
     receiver1.waitForMessageCount(1);
     receiver2.waitForMessageCount(1);
 
-    MYCASTCOMPARE(receiver1.receivedPublishes.size(), 1);
-    MYCASTCOMPARE(receiver2.receivedPublishes.size(), 1);
+    auto ro1 = receiver1.receivedObjects.lock();
+    auto ro2 = receiver2.receivedObjects.lock();
 
-    int rain = std::count_if(receiver1.receivedPublishes.begin(), receiver1.receivedPublishes.end(),
+    MYCASTCOMPARE(ro1->receivedPublishes.size(), 1);
+    MYCASTCOMPARE(ro2->receivedPublishes.size(), 1);
+
+    int rain = std::count_if(ro1->receivedPublishes.begin(), ro1->receivedPublishes.end(),
                              [](const MqttPacket &pack) { return pack.getPayloadCopy() == "rainy day";});
-    int sun = std::count_if(receiver2.receivedPublishes.begin(), receiver2.receivedPublishes.end(),
+    int sun = std::count_if(ro2->receivedPublishes.begin(), ro2->receivedPublishes.end(),
                             [](const MqttPacket &pack) { return pack.getPayloadCopy() == "sunny day";});
 
     QCOMPARE(rain, 1);
@@ -137,12 +140,15 @@ void MainTests::testDisconnectedSharedSubscribers()
     receiver1.waitForMessageCount(1);
     receiver3.waitForMessageCount(1);
 
-    MYCASTCOMPARE(receiver1.receivedPublishes.size(), 1);
-    MYCASTCOMPARE(receiver3.receivedPublishes.size(), 1);
+    auto ro1 = receiver1.receivedObjects.lock();
+    auto ro3 = receiver3.receivedObjects.lock();
 
-    int rain = std::count_if(receiver1.receivedPublishes.begin(), receiver1.receivedPublishes.end(),
+    MYCASTCOMPARE(ro1->receivedPublishes.size(), 1);
+    MYCASTCOMPARE(ro3->receivedPublishes.size(), 1);
+
+    int rain = std::count_if(ro1->receivedPublishes.begin(), ro1->receivedPublishes.end(),
                              [](const MqttPacket &pack) { return pack.getPayloadCopy() == "rainy day";});
-    int sun = std::count_if(receiver3.receivedPublishes.begin(), receiver3.receivedPublishes.end(),
+    int sun = std::count_if(ro3->receivedPublishes.begin(), ro3->receivedPublishes.end(),
                             [](const MqttPacket &pack) { return pack.getPayloadCopy() == "sunny day";});
 
     QCOMPARE(rain, 1);
@@ -179,12 +185,15 @@ void MainTests::testUnsubscribedSharedSubscribers()
     receiver1.waitForMessageCount(1);
     receiver3.waitForMessageCount(1);
 
-    MYCASTCOMPARE(receiver1.receivedPublishes.size(), 1);
-    MYCASTCOMPARE(receiver3.receivedPublishes.size(), 1);
+    auto ro1 = receiver1.receivedObjects.lock();
+    auto ro3 = receiver3.receivedObjects.lock();
 
-    int rain = std::count_if(receiver1.receivedPublishes.begin(), receiver1.receivedPublishes.end(),
+    MYCASTCOMPARE(ro1->receivedPublishes.size(), 1);
+    MYCASTCOMPARE(ro3->receivedPublishes.size(), 1);
+
+    int rain = std::count_if(ro1->receivedPublishes.begin(), ro1->receivedPublishes.end(),
                              [](const MqttPacket &pack) { return pack.getPayloadCopy() == "rainy day";});
-    int sun = std::count_if(receiver3.receivedPublishes.begin(), receiver3.receivedPublishes.end(),
+    int sun = std::count_if(ro3->receivedPublishes.begin(), ro3->receivedPublishes.end(),
                             [](const MqttPacket &pack) { return pack.getPayloadCopy() == "sunny day";});
 
     QCOMPARE(rain, 1);
@@ -244,12 +253,15 @@ void MainTests::testSharedSubscribersSurviveRestart()
     receiver1.waitForMessageCount(1);
     receiver2.waitForMessageCount(1);
 
-    MYCASTCOMPARE(receiver1.receivedPublishes.size(), 1);
-    MYCASTCOMPARE(receiver2.receivedPublishes.size(), 1);
+    auto ro1 = receiver1.receivedObjects.lock();
+    auto ro2 = receiver2.receivedObjects.lock();
 
-    int rain = std::count_if(receiver1.receivedPublishes.begin(), receiver1.receivedPublishes.end(),
+    MYCASTCOMPARE(ro1->receivedPublishes.size(), 1);
+    MYCASTCOMPARE(ro2->receivedPublishes.size(), 1);
+
+    int rain = std::count_if(ro1->receivedPublishes.begin(), ro1->receivedPublishes.end(),
                              [](const MqttPacket &pack) { return pack.getPayloadCopy() == "rainy day";});
-    int sun = std::count_if(receiver2.receivedPublishes.begin(), receiver2.receivedPublishes.end(),
+    int sun = std::count_if(ro2->receivedPublishes.begin(), ro2->receivedPublishes.end(),
                             [](const MqttPacket &pack) { return pack.getPayloadCopy() == "sunny day";});
 
     QCOMPARE(rain, 1);
@@ -278,5 +290,7 @@ void MainTests::testSharedSubscriberDoesntGetRetainedMessages()
 
     usleep(250000);
 
-    MYCASTCOMPARE(receiver.receivedPublishes.size(), 0);
+    auto ro = receiver.receivedObjects.lock();
+
+    MYCASTCOMPARE(ro->receivedPublishes.size(), 0);
 }

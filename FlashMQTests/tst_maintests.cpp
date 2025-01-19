@@ -289,9 +289,11 @@ void MainTests::test_various_packet_sizes()
                 sender.publish(topic, payload, 0);
                 receiver.waitForMessageCount(1, 2);
 
-                MYCASTCOMPARE(receiver.receivedPublishes.size(), 1);
+                auto ro = receiver.receivedObjects.lock();
 
-                MqttPacket &msg = receiver.receivedPublishes.front();
+                MYCASTCOMPARE(ro->receivedPublishes.size(), 1);
+
+                MqttPacket &msg = ro->receivedPublishes.front();
                 QCOMPARE(msg.getPayloadCopy(), payload);
                 QVERIFY(!msg.getRetain());
             }
@@ -1246,8 +1248,10 @@ void testDowngradeQoSOnSubscribeHelper(const uint8_t pub_qos, const uint8_t sub_
 
             receiver.waitForMessageCount(1);
 
-            MYCASTCOMPARE(receiver.receivedPublishes.size(), 1);
-            MqttPacket &recv = receiver.receivedPublishes.front();
+            auto ro = receiver.receivedObjects.lock();
+
+            MYCASTCOMPARE(ro->receivedPublishes.size(), 1);
+            MqttPacket &recv = ro->receivedPublishes.front();
 
             const uint8_t expected_qos = std::min<const uint8_t>(pub_qos, sub_qos);
             QVERIFY2(recv.getQos() == expected_qos, formatString("Failure: received QoS is %d. Published is %d. Subscribed as %d. Expected QoS is %d",
@@ -1352,33 +1356,41 @@ void MainTests::testNotMessingUpQosLevels()
             testContextReceiver4.waitForMessageCount(1);
             testContextReceiver5.waitForMessageCount(1);
 
-            MYCASTCOMPARE(testContextReceiver1.receivedPublishes.size(), 1);
-            MYCASTCOMPARE(testContextReceiver2.receivedPublishes.size(), 1);
-            MYCASTCOMPARE(testContextReceiver3.receivedPublishes.size(), 1);
-            MYCASTCOMPARE(testContextReceiver4.receivedPublishes.size(), 1);
-            MYCASTCOMPARE(testContextReceiver5.receivedPublishes.size(), 1);
-            MYCASTCOMPARE(testContextReceiverMqtt3.receivedPublishes.size(), 1);
-            MYCASTCOMPARE(testContextReceiverMqtt5.receivedPublishes.size(), 1);
+            auto testContextReceiver1_ro = testContextReceiver1.receivedObjects.lock();
+            auto testContextReceiver2_ro = testContextReceiver2.receivedObjects.lock();
+            auto testContextReceiver3_ro = testContextReceiver3.receivedObjects.lock();
+            auto testContextReceiver4_ro = testContextReceiver4.receivedObjects.lock();
+            auto testContextReceiver5_ro = testContextReceiver5.receivedObjects.lock();
+            auto testContextReceiverMqtt3_ro = testContextReceiverMqtt3.receivedObjects.lock();
+            auto testContextReceiverMqtt5_ro = testContextReceiverMqtt5.receivedObjects.lock();
 
-            QCOMPARE(testContextReceiver1.receivedPublishes.front().getQos(), 0);
-            QCOMPARE(testContextReceiver2.receivedPublishes.front().getQos(), 1);
-            QCOMPARE(testContextReceiver3.receivedPublishes.front().getQos(), 2);
-            QCOMPARE(testContextReceiver4.receivedPublishes.front().getQos(), 1);
-            QCOMPARE(testContextReceiver5.receivedPublishes.front().getQos(), 0);
-            QCOMPARE(testContextReceiverMqtt3.receivedPublishes.front().getQos(), 0);
-            QCOMPARE(testContextReceiverMqtt5.receivedPublishes.front().getQos(), 0);
+            MYCASTCOMPARE(testContextReceiver1_ro->receivedPublishes.size(), 1);
+            MYCASTCOMPARE(testContextReceiver2_ro->receivedPublishes.size(), 1);
+            MYCASTCOMPARE(testContextReceiver3_ro->receivedPublishes.size(), 1);
+            MYCASTCOMPARE(testContextReceiver4_ro->receivedPublishes.size(), 1);
+            MYCASTCOMPARE(testContextReceiver5_ro->receivedPublishes.size(), 1);
+            MYCASTCOMPARE(testContextReceiverMqtt3_ro->receivedPublishes.size(), 1);
+            MYCASTCOMPARE(testContextReceiverMqtt5_ro->receivedPublishes.size(), 1);
 
-            QCOMPARE(testContextReceiver1.receivedPublishes.front().getPayloadCopy(), payload);
-            QCOMPARE(testContextReceiver2.receivedPublishes.front().getPayloadCopy(), payload);
-            QCOMPARE(testContextReceiver3.receivedPublishes.front().getPayloadCopy(), payload);
-            QCOMPARE(testContextReceiver4.receivedPublishes.front().getPayloadCopy(), payload);
-            QCOMPARE(testContextReceiver5.receivedPublishes.front().getPayloadCopy(), payload);
-            QCOMPARE(testContextReceiverMqtt3.receivedPublishes.front().getPayloadCopy(), payload);
-            QCOMPARE(testContextReceiverMqtt5.receivedPublishes.front().getPayloadCopy(), payload);
+            QCOMPARE(testContextReceiver1_ro->receivedPublishes.front().getQos(), 0);
+            QCOMPARE(testContextReceiver2_ro->receivedPublishes.front().getQos(), 1);
+            QCOMPARE(testContextReceiver3_ro->receivedPublishes.front().getQos(), 2);
+            QCOMPARE(testContextReceiver4_ro->receivedPublishes.front().getQos(), 1);
+            QCOMPARE(testContextReceiver5_ro->receivedPublishes.front().getQos(), 0);
+            QCOMPARE(testContextReceiverMqtt3_ro->receivedPublishes.front().getQos(), 0);
+            QCOMPARE(testContextReceiverMqtt5_ro->receivedPublishes.front().getQos(), 0);
 
-            QCOMPARE(testContextReceiver2.receivedPublishes.front().getPacketId(), 1);
-            QCOMPARE(testContextReceiver3.receivedPublishes.front().getPacketId(), 1);
-            QCOMPARE(testContextReceiver4.receivedPublishes.front().getPacketId(), 1);
+            QCOMPARE(testContextReceiver1_ro->receivedPublishes.front().getPayloadCopy(), payload);
+            QCOMPARE(testContextReceiver2_ro->receivedPublishes.front().getPayloadCopy(), payload);
+            QCOMPARE(testContextReceiver3_ro->receivedPublishes.front().getPayloadCopy(), payload);
+            QCOMPARE(testContextReceiver4_ro->receivedPublishes.front().getPayloadCopy(), payload);
+            QCOMPARE(testContextReceiver5_ro->receivedPublishes.front().getPayloadCopy(), payload);
+            QCOMPARE(testContextReceiverMqtt3_ro->receivedPublishes.front().getPayloadCopy(), payload);
+            QCOMPARE(testContextReceiverMqtt5_ro->receivedPublishes.front().getPayloadCopy(), payload);
+
+            QCOMPARE(testContextReceiver2_ro->receivedPublishes.front().getPacketId(), 1);
+            QCOMPARE(testContextReceiver3_ro->receivedPublishes.front().getPacketId(), 1);
+            QCOMPARE(testContextReceiver4_ro->receivedPublishes.front().getPacketId(), 1);
         }
     }
 }
@@ -1404,19 +1416,23 @@ void MainTests::testUnSubscribe()
 
     receiver.waitForMessageCount(3);
 
-    QVERIFY(std::any_of(receiver.receivedPublishes.begin(), receiver.receivedPublishes.end(), [](const MqttPacket &pack) {
-        return pack.getPayloadCopy() == "Bunch here" && pack.getTopic() == "Rebecca/Bunch";
-    }));
+    {
+        auto ro = receiver.receivedObjects.lock();
 
-    QVERIFY(std::any_of(receiver.receivedPublishes.begin(), receiver.receivedPublishes.end(), [](const MqttPacket &pack) {
-        return pack.getPayloadCopy() == "Anteater" && pack.getTopic() == "White/Josh";
-    }));
+        QVERIFY(std::any_of(ro->receivedPublishes.begin(), ro->receivedPublishes.end(), [](const MqttPacket &pack) {
+            return pack.getPayloadCopy() == "Bunch here" && pack.getTopic() == "Rebecca/Bunch";
+        }));
 
-    QVERIFY(std::any_of(receiver.receivedPublishes.begin(), receiver.receivedPublishes.end(), [](const MqttPacket &pack) {
-        return pack.getPayloadCopy() == "Human flip-flop" && pack.getTopic() == "Josh/Chan";
-    }));
+        QVERIFY(std::any_of(ro->receivedPublishes.begin(), ro->receivedPublishes.end(), [](const MqttPacket &pack) {
+            return pack.getPayloadCopy() == "Anteater" && pack.getTopic() == "White/Josh";
+        }));
 
-    MYCASTCOMPARE(receiver.receivedPublishes.size(), 3);
+        QVERIFY(std::any_of(ro->receivedPublishes.begin(), ro->receivedPublishes.end(), [](const MqttPacket &pack) {
+            return pack.getPayloadCopy() == "Human flip-flop" && pack.getTopic() == "Josh/Chan";
+        }));
+
+        MYCASTCOMPARE(ro->receivedPublishes.size(), 3);
+    }
 
     receiver.clearReceivedLists();
 
@@ -1428,15 +1444,19 @@ void MainTests::testUnSubscribe()
 
     receiver.waitForMessageCount(2);
 
-    MYCASTCOMPARE(receiver.receivedPublishes.size(), 2);
+    {
+        auto ro = receiver.receivedObjects.lock();
 
-    QVERIFY(std::any_of(receiver.receivedPublishes.begin(), receiver.receivedPublishes.end(), [](const MqttPacket &pack) {
-        return pack.getPayloadCopy() == "Bunch here" && pack.getTopic() == "Rebecca/Bunch";
-    }));
+        MYCASTCOMPARE(ro->receivedPublishes.size(), 2);
 
-    QVERIFY(std::any_of(receiver.receivedPublishes.begin(), receiver.receivedPublishes.end(), [](const MqttPacket &pack) {
-        return pack.getPayloadCopy() == "Anteater" && pack.getTopic() == "White/Josh";
-    }));
+        QVERIFY(std::any_of(ro->receivedPublishes.begin(), ro->receivedPublishes.end(), [](const MqttPacket &pack) {
+            return pack.getPayloadCopy() == "Bunch here" && pack.getTopic() == "Rebecca/Bunch";
+        }));
+
+        QVERIFY(std::any_of(ro->receivedPublishes.begin(), ro->receivedPublishes.end(), [](const MqttPacket &pack) {
+            return pack.getPayloadCopy() == "Anteater" && pack.getTopic() == "White/Josh";
+        }));
+    }
 }
 
 void MainTests::testUnsubscribeNonExistingWildcard()
@@ -1460,13 +1480,17 @@ void MainTests::testBasicsWithFlashMQTestClient()
     client.start();
     client.connectClient(ProtocolVersion::Mqtt311);
 
-    MqttPacket &connAckPack = client.receivedPackets.front();
-    QVERIFY(connAckPack.packetType == PacketType::CONNACK);
+    {
+        auto ro = client.receivedObjects.lock();
+        MqttPacket &connAckPack = ro->receivedPackets.at(0);
+        QVERIFY(connAckPack.packetType == PacketType::CONNACK);
+    }
 
     {
         client.subscribe("a/b", 1);
+        auto ro = client.receivedObjects.lock();
 
-        MqttPacket &subAck = client.receivedPackets.front();
+        MqttPacket &subAck = ro->receivedPackets.at(0);
         SubAckData subAckData = subAck.parseSubAckData();
 
         QVERIFY(subAckData.subAckCodes.size() == 1);
@@ -1475,8 +1499,9 @@ void MainTests::testBasicsWithFlashMQTestClient()
 
     {
         client.subscribe("c/d", 2);
+        auto ro = client.receivedObjects.lock();
 
-        MqttPacket &subAck = client.receivedPackets.front();
+        MqttPacket &subAck = ro->receivedPackets.at(0);
         SubAckData subAckData = subAck.parseSubAckData();
 
         QVERIFY(subAckData.subAckCodes.size() == 1);
@@ -1493,7 +1518,8 @@ void MainTests::testBasicsWithFlashMQTestClient()
         publisher.publish("a/b", "wave", 2);
 
         client.waitForMessageCount(1);
-        MqttPacket &p = client.receivedPublishes.front();
+        auto ro = client.receivedObjects.lock();
+        MqttPacket &p = ro->receivedPublishes.at(0);
 
         QCOMPARE(p.getPublishData().topic, "a/b");
         QCOMPARE(p.getPayloadCopy(), "wave");
@@ -1508,9 +1534,11 @@ void MainTests::testBasicsWithFlashMQTestClient()
         publisher.publish("c/d", "asdfasdfasdf", 2);
 
         client.waitForMessageCount(1);
-        MqttPacket &p = client.receivedPublishes.back();
+        auto ro = client.receivedObjects.lock();
 
-        MYCASTCOMPARE(client.receivedPublishes.size(), 1);
+        MqttPacket &p = ro->receivedPublishes.back();
+
+        MYCASTCOMPARE(ro->receivedPublishes.size(), 1);
 
         QCOMPARE(p.getPublishData().topic, "c/d");
         QCOMPARE(p.getPayloadCopy(), "asdfasdfasdf");
@@ -1543,8 +1571,9 @@ void MainTests::testDontRemoveSessionGivenToNewClientWithSameId()
 
     {
         receiver.waitForMessageCount(1);
+        auto ro = receiver.receivedObjects.lock();
 
-        const MqttPacket &pack1 = receiver.receivedPublishes.at(0);
+        const MqttPacket &pack1 = ro->receivedPublishes.at(0);
 
         QCOMPARE(pack1.getTopic(), "just/a/path");
         QCOMPARE(pack1.getPayloadCopy(), "AAAAA");
@@ -1573,7 +1602,8 @@ void MainTests::testDontRemoveSessionGivenToNewClientWithSameId()
             QFAIL("The second subscriber did not get the message, so the subscription failed.");
         }
 
-        const MqttPacket &pack1 = receiver2.receivedPublishes.at(0);
+        auto ro = receiver2.receivedObjects.lock();
+        const MqttPacket &pack1 = ro->receivedPublishes.at(0);
 
         QCOMPARE(pack1.getTopic(), "just/a/path");
         QCOMPARE(pack1.getPayloadCopy(), "AAAAA");
@@ -1616,7 +1646,8 @@ void MainTests::testKeepSubscriptionOnKickingOutExistingClientWithCleanSessionFa
             QFAIL("The second subscriber did not get the message, so the subscription failed.");
         }
 
-        const MqttPacket &pack1 = receiver2.receivedPublishes.at(0);
+        auto ro = receiver2.receivedObjects.lock();
+        const MqttPacket &pack1 = ro->receivedPublishes.at(0);
 
         QCOMPARE(pack1.getTopic(), "just/a/path");
         QCOMPARE(pack1.getPayloadCopy(), "AAAAA");
@@ -1661,7 +1692,8 @@ void MainTests::testPickUpSessionWithSubscriptionsAfterDisconnect()
             QFAIL("The second subscriber did not get the message, so the subscription failed.");
         }
 
-        const MqttPacket &pack1 = receiver2.receivedPublishes.at(0);
+        auto ro = receiver2.receivedObjects.lock();
+        const MqttPacket &pack1 = ro->receivedPublishes.at(0);
 
         QCOMPARE(pack1.getTopic(), "just/a/path");
         QCOMPARE(pack1.getPayloadCopy(), "AAAAAB");
@@ -1693,9 +1725,10 @@ void MainTests::testIncomingTopicAlias()
     }
 
     receiver.waitForMessageCount(2);
+    auto ro = receiver.receivedObjects.lock();
 
-    const MqttPacket &pack1 = receiver.receivedPublishes.at(0);
-    const MqttPacket &pack2 = receiver.receivedPublishes.at(1);
+    const MqttPacket &pack1 = ro->receivedPublishes.at(0);
+    const MqttPacket &pack2 = ro->receivedPublishes.at(1);
 
     QCOMPARE(pack1.getTopic(), "just/a/path");
     QCOMPARE(pack1.getPayloadCopy(), "AAAAA");
@@ -1729,7 +1762,8 @@ void MainTests::testOutgoingTopicAlias()
     receiver2.waitForMessageCount(2);
 
     {
-        const MqttPacket &fullPacket = receiver1.receivedPublishes.at(0);
+        auto ro = receiver1.receivedObjects.lock();
+        const MqttPacket &fullPacket = ro->receivedPublishes.at(0);
         QCOMPARE(fullPacket.getTopic(), "don't/be/a/laywer");
         QCOMPARE(fullPacket.getPayloadCopy(), "ABCDEF");
         MYCASTCOMPARE(fullPacket.bites.size(), 31);
@@ -1738,7 +1772,8 @@ void MainTests::testOutgoingTopicAlias()
     }
 
     {
-        const MqttPacket &shorterPacket = receiver1.receivedPublishes.at(1);
+        auto ro = receiver1.receivedObjects.lock();
+        const MqttPacket &shorterPacket = ro->receivedPublishes.at(1);
         QCOMPARE(shorterPacket.getTopic(), "don't/be/a/laywer");
         QCOMPARE(shorterPacket.getPayloadCopy(), "ABCDEF");
         MYCASTCOMPARE(shorterPacket.bites.size(), 14);
@@ -1746,13 +1781,17 @@ void MainTests::testOutgoingTopicAlias()
         QVERIFY(!strContains(arrayContent, "don't/be/a/laywer"));
     }
 
-    MYCASTCOMPARE(receiver2.receivedPublishes.size(), 2);
+    {
+        auto ro = receiver2.receivedObjects.lock();
 
-    std::for_each(receiver2.receivedPublishes.begin(), receiver2.receivedPublishes.end(), [](MqttPacket &packet) {
-        QCOMPARE(packet.getTopic(), "don't/be/a/laywer");
-        QCOMPARE(packet.getPayloadCopy(), "ABCDEF");
-        MYCASTCOMPARE(packet.bites.size(), 28); // That's 3 less than the other one, because the alias id is not there.
-    });
+        MYCASTCOMPARE(ro->receivedPublishes.size(), 2);
+
+        std::for_each(ro->receivedPublishes.begin(), ro->receivedPublishes.end(), [](MqttPacket &packet) {
+            QCOMPARE(packet.getTopic(), "don't/be/a/laywer");
+            QCOMPARE(packet.getPayloadCopy(), "ABCDEF");
+            MYCASTCOMPARE(packet.bites.size(), 28); // That's 3 less than the other one, because the alias id is not there.
+        });
+    }
 }
 
 void MainTests::testOutgoingTopicAliasBeyondMax()
@@ -1776,12 +1815,15 @@ void MainTests::testOutgoingTopicAliasBeyondMax()
 
     receiver1.waitForMessageCount(7);
 
-    for (int i = 0; i < 7; i++)
     {
-        auto &packet = receiver1.receivedPublishes.at(i);
-        FMQ_COMPARE(packet.getTopic(), std::to_string(i) + "/bottles/of/beer/on/the/wall/take/one/down/pass/it/around");
-        size_t expected_size = i < 5 ? 72 : 69; // The ones with a topic alias in them are slightly bigger.
-        FMQ_COMPARE(packet.bites.size(), expected_size);
+        auto ro = receiver1.receivedObjects.lock();
+        for (int i = 0; i < 7; i++)
+        {
+            auto &packet = ro->receivedPublishes.at(i);
+            FMQ_COMPARE(packet.getTopic(), std::to_string(i) + "/bottles/of/beer/on/the/wall/take/one/down/pass/it/around");
+            size_t expected_size = i < 5 ? 72 : 69; // The ones with a topic alias in them are slightly bigger.
+            FMQ_COMPARE(packet.bites.size(), expected_size);
+        }
     }
 
     receiver1.clearReceivedLists();
@@ -1794,13 +1836,17 @@ void MainTests::testOutgoingTopicAliasBeyondMax()
 
     receiver1.waitForMessageCount(7);
 
-    // Now the first give should be smaller, and the last two normal (no topic alias property and the topic string included).
-    for (int i = 0; i < 7; i++)
     {
-        auto &packet = receiver1.receivedPublishes.at(i);
-        FMQ_COMPARE(packet.getTopic(), std::to_string(i) + "/bottles/of/beer/on/the/wall/take/one/down/pass/it/around");
-        size_t expected_size = i < 5 ? 14 : 69;
-        FMQ_COMPARE(packet.bites.size(), expected_size);
+        auto ro = receiver1.receivedObjects.lock();
+
+        // Now the first give should be smaller, and the last two normal (no topic alias property and the topic string included).
+        for (int i = 0; i < 7; i++)
+        {
+            auto &packet = ro->receivedPublishes.at(i);
+            FMQ_COMPARE(packet.getTopic(), std::to_string(i) + "/bottles/of/beer/on/the/wall/take/one/down/pass/it/around");
+            size_t expected_size = i < 5 ? 14 : 69;
+            FMQ_COMPARE(packet.bites.size(), expected_size);
+        }
     }
 
 }
@@ -1830,8 +1876,12 @@ void MainTests::testOutgoingTopicAliasStoredPublishes()
     sender2.publish("last/dance/long/long", "normal payload", 0);
 
     receiver1.waitForMessageCount(1);
-    QCOMPARE(receiver1.receivedPublishes.front().getPayloadCopy(), "normal payload");
-    MYCASTCOMPARE(receiver1.receivedPublishes.front().bites.size(), 42);
+
+    {
+        auto ro = receiver1.receivedObjects.lock();
+        QCOMPARE(ro->receivedPublishes.front().getPayloadCopy(), "normal payload");
+        MYCASTCOMPARE(ro->receivedPublishes.front().bites.size(), 42);
+    }
 
     receiver1.clearReceivedLists();
 
@@ -1839,8 +1889,12 @@ void MainTests::testOutgoingTopicAliasStoredPublishes()
     sender.reset();
 
     receiver1.waitForMessageCount(1);
-    QCOMPARE(receiver1.receivedPublishes.front().getPayloadCopy(), "will payload");
-    QVERIFY(receiver1.receivedPublishes.front().bites.size() < 35);
+
+    {
+        auto ro = receiver1.receivedObjects.lock();
+        QCOMPARE(ro->receivedPublishes.front().getPayloadCopy(), "will payload");
+        QVERIFY(ro->receivedPublishes.front().bites.size() < 35);
+    }
 }
 
 void MainTests::testReceivingRetainedMessageWithQoS()
@@ -1874,11 +1928,13 @@ void MainTests::testReceivingRetainedMessageWithQoS()
 
             const uint8_t expQos = std::min<uint8_t>(sendQos, subscribeQos);
 
-            MYCASTCOMPARE(receiver.receivedPublishes.size(), 1);
-            MYCASTCOMPARE(receiver.receivedPublishes.front().getQos(), expQos);
-            MYCASTCOMPARE(receiver.receivedPublishes.front().getTopic(), "topic1/FOOBAR");
-            MYCASTCOMPARE(receiver.receivedPublishes.front().getPayloadCopy(), payload);
-            MYCASTCOMPARE(receiver.receivedPublishes.front().getRetain(), true);
+            auto ro = receiver.receivedObjects.lock();
+
+            MYCASTCOMPARE(ro->receivedPublishes.size(), 1);
+            MYCASTCOMPARE(ro->receivedPublishes.front().getQos(), expQos);
+            MYCASTCOMPARE(ro->receivedPublishes.front().getTopic(), "topic1/FOOBAR");
+            MYCASTCOMPARE(ro->receivedPublishes.front().getPayloadCopy(), payload);
+            MYCASTCOMPARE(ro->receivedPublishes.front().getRetain(), true);
         }
     }
 
@@ -1933,11 +1989,15 @@ void MainTests::testQosDowngradeOnOfflineClients()
 
                 const uint8_t expQos = std::min<uint8_t>(sendQos, subscribeQos);
 
-                MYCASTCOMPARE(receiver->receivedPublishes.size(), 10);
+                {
+                    auto ro = receiver->receivedObjects.lock();
 
-                QVERIFY(std::all_of(receiver->receivedPublishes.begin(), receiver->receivedPublishes.end(), [&](MqttPacket &pack) { return pack.getQos() == expQos;}));
-                QVERIFY(std::all_of(receiver->receivedPublishes.begin(), receiver->receivedPublishes.end(), [&](MqttPacket &pack) { return pack.getTopic() == "topic1/FOOBAR";}));
-                QVERIFY(std::all_of(receiver->receivedPublishes.begin(), receiver->receivedPublishes.end(), [&](MqttPacket &pack) { return pack.getPayloadCopy() == payload;}));
+                    MYCASTCOMPARE(ro->receivedPublishes.size(), 10);
+
+                    QVERIFY(std::all_of(ro->receivedPublishes.begin(), ro->receivedPublishes.end(), [&](MqttPacket &pack) { return pack.getQos() == expQos;}));
+                    QVERIFY(std::all_of(ro->receivedPublishes.begin(), ro->receivedPublishes.end(), [&](MqttPacket &pack) { return pack.getTopic() == "topic1/FOOBAR";}));
+                    QVERIFY(std::all_of(ro->receivedPublishes.begin(), ro->receivedPublishes.end(), [&](MqttPacket &pack) { return pack.getPayloadCopy() == payload;}));
+                }
 
                 receiver.reset();
 
@@ -1950,7 +2010,8 @@ void MainTests::testQosDowngradeOnOfflineClients()
 
                 usleep(100000);
 
-                QVERIFY(receiver->receivedPublishes.empty());
+                auto ro = receiver->receivedObjects.lock();
+                QVERIFY(ro->receivedPublishes.empty());
             }
         }
     }
@@ -1982,25 +2043,32 @@ void MainTests::testUserProperties()
     receiver5.waitForMessageCount(1);
     receiver3.waitForMessageCount(1);
 
-    MqttPacket &pack5 = receiver5.receivedPublishes.front();
+    {
+        auto ro5 = receiver5.receivedObjects.lock();
 
-    const std::vector<std::pair<std::string, std::string>> *properties5 = pack5.getUserProperties();
+        MqttPacket &pack5 = ro5->receivedPublishes.front();
 
-    QVERIFY(properties5);
-    MYCASTCOMPARE(properties5->size(), 2);
+        const std::vector<std::pair<std::string, std::string>> *properties5 = pack5.getUserProperties();
 
-    const std::pair<std::string, std::string> &firstPair = properties5->operator[](0);
-    const std::pair<std::string, std::string> &secondPair = properties5->operator[](1);
+        QVERIFY(properties5);
+        MYCASTCOMPARE(properties5->size(), 2);
 
-    QCOMPARE(firstPair.first, "mykey");
-    QCOMPARE(firstPair.second, "myval");
+        const std::pair<std::string, std::string> &firstPair = properties5->operator[](0);
+        const std::pair<std::string, std::string> &secondPair = properties5->operator[](1);
 
-    QCOMPARE(secondPair.first, "mykeyhaha");
-    QCOMPARE(secondPair.second, "myvalhaha");
+        QCOMPARE(firstPair.first, "mykey");
+        QCOMPARE(firstPair.second, "myval");
 
-    MqttPacket &pack3 = receiver3.receivedPublishes.front();
-    const std::vector<std::pair<std::string, std::string>> *properties3 = pack3.getUserProperties();
-    QVERIFY(properties3 == nullptr);
+        QCOMPARE(secondPair.first, "mykeyhaha");
+        QCOMPARE(secondPair.second, "myvalhaha");
+    }
+
+    {
+        auto ro3 = receiver3.receivedObjects.lock();
+        MqttPacket &pack3 = ro3->receivedPublishes.front();
+        const std::vector<std::pair<std::string, std::string>> *properties3 = pack3.getUserProperties();
+        QVERIFY(properties3 == nullptr);
+    }
 }
 
 void MainTests::testMessageExpiry()
@@ -2030,9 +2098,12 @@ void MainTests::testMessageExpiry()
 
     receiver->waitForMessageCount(1);
 
-    QVERIFY(receiver->receivedPublishes.size() == 1);
-    QCOMPARE(receiver->receivedPublishes.front().getTopic(), "a/b/c/d/e");
-    QCOMPARE(receiver->receivedPublishes.front().getPayloadCopy(), "smoke");
+    {
+        auto ro = receiver->receivedObjects.lock();
+        QVERIFY(ro->receivedPublishes.size() == 1);
+        QCOMPARE(ro->receivedPublishes.front().getTopic(), "a/b/c/d/e");
+        QCOMPARE(ro->receivedPublishes.front().getPayloadCopy(), "smoke");
+    }
 
     // Then we test delivering it to an offline client and see if we get it if we are fast enough.
 
@@ -2043,9 +2114,12 @@ void MainTests::testMessageExpiry()
     makeReceiver();
     receiver->waitForMessageCount(1);
 
-    MYCASTCOMPARE(receiver->receivedPublishes.size(), 1);
-    QCOMPARE(receiver->receivedPublishes.front().getTopic(), "a/b/c/d/e");
-    QCOMPARE(receiver->receivedPublishes.front().getPayloadCopy(), "smoke");
+    {
+        auto ro = receiver->receivedObjects.lock();
+        MYCASTCOMPARE(ro->receivedPublishes.size(), 1);
+        QCOMPARE(ro->receivedPublishes.front().getTopic(), "a/b/c/d/e");
+        QCOMPARE(ro->receivedPublishes.front().getPayloadCopy(), "smoke");
+    }
 
     // Then we test delivering it to an offline client that comes back too late.
 
@@ -2056,7 +2130,8 @@ void MainTests::testMessageExpiry()
     makeReceiver();
     usleep(100000);
     receiver->waitForMessageCount(0);
-    QVERIFY(receiver->receivedPublishes.empty());
+    auto ro = receiver->receivedObjects.lock();
+    QVERIFY(ro->receivedPublishes.empty());
 
 }
 
@@ -2116,13 +2191,18 @@ void MainTests::testExpiredQueuedMessages()
         }
         catch (std::exception &ex)
         {
-            MYCASTCOMPARE(receiver->receivedPublishes.size(), 32);
+            auto ro = receiver->receivedObjects.lock();
+            MYCASTCOMPARE(ro->receivedPublishes.size(), 32);
         }
 
-        MYCASTCOMPARE(receiver->receivedPublishes.size(), 32);
-        QVERIFY(std::any_of(receiver->receivedPublishes.begin(), receiver->receivedPublishes.end(), [](MqttPacket &p) {
-            return p.getTopic() == "this/one/expires";
-        }));
+        {
+            auto ro = receiver->receivedObjects.lock();
+
+            MYCASTCOMPARE(ro->receivedPublishes.size(), 32);
+            QVERIFY(std::any_of(ro->receivedPublishes.begin(), ro->receivedPublishes.end(), [](MqttPacket &p) {
+                return p.getTopic() == "this/one/expires";
+            }));
+        }
 
         receiver.reset();
 
@@ -2151,11 +2231,14 @@ void MainTests::testExpiredQueuedMessages()
         }
         catch (std::exception &ex)
         {
-            MYCASTCOMPARE(receiver->receivedPublishes.size(), 32);
+            auto ro = receiver->receivedObjects.lock();
+            MYCASTCOMPARE(ro->receivedPublishes.size(), 32);
         }
 
-        MYCASTCOMPARE(receiver->receivedPublishes.size(), 32);
-        QVERIFY(std::none_of(receiver->receivedPublishes.begin(), receiver->receivedPublishes.end(), [](MqttPacket &p) {
+        auto ro = receiver->receivedObjects.lock();
+
+        MYCASTCOMPARE(ro->receivedPublishes.size(), 32);
+        QVERIFY(std::none_of(ro->receivedPublishes.begin(), ro->receivedPublishes.end(), [](MqttPacket &p) {
             return p.getTopic() == "this/one/expires";
         }));
 
@@ -2163,12 +2246,12 @@ void MainTests::testExpiredQueuedMessages()
 
         for (int i = 0; i < 20; i++)
         {
-            QCOMPARE(receiver->receivedPublishes[pi++].getTopic(), formatString("late/topic/%d", i));
+            QCOMPARE(ro->receivedPublishes[pi++].getTopic(), formatString("late/topic/%d", i));
         }
 
         for (int i = 0; i < 12; i++)
         {
-            QCOMPARE(receiver->receivedPublishes[pi++].getTopic(), formatString("topic/%d", i));
+            QCOMPARE(ro->receivedPublishes[pi++].getTopic(), formatString("topic/%d", i));
         }
 
         MYCASTCOMPARE(pi, 32);
@@ -2350,7 +2433,8 @@ void MainTests::testMosquittoPasswordFile()
             connect.password = "one";
         });
 
-        auto ack = client.receivedPackets.front();
+        auto ro = client.receivedObjects.lock();
+        auto ack = ro->receivedPackets.front();
         ConnAckData ackData = ack.parseConnAckData();
         QCOMPARE(ackData.reasonCode, ReasonCodes::Success);
     }
@@ -2363,7 +2447,8 @@ void MainTests::testMosquittoPasswordFile()
             connect.password = "two";
         });
 
-        auto ack = client.receivedPackets.front();
+        auto ro = client.receivedObjects.lock();
+        auto ack = ro->receivedPackets.front();
         ConnAckData ackData = ack.parseConnAckData();
         QCOMPARE(ackData.reasonCode, ReasonCodes::Success);
     }
@@ -2376,7 +2461,8 @@ void MainTests::testMosquittoPasswordFile()
             connect.password = "wrongpasswordforexistinguser";
         });
 
-        auto ack = client.receivedPackets.front();
+        auto ro = client.receivedObjects.lock();
+        auto ack = ro->receivedPackets.front();
         ConnAckData ackData = ack.parseConnAckData();
         QCOMPARE(ackData.reasonCode, ReasonCodes::NotAuthorized);
     }
@@ -2389,7 +2475,8 @@ void MainTests::testMosquittoPasswordFile()
             connect.password = "nonexistinguser";
         });
 
-        auto ack = client.receivedPackets.front();
+        auto ro = client.receivedObjects.lock();
+        auto ack = ro->receivedPackets.front();
         ConnAckData ackData = ack.parseConnAckData();
         QCOMPARE(ackData.reasonCode, ReasonCodes::NotAuthorized);
     }
@@ -2434,7 +2521,8 @@ listen {
                 connect.password = "one";
             }, port);
 
-            auto ack = client.receivedPackets.front();
+            auto ro = client.receivedObjects.lock();
+            auto ack = ro->receivedPackets.front();
             ConnAckData ackData = ack.parseConnAckData();
             QCOMPARE(ackData.reasonCode, ReasonCodes::Success);
         }
@@ -2447,7 +2535,8 @@ listen {
                     connect.password = "wrong";
                 }, port);
 
-            auto ack = client.receivedPackets.front();
+            auto ro = client.receivedObjects.lock();
+            auto ack = ro->receivedPackets.front();
             ConnAckData ackData = ack.parseConnAckData();
             QCOMPARE(ackData.reasonCode, ReasonCodes::NotAuthorized);
         }
@@ -2458,7 +2547,8 @@ listen {
         client.start();
         client.connectClient(ProtocolVersion::Mqtt5, 2883);
 
-        auto ack = client.receivedPackets.front();
+        auto ro = client.receivedObjects.lock();
+        auto ack = ro->receivedPackets.front();
         ConnAckData ackData = ack.parseConnAckData();
         QCOMPARE(ackData.reasonCode, ReasonCodes::Success);
     }
@@ -2468,7 +2558,8 @@ listen {
         client.start();
         client.connectClient(ProtocolVersion::Mqtt5, 2884);
 
-        auto ack = client.receivedPackets.front();
+        auto ro = client.receivedObjects.lock();
+        auto ack = ro->receivedPackets.front();
         ConnAckData ackData = ack.parseConnAckData();
         QCOMPARE(ackData.reasonCode, ReasonCodes::NotAuthorized);
     }
@@ -2481,7 +2572,8 @@ listen {
                 connect.password = "asdf";
             }, 2883); // allow_anonymous true override
 
-        auto ack = client.receivedPackets.front();
+        auto ro = client.receivedObjects.lock();
+        auto ack = ro->receivedPackets.front();
         ConnAckData ackData = ack.parseConnAckData();
         QCOMPARE(ackData.reasonCode, ReasonCodes::Success);
     }
@@ -2494,7 +2586,8 @@ listen {
                 connect.password = "asdf";
             }, 2884); // allow_anonymous false global setting.
 
-        auto ack = client.receivedPackets.front();
+        auto ro = client.receivedObjects.lock();
+        auto ack = ro->receivedPackets.front();
         ConnAckData ackData = ack.parseConnAckData();
         QCOMPARE(ackData.reasonCode, ReasonCodes::NotAuthorized);
     }
@@ -2508,7 +2601,8 @@ listen {
                 connect.password = "";
             }, 2883); // allow_anonymous true global setting.
 
-        auto ack = client.receivedPackets.front();
+        auto ro = client.receivedObjects.lock();
+        auto ack = ro->receivedPackets.front();
         ConnAckData ackData = ack.parseConnAckData();
         QCOMPARE(ackData.reasonCode, ReasonCodes::NotAuthorized);
     }
@@ -2554,7 +2648,8 @@ listen {
                     connect.password = "one";
                 }, port);
 
-            auto ack = client.receivedPackets.front();
+            auto ro = client.receivedObjects.lock();
+            auto ack = ro->receivedPackets.front();
             ConnAckData ackData = ack.parseConnAckData();
             QCOMPARE(ackData.reasonCode, ReasonCodes::Success);
         }
@@ -2567,7 +2662,8 @@ listen {
                     connect.password = "wrong";
                 }, port);
 
-            auto ack = client.receivedPackets.front();
+            auto ro = client.receivedObjects.lock();
+            auto ack = ro->receivedPackets.front();
             ConnAckData ackData = ack.parseConnAckData();
             QCOMPARE(ackData.reasonCode, ReasonCodes::NotAuthorized);
         }
@@ -2578,7 +2674,8 @@ listen {
         client.start();
         client.connectClient(ProtocolVersion::Mqtt5, 2883);
 
-        auto ack = client.receivedPackets.front();
+        auto ro = client.receivedObjects.lock();
+        auto ack = ro->receivedPackets.front();
         ConnAckData ackData = ack.parseConnAckData();
         QCOMPARE(ackData.reasonCode, ReasonCodes::NotAuthorized);
     }
@@ -2588,7 +2685,8 @@ listen {
         client.start();
         client.connectClient(ProtocolVersion::Mqtt5, 2884);
 
-        auto ack = client.receivedPackets.front();
+        auto ro = client.receivedObjects.lock();
+        auto ack = ro->receivedPackets.front();
         ConnAckData ackData = ack.parseConnAckData();
         QCOMPARE(ackData.reasonCode, ReasonCodes::Success);
     }
@@ -2602,7 +2700,8 @@ listen {
                 connect.password = "wrong";
             }, 2884);
 
-        auto ack = client.receivedPackets.front();
+        auto ro = client.receivedObjects.lock();
+        auto ack = ro->receivedPackets.front();
         ConnAckData ackData = ack.parseConnAckData();
         QCOMPARE(ackData.reasonCode, ReasonCodes::Success);
     }
@@ -2615,7 +2714,8 @@ listen {
                 connect.password = "asdf";
             }, 2883); // allow_anonymous false override
 
-        auto ack = client.receivedPackets.front();
+        auto ro = client.receivedObjects.lock();
+        auto ack = ro->receivedPackets.front();
         ConnAckData ackData = ack.parseConnAckData();
         QCOMPARE(ackData.reasonCode, ReasonCodes::NotAuthorized);
     }
@@ -2628,7 +2728,8 @@ listen {
                 connect.password = "asdf";
             }, 2884); // allow_anonymous true global setting.
 
-        auto ack = client.receivedPackets.front();
+        auto ro = client.receivedObjects.lock();
+        auto ack = ro->receivedPackets.front();
         ConnAckData ackData = ack.parseConnAckData();
         QCOMPARE(ackData.reasonCode, ReasonCodes::Success);
     }
@@ -2673,7 +2774,8 @@ listen {
                     connect.password = "one";
                 }, port);
 
-            auto ack = client.receivedPackets.front();
+            auto ro = client.receivedObjects.lock();
+            auto ack = ro->receivedPackets.front();
             ConnAckData ackData = ack.parseConnAckData();
             QCOMPARE(ackData.reasonCode, ReasonCodes::Success);
         }
@@ -2686,7 +2788,8 @@ listen {
                     connect.password = "wrong";
                 }, port);
 
-            auto ack = client.receivedPackets.front();
+            auto ro = client.receivedObjects.lock();
+            auto ack = ro->receivedPackets.front();
             ConnAckData ackData = ack.parseConnAckData();
             QCOMPARE(ackData.reasonCode, ReasonCodes::NotAuthorized);
         }
@@ -2697,7 +2800,8 @@ listen {
         client.start();
         client.connectClient(ProtocolVersion::Mqtt5, 2883);
 
-        auto ack = client.receivedPackets.front();
+        auto ro = client.receivedObjects.lock();
+        auto ack = ro->receivedPackets.front();
         ConnAckData ackData = ack.parseConnAckData();
         QCOMPARE(ackData.reasonCode, ReasonCodes::NotAuthorized);
     }
@@ -2707,7 +2811,8 @@ listen {
         client.start();
         client.connectClient(ProtocolVersion::Mqtt5, 2884);
 
-        auto ack = client.receivedPackets.front();
+        auto ro = client.receivedObjects.lock();
+        auto ack = ro->receivedPackets.front();
         ConnAckData ackData = ack.parseConnAckData();
         QCOMPARE(ackData.reasonCode, ReasonCodes::NotAuthorized);
     }
@@ -2750,7 +2855,8 @@ listen {
                     connect.password = "one";
                 }, port);
 
-            auto ack = client.receivedPackets.front();
+            auto ro = client.receivedObjects.lock();
+            auto ack = ro->receivedPackets.front();
             ConnAckData ackData = ack.parseConnAckData();
             QCOMPARE(ackData.reasonCode, ReasonCodes::Success);
         }
@@ -2763,7 +2869,8 @@ listen {
                     connect.password = "wrong";
                 }, port);
 
-            auto ack = client.receivedPackets.front();
+            auto ro = client.receivedObjects.lock();
+            auto ack = ro->receivedPackets.front();
             ConnAckData ackData = ack.parseConnAckData();
             QCOMPARE(ackData.reasonCode, ReasonCodes::Success);
         }
@@ -2774,7 +2881,8 @@ listen {
         client.start();
         client.connectClient(ProtocolVersion::Mqtt5, 2883);
 
-        auto ack = client.receivedPackets.front();
+        auto ro = client.receivedObjects.lock();
+        auto ack = ro->receivedPackets.front();
         ConnAckData ackData = ack.parseConnAckData();
         QCOMPARE(ackData.reasonCode, ReasonCodes::Success);
     }
@@ -2784,7 +2892,8 @@ listen {
         client.start();
         client.connectClient(ProtocolVersion::Mqtt5, 2884);
 
-        auto ack = client.receivedPackets.front();
+        auto ro = client.receivedObjects.lock();
+        auto ack = ro->receivedPackets.front();
         ConnAckData ackData = ack.parseConnAckData();
         QCOMPARE(ackData.reasonCode, ReasonCodes::Success);
     }
@@ -2794,7 +2903,8 @@ listen {
         client.start();
         client.connectClient(ProtocolVersion::Mqtt5, 2885); // allow_anonymous false
 
-        auto ack = client.receivedPackets.front();
+        auto ro = client.receivedObjects.lock();
+        auto ack = ro->receivedPackets.front();
         ConnAckData ackData = ack.parseConnAckData();
         QCOMPARE(ackData.reasonCode, ReasonCodes::NotAuthorized);
     }
@@ -2890,7 +3000,8 @@ void MainTests::testPublishToItself()
         QVERIFY2(false, ex.what());
     }
 
-    MYCASTCOMPARE(client.receivedPublishes.size(), 1);
+    auto ro = client.receivedObjects.lock();
+    MYCASTCOMPARE(ro->receivedPublishes.size(), 1);
 }
 
 void MainTests::testNoLocalPublishToItself()
@@ -2912,7 +3023,8 @@ void MainTests::testNoLocalPublishToItself()
 
     usleep(1000000);
 
-    MYCASTCOMPARE(client.receivedPublishes.size(), 0);
+    auto ro = client.receivedObjects.lock();
+    MYCASTCOMPARE(ro->receivedPublishes.size(), 0);
 }
 
 void MainTests::testTopicMatchingInSubscriptionTreeHelper(const std::string &subscribe_topic, const std::string &publish_topic, int match_count)
@@ -3014,7 +3126,8 @@ void MainTests::forkingTestForkingTestServer()
     sender.publish("bla", "payload", 0);
 
     receiver.waitForMessageCount(1);
-    MYCASTCOMPARE(receiver.receivedPublishes.size(), 1);
+    auto ro = receiver.receivedObjects.lock();
+    MYCASTCOMPARE(ro->receivedPublishes.size(), 1);
 }
 
 /**
@@ -3049,10 +3162,11 @@ void MainTests::testPacketOrderOnSessionPickup()
     });
 
     receiver->waitForPacketCount(3);
+    auto ro = receiver->receivedObjects.lock();
 
-    FMQ_COMPARE(receiver->receivedPackets.at(0).packetType, PacketType::CONNACK);
-    FMQ_COMPARE(receiver->receivedPackets.at(1).packetType, PacketType::PUBLISH);
-    FMQ_COMPARE(receiver->receivedPackets.at(2).packetType, PacketType::PUBREL);
+    FMQ_COMPARE(ro->receivedPackets.at(0).packetType, PacketType::CONNACK);
+    FMQ_COMPARE(ro->receivedPackets.at(1).packetType, PacketType::PUBLISH);
+    FMQ_COMPARE(ro->receivedPackets.at(2).packetType, PacketType::PUBREL);
 }
 
 void MainTests::testSessionTakeoverOtherUsername()
@@ -3067,7 +3181,8 @@ void MainTests::testSessionTakeoverOtherUsername()
         });
 
         {
-            auto &pack = client1.receivedPackets.at(0);
+            auto ro1 = client1.receivedObjects.lock();
+            auto &pack = ro1->receivedPackets.at(0);
             FMQ_COMPARE(pack.packetType, PacketType::CONNACK);
             ConnAckData ackData = pack.parseConnAckData();
             FMQ_COMPARE(ackData.reasonCode, ReasonCodes::Success);
@@ -3081,7 +3196,8 @@ void MainTests::testSessionTakeoverOtherUsername()
         });
 
         {
-            auto &pack = client2.receivedPackets.at(0);
+            auto ro2 = client2.receivedObjects.lock();
+            auto &pack = ro2->receivedPackets.at(0);
             FMQ_COMPARE(pack.packetType, PacketType::CONNACK);
             ConnAckData ackData = pack.parseConnAckData();
             int expectedCode = p == ProtocolVersion::Mqtt5 ? static_cast<int>(ReasonCodes::NotAuthorized) : static_cast<int>(ConnAckReturnCodes::NotAuthorized);
@@ -3108,8 +3224,9 @@ void MainTests::testCorrelationData()
     }
 
     client1.waitForMessageCount(1);
+    auto ro = client1.receivedObjects.lock();
 
-    auto &pack = client1.receivedPublishes.at(0);
+    auto &pack = ro->receivedPublishes.at(0);
     FMQ_COMPARE(pack.publishData.correlationData, "INsI8czE8y3IZBxY");
     FMQ_COMPARE(pack.getTopic(), "several/sub/topics");
     FMQ_COMPARE(pack.getPayloadView(), "payload");

@@ -34,22 +34,31 @@ void MainTests::testMqtt3will()
     receiver.waitForMessageCount(1);
     receiver2.waitForMessageCount(1);
 
-    MqttPacket pubPack = receiver.receivedPublishes.front();
-    std::shared_ptr<Client> client = receiver.getClient();
-    pubPack.parsePublishData(client);
+    {
+        auto ro = receiver.receivedObjects.lock();
 
-    QCOMPARE(pubPack.getPublishData().topic, "my/will");
-    QCOMPARE(pubPack.getPublishData().payload, "mypayload");
-    QCOMPARE(pubPack.getPublishData().qos, 0);
+        MqttPacket pubPack = ro->receivedPublishes.front();
+        std::shared_ptr<Client> client = receiver.getClient();
+        pubPack.parsePublishData(client);
+
+        QCOMPARE(pubPack.getPublishData().topic, "my/will");
+        QCOMPARE(pubPack.getPublishData().payload, "mypayload");
+        QCOMPARE(pubPack.getPublishData().qos, 0);
+    }
 
     // The second receiver subscribed at a QoS non-0, and we want to see if we actually get it, and that it wasn't demoted by the other subscriber.
 
-    MqttPacket pubPack2 = receiver2.receivedPublishes.front();
-    pubPack2.parsePublishData(client);
+    {
+        auto ro2 = receiver2.receivedObjects.lock();
 
-    QCOMPARE(pubPack2.getPublishData().topic, "my/will");
-    QCOMPARE(pubPack2.getPublishData().payload, "mypayload");
-    QCOMPARE(pubPack2.getPublishData().qos, 1);
+        MqttPacket pubPack2 = ro2->receivedPublishes.front();
+        std::shared_ptr<Client> client = receiver2.getClient();
+        pubPack2.parsePublishData(client);
+
+        QCOMPARE(pubPack2.getPublishData().topic, "my/will");
+        QCOMPARE(pubPack2.getPublishData().payload, "mypayload");
+        QCOMPARE(pubPack2.getPublishData().qos, 1);
+    }
 }
 
 void MainTests::testMqtt3NoWillOnDisconnect()
@@ -74,7 +83,8 @@ void MainTests::testMqtt3NoWillOnDisconnect()
 
     usleep(250000);
 
-    QVERIFY(receiver.receivedPackets.empty());
+    auto ro = receiver.receivedObjects.lock();
+    QVERIFY(ro->receivedPackets.empty());
 }
 
 void MainTests::testMqtt5NoWillOnDisconnect()
@@ -99,7 +109,8 @@ void MainTests::testMqtt5NoWillOnDisconnect()
 
     usleep(250000);
 
-    QVERIFY(receiver.receivedPackets.empty());
+    auto ro = receiver.receivedObjects.lock();
+    QVERIFY(ro->receivedPackets.empty());
 }
 
 void MainTests::testMqtt5DelayedWill()
@@ -123,17 +134,25 @@ void MainTests::testMqtt5DelayedWill()
     sender.reset();
 
     usleep(250000);
-    QVERIFY(receiver.receivedPackets.empty());
+
+    {
+        auto ro = receiver.receivedObjects.lock();
+        QVERIFY(ro->receivedPackets.empty());
+    }
 
     receiver.waitForMessageCount(1, 5);
 
-    MqttPacket pubPack = receiver.receivedPublishes.front();
-    std::shared_ptr<Client> client = receiver.getClient();
-    pubPack.parsePublishData(client);
+    {
+        auto ro = receiver.receivedObjects.lock();
 
-    QCOMPARE(pubPack.getPublishData().topic, "my/will/testMqtt5DelayedWill");
-    QCOMPARE(pubPack.getPublishData().payload, "mypayload");
-    QCOMPARE(pubPack.getPublishData().qos, 0);
+        MqttPacket pubPack = ro->receivedPublishes.front();
+        std::shared_ptr<Client> client = receiver.getClient();
+        pubPack.parsePublishData(client);
+
+        QCOMPARE(pubPack.getPublishData().topic, "my/will/testMqtt5DelayedWill");
+        QCOMPARE(pubPack.getPublishData().payload, "mypayload");
+        QCOMPARE(pubPack.getPublishData().qos, 0);
+    }
 }
 
 void MainTests::testMqtt5DelayedWillAlwaysOnSessionEnd()
@@ -157,17 +176,25 @@ void MainTests::testMqtt5DelayedWillAlwaysOnSessionEnd()
     sender.reset();
 
     usleep(1000000);
-    QVERIFY(receiver.receivedPackets.empty());
+
+    {
+        auto ro = receiver.receivedObjects.lock();
+        QVERIFY(ro->receivedPackets.empty());
+    }
 
     receiver.waitForMessageCount(1, 2);
 
-    MqttPacket pubPack = receiver.receivedPublishes.front();
-    std::shared_ptr<Client> client = receiver.getClient();
-    pubPack.parsePublishData(client);
+    {
+        auto ro = receiver.receivedObjects.lock();
 
-    QCOMPARE(pubPack.getPublishData().topic, "my/will/testMqtt5DelayedWillAlwaysOnSessionEnd");
-    QCOMPARE(pubPack.getPublishData().payload, "mypayload");
-    QCOMPARE(pubPack.getPublishData().qos, 0);
+        MqttPacket pubPack = ro->receivedPublishes.front();
+        std::shared_ptr<Client> client = receiver.getClient();
+        pubPack.parsePublishData(client);
+
+        QCOMPARE(pubPack.getPublishData().topic, "my/will/testMqtt5DelayedWillAlwaysOnSessionEnd");
+        QCOMPARE(pubPack.getPublishData().payload, "mypayload");
+        QCOMPARE(pubPack.getPublishData().qos, 0);
+    }
 }
 
 /**
@@ -213,7 +240,9 @@ void MainTests::testWillOnSessionTakeOvers()
 
         receiver.waitForMessageCount(1);
 
-        MqttPacket pubPack = receiver.receivedPublishes.front();
+        auto ro = receiver.receivedObjects.lock();
+
+        MqttPacket pubPack = ro->receivedPublishes.front();
         std::shared_ptr<Client> client = receiver.getClient();
         pubPack.parsePublishData(client);
 
@@ -259,7 +288,9 @@ void MainTests::testOverrideWillDelayOnSessionDestructionByTakeOver()
 
     receiver.waitForMessageCount(1);
 
-    MqttPacket pubPack = receiver.receivedPublishes.front();
+    auto ro = receiver.receivedObjects.lock();
+
+    MqttPacket pubPack = ro->receivedPublishes.front();
     std::shared_ptr<Client> client = receiver.getClient();
     pubPack.parsePublishData(client);
 
@@ -302,7 +333,8 @@ void MainTests::testDisabledWills()
 
     receiver.waitForMessageCount(0);
 
-    QVERIFY(receiver.receivedPublishes.empty());
+    auto ro = receiver.receivedObjects.lock();
+    QVERIFY(ro->receivedPublishes.empty());
 }
 
 /**
@@ -339,12 +371,20 @@ void MainTests::testMqtt5DelayedWillsDisabled()
     sender.reset();
 
     usleep(4000000);
-    QVERIFY(receiver.receivedPackets.empty());
+
+    {
+        auto ro = receiver.receivedObjects.lock();
+        QVERIFY(ro->receivedPackets.empty());
+    }
 
     receiver.waitForMessageCount(0);
 
     usleep(250000);
-    QVERIFY(receiver.receivedPackets.empty());
+
+    {
+        auto ro = receiver.receivedObjects.lock();
+        QVERIFY(ro->receivedPackets.empty());
+    }
 }
 
 /**
@@ -411,7 +451,8 @@ log_level debug
         receiver.subscribe("pukapuka/boo", 0);
         sender.publish("pukapuka/boo", "haha", 0);
         receiver.waitForMessageCount(1);
-        FMQ_COMPARE(receiver.receivedPublishes.front().getTopic(), "pukapuka/boo");
+        auto ro = receiver.receivedObjects.lock();
+        FMQ_COMPARE(ro->receivedPublishes.front().getTopic(), "pukapuka/boo");
     }
     catch (std::exception &ex)
     {

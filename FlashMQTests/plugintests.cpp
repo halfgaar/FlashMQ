@@ -35,13 +35,17 @@ void MainTests::testWillDenialByPlugin()
 
     receiver.waitForMessageCount(1);
 
-    MqttPacket pubPack = receiver.receivedPublishes.front();
-    std::shared_ptr<Client> client = receiver.getClient();
-    pubPack.parsePublishData(client);
+    {
+        auto ro = receiver.receivedObjects.lock();
 
-    QCOMPARE(pubPack.getPublishData().topic, "will/allowed");
-    QCOMPARE(pubPack.getPublishData().payload, "mypayload");
-    QCOMPARE(pubPack.getPublishData().qos, 0);
+        MqttPacket pubPack = ro->receivedPublishes.front();
+        std::shared_ptr<Client> client = receiver.getClient();
+        pubPack.parsePublishData(client);
+
+        QCOMPARE(pubPack.getPublishData().topic, "will/allowed");
+        QCOMPARE(pubPack.getPublishData().payload, "mypayload");
+        QCOMPARE(pubPack.getPublishData().qos, 0);
+    }
 
     receiver.clearReceivedLists();
 
@@ -60,7 +64,8 @@ void MainTests::testWillDenialByPlugin()
         usleep(500000);
         receiver.waitForMessageCount(0);
 
-        QVERIFY(receiver.receivedPublishes.empty());
+        auto ro = receiver.receivedObjects.lock();
+        QVERIFY(ro->receivedPublishes.empty());
     }
 }
 
@@ -87,9 +92,11 @@ void MainTests::testPluginAuthFail()
             connect.password = "boo";
         });
 
-        QVERIFY(client.receivedPackets.size() == 1);
+        auto ro = client.receivedObjects.lock();
 
-        ConnAckData connAckData = client.receivedPackets.front().parseConnAckData();
+        QVERIFY(ro->receivedPackets.size() == 1);
+
+        ConnAckData connAckData = ro->receivedPackets.front().parseConnAckData();
 
         if (version >= ProtocolVersion::Mqtt5)
             QVERIFY(connAckData.reasonCode == ReasonCodes::NotAuthorized);
@@ -121,9 +128,11 @@ void MainTests::testPluginAuthSucceed()
             connect.password = "boo";
         });
 
-        QVERIFY(client.receivedPackets.size() == 1);
+        auto ro = client.receivedObjects.lock();
 
-        ConnAckData connAckData = client.receivedPackets.front().parseConnAckData();
+        QVERIFY(ro->receivedPackets.size() == 1);
+
+        ConnAckData connAckData = ro->receivedPackets.front().parseConnAckData();
 
         QVERIFY(connAckData.reasonCode == ReasonCodes::Success);
     }
@@ -150,9 +159,11 @@ void MainTests::testExtendedAuthOneStepSucceed()
         connect.authenticationData = "I have a proposal to put to ye.";
     });
 
-    QVERIFY(client.receivedPackets.size() == 1);
+    auto ro = client.receivedObjects.lock();
 
-    ConnAckData connAckData = client.receivedPackets.front().parseConnAckData();
+    QVERIFY(ro->receivedPackets.size() == 1);
+
+    ConnAckData connAckData = ro->receivedPackets.front().parseConnAckData();
 
     QVERIFY(connAckData.reasonCode == ReasonCodes::Success);
     QVERIFY(connAckData.authData == "I have a proposal to put to ye.");
@@ -178,9 +189,11 @@ void MainTests::testExtendedAuthOneStepDeny()
         connect.authenticationMethod = "always_fail";
     });
 
-    QVERIFY(client.receivedPackets.size() == 1);
+    auto ro = client.receivedObjects.lock();
 
-    ConnAckData connAckData = client.receivedPackets.front().parseConnAckData();
+    QVERIFY(ro->receivedPackets.size() == 1);
+
+    ConnAckData connAckData = ro->receivedPackets.front().parseConnAckData();
 
     QVERIFY(connAckData.reasonCode == ReasonCodes::NotAuthorized);
 }
@@ -205,9 +218,11 @@ void MainTests::testExtendedAuthOneStepBadAuthMethod()
         connect.authenticationMethod = "doesnt_exist";
     });
 
-    QVERIFY(client.receivedPackets.size() == 1);
+    auto ro = client.receivedObjects.lock();
 
-    ConnAckData connAckData = client.receivedPackets.front().parseConnAckData();
+    QVERIFY(ro->receivedPackets.size() == 1);
+
+    ConnAckData connAckData = ro->receivedPackets.front().parseConnAckData();
 
     QVERIFY(connAckData.reasonCode == ReasonCodes::BadAuthenticationMethod);
 }
@@ -233,12 +248,16 @@ void MainTests::testExtendedAuthTwoStep()
         connect.authenticationData = "Hello";
     });
 
-    QVERIFY(client.receivedPackets.size() == 1);
+    {
+        auto ro = client.receivedObjects.lock();
 
-    AuthPacketData authData = client.receivedPackets.front().parseAuthData();
+        QVERIFY(ro->receivedPackets.size() == 1);
 
-    QVERIFY(authData.reasonCode == ReasonCodes::ContinueAuthentication);
-    QVERIFY(authData.data == "Hello back");
+        AuthPacketData authData = ro->receivedPackets.front().parseAuthData();
+
+        QVERIFY(authData.reasonCode == ReasonCodes::ContinueAuthentication);
+        QVERIFY(authData.data == "Hello back");
+    }
 
     client.clearReceivedLists();
 
@@ -247,9 +266,11 @@ void MainTests::testExtendedAuthTwoStep()
 
     client.waitForConnack();
 
-    QVERIFY(client.receivedPackets.size() == 1);
+    auto ro = client.receivedObjects.lock();
 
-    ConnAckData connAckData = client.receivedPackets.front().parseConnAckData();
+    QVERIFY(ro->receivedPackets.size() == 1);
+
+    ConnAckData connAckData = ro->receivedPackets.front().parseConnAckData();
 
     QVERIFY(connAckData.reasonCode == ReasonCodes::Success);
     QVERIFY(connAckData.authData == "OK, if you insist.");
@@ -276,12 +297,16 @@ void MainTests::testExtendedAuthTwoStepSecondStepFail()
         connect.authenticationData = "Hello";
     });
 
-    QVERIFY(client.receivedPackets.size() == 1);
+    {
+        auto ro = client.receivedObjects.lock();
 
-    AuthPacketData authData = client.receivedPackets.front().parseAuthData();
+        QVERIFY(ro->receivedPackets.size() == 1);
 
-    QVERIFY(authData.reasonCode == ReasonCodes::ContinueAuthentication);
-    QVERIFY(authData.data == "Hello back");
+        AuthPacketData authData = ro->receivedPackets.front().parseAuthData();
+
+        QVERIFY(authData.reasonCode == ReasonCodes::ContinueAuthentication);
+        QVERIFY(authData.data == "Hello back");
+    }
 
     client.clearReceivedLists();
 
@@ -290,9 +315,11 @@ void MainTests::testExtendedAuthTwoStepSecondStepFail()
 
     client.waitForConnack();
 
-    QVERIFY(client.receivedPackets.size() == 1);
+    auto ro = client.receivedObjects.lock();
 
-    ConnAckData connAckData = client.receivedPackets.front().parseConnAckData();
+    QVERIFY(ro->receivedPackets.size() == 1);
+
+    ConnAckData connAckData = ro->receivedPackets.front().parseConnAckData();
 
     QVERIFY(connAckData.reasonCode == ReasonCodes::NotAuthorized);
 }
@@ -318,11 +345,15 @@ void MainTests::testExtendedReAuth()
         connect.authenticationData = "Santa Claus";
     });
 
-    QVERIFY(client.receivedPackets.size() == 1);
+    {
+        auto ro = client.receivedObjects.lock();
 
-    ConnAckData connAckData = client.receivedPackets.front().parseConnAckData();
+        QVERIFY(ro->receivedPackets.size() == 1);
 
-    QVERIFY(connAckData.reasonCode == ReasonCodes::Success);
+        ConnAckData connAckData = ro->receivedPackets.front().parseConnAckData();
+
+        QVERIFY(connAckData.reasonCode == ReasonCodes::Success);
+    }
 
     client.clearReceivedLists();
 
@@ -333,9 +364,11 @@ void MainTests::testExtendedReAuth()
 
     client.waitForConnack();
 
-    QVERIFY(client.receivedPackets.size() == 1);
+    auto ro = client.receivedObjects.lock();
 
-    AuthPacketData authData = client.receivedPackets.front().parseAuthData();
+    QVERIFY(ro->receivedPackets.size() == 1);
+
+    AuthPacketData authData = ro->receivedPackets.front().parseAuthData();
 
     QVERIFY(authData.reasonCode == ReasonCodes::Success);
     QVERIFY(authData.data == "Again Santa Claus");
@@ -362,12 +395,16 @@ void MainTests::testExtendedReAuthTwoStep()
         connect.authenticationData = "Hello";
     });
 
-    QVERIFY(client.receivedPackets.size() == 1);
+    {
+        auto ro = client.receivedObjects.lock();
 
-    AuthPacketData authData = client.receivedPackets.front().parseAuthData();
+        QVERIFY(ro->receivedPackets.size() == 1);
 
-    QVERIFY(authData.reasonCode == ReasonCodes::ContinueAuthentication);
-    QVERIFY(authData.data == "Hello back");
+        AuthPacketData authData = ro->receivedPackets.front().parseAuthData();
+
+        QVERIFY(authData.reasonCode == ReasonCodes::ContinueAuthentication);
+        QVERIFY(authData.data == "Hello back");
+    }
 
     client.clearReceivedLists();
 
@@ -376,12 +413,16 @@ void MainTests::testExtendedReAuthTwoStep()
 
     client.waitForConnack();
 
-    QVERIFY(client.receivedPackets.size() == 1);
+    {
+        auto ro = client.receivedObjects.lock();
 
-    ConnAckData connAckData = client.receivedPackets.front().parseConnAckData();
+        QVERIFY(ro->receivedPackets.size() == 1);
 
-    QVERIFY(connAckData.reasonCode == ReasonCodes::Success);
-    QVERIFY(connAckData.authData == "OK, if you insist.");
+        ConnAckData connAckData = ro->receivedPackets.front().parseConnAckData();
+
+        QVERIFY(connAckData.reasonCode == ReasonCodes::Success);
+        QVERIFY(connAckData.authData == "OK, if you insist.");
+    }
 
     client.clearReceivedLists();
 
@@ -391,12 +432,16 @@ void MainTests::testExtendedReAuthTwoStep()
     client.writeAuth(reauth);
     client.waitForConnack();
 
-    QVERIFY(client.receivedPackets.size() == 1);
+    {
+        auto ro = client.receivedObjects.lock();
 
-    AuthPacketData reauthData = client.receivedPackets.front().parseAuthData();
+        QVERIFY(ro->receivedPackets.size() == 1);
 
-    QVERIFY(reauthData.reasonCode == ReasonCodes::ContinueAuthentication);
-    QVERIFY(reauthData.data == "Hello back");
+        AuthPacketData reauthData = ro->receivedPackets.front().parseAuthData();
+
+        QVERIFY(reauthData.reasonCode == ReasonCodes::ContinueAuthentication);
+        QVERIFY(reauthData.data == "Hello back");
+    }
 
     client.clearReceivedLists();
 
@@ -405,12 +450,16 @@ void MainTests::testExtendedReAuthTwoStep()
 
     client.waitForConnack();
 
-    QVERIFY(client.receivedPackets.size() == 1);
+    {
+        auto ro = client.receivedObjects.lock();
 
-    AuthPacketData reauthFinishData = client.receivedPackets.front().parseAuthData();
+        QVERIFY(ro->receivedPackets.size() == 1);
 
-    QVERIFY(connAckData.reasonCode == ReasonCodes::Success);
-    QVERIFY(connAckData.authData == "OK, if you insist.");
+        AuthPacketData reauthFinishData = ro->receivedPackets.front().parseAuthData();
+
+        QVERIFY(reauthFinishData.reasonCode == ReasonCodes::Success);
+        QVERIFY(reauthFinishData.data == "OK, if you insist.");
+    }
 }
 
 void MainTests::testExtendedReAuthFail()
@@ -434,27 +483,31 @@ void MainTests::testExtendedReAuthFail()
         connect.authenticationData = "I have a proposal to put to ye.";
     });
 
-    QVERIFY(client.receivedPackets.size() == 1);
-
-    ConnAckData connAckData = client.receivedPackets.front().parseConnAckData();
-
-    QVERIFY(connAckData.reasonCode == ReasonCodes::Success);
-    QVERIFY(connAckData.authData == "I have a proposal to put to ye.");
+    {
+        auto ro = client.receivedObjects.lock();
+        QVERIFY(ro->receivedPackets.size() == 1);
+        ConnAckData connAckData = ro->receivedPackets.front().parseConnAckData();
+        QVERIFY(connAckData.reasonCode == ReasonCodes::Success);
+        QVERIFY(connAckData.authData == "I have a proposal to put to ye.");
+    }
 
     client.clearReceivedLists();
 
     // Then reauth.
+    {
+        const Auth reauth(ReasonCodes::ReAuthenticate, "always_good_passing_back_the_auth_data", "actually not good.");
+        client.writeAuth(reauth);
+        client.waitForPacketCount(1);
 
-    const Auth reauth(ReasonCodes::ReAuthenticate, "always_good_passing_back_the_auth_data", "actually not good.");
-    client.writeAuth(reauth);
-    client.waitForPacketCount(1);
+        auto ro = client.receivedObjects.lock();
 
-    QVERIFY(client.receivedPackets.size() == 1);
-    QVERIFY(client.receivedPackets.front().packetType == PacketType::DISCONNECT);
+        QVERIFY(ro->receivedPackets.size() == 1);
+        QVERIFY(ro->receivedPackets.front().packetType == PacketType::DISCONNECT);
 
-    DisconnectData data = client.receivedPackets.front().parseDisconnectData();
+        DisconnectData data = ro->receivedPackets.front().parseDisconnectData();
 
-    QVERIFY(data.reasonCode == ReasonCodes::NotAuthorized);
+        QVERIFY(data.reasonCode == ReasonCodes::NotAuthorized);
+    }
 }
 
 void MainTests::testSimpleAuthAsync()
@@ -479,9 +532,11 @@ void MainTests::testSimpleAuthAsync()
             connect.password = result;
         });
 
-        QVERIFY(client.receivedPackets.size() == 1);
+        auto ro = client.receivedObjects.lock();
 
-        ConnAckData connAckData = client.receivedPackets.front().parseConnAckData();
+        QVERIFY(ro->receivedPackets.size() == 1);
+
+        ConnAckData connAckData = ro->receivedPackets.front().parseConnAckData();
 
         if (result == "success")
             QVERIFY(connAckData.reasonCode == ReasonCodes::Success);
@@ -544,8 +599,9 @@ void MainTests::testFailedAsyncClientCrashOnSession()
     // Test if the server still works after that.
     clients.front().clearReceivedLists();
     clients.front().publish("sdf", "sfd", 2);
-    FMQ_VERIFY(!clients.front().receivedPackets.empty());
-    FMQ_COMPARE(clients.front().receivedPackets.back().packetType, PacketType::PUBCOMP);
+    auto ro = clients.front().receivedObjects.lock();
+    FMQ_VERIFY(!ro->receivedPackets.empty());
+    FMQ_COMPARE(ro->receivedPackets.back().packetType, PacketType::PUBCOMP);
 }
 
 /**
@@ -581,9 +637,12 @@ void MainTests::testAsyncWithImmediateFollowUpPackets()
     client.waitForConnack();
     client.getClient()->setAuthenticated(true);
 
-    FMQ_VERIFY(client.receivedPackets.size() >= 1);
-    ConnAckData connAckData = client.receivedPackets.front().parseConnAckData();
-    QVERIFY(connAckData.reasonCode == ReasonCodes::Success);
+    {
+        auto ro = client.receivedObjects.lock();
+        FMQ_VERIFY(ro->receivedPackets.size() >= 1);
+        ConnAckData connAckData = ro->receivedPackets.front().parseConnAckData();
+        QVERIFY(connAckData.reasonCode == ReasonCodes::Success);
+    }
 
     client.clearReceivedLists();
 
@@ -596,10 +655,12 @@ void MainTests::testAsyncWithImmediateFollowUpPackets()
 
     client.waitForMessageCount(1);
 
-    MqttPacket &p = client.receivedPublishes.front();
-
-    FMQ_COMPARE(p.getTopic(), "our/random/topic");
-    FMQ_COMPARE(p.getPayloadCopy(), "1Xs0QC5XInKLGHfm");
+    {
+        auto ro = client.receivedObjects.lock();
+        MqttPacket &p = ro->receivedPublishes.front();
+        FMQ_COMPARE(p.getTopic(), "our/random/topic");
+        FMQ_COMPARE(p.getPayloadCopy(), "1Xs0QC5XInKLGHfm");
+    }
 }
 
 /**
@@ -631,7 +692,8 @@ void MainTests::testAsyncWithException()
         });
 
         {
-            auto &pack = client1.receivedPackets.at(0);
+            auto ro = client1.receivedObjects.lock();
+            auto &pack = ro->receivedPackets.at(0);
             FMQ_COMPARE(pack.packetType, PacketType::CONNACK);
             ConnAckData ackData = pack.parseConnAckData();
             FMQ_COMPARE(ackData.reasonCode, ReasonCodes::Success);
@@ -646,7 +708,8 @@ void MainTests::testAsyncWithException()
         });
 
         {
-            auto &pack = client2.receivedPackets.at(0);
+            auto ro = client2.receivedObjects.lock();
+            auto &pack = ro->receivedPackets.at(0);
             FMQ_COMPARE(pack.packetType, PacketType::CONNACK);
             ConnAckData ackData = pack.parseConnAckData();
             int expectedCode = p == ProtocolVersion::Mqtt5 ? static_cast<int>(ReasonCodes::NotAuthorized) : static_cast<int>(ConnAckReturnCodes::NotAuthorized);
@@ -684,8 +747,9 @@ void MainTests::testClientRemovalByPlugin()
 
         sender.waitForDisconnectPacket();
 
-        QVERIFY(sender.receivedPackets.size() == 1);
-        QVERIFY(sender.receivedPackets.front().packetType == PacketType::DISCONNECT);
+        auto ro = sender.receivedObjects.lock();
+        QVERIFY(ro->receivedPackets.size() == 1);
+        QVERIFY(ro->receivedPackets.front().packetType == PacketType::DISCONNECT);
 
         std::shared_ptr<SubscriptionStore> store = mainApp->getStore();
         std::shared_ptr<Session> session = store->lockSession(sender_client_id);
@@ -732,7 +796,10 @@ void MainTests::testSubscriptionRemovalByPlugin()
     sender.publish("a/b/c", "asdf", 0);
 
     receiver.waitForMessageCount(1);
-    QVERIFY(receiver.receivedPublishes.size() == 1);
+    {
+        auto ro = receiver.receivedObjects.lock();
+        QVERIFY(ro->receivedPublishes.size() == 1);
+    }
 
     receiver.clearReceivedLists();
     sender.clearReceivedLists();
@@ -752,7 +819,10 @@ void MainTests::testSubscriptionRemovalByPlugin()
     usleep(200000);
     receiver.waitForMessageCount(0);
 
-    QVERIFY(receiver.receivedPublishes.empty());
+    {
+        auto ro = receiver.receivedObjects.lock();
+        QVERIFY(ro->receivedPublishes.empty());
+    }
 }
 
 void MainTests::testPublishByPlugin()
@@ -781,13 +851,15 @@ void MainTests::testPublishByPlugin()
 
     receiver.waitForMessageCount(2);
 
-    MYCASTCOMPARE(receiver.receivedPublishes.size(), 2);
+    auto ro = receiver.receivedObjects.lock();
 
-    QVERIFY(std::any_of(receiver.receivedPublishes.begin(), receiver.receivedPublishes.end(), [](MqttPacket &p) {
+    MYCASTCOMPARE(ro->receivedPublishes.size(), 2);
+
+    QVERIFY(std::any_of(ro->receivedPublishes.begin(), ro->receivedPublishes.end(), [](MqttPacket &p) {
         return p.getTopic() == "boo";
     }));
 
-    QVERIFY(std::any_of(receiver.receivedPublishes.begin(), receiver.receivedPublishes.end(), [](MqttPacket &p) {
+    QVERIFY(std::any_of(ro->receivedPublishes.begin(), ro->receivedPublishes.end(), [](MqttPacket &p) {
         return p.getTopic() == "generated/topic";
             }));
 }
@@ -825,17 +897,23 @@ void MainTests::testChangePublish()
 
         receiver.waitForMessageCount(1);
 
-        MYCASTCOMPARE(receiver.receivedPublishes.size(), 1);
-        MYCASTCOMPARE(receiver.receivedPublishes.front().getTopic(), "changed");
-        MYCASTCOMPARE(receiver.receivedPublishes.front().getPayloadCopy(), "hello");
-        MYCASTCOMPARE(receiver.receivedPublishes.front().getQos(), 2);
+        {
+            auto ro = receiver.receivedObjects.lock();
+            MYCASTCOMPARE(ro->receivedPublishes.size(), 1);
+            MYCASTCOMPARE(ro->receivedPublishes.front().getTopic(), "changed");
+            MYCASTCOMPARE(ro->receivedPublishes.front().getPayloadCopy(), "hello");
+            MYCASTCOMPARE(ro->receivedPublishes.front().getQos(), 2);
+        }
 
         receiver_of_pattern.waitForMessageCount(1);
 
-        MYCASTCOMPARE(receiver_of_pattern.receivedPublishes.size(), 1);
-        MYCASTCOMPARE(receiver_of_pattern.receivedPublishes.front().getTopic(), "changed");
-        MYCASTCOMPARE(receiver_of_pattern.receivedPublishes.front().getPayloadCopy(), "hello");
-        MYCASTCOMPARE(receiver_of_pattern.receivedPublishes.front().getQos(), 2);
+        {
+            auto ro = receiver_of_pattern.receivedObjects.lock();
+            MYCASTCOMPARE(ro->receivedPublishes.size(), 1);
+            MYCASTCOMPARE(ro->receivedPublishes.front().getTopic(), "changed");
+            MYCASTCOMPARE(ro->receivedPublishes.front().getPayloadCopy(), "hello");
+            MYCASTCOMPARE(ro->receivedPublishes.front().getQos(), 2);
+        }
     }
 }
 
@@ -863,8 +941,11 @@ void MainTests::testPluginOnDisconnect()
     client.disconnect(ReasonCodes::Success);
 
     receiver.waitForMessageCount(1);
-    MYCASTCOMPARE(receiver.receivedPublishes.size(), 1);
-    QCOMPARE(receiver.receivedPublishes.front().getTopic(), "disconnect/confirmed");
+    {
+        auto ro = receiver.receivedObjects.lock();
+        MYCASTCOMPARE(ro->receivedPublishes.size(), 1);
+        QCOMPARE(ro->receivedPublishes.front().getTopic(), "disconnect/confirmed");
+    }
 }
 
 void MainTests::testPluginGetClientAddress()
@@ -895,14 +976,17 @@ void MainTests::testPluginGetClientAddress()
     }
     catch(std::exception &e)
     {
-        MYCASTCOMPARE(receiver.receivedPublishes.size(), 2);
+        auto ro = receiver.receivedObjects.lock();
+        MYCASTCOMPARE(ro->receivedPublishes.size(), 2);
     }
 
-    QCOMPARE(receiver.receivedPublishes[0].getTopic(), "getaddresstest/address");
-    QCOMPARE(receiver.receivedPublishes[0].getPayloadCopy(), "127.0.0.1");
+    auto ro = receiver.receivedObjects.lock();
 
-    QCOMPARE(receiver.receivedPublishes[1].getTopic(), "getaddresstest/family");
-    QCOMPARE(receiver.receivedPublishes[1].getPayloadCopy(), "AF_INET");
+    QCOMPARE(ro->receivedPublishes[0].getTopic(), "getaddresstest/address");
+    QCOMPARE(ro->receivedPublishes[0].getPayloadCopy(), "127.0.0.1");
+
+    QCOMPARE(ro->receivedPublishes[1].getTopic(), "getaddresstest/family");
+    QCOMPARE(ro->receivedPublishes[1].getPayloadCopy(), "AF_INET");
 }
 
 void MainTests::testPluginMainInit()
@@ -929,8 +1013,10 @@ void MainTests::testPluginMainInit()
 
     receiver.waitForMessageCount(1);
 
-    MYCASTCOMPARE(receiver.receivedPublishes.size(), 1);
-    MYCASTCOMPARE(receiver.receivedPublishes.front().getTopic(), "check_main_init_presence_confirmed");
+    auto ro = receiver.receivedObjects.lock();
+
+    MYCASTCOMPARE(ro->receivedPublishes.size(), 1);
+    MYCASTCOMPARE(ro->receivedPublishes.front().getTopic(), "check_main_init_presence_confirmed");
 }
 
 void MainTests::testAsyncCurl()
@@ -951,10 +1037,9 @@ void MainTests::testAsyncCurl()
         connect.password = "boo";
     });
 
-    QVERIFY(client.receivedPackets.size() == 1);
-
-    ConnAckData connAckData = client.receivedPackets.front().parseConnAckData();
-
+    auto ro = client.receivedObjects.lock();
+    QVERIFY(ro->receivedPackets.size() == 1);
+    ConnAckData connAckData = ro->receivedPackets.front().parseConnAckData();
     QVERIFY(connAckData.reasonCode == ReasonCodes::Success);
 }
 
@@ -983,7 +1068,8 @@ void MainTests::testSubscribeWithoutRetainedDelivery()
         receiver.subscribe(topic, 0);
 
         receiver.waitForMessageCount(1);
-        MYCASTCOMPARE(receiver.receivedPublishes.size(), 1);
+        auto ro = receiver.receivedObjects.lock();
+        MYCASTCOMPARE(ro->receivedPublishes.size(), 1);
     }
 
     ConfFileTemp confFile;
@@ -1016,14 +1102,21 @@ void MainTests::testSubscribeWithoutRetainedDelivery()
     receiver.subscribe(topic, 0);
 
     usleep(250000);
-    QVERIFY(receiver.receivedPublishes.empty());
+
+    {
+        auto ro = receiver.receivedObjects.lock();
+        QVERIFY(ro->receivedPublishes.empty());
+    }
 
     sender.publish("retaintopic/one/two/three", "on-line payload", 0);
 
     receiver.waitForMessageCount(1);
 
-    MYCASTCOMPARE(receiver.receivedPublishes.size(), 1);
-    QVERIFY(receiver.receivedPublishes.front().getPayloadView() == "on-line payload");
+    {
+        auto ro = receiver.receivedObjects.lock();
+        MYCASTCOMPARE(ro->receivedPublishes.size(), 1);
+        QVERIFY(ro->receivedPublishes.front().getPayloadView() == "on-line payload");
+    }
 }
 
 void MainTests::testDontUpgradeWildcardDenyMode()
@@ -1058,14 +1151,21 @@ void MainTests::testDontUpgradeWildcardDenyMode()
     receiver.subscribe("#", 0);
 
     usleep(250000);
-    QVERIFY(receiver.receivedPublishes.empty());
+
+    {
+        auto ro = receiver.receivedObjects.lock();
+        QVERIFY(ro->receivedPublishes.empty());
+    }
 
     sender.publish("retaintopic/one/two/three", "on-line payload", 0);
 
     receiver.waitForMessageCount(1);
 
-    MYCASTCOMPARE(receiver.receivedPublishes.size(), 1);
-    QVERIFY(receiver.receivedPublishes.front().getPayloadView() == "on-line payload");
+    {
+        auto ro = receiver.receivedObjects.lock();
+        MYCASTCOMPARE(ro->receivedPublishes.size(), 1);
+        QVERIFY(ro->receivedPublishes.front().getPayloadView() == "on-line payload");
+    }
 }
 
 void MainTests::testAlsoDontApproveOnErrorInPluginWithWildcardDenyMode()
@@ -1114,12 +1214,20 @@ void MainTests::testAlsoDontApproveOnErrorInPluginWithWildcardDenyMode()
     QVERIFY(suback_errored);
 
     usleep(250000);
-    QVERIFY(receiver.receivedPublishes.empty());
+
+    {
+        auto ro = receiver.receivedObjects.lock();
+        QVERIFY(ro->receivedPublishes.empty());
+    }
 
     sender.publish("retaintopic/one/two/three", "on-line payload", 0);
 
     usleep(250000);
-    QVERIFY(receiver.receivedPublishes.empty());
+
+    {
+        auto ro = receiver.receivedObjects.lock();
+        QVERIFY(ro->receivedPublishes.empty());
+    }
 }
 
 void MainTests::testDenyWildcardSubscription()
@@ -1201,11 +1309,13 @@ void MainTests::testUserPropertiesPresent()
 
     receiver.waitForMessageCount(1);
 
-    MYCASTCOMPARE(receiver.receivedPublishes.size(), 1);
-    QVERIFY(receiver.receivedPublishes.front().getPayloadView() == payload);
-    QVERIFY(receiver.receivedPublishes.front().getUserProperties() != nullptr);
+    auto ro = receiver.receivedObjects.lock();
 
-    auto props = receiver.receivedPublishes.front().getUserProperties();
+    MYCASTCOMPARE(ro->receivedPublishes.size(), 1);
+    QVERIFY(ro->receivedPublishes.front().getPayloadView() == payload);
+    QVERIFY(ro->receivedPublishes.front().getUserProperties() != nullptr);
+
+    auto props = ro->receivedPublishes.front().getUserProperties();
     QVERIFY(std::any_of(props->begin(), props->end(), [](std::pair<std::string, std::string> &p) {
         return p.first == "myprop" && p.second == "myval";
     }));
