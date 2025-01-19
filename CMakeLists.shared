@@ -81,6 +81,7 @@ set(FLASHMQ_HEADERS
     ${RELPATH}nocopy.h
     ${RELPATH}fdmanaged.h
     ${RELPATH}checkedweakptr.h
+    ${RELPATH}mutexowned.h
 )
 
 set(FLASHMQ_IMPLS
