@@ -45,7 +45,7 @@ public:
     void advanceHead(uint32_t n);
     void advanceTail(uint32_t n);
     char peakAhead(uint32_t offset) const;
-    void ensureFreeSpace(size_t n, const size_t max = UINT_MAX);
+    void ensureFreeSpace(const size_t n, const size_t max = UINT_MAX);
     void doubleSize(uint factor = 2);
     uint32_t getSize() const;
 

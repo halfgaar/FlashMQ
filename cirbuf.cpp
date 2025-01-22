@@ -100,19 +100,14 @@ char CirBuf::peakAhead(uint32_t offset) const
     return b;
 }
 
-void CirBuf::ensureFreeSpace(size_t n, const size_t max)
+void CirBuf::ensureFreeSpace(const size_t n, const size_t max)
 {
     if (n <= freeSpace())
         return;
 
-    if (size >= 2147483648)
-    {
-        throw std::runtime_error("Trying to exceed circular buffer beyond its 2 GB limit.");
-    }
-
     const size_t _usedBytes = usedBytes();
 
-    int mul = 1;
+    size_t mul = 1;
 
     while((mul * size - _usedBytes - 1) < n && (mul*size) < max)
     {
@@ -129,7 +124,10 @@ void CirBuf::doubleSize(uint factor)
 
     assert(isPowerOfTwo(factor));
 
-    uint newSize = size * factor;
+    if ((static_cast<size_t>(size) * factor) > 2147483648)
+        throw std::runtime_error("Trying to exceed circular buffer beyond its 2 GB limit.");
+
+    uint32_t newSize = size * factor;
     char *newBuf = (char*)realloc(buf, newSize);
 
     if (newBuf == NULL)
@@ -140,7 +138,7 @@ void CirBuf::doubleSize(uint factor)
     memset(&newBuf[size], 68, newSize - size);
 #endif
 
-    uint maxRead = maxReadSize();
+    uint32_t maxRead = maxReadSize();
     buf = newBuf;
 
     if (head < tail)
