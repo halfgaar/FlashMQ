@@ -887,10 +887,9 @@ ssize_t IoWrapper::websocketBytesToReadBuffer(void *buf, const size_t nbytes, Io
             if (incompleteWebsocketRead.frame_bytes_left >= 2)
             {
                 // If there is payload, MUST be a 2-byte unsigned integer (in network byte order) representing a status code with value /code/ defined
-                const uint8_t msb = *websocketPendingBytes.tailPtr() ^ incompleteWebsocketRead.getNextMaskingByte();
-                websocketPendingBytes.advanceTail(1);
-                const uint8_t lsb = *websocketPendingBytes.tailPtr() ^ incompleteWebsocketRead.getNextMaskingByte();
-                websocketPendingBytes.advanceTail(1);
+                const uint8_t msb = websocketPendingBytes.peakAhead(0) ^ incompleteWebsocketRead.getNextMaskingByte();
+                const uint8_t lsb = websocketPendingBytes.peakAhead(1) ^ incompleteWebsocketRead.getNextMaskingByte();
+                websocketPendingBytes.advanceTail(2);
 
                 const uint16_t code = msb << 8 | lsb;
 
