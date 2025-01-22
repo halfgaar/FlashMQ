@@ -84,6 +84,10 @@ char *CirBuf::tailPtr()
 void CirBuf::advanceHead(uint32_t n)
 {
     assert(n <= freeSpace());
+
+    if (n > freeSpace())
+        throw std::runtime_error("Trying to advance buffer head more then there bytes free are in the buffer.");
+
     head = (head + n) & (size -1);
     assert(tail != head); // Putting things in the buffer must never end on tail, because tail == head == empty.
 }
@@ -91,12 +95,21 @@ void CirBuf::advanceHead(uint32_t n)
 void CirBuf::advanceTail(uint32_t n)
 {
     assert(n <= usedBytes());
+
+    if (n > usedBytes())
+        throw std::runtime_error("Trying to advance buffer tail more then there bytes used are in the buffer.");
+
     tail = (tail + n) & (size -1);
 }
 
 char CirBuf::peakAhead(uint32_t offset) const
 {
-    int b = buf[(tail + offset) & (size - 1)];
+    assert(offset < usedBytes());
+
+    if (offset >= usedBytes())
+        throw std::runtime_error("Trying to peek more bytes then there are in the buffer.");
+
+    char b = buf[(tail + offset) & (size - 1)];
     return b;
 }
 
