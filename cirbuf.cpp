@@ -262,6 +262,14 @@ void CirBuf::write(const void *buf, size_t count)
     assert(src_i == count);
 }
 
+std::vector<char> CirBuf::peekAllToVector()
+{
+    const uint32_t tail_org = tail;
+    std::vector<char> result = readAllToVector();
+    tail = tail_org;
+    return result;
+}
+
 std::vector<char> CirBuf::readToVector(const uint32_t max)
 {
     assert(size > 0);

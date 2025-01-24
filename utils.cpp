@@ -267,7 +267,7 @@ bool isPowerOfTwo(int n)
 
 bool parseHttpHeader(CirBuf &buf, std::string &websocket_key, int &websocket_version, std::string &subprotocol, std::string &xRealIp)
 {
-    std::vector<char> buf_data = buf.readAllToVector();
+    std::vector<char> buf_data = buf.peekAllToVector();
 
     const std::string s(buf_data.data(), buf_data.size());
     std::istringstream is(s);

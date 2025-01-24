@@ -56,6 +56,7 @@ public:
     void write(uint8_t b);
     void write(uint8_t b, uint8_t b2);
     void write(const void *buf, size_t count);
+    std::vector<char> peekAllToVector();
     std::vector<char> readToVector(const uint32_t max);
     std::vector<char> readAllToVector();
 
