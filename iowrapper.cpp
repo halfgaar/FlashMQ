@@ -14,6 +14,7 @@ See LICENSE for license details.
 #include <string.h>
 #include <openssl/x509v3.h>
 #include <openssl/sslerr.h>
+#include <signal.h>
 
 #include "logger.h"
 #include "client.h"
@@ -718,21 +719,20 @@ ssize_t IoWrapper::readWebsocketAndOrSsl(int fd, void *buf, size_t nbytes, IoWra
  */
 ssize_t IoWrapper::websocketBytesToReadBuffer(void *buf, const size_t nbytes, IoWrapResult *error)
 {
-    const ssize_t targetBufMaxSize = nbytes;
-    ssize_t nbytesRead = 0;
+    size_t nbytesRead = 0;
 
     int iter_count = 0;
 
     auto log_spin = [&](const std::string &id) {
         logger->log(LOG_ERR) << std::boolalpha << "Websocket spin loop in " << id << " detected. Please report at https://github.com/halfgaar/FlashMQ. Variables: "
-                             << "usedBytes=" << websocketPendingBytes.usedBytes() << ". nbytesRead=" << nbytesRead << ". targetBufMaxSize=" << targetBufMaxSize
+                             << "usedBytes=" << websocketPendingBytes.usedBytes() << ". nbytesRead=" << nbytesRead << ". nbytes=" << nbytes
                              << ". sillWorkingOnFrame=" << incompleteWebsocketRead.sillWorkingOnFrame() << ". "
                              << "frameBytesLeft=" << incompleteWebsocketRead.frame_bytes_left << ". opcode="
                              << std::hex << static_cast<int>(incompleteWebsocketRead.opcode) << ".";
         throw std::runtime_error("Websocket spin loop detected. Please report at https://github.com/halfgaar/FlashMQ with log.");
     };
 
-    while (websocketPendingBytes.usedBytes() > 0 && nbytesRead < targetBufMaxSize)
+    while (websocketPendingBytes.usedBytes() > 0 && nbytesRead < nbytes)
     {
         if (iter_count++ >= 1000000)
             log_spin("A");
@@ -804,25 +804,22 @@ ssize_t IoWrapper::websocketBytesToReadBuffer(void *buf, const size_t nbytes, Io
         if (incompleteWebsocketRead.opcode == WebsocketOpcode::Binary)
         {
             // The following reads one websocket frame max: it will continue with the previous, or start a new one, which it may or may not finish.
-            size_t targetBufI = 0;
-            char *targetBuf = &static_cast<char*>(buf)[nbytesRead];
-            while(websocketPendingBytes.usedBytes() > 0 && incompleteWebsocketRead.frame_bytes_left > 0 && nbytesRead < targetBufMaxSize)
-            {
-                const size_t asManyBytesOfThisFrameAsPossible = std::min<size_t>(websocketPendingBytes.maxReadSize(), incompleteWebsocketRead.frame_bytes_left);
-                const size_t maxReadSize = std::min<size_t>(asManyBytesOfThisFrameAsPossible, targetBufMaxSize - nbytesRead);
-                assert(maxReadSize > 0);
-                assert(static_cast<ssize_t>(maxReadSize) + nbytesRead <= targetBufMaxSize);
-                for (size_t x = 0; x < maxReadSize; x++)
-                {
-                    targetBuf[targetBufI++] = websocketPendingBytes.tailPtr()[x] ^ incompleteWebsocketRead.getNextMaskingByte();
-                }
-                websocketPendingBytes.advanceTail(maxReadSize);
-                incompleteWebsocketRead.frame_bytes_left -= maxReadSize;
-                nbytesRead += maxReadSize;
 
-                if (iter_count++ >= 1000000)
-                    log_spin("B");
+            const size_t frame_bytes_left = std::min<size_t>(websocketPendingBytes.usedBytes(), incompleteWebsocketRead.frame_bytes_left);
+            const size_t max_read_size = std::min<size_t>(frame_bytes_left, nbytes - nbytesRead);
+
+            assert(max_read_size + nbytesRead <= nbytes);
+            if (max_read_size + nbytesRead > nbytes)
+                raise(SIGABRT);
+
+            char *offset_in_buf = &static_cast<char*>(buf)[nbytesRead];
+            for (size_t x = 0; x < max_read_size; x++)
+            {
+                offset_in_buf[x] = websocketPendingBytes.peakAhead(x) ^ incompleteWebsocketRead.getNextMaskingByte();
             }
+            websocketPendingBytes.advanceTail(max_read_size);
+            incompleteWebsocketRead.frame_bytes_left -= max_read_size;
+            nbytesRead += max_read_size;
         }
         else if (incompleteWebsocketRead.opcode == WebsocketOpcode::Ping)
         {
@@ -919,7 +916,7 @@ ssize_t IoWrapper::websocketBytesToReadBuffer(void *buf, const size_t nbytes, Io
         if (!incompleteWebsocketRead.sillWorkingOnFrame())
             incompleteWebsocketRead.reset();
     }
-    assert(nbytesRead <= static_cast<ssize_t>(nbytes));
+    assert(nbytesRead <= nbytes);
 
     return nbytesRead;
 }
