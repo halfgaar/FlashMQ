@@ -33,8 +33,13 @@ class CirBuf
     bool primedForSizeReset = false;
 public:
 
+    CirBuf(const CirBuf &other) = delete;
+    CirBuf(CirBuf &&other) = delete;
     CirBuf(size_t size);
     ~CirBuf();
+
+    CirBuf &operator=(const CirBuf &other) = delete;
+    CirBuf &operator=(CirBuf &&other) = delete;
 
     uint32_t usedBytes() const;
     uint32_t freeSpace() const;
