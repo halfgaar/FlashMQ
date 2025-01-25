@@ -178,6 +178,7 @@ MainTests::MainTests()
     REGISTER_FUNCTION3(test_circbuf_unwrapped_doubling);
     REGISTER_FUNCTION3(test_circbuf_wrapped_doubling);
     REGISTER_FUNCTION3(test_circbuf_full_wrapped_buffer_doubling);
+    REGISTER_FUNCTION3(test_cirbuf_vector_methods);
     REGISTER_FUNCTION3(test_validSubscribePath);
     REGISTER_FUNCTION(test_retained);
     REGISTER_FUNCTION(test_retained_double_set);

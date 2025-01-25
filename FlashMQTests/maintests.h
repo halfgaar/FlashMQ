@@ -49,6 +49,7 @@ class MainTests
     void test_circbuf_unwrapped_doubling();
     void test_circbuf_wrapped_doubling();
     void test_circbuf_full_wrapped_buffer_doubling();
+    void test_cirbuf_vector_methods();
 
     void test_validSubscribePath();
 

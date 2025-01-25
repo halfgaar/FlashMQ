@@ -239,6 +239,29 @@ void MainTests::test_circbuf_full_wrapped_buffer_doubling()
     QVERIFY(true);
 }
 
+void MainTests::test_cirbuf_vector_methods()
+{
+    std::vector<char> source(47);
+    getrandom(source.data(), source.size(), 0);
+
+    CirBuf target(8);
+
+    for (int i = 0; i < 4096; i++)
+    {
+        target.writerange(source.begin(), source.end());
+        FMQ_COMPARE(target.usedBytes(), source.size());
+        std::vector<char> peeked = target.peekAllToVector();
+        std::vector<char> reread = i % 2 == 0 ? target.readToVector(source.size()) : target.readAllToVector();
+        FMQ_COMPARE(reread, source);
+        FMQ_COMPARE(peeked, source);
+        FMQ_COMPARE(target.usedBytes(), static_cast<uint32_t>(0));
+        FMQ_COMPARE(target.freeSpace(), static_cast<uint32_t>(63));
+
+        if (i % 64 == 0)
+            target.resetSize(8);
+    }
+}
+
 void MainTests::test_validSubscribePath()
 {
     QVERIFY(isValidSubscribePath("one/two/three"));
