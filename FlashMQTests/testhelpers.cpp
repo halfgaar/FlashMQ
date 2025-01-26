@@ -1,6 +1,7 @@
 #include "testhelpers.h"
 
 #include <iostream>
+#include <csignal>
 #include <cstring>
 
 int assert_count;
@@ -14,6 +15,8 @@ bool fmq_assert(bool b, const char *failmsg, const char *actual, const char *exp
     if (!b)
     {
         assert_fail_count++;
+
+        raise(SIGVTALRM); // to create a corefile using GDB (if attached)
 
         if (asserts_print)
         {
