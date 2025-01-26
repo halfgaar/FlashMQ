@@ -107,8 +107,7 @@ public:
     int threadnr = 0;
     int taskEventFd = -1;
     int disconnectingAllEventFd = -1;
-    std::mutex taskQueueMutex;
-    std::list<std::function<void()>> taskQueue;
+    MutexOwned<std::list<std::function<void()>>> taskQueue;
     QueuedTasks delayedTasks;
     DriftCounter driftCounter;
     std::unordered_map<int, std::weak_ptr<void>> externalFds;

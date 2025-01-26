@@ -82,9 +82,9 @@ void do_thread_work(ThreadData *threadData)
                 std::list<std::function<void()>> copiedTasks;
 
                 {
-                    std::lock_guard<std::mutex> locker(threadData->taskQueueMutex);
-                    copiedTasks = std::move(threadData->taskQueue);
-                    threadData->taskQueue.clear();
+                    auto task_queue_locked = threadData->taskQueue.lock();
+                    copiedTasks = std::move(*task_queue_locked);
+                    task_queue_locked->clear();
                 }
 
                 for(auto &f : copiedTasks)
