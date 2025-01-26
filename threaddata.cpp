@@ -730,9 +730,9 @@ void ThreadData::removeQueuedClients()
     std::vector<std::shared_ptr<Client>> clients;
 
     {
-        std::lock_guard<std::mutex> lck2(clientsToRemoveMutex);
+        auto locked_clients_to_remove = clientsQueuedForRemoving.lock();
 
-        for (const std::weak_ptr<Client> &c : clientsQueuedForRemoving)
+        for (const std::weak_ptr<Client> &c : *locked_clients_to_remove)
         {
             std::shared_ptr<Client> client = c.lock();
             if (client)
@@ -741,7 +741,7 @@ void ThreadData::removeQueuedClients()
             }
         }
 
-        clientsQueuedForRemoving.clear();
+        locked_clients_to_remove->clear();
     }
 
     {
@@ -935,9 +935,9 @@ void ThreadData::removeClientQueued(const std::shared_ptr<Client> &client)
     bool wakeUpNeeded = true;
 
     {
-        std::lock_guard<std::mutex> locker(clientsToRemoveMutex);
-        wakeUpNeeded = clientsQueuedForRemoving.empty();
-        clientsQueuedForRemoving.push_front(client);
+        auto locked_clients_to_remove = clientsQueuedForRemoving.lock();
+        wakeUpNeeded = locked_clients_to_remove->empty();
+        locked_clients_to_remove->push_front(client);
     }
 
     if (wakeUpNeeded)
@@ -967,9 +967,9 @@ void ThreadData::removeClientQueued(int fd)
     if (clientFound)
     {
         {
-            std::lock_guard<std::mutex> locker(clientsToRemoveMutex);
-            wakeUpNeeded = clientsQueuedForRemoving.empty();
-            clientsQueuedForRemoving.push_front(std::move(clientFound));
+            auto locked_clients_to_remove = clientsQueuedForRemoving.lock();
+            wakeUpNeeded = locked_clients_to_remove->empty();
+            locked_clients_to_remove->push_front(std::move(clientFound));
         }
 
         if (wakeUpNeeded)

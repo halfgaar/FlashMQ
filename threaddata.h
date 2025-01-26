@@ -66,8 +66,7 @@ class ThreadData
     MutexOwned<Clients> clients;
     Logger *logger;
 
-    std::mutex clientsToRemoveMutex;
-    std::forward_list<std::weak_ptr<Client>> clientsQueuedForRemoving;
+    MutexOwned<std::forward_list<std::weak_ptr<Client>>> clientsQueuedForRemoving;
 
     std::mutex queuedKeepAliveMutex;
     std::map<std::chrono::seconds, std::vector<KeepAliveCheck>> queuedKeepAliveChecks;
