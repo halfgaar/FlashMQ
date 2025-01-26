@@ -31,6 +31,7 @@ See LICENSE for license details.
 #include "bridgeconfig.h"
 #include "enums.h"
 #include "fdmanaged.h"
+#include "mutexowned.h"
 
 #include "publishcopyfactory.h"
 
@@ -68,6 +69,12 @@ public:
 
 class Client
 {
+    struct OutgoingTopicAliases
+    {
+        uint16_t cur_alias = 0;
+        std::unordered_map<std::string, uint16_t> aliases;
+    };
+
     friend class IoWrapper;
 
     FdManaged fd;
@@ -118,9 +125,7 @@ class Client
 
     std::unordered_map<uint16_t, std::string> incomingTopicAliases;
 
-    uint16_t curOutgoingTopicAlias = 0;
-    std::unordered_map<std::string, uint16_t> outgoingTopicAliases;
-    std::mutex outgoingTopicAliasMutex;
+    MutexOwned<OutgoingTopicAliases> outgoingTopicAliases;
 
     std::string extendedAuthenticationMethod;
     std::unique_ptr<ConnAck> stagedConnack;

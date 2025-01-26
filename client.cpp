@@ -342,25 +342,25 @@ PacketDropReason Client::writeMqttPacketAndBlameThisClient(
      * I'm not fully happy that by doing this, we'll be holding two mutexes at the same time: this one and the buffer
      * write mutex, but it's OK for now. They are never locked in opposite order, so deadlocks shouldn't happen.
      */
-    std::unique_lock<std::mutex> aliasMutexExtended;
+    MutexLocked<Client::OutgoingTopicAliases> locked_aliases_extended;
 
     if (protocolVersion >= ProtocolVersion::Mqtt5 && this->maxOutgoingTopicAliasValue > 0)
     {
-        std::unique_lock<std::mutex> aliasMutex(outgoingTopicAliasMutex);
+        MutexLocked<Client::OutgoingTopicAliases> locked_aliases = outgoingTopicAliases.lock();
 
-        auto alias_pos = this->outgoingTopicAliases.find(copyFactory.getTopic());
+        auto alias_pos = locked_aliases->aliases.find(copyFactory.getTopic());
 
-        if (alias_pos != this->outgoingTopicAliases.end())
+        if (alias_pos != locked_aliases->aliases.end())
         {
             topic_alias = alias_pos->second;
             skip_topic = true;
         }
-        else if (this->curOutgoingTopicAlias < this->maxOutgoingTopicAliasValue)
+        else if (locked_aliases->cur_alias < this->maxOutgoingTopicAliasValue)
         {
-            topic_alias_next = this->curOutgoingTopicAlias + 1;
+            topic_alias_next = locked_aliases->cur_alias + 1;
             topic_alias = topic_alias_next;
 
-            aliasMutexExtended = std::move(aliasMutex);
+            locked_aliases_extended = std::move(locked_aliases);
         }
     }
 
@@ -384,8 +384,8 @@ PacketDropReason Client::writeMqttPacketAndBlameThisClient(
 
     if (dropReason == PacketDropReason::Success && topic_alias_next > 0)
     {
-        this->outgoingTopicAliases[copyFactory.getTopic()] = topic_alias_next;
-        this->curOutgoingTopicAlias = topic_alias_next;
+        locked_aliases_extended->aliases[copyFactory.getTopic()] = topic_alias_next;
+        locked_aliases_extended->cur_alias = topic_alias_next;
     }
 
     return dropReason;
