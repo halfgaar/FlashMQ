@@ -269,13 +269,13 @@ void ThreadData::clientDisconnectEvent(const std::string &clientid)
 
 void ThreadData::bridgeReconnect()
 {
-    std::lock_guard<std::mutex> locker(clients_by_fd_mutex);
+    auto clients_locked = clients.lock();
 
     bool requeue = false;
     std::shared_ptr<BridgeState> bridge;
     std::shared_ptr<ThreadData> _threadData;
 
-    for (auto &pair : bridges)
+    for (auto &pair : clients_locked->bridges)
     {
         bridge = pair.second;
 
@@ -357,7 +357,7 @@ void ThreadData::bridgeReconnect()
 
             logger->logf(LOG_NOTICE, "Connecting brige: %s", c->repr().c_str());
 
-            clients_by_fd[sockfd] = c;
+            clients_locked->by_fd[sockfd] = c;
 
             struct epoll_event ev;
             memset(&ev, 0, sizeof (struct epoll_event));
@@ -682,9 +682,9 @@ void ThreadData::removeExpiredRetainedMessages()
 
 void ThreadData::sendAllWills()
 {
-    std::lock_guard<std::mutex> lck(clients_by_fd_mutex);
+    auto clients_locked = clients.lock();
 
-    for(auto &pair : clients_by_fd)
+    for(auto &pair : clients_locked->by_fd)
     {
         std::shared_ptr<Client> &c = pair.second;
         c->sendOrQueueWill();
@@ -698,10 +698,10 @@ void ThreadData::sendAllDisconnects()
     std::vector<std::shared_ptr<Client>> clientsFound;
 
     {
-        std::lock_guard<std::mutex> lck(clients_by_fd_mutex);
-        clientsFound.reserve(clients_by_fd.size());
+        auto clients_locked = clients.lock();
+        clientsFound.reserve(clients_locked->by_fd.size());
 
-        for(auto &pair : clients_by_fd)
+        for(auto &pair : clients_locked->by_fd)
         {
             clientsFound.push_back(pair.second);
         }
@@ -745,14 +745,14 @@ void ThreadData::removeQueuedClients()
     }
 
     {
-        std::lock_guard<std::mutex> lck(clients_by_fd_mutex);
+        auto clients_locked = this->clients.lock();
         for(const std::shared_ptr<Client> &client : clients)
         {
             const int fd = client->getFd();
-            auto pos = clients_by_fd.find(fd);
-            if (pos != clients_by_fd.end() && pos->second == client)
+            auto pos = clients_locked->by_fd.find(fd);
+            if (pos != clients_locked->by_fd.end() && pos->second == client)
             {
-                clients_by_fd.erase(pos);
+                clients_locked->by_fd.erase(pos);
             }
         }
     }
@@ -766,8 +766,8 @@ void ThreadData::giveClient(std::shared_ptr<Client> &&client)
     queueClientNextKeepAliveCheckLocked(client, false);
 
     {
-        std::lock_guard<std::mutex> locker(clients_by_fd_mutex);
-        clients_by_fd[fd] = std::move(client); // We must give up ownership here, to avoid calling the client destructor in the main thread.
+        auto clients_locked = clients.lock();
+        clients_locked->by_fd[fd] = std::move(client); // We must give up ownership here, to avoid calling the client destructor in the main thread.
     }
 
     struct epoll_event ev;
@@ -782,11 +782,11 @@ void ThreadData::giveBridge(std::shared_ptr<BridgeState> &bridgeState)
     if (!bridgeState)
         return;
 
-    std::lock_guard<std::mutex> locker(clients_by_fd_mutex);
+    auto clients_locked = clients.lock();
 
-    auto pos = bridges.find(bridgeState->c.clientidPrefix);
+    auto pos = clients_locked->bridges.find(bridgeState->c.clientidPrefix);
 
-    if (pos != bridges.end())
+    if (pos != clients_locked->bridges.end())
     {
         std::shared_ptr<BridgeState> &existingState = pos->second;
 
@@ -803,7 +803,7 @@ void ThreadData::giveBridge(std::shared_ptr<BridgeState> &bridgeState)
     }
     else
     {
-        bridges[bridgeState->c.clientidPrefix] = bridgeState;
+        clients_locked->bridges[bridgeState->c.clientidPrefix] = bridgeState;
     }
 }
 
@@ -820,15 +820,15 @@ void ThreadData::removeBridge(std::shared_ptr<BridgeConfig> bridgeConfig, const 
     if (!bridgeConfig)
         return;
 
-    std::lock_guard<std::mutex> locker(clients_by_fd_mutex);
+    auto clients_locked = clients.lock();
 
-    auto pos = bridges.find(bridgeConfig->clientidPrefix);
+    auto pos = clients_locked->bridges.find(bridgeConfig->clientidPrefix);
 
-    if (pos == bridges.end())
+    if (pos == clients_locked->bridges.end())
         return;
 
     std::shared_ptr<BridgeState> bridge = pos->second;
-    bridges.erase(pos);
+    clients_locked->bridges.erase(pos);
 
     if (!bridge)
         return;
@@ -916,11 +916,11 @@ void ThreadData::queueInternalHeartbeat()
 
 std::shared_ptr<Client> ThreadData::getClient(int fd)
 {
-    std::lock_guard<std::mutex> lck(clients_by_fd_mutex);
+    auto clients_locked = clients.lock();
 
-    auto pos = clients_by_fd.find(fd);
+    auto pos = clients_locked->by_fd.find(fd);
 
-    if (pos == clients_by_fd.end())
+    if (pos == clients_locked->by_fd.end())
         return std::shared_ptr<Client>();
 
     return pos->second;
@@ -956,9 +956,9 @@ void ThreadData::removeClientQueued(int fd)
     std::shared_ptr<Client> clientFound;
 
     {
-        std::lock_guard<std::mutex> lck(clients_by_fd_mutex);
-        auto client_it = this->clients_by_fd.find(fd);
-        if (client_it != this->clients_by_fd.end())
+        auto clients_locked = clients.lock();
+        auto client_it = clients_locked->by_fd.find(fd);
+        if (client_it != clients_locked->by_fd.end())
         {
             clientFound = client_it->second;
         }
@@ -993,10 +993,10 @@ void ThreadData::removeClient(std::shared_ptr<Client> client)
 
     client->setDisconnectStage(DisconnectStage::Now);
 
-    std::lock_guard<std::mutex> lck(clients_by_fd_mutex);
-    auto pos = clients_by_fd.find(client->getFd());
-    if (pos != clients_by_fd.end() && pos->second == client)
-        clients_by_fd.erase(pos);
+    auto clients_locked = clients.lock();
+    auto pos = clients_locked->by_fd.find(client->getFd());
+    if (pos != clients_locked->by_fd.end() && pos->second == client)
+        clients_locked->by_fd.erase(pos);
 }
 
 void ThreadData::serverInitiatedDisconnect(std::shared_ptr<Client> &&client, ReasonCodes reason, const std::string &reason_text)
@@ -1082,9 +1082,10 @@ void ThreadData::queuePasswdFileReload()
     wakeUpThread();
 }
 
-int ThreadData::getNrOfClients() const
+int ThreadData::getNrOfClients()
 {
-    return clients_by_fd.size();
+    auto clients_locked = clients.lock();
+    return clients_locked->by_fd.size();
 }
 
 void ThreadData::queuepluginPeriodicEvent()
@@ -1247,12 +1248,12 @@ void ThreadData::doKeepAliveCheck()
         logger->logf(LOG_DEBUG, "Checked %d clients in %d of %d keep-alive slots in thread %d", clientsChecked, slotsProcessed, slotsTotal, threadnr);
 
         {
-            std::unique_lock<std::mutex> lock(clients_by_fd_mutex);
+            auto clients_locked = clients.lock();
 
             for (std::shared_ptr<Client> c : clientsToRemove)
             {
                 c->setDisconnectReason("Keep-alive expired: " + c->getKeepAliveInfoString());
-                clients_by_fd.erase(c->getFd());
+                clients_locked->by_fd.erase(c->getFd());
             }
         }
     }
@@ -1285,14 +1286,18 @@ void ThreadData::reload(const Settings &settings)
         // Because the auth plugin has a reference to it, it will also be updated.
         settingsLocalCopy = settings;
 
-        for (auto &pair : this->bridges)
         {
-            std::shared_ptr<BridgeState> b = pair.second;
+            auto clients_locked = clients.lock();
 
-            if (!b)
-                continue;
+            for (auto &pair : clients_locked->bridges)
+            {
+                std::shared_ptr<BridgeState> b = pair.second;
 
-            b->initSSL(true);
+                if (!b)
+                    continue;
+
+                b->initSSL(true);
+            }
         }
 
         authentication.securityCleanup(true);

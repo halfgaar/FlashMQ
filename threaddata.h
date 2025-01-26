@@ -33,6 +33,7 @@ See LICENSE for license details.
 #include "bridgeconfig.h"
 #include "driftcounter.h"
 #include "fdmanaged.h"
+#include "mutexowned.h"
 
 typedef void (*thread_f)(ThreadData *);
 
@@ -53,12 +54,16 @@ struct QueuedRetainedMessage
     QueuedRetainedMessage(const Publish &p, const std::vector<std::string> &subtopics, const std::chrono::time_point<std::chrono::steady_clock> limit);
 };
 
+struct Clients
+{
+    std::unordered_map<int, std::shared_ptr<Client>> by_fd;
+    std::unordered_map<std::string, std::shared_ptr<BridgeState>> bridges;
+};
+
 class ThreadData
 {
     FdManaged epollfd;
-    std::unordered_map<int, std::shared_ptr<Client>> clients_by_fd;
-    std::unordered_map<std::string, std::shared_ptr<BridgeState>> bridges;
-    std::mutex clients_by_fd_mutex;
+    MutexOwned<Clients> clients;
     Logger *logger;
 
     std::mutex clientsToRemoveMutex;
@@ -168,7 +173,7 @@ public:
     bool queuedRetainedMessagesEmpty() const;
     void clearQueuedRetainedMessages();
 
-    int getNrOfClients() const;
+    int getNrOfClients();
 
     void queuepluginPeriodicEvent();
     void pluginPeriodicEvent();
