@@ -67,9 +67,7 @@ class ThreadData
     Logger *logger;
 
     MutexOwned<std::forward_list<std::weak_ptr<Client>>> clientsQueuedForRemoving;
-
-    std::mutex queuedKeepAliveMutex;
-    std::map<std::chrono::seconds, std::vector<KeepAliveCheck>> queuedKeepAliveChecks;
+    MutexOwned<std::map<std::chrono::seconds, std::vector<KeepAliveCheck>>> queuedKeepAliveChecks;
 
     std::list<QueuedRetainedMessage> queuedRetainedMessages;
 
@@ -87,7 +85,8 @@ class ThreadData
     void removeExpiredRetainedMessages();
     void sendAllWills();
     void sendAllDisconnects();
-    void queueClientNextKeepAliveCheck(std::shared_ptr<Client> &client, bool keepRechecking);
+    void queueClientNextKeepAliveCheck(
+        std::shared_ptr<Client> &client, bool keepRechecking, MutexLocked<std::map<std::chrono::seconds, std::vector<KeepAliveCheck>>> &queued_checks_locked);
     void clientDisconnectEvent(const std::string &clientid);
     void clientDisconnectActions(
             bool authenticated, const std::string &clientid, std::shared_ptr<WillPublish> &willPublish, std::shared_ptr<Session> &session,
@@ -159,7 +158,7 @@ public:
     void queueRemoveExpiredSessions();
     void queuePurgeSubscriptionTree();
     void queueRemoveExpiredRetainedMessages();
-    void queueClientNextKeepAliveCheckLocked(std::shared_ptr<Client> &client, bool keepRechecking);
+    void queueClientNextKeepAliveCheck(std::shared_ptr<Client> &client, bool keepRechecking);
     void continuationOfAuthentication(std::shared_ptr<Client> &client, AuthResult authResult, const std::string &authMethod, const std::string &returnData);
     void queueContinuationOfAuthentication(const std::shared_ptr<Client> &client, AuthResult authResult, const std::string &authMethod, const std::string &returnData);
     void queueClientDisconnectActions(

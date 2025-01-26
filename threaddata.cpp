@@ -173,7 +173,9 @@ void ThreadData::queueRemoveExpiredRetainedMessages()
     wakeUpThread();
 }
 
-void ThreadData::queueClientNextKeepAliveCheck(std::shared_ptr<Client> &client, bool keepRechecking)
+void ThreadData::queueClientNextKeepAliveCheck(
+    std::shared_ptr<Client> &client, bool keepRechecking,
+    MutexLocked<std::map<std::chrono::seconds, std::vector<KeepAliveCheck>>> &queued_checks_locked)
 {
     const std::chrono::seconds k = client->getSecondsTillKeepAliveAction();
 
@@ -184,13 +186,13 @@ void ThreadData::queueClientNextKeepAliveCheck(std::shared_ptr<Client> &client, 
 
     KeepAliveCheck check(client);
     check.recheck = keepRechecking;
-    queuedKeepAliveChecks[when].push_back(check);
+    queued_checks_locked->operator[](when).push_back(check);
 }
 
-void ThreadData::queueClientNextKeepAliveCheckLocked(std::shared_ptr<Client> &client, bool keepRechecking)
+void ThreadData::queueClientNextKeepAliveCheck(std::shared_ptr<Client> &client, bool keepRechecking)
 {
-    std::lock_guard<std::mutex> locker(this->queuedKeepAliveMutex);
-    queueClientNextKeepAliveCheck(client, keepRechecking);
+    auto queued_checks_locked = queuedKeepAliveChecks.lock();
+    queueClientNextKeepAliveCheck(client, keepRechecking, queued_checks_locked);
 }
 
 /**
@@ -365,7 +367,7 @@ void ThreadData::bridgeReconnect()
             ev.events = EPOLLIN | EPOLLOUT;
             check<std::runtime_error>(epoll_ctl(epollfd.get(), EPOLL_CTL_ADD, sockfd, &ev));
 
-            queueClientNextKeepAliveCheckLocked(c, true);
+            queueClientNextKeepAliveCheck(c, true);
 
             if (session)
             {
@@ -763,7 +765,7 @@ void ThreadData::giveClient(std::shared_ptr<Client> &&client)
     const int fd = client->getFd();
 
     // A non-repeating keep-alive check is for when clients do a TCP connect and then nothing else.
-    queueClientNextKeepAliveCheckLocked(client, false);
+    queueClientNextKeepAliveCheck(client, false);
 
     {
         auto clients_locked = clients.lock();
@@ -1191,17 +1193,19 @@ void ThreadData::doKeepAliveCheck()
 
         std::vector<std::shared_ptr<Client>> clientsToRecheck;
 
-        const int slotsTotal = this->queuedKeepAliveChecks.size();
+        int slotsTotal = 0;
         int slotsProcessed = 0;
         int clientsChecked = 0;
 
         {
             logger->logf(LOG_DEBUG, "Checking clients with pending keep-alive checks in thread %d", threadnr);
 
-            std::lock_guard<std::mutex> locker(this->queuedKeepAliveMutex);
+            auto queued_checks_locked = queuedKeepAliveChecks.lock();
 
-            auto pos = this->queuedKeepAliveChecks.begin();
-            while (pos != this->queuedKeepAliveChecks.end())
+            slotsTotal = queued_checks_locked->size();
+
+            auto pos = queued_checks_locked->begin();
+            while (pos != queued_checks_locked->end())
             {
                 const std::chrono::seconds &doCheckAt = pos->first;
 
@@ -1235,13 +1239,13 @@ void ThreadData::doKeepAliveCheck()
                     }
                 }
 
-                pos = this->queuedKeepAliveChecks.erase(pos);
+                pos = queued_checks_locked->erase(pos);
             }
 
             for (std::shared_ptr<Client> &c : clientsToRecheck)
             {
                 c->resetBuffersIfEligible();
-                queueClientNextKeepAliveCheck(c, true);
+                queueClientNextKeepAliveCheck(c, true, queued_checks_locked);
             }
         }
 
