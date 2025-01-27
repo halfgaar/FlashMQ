@@ -17,6 +17,7 @@ See LICENSE for license details.
 #include <limits.h>
 #include <cassert>
 #include <algorithm>
+#include <vector>
 
 // Optimized circular buffer, works only with sizes power of two.
 class CirBuf
