@@ -75,6 +75,14 @@ class Client
         std::unordered_map<std::string, uint16_t> aliases;
     };
 
+    struct WriteBuf
+    {
+        CirBuf buf;
+        bool readyForWriting = false;
+
+        WriteBuf(size_t size);
+    };
+
     friend class IoWrapper;
 
     FdManaged fd;
@@ -93,11 +101,10 @@ class Client
     std::string address;
 
     CirBuf readbuf;
-    CirBuf writebuf;
+    MutexOwned<WriteBuf> writebuf;
 
     bool authenticated = false;
     bool connectPacketSeen = false;
-    bool readyForWriting = false;
     bool readyForReading = true;
     DisconnectStage disconnectStage = DisconnectStage::NotInitiated;
     bool outgoingConnection = false;
@@ -119,7 +126,6 @@ class Client
 
     const int epoll_fd;
     std::weak_ptr<ThreadData> threadData; // The thread (data) that this client 'lives' in.
-    std::mutex writeBufMutex;
 
     std::shared_ptr<Session> session;
 
@@ -143,6 +149,7 @@ class Client
     std::unique_ptr<AsyncAuthResult> asyncAuthResult;
 
     void setReadyForWriting(bool val);
+    void setReadyForWriting(bool val, MutexLocked<WriteBuf> &writebuf);
     void setReadyForReading(bool val);
     void setAddr(const std::string &address);
 

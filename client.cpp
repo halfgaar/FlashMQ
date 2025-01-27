@@ -40,6 +40,12 @@ AsyncAuthResult::AsyncAuthResult(AuthResult result, const std::string authMethod
 
 }
 
+Client::WriteBuf::WriteBuf(size_t size) :
+    buf(size)
+{
+
+}
+
 /**
  * @brief Client::Client
  * @param fd
@@ -259,19 +265,16 @@ void Client::writeText(const std::string &text)
     assert(ioWrapper.isWebsocket());
     assert(ioWrapper.getWebsocketState() == WebsocketState::NotUpgraded);
 
-    // Not necessary, because at this point, no other threads write to this client, but including for clarity.
-    std::lock_guard<std::mutex> locker(writeBufMutex);
-
-    writebuf.writerange(text.begin(), text.end());
-
-    setReadyForWriting(true);
+    auto write_buf_locked = writebuf.lock();
+    write_buf_locked->buf.writerange(text.begin(), text.end());
+    setReadyForWriting(true, write_buf_locked);
 }
 
 void Client::writePing()
 {
-    std::lock_guard<std::mutex> locker(writeBufMutex);
-    writebuf.write(0b11000000, 0);
-    setReadyForWriting(true);
+    auto write_buf_locked = writebuf.lock();
+    write_buf_locked->buf.write(0b11000000, 0);
+    setReadyForWriting(true, write_buf_locked);
 }
 
 PacketDropReason Client::writeMqttPacket(const MqttPacket &packet)
@@ -290,19 +293,19 @@ PacketDropReason Client::writeMqttPacket(const MqttPacket &packet)
     // After introducing the client_max_write_buffer_size with low default, this makes it somewhat backwards compatible with the default big packet size.
     const uint32_t growBufMaxTo = std::max<uint32_t>(settings->clientMaxWriteBufferSize, packetSize * 2);
 
-    std::lock_guard<std::mutex> locker(writeBufMutex);
+    auto write_buf_locked = writebuf.lock();
 
     // Grow as far as we can. We have to make room for one MQTT packet.
-    writebuf.ensureFreeSpace(packetSize, growBufMaxTo);
+    write_buf_locked->buf.ensureFreeSpace(packetSize, growBufMaxTo);
 
     // And drop a publish when it doesn't fit, even after resizing. This means we do allow pings. And
     // QoS packet are queued and limited elsewhere.
-    if (packet.packetType == PacketType::PUBLISH && packet.getQos() == 0 && packetSize > writebuf.freeSpace())
+    if (packet.packetType == PacketType::PUBLISH && packet.getQos() == 0 && packetSize > write_buf_locked->buf.freeSpace())
     {
         return PacketDropReason::BufferFull;
     }
 
-    packet.readIntoBuf(writebuf);
+    packet.readIntoBuf(write_buf_locked->buf);
 
     if (packet.packetType == PacketType::PUBLISH)
     {
@@ -312,7 +315,7 @@ PacketDropReason Client::writeMqttPacket(const MqttPacket &packet)
     else if (packet.packetType == PacketType::DISCONNECT)
         setDisconnectStage(DisconnectStage::SendPendingAppData);
 
-    setReadyForWriting(true);
+    setReadyForWriting(true, write_buf_locked);
 
     return PacketDropReason::Success;
 }
@@ -403,9 +406,9 @@ PacketDropReason Client::writeMqttPacketAndBlameThisClient(const MqttPacket &pac
 // Ping responses are always the same, so hardcoding it for optimization.
 void Client::writePingResp()
 {
-    std::lock_guard<std::mutex> locker(writeBufMutex);
-    writebuf.write(0b11010000, 0);
-    setReadyForWriting(true);
+    auto write_buf_locked = writebuf.lock();
+    write_buf_locked->buf.write(0b11010000, 0);
+    setReadyForWriting(true, write_buf_locked);
 }
 
 void Client::writeLoginPacket()
@@ -430,8 +433,8 @@ void Client::writeLoginPacket()
 
 void Client::writeBufIntoFd()
 {
-    std::unique_lock<std::mutex> lock(writeBufMutex, std::try_to_lock);
-    if (!lock.owns_lock())
+    auto write_buf_locked = writebuf.lock(std::try_to_lock);
+    if (!write_buf_locked.get_lock().owns_lock())
         return;
 
     // We can abort the write; the client is about to be removed anyway.
@@ -440,12 +443,12 @@ void Client::writeBufIntoFd()
 
     IoWrapResult error = IoWrapResult::Success;
     int n;
-    while (writebuf.usedBytes() > 0 || ioWrapper.hasPendingWrite())
+    while (write_buf_locked->buf.usedBytes() > 0 || ioWrapper.hasPendingWrite())
     {
-        n = ioWrapper.writeWebsocketAndOrSsl(fd.get(), writebuf.tailPtr(), writebuf.maxReadSize(), &error);
+        n = ioWrapper.writeWebsocketAndOrSsl(fd.get(), write_buf_locked->buf.tailPtr(), write_buf_locked->buf.maxReadSize(), &error);
 
         if (n > 0)
-            writebuf.advanceTail(n);
+            write_buf_locked->buf.advanceTail(n);
 
         if (error == IoWrapResult::Interrupted)
             continue;
@@ -453,14 +456,14 @@ void Client::writeBufIntoFd()
             break;
     }
 
-    const bool data_pending = writebuf.usedBytes() > 0 || ioWrapper.hasPendingWrite() || error == IoWrapResult::Wouldblock;
+    const bool data_pending = write_buf_locked->buf.usedBytes() > 0 || ioWrapper.hasPendingWrite() || error == IoWrapResult::Wouldblock;
 
     if (this->disconnectStage == DisconnectStage::SendPendingAppData && !data_pending)
     {
         this->disconnectStage = DisconnectStage::Now;
     }
 
-    setReadyForWriting(data_pending);
+    setReadyForWriting(data_pending, write_buf_locked);
 }
 
 const sockaddr *Client::getAddr() const
@@ -527,9 +530,8 @@ void Client::resetBuffersIfEligible()
     readbuf.resetSizeIfEligable(initialBufferSize);
     ioWrapper.resetBuffersIfEligible();
 
-    // Write buffers are written to from other threads, and this resetting takes place from the Client's own thread, so we need to lock.
-    std::lock_guard<std::mutex> locker(writeBufMutex);
-    writebuf.resetSizeIfEligable(initialBufferSize);
+    auto write_buf_locked = writebuf.lock();
+    write_buf_locked->buf.resetSizeIfEligable(initialBufferSize);
 }
 
 void Client::setTopicAlias(const uint16_t alias_id, const std::string &topic)
@@ -755,8 +757,13 @@ void Client::setFakeUpgraded()
 }
 #endif
 
-// Call this from a place you know the writeBufMutex is locked, or we're still only doing SSL accept.
 void Client::setReadyForWriting(bool val)
+{
+    auto write_buf_locked = writebuf.lock();
+    setReadyForWriting(val, write_buf_locked);
+}
+
+void Client::setReadyForWriting(bool val, MutexLocked<WriteBuf> &writebuf)
 {
 #ifndef NDEBUG
     if (fuzzMode)
@@ -775,15 +782,15 @@ void Client::setReadyForWriting(bool val)
         val = true;
 
     // This looks a bit like a race condition, but all calls to this method should be under lock of writeBufMutex, so it should be OK.
-    if (val == this->readyForWriting)
+    if (val == writebuf->readyForWriting)
         return;
 
-    readyForWriting = val;
+    writebuf->readyForWriting = val;
 
     struct epoll_event ev;
     memset(&ev, 0, sizeof (struct epoll_event));
     ev.data.fd = fd.get();
-    ev.events = readyForReading*EPOLLIN | readyForWriting*EPOLLOUT;
+    ev.events = readyForReading*EPOLLIN | val*EPOLLOUT;
     check<std::runtime_error>(epoll_ctl(this->epoll_fd, EPOLL_CTL_MOD, fd.get(), &ev));
 }
 
@@ -813,10 +820,8 @@ void Client::setReadyForReading(bool val)
     ev.data.fd = fd.get();
 
     {
-        // Because setReadyForWriting is always called onder writeBufMutex, this prevents readiness race conditions.
-        std::lock_guard<std::mutex> locker(writeBufMutex);
-
-        ev.events = readyForReading*EPOLLIN | readyForWriting*EPOLLOUT;
+        auto write_buf_locked = writebuf.lock();
+        ev.events = readyForReading*EPOLLIN | write_buf_locked->readyForWriting*EPOLLOUT;
         check<std::runtime_error>(epoll_ctl(this->epoll_fd, EPOLL_CTL_MOD, fd.get(), &ev));
     }
 }
@@ -1081,9 +1086,6 @@ void Client::handleAfterAsyncQueue(std::shared_ptr<Client> &sender)
 void Client::setAsyncAuthResult(const AsyncAuthResult &v)
 {
     this->asyncAuthResult = std::make_unique<AsyncAuthResult>(v);
-
-    // As per the docs on setReadyForWriting(bool), this needs to be done under mutex.
-    std::lock_guard<std::mutex> locker(writeBufMutex);
     setReadyForWriting(true);
 }
 
