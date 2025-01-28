@@ -43,8 +43,11 @@ void Session::QoSData::increaseFlowControlQuota(int n)
 
 void Session::QoSData::clearExpiredMessagesFromQueue()
 {
-    if (lastExpiredMessagesAt + std::chrono::seconds(1) > std::chrono::steady_clock::now())
+    const auto now = std::chrono::steady_clock::now();
+    if (lastExpiredMessagesAt + std::chrono::seconds(1) > now)
         return;
+
+    lastExpiredMessagesAt = now;
 
     const int n = qosPacketQueue.clearExpiredMessages();
     increaseFlowControlQuota(n);
