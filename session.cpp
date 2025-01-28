@@ -18,35 +18,35 @@ See LICENSE for license details.
 #include "plugin.h"
 #include "settings.h"
 
+
 Session::Session(const std::string &clientid, const std::string &username) :
     client_id(clientid),
-    username(username)
-{
-    const Settings &settings = *ThreadGlobals::getSettings();
+    username(username),
 
     // Sessions also get defaults from the handleConnect() method, but when you create sessions elsewhere, we do need some sensible defaults.
-    this->flowControlQuota = settings.maxQosMsgPendingPerClient;
-    this->sessionExpiryInterval = settings.expireSessionsAfterSeconds;
+    qos(ThreadGlobals::getSettings()->maxQosMsgPendingPerClient)
+{
+    this->sessionExpiryInterval = ThreadGlobals::getSettings()->expireSessionsAfterSeconds;
 }
 
-void Session::increaseFlowControlQuota()
+void Session::QoSData::increaseFlowControlQuota()
 {
     flowControlQuota++;
-    this->flowControlQuota = std::min<int>(flowControlQuota, flowControlCealing);
+    flowControlQuota = std::min<int>(flowControlQuota, flowControlCealing);
 }
 
-void Session::increaseFlowControlQuota(int n)
+void Session::QoSData::increaseFlowControlQuota(int n)
 {
     flowControlQuota += n;
-    this->flowControlQuota = std::min<int>(flowControlQuota, flowControlCealing);
+    flowControlQuota = std::min<int>(flowControlQuota, flowControlCealing);
 }
 
-void Session::clearExpiredMessagesFromQueue()
+void Session::QoSData::clearExpiredMessagesFromQueue()
 {
-    if (this->lastExpiredMessagesAt + std::chrono::seconds(1) > std::chrono::steady_clock::now())
+    if (lastExpiredMessagesAt + std::chrono::seconds(1) > std::chrono::steady_clock::now())
         return;
 
-    const int n = this->qosPacketQueue.clearExpiredMessages();
+    const int n = qosPacketQueue.clearExpiredMessages();
     increaseFlowControlQuota(n);
 }
 
@@ -56,7 +56,7 @@ void Session::clearExpiredMessagesFromQueue()
  *
  * You should also check that flowControl is higher than 0 before you use this.
  */
-uint16_t Session::getNextPacketId()
+uint16_t Session::QoSData::getNextPacketId()
 {
     nextPacketId++;
     nextPacketId = std::max<uint16_t>(nextPacketId, 1);
@@ -145,18 +145,18 @@ PacketDropReason Session::writePacket(PublishCopyFactory &copyFactory, const uin
     if (__builtin_expect(effectiveQos > 0, 0))
     {
         const Settings *settings = ThreadGlobals::getSettings();
-        std::unique_lock<std::mutex> locker(qosQueueMutex);
+        MutexLocked<QoSData> qos_locked = qos.lock();
 
         // We don't clear expired messages for online clients. It would slow down the 'happy flow' and those packets are already in the output
         // buffer, so we can't clear them anyway.
         if (!c)
         {
-            clearExpiredMessagesFromQueue();
+            qos_locked->clearExpiredMessagesFromQueue();
         }
 
-        if (this->flowControlQuota <= 0 || (qosPacketQueue.getByteSize() >= settings->maxQosBytesPendingPerClient && qosPacketQueue.size() > 0))
+        if (qos_locked->flowControlQuota <= 0 || (qos_locked->qosPacketQueue.getByteSize() >= settings->maxQosBytesPendingPerClient && qos_locked->qosPacketQueue.size() > 0))
         {
-            if (QoSLogPrintedAtId != nextPacketId)
+            if (qos_locked->QoSLogPrintedAtId != qos_locked->nextPacketId)
             {
                 if (c)
                 {
@@ -172,15 +172,15 @@ PacketDropReason Session::writePacket(PublishCopyFactory &copyFactory, const uin
                         "Dropping QoS message(s) for off-line client '" << client_id << "', because the limit has been reached. "
                         "You can increase 'max_qos_msg_pending_per_client' and/or 'max_qos_bytes_pending_per_client' to buffer more.";
                 }
-                QoSLogPrintedAtId = nextPacketId;
+                qos_locked->QoSLogPrintedAtId = qos_locked->nextPacketId;
             }
             return PacketDropReason::QoSTODOSomethingSomething;
         }
 
-        pack_id = getNextPacketId();
+        pack_id = qos_locked->getNextPacketId();
 
         if (!destroyOnDisconnect)
-            qosPacketQueue.queuePublish(copyFactory, pack_id, effectiveQos, effectiveRetain, subscriptionIdentifier);
+            qos_locked->qosPacketQueue.queuePublish(copyFactory, pack_id, effectiveQos, effectiveRetain, subscriptionIdentifier);
     }
 
     PacketDropReason return_value = PacketDropReason::ClientOffline;
@@ -204,15 +204,16 @@ PacketDropReason Session::writePacket(PublishCopyFactory &copyFactory, const uin
  */
 bool Session::clearQosMessage(uint16_t packet_id, bool qosHandshakeEnds)
 {
-#ifndef NDEBUG
-    logger->logf(LOG_DEBUG, "Clearing QoS message for '%s', packet id '%d'. Left in queue: %d", client_id.c_str(), packet_id, qosPacketQueue.size());
-#endif
-
     bool result = false;
 
-    std::lock_guard<std::mutex> locker(qosQueueMutex);
+    MutexLocked<QoSData> qos_locked = qos.lock();
+
+#ifndef NDEBUG
+    logger->logf(LOG_DEBUG, "Clearing QoS message for '%s', packet id '%d'. Left in queue: %d", client_id.c_str(), packet_id, qos_locked->qosPacketQueue.size());
+#endif
+
     if (!destroyOnDisconnect)
-        result = qosPacketQueue.erase(packet_id);
+        result = qos_locked->qosPacketQueue.erase(packet_id);
     else
     {
         result = true;
@@ -220,7 +221,7 @@ bool Session::clearQosMessage(uint16_t packet_id, bool qosHandshakeEnds)
 
     if (qosHandshakeEnds)
     {
-        increaseFlowControlQuota();
+        qos_locked->increaseFlowControlQuota();
     }
 
     return result;
@@ -251,9 +252,9 @@ void Session::sendAllPendingQosData()
         std::vector<uint16_t> copiedQoS2Ids;
 
         {
-            std::lock_guard<std::mutex> locker(qosQueueMutex);
+            MutexLocked<QoSData> qos_locked = qos.lock();
 
-            std::shared_ptr<QueuedPublish> qp_ = qosPacketQueue.getTail();;
+            std::shared_ptr<QueuedPublish> qp_ = qos_locked->qosPacketQueue.getTail();;
             while (qp_)
             {
                 std::shared_ptr<QueuedPublish> qp = qp_;
@@ -263,23 +264,23 @@ void Session::sendAllPendingQosData()
 
                 if (pub.hasExpired() || (authentication.aclCheck(pub, pub.payload) != AuthResult::success))
                 {
-                    qosPacketQueue.erase(qp->getPacketId());
+                    qos_locked->qosPacketQueue.erase(qp->getPacketId());
                     continue;
                 }
 
-                if (flowControlQuota <= 0)
+                if (qos_locked->flowControlQuota <= 0)
                 {
                     logger->logf(LOG_WARNING, "Dropping QoS message(s) for client '%s', because it exceeds its receive maximum.", client_id.c_str());
-                    qosPacketQueue.erase(qp->getPacketId());
+                    qos_locked->qosPacketQueue.erase(qp->getPacketId());
                     continue;
                 }
 
-                flowControlQuota--;
+                qos_locked->flowControlQuota--;
 
                 copiedPublishes.emplace_back(pub, qp->getPacketId());
             }
 
-            for (const uint16_t packet_id : outgoingQoS2MessageIds)
+            for (const uint16_t packet_id : qos_locked->outgoingQoS2MessageIds)
             {
                 copiedQoS2Ids.push_back(packet_id);
             }
@@ -330,35 +331,36 @@ void Session::addIncomingQoS2MessageId(uint16_t packet_id)
 {
     assert(packet_id > 0);
 
-    std::unique_lock<std::mutex> locker(qosQueueMutex);
-    incomingQoS2MessageIds.insert(packet_id);
+    MutexLocked<QoSData> qos_locked = qos.lock();
+    qos_locked->incomingQoS2MessageIds.insert(packet_id);
 }
 
 bool Session::incomingQoS2MessageIdInTransit(uint16_t packet_id)
 {
     assert(packet_id > 0);
 
-    std::unique_lock<std::mutex> locker(qosQueueMutex);
-    const auto it = incomingQoS2MessageIds.find(packet_id);
-    return it != incomingQoS2MessageIds.end();
+    MutexLocked<QoSData> qos_locked = qos.lock();
+    const auto it = qos_locked->incomingQoS2MessageIds.find(packet_id);
+    return it != qos_locked->incomingQoS2MessageIds.end();
 }
 
 bool Session::removeIncomingQoS2MessageId(u_int16_t packet_id)
 {
     assert(packet_id > 0);
 
-    std::unique_lock<std::mutex> locker(qosQueueMutex);
+    MutexLocked<QoSData> qos_locked = qos.lock();
 
 #ifndef NDEBUG
-    logger->logf(LOG_DEBUG, "As QoS 2 receiver: publish released (PUBREL) for '%s', packet id '%d'. Left in queue: %d", client_id.c_str(), packet_id, incomingQoS2MessageIds.size());
+    logger->logf(LOG_DEBUG, "As QoS 2 receiver: publish released (PUBREL) for '%s', packet id '%d'. Left in queue: %d",
+                 client_id.c_str(), packet_id, qos_locked->incomingQoS2MessageIds.size());
 #endif
 
     bool result = false;
 
-    const auto it = incomingQoS2MessageIds.find(packet_id);
-    if (it != incomingQoS2MessageIds.end())
+    const auto it = qos_locked->incomingQoS2MessageIds.find(packet_id);
+    if (it != qos_locked->incomingQoS2MessageIds.end())
     {
-        incomingQoS2MessageIds.erase(it);
+        qos_locked->incomingQoS2MessageIds.erase(it);
         result = true;
     }
 
@@ -367,35 +369,36 @@ bool Session::removeIncomingQoS2MessageId(u_int16_t packet_id)
 
 void Session::addOutgoingQoS2MessageId(uint16_t packet_id)
 {
-    std::unique_lock<std::mutex> locker(qosQueueMutex);
-    outgoingQoS2MessageIds.insert(packet_id);
+    MutexLocked<QoSData> qos_locked = qos.lock();
+    qos_locked->outgoingQoS2MessageIds.insert(packet_id);
 }
 
 void Session::removeOutgoingQoS2MessageId(u_int16_t packet_id)
 {
-    std::unique_lock<std::mutex> locker(qosQueueMutex);
+    MutexLocked<QoSData> qos_locked = qos.lock();
 
 #ifndef NDEBUG
-    logger->logf(LOG_DEBUG, "As QoS 2 sender: publish complete (PUBCOMP) for '%s', packet id '%d'. Left in queue: %d", client_id.c_str(), packet_id, outgoingQoS2MessageIds.size());
+    logger->logf(LOG_DEBUG, "As QoS 2 sender: publish complete (PUBCOMP) for '%s', packet id '%d'. Left in queue: %d",
+                 client_id.c_str(), packet_id, qos_locked->outgoingQoS2MessageIds.size());
 #endif
 
-    const auto it = outgoingQoS2MessageIds.find(packet_id);
-    if (it != outgoingQoS2MessageIds.end())
-        outgoingQoS2MessageIds.erase(it);
+    const auto it = qos_locked->outgoingQoS2MessageIds.find(packet_id);
+    if (it != qos_locked->outgoingQoS2MessageIds.end())
+        qos_locked->outgoingQoS2MessageIds.erase(it);
 
-    increaseFlowControlQuota();
+    qos_locked->increaseFlowControlQuota();
 }
 
 void Session::increaseFlowControlQuotaLocked()
 {
-    std::unique_lock<std::mutex> locker(qosQueueMutex);
-    increaseFlowControlQuota();
+    MutexLocked<QoSData> qos_locked = qos.lock();
+    qos_locked->increaseFlowControlQuota();
 }
 
 uint16_t Session::getNextPacketIdLocked()
 {
-    std::unique_lock<std::mutex> locker(qosQueueMutex);
-    return getNextPacketId();
+    MutexLocked<QoSData> qos_locked = qos.lock();
+    return qos_locked->getNextPacketId();
 }
 
 /**
@@ -411,11 +414,11 @@ bool Session::getDestroyOnDisconnect() const
 
 void Session::setSessionProperties(uint16_t clientReceiveMax, uint32_t sessionExpiryInterval, bool clean_start, ProtocolVersion protocol_version)
 {
-    std::unique_lock<std::mutex> locker(qosQueueMutex);
+    MutexLocked<QoSData> qos_locked = qos.lock();
 
     // Flow control is not part of the session state, so/but/and because we call this function every time a client connects, we reset it properly.
-    this->flowControlQuota = clientReceiveMax;
-    this->flowControlCealing = clientReceiveMax;
+    qos_locked->flowControlQuota = clientReceiveMax;
+    qos_locked->flowControlCealing = clientReceiveMax;
 
     this->sessionExpiryInterval = sessionExpiryInterval;
 

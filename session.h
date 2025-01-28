@@ -24,6 +24,7 @@ See LICENSE for license details.
 #include "publishcopyfactory.h"
 #include "lockedweakptr.h"
 #include "lockedsharedptr.h"
+#include "mutexowned.h"
 
 class Session
 {
@@ -31,40 +32,49 @@ class Session
     friend class MainTests;
 #endif
 
+    struct QoSData
+    {
+        QoSPublishQueue qosPacketQueue;
+        std::set<uint16_t> incomingQoS2MessageIds;
+        std::set<uint16_t> outgoingQoS2MessageIds;
+        uint16_t nextPacketId = 0;
+        uint16_t QoSLogPrintedAtId = 0;
+        std::chrono::time_point<std::chrono::steady_clock> lastExpiredMessagesAt = std::chrono::steady_clock::now();
+
+        /**
+         * Even though flow control data is not part of the session state, I'm keeping it here because there are already
+         * mutexes that they can be placed under, saving additional synchronization.
+         */
+        int flowControlCealing = 0xFFFF;
+        int flowControlQuota = 0xFFFF;
+
+        QoSData(const uint16_t maxQosMsgPendingPerClient) :
+            flowControlQuota(maxQosMsgPendingPerClient)
+        {
+
+        }
+
+        void clearExpiredMessagesFromQueue();
+        void increaseFlowControlQuota();
+        void increaseFlowControlQuota(int n);
+        uint16_t getNextPacketId();
+    };
+
     friend class SessionsAndSubscriptionsDB;
 
     LockedWeakPtr<Client> client;
     const std::string client_id;
     const std::string username;
-    QoSPublishQueue qosPacketQueue;
-    std::set<uint16_t> incomingQoS2MessageIds;
-    std::set<uint16_t> outgoingQoS2MessageIds;
-    std::mutex qosQueueMutex;
+    MutexOwned<QoSData> qos;
     std::mutex clientSwitchMutex;
-    uint16_t nextPacketId = 0;
-    std::chrono::time_point<std::chrono::steady_clock> lastExpiredMessagesAt = std::chrono::steady_clock::now();
-
-    /**
-     * Even though flow control data is not part of the session state, I'm keeping it here because there are already
-     * mutexes that they can be placed under, saving additional synchronization.
-     */
-    int flowControlCealing = 0xFFFF;
-    int flowControlQuota = 0xFFFF;
 
     uint32_t sessionExpiryInterval = 0;
-    uint16_t QoSLogPrintedAtId = 0;
     bool destroyOnDisconnect = false;
     LockedSharedPtr<WillPublish> willPublish;
     bool removalQueued = false;
     ClientType clientType = ClientType::Normal;
     std::chrono::time_point<std::chrono::steady_clock> removalQueuedAt;
     Logger *logger = Logger::getInstance();
-
-    void clearExpiredMessagesFromQueue();
-
-    void increaseFlowControlQuota();
-    void increaseFlowControlQuota(int n);
-    uint16_t getNextPacketId();
 
     Session(const Session &other) = delete;
 public:

@@ -1024,13 +1024,16 @@ void MainTests::testSavingSessions()
         {
             std::shared_ptr<Session> &ses = pair.second;
             std::shared_ptr<Session> &ses2 = store2->sessionsById[pair.first];
+            MutexLocked<Session::QoSData> qos_locked = ses->qos.lock();
+            MutexLocked<Session::QoSData> qos_locked2 = ses2->qos.lock();
+
             QCOMPARE(pair.first, ses2->getClientId());
 
             QCOMPARE(ses->username, ses2->username);
             QCOMPARE(ses->client_id, ses2->client_id);
-            QCOMPARE(ses->incomingQoS2MessageIds, ses2->incomingQoS2MessageIds);
-            QCOMPARE(ses->outgoingQoS2MessageIds, ses2->outgoingQoS2MessageIds);
-            QCOMPARE(ses->nextPacketId, ses2->nextPacketId);
+            QCOMPARE(qos_locked->incomingQoS2MessageIds, qos_locked2->incomingQoS2MessageIds);
+            QCOMPARE(qos_locked->outgoingQoS2MessageIds, qos_locked2->outgoingQoS2MessageIds);
+            QCOMPARE(qos_locked->nextPacketId, qos_locked2->nextPacketId);
         }
 
         std::unordered_map<std::string, std::list<SubscriptionForSerializing>> store1Subscriptions;
@@ -1089,7 +1092,8 @@ void MainTests::testSavingSessions()
         FMQ_VERIFY(withSubscriptionIdentifierCount == 1);
 
         std::shared_ptr<Session> loadedSes = store2->sessionsById["c1"];
-        std::shared_ptr<QueuedPublish> queuedPublishLoaded = loadedSes->qosPacketQueue.popNext();
+        MutexLocked<Session::QoSData> qos_loaded_locked = loadedSes->qos.lock();
+        std::shared_ptr<QueuedPublish> queuedPublishLoaded = qos_loaded_locked->qosPacketQueue.popNext();
 
         QCOMPARE(queuedPublishLoaded->getPublish().topic, "a/b/c");
         QCOMPARE(queuedPublishLoaded->getPublish().payload, "Hello Barry");

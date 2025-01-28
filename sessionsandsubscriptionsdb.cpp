@@ -147,60 +147,64 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV3V4V5V6()
 
             logger->logf(LOG_DEBUG, "Loading session '%s'.", ses->getClientId().c_str());
 
-            const uint32_t nrOfQueuedQoSPackets = readUint32(eofFound);
-            for (uint32_t i = 0; i < nrOfQueuedQoSPackets; i++)
             {
-                const uint16_t fixed_header_length = readUint16(eofFound);
-                const uint16_t id = readUint16(eofFound);
-                const uint32_t originalPubAge = readUint32(eofFound);
-                const uint32_t packlen = readUint32(eofFound);
-                const std::string sender_clientid = readString(eofFound);
-                const std::string sender_username = readString(eofFound);
+                MutexLocked<Session::QoSData> qos_locked = ses->qos.lock();
 
-                assert(id > 0);
+                const uint32_t nrOfQueuedQoSPackets = readUint32(eofFound);
+                for (uint32_t i = 0; i < nrOfQueuedQoSPackets; i++)
+                {
+                    const uint16_t fixed_header_length = readUint16(eofFound);
+                    const uint16_t id = readUint16(eofFound);
+                    const uint32_t originalPubAge = readUint32(eofFound);
+                    const uint32_t packlen = readUint32(eofFound);
+                    const std::string sender_clientid = readString(eofFound);
+                    const std::string sender_username = readString(eofFound);
 
-                cirbuf.reset();
-                cirbuf.ensureFreeSpace(packlen + 32);
+                    assert(id > 0);
 
-                readCheck(cirbuf.headPtr(), 1, packlen, f);
-                cirbuf.advanceHead(packlen);
-                MqttPacket pack(cirbuf.readToVector(packlen), fixed_header_length, dummyClient);
+                    cirbuf.reset();
+                    cirbuf.ensureFreeSpace(packlen + 32);
 
-                pack.parsePublishData(dummyClient);
-                Publish pub(pack.getPublishData());
+                    readCheck(cirbuf.headPtr(), 1, packlen, f);
+                    cirbuf.advanceHead(packlen);
+                    MqttPacket pack(cirbuf.readToVector(packlen), fixed_header_length, dummyClient);
 
-                pub.client_id = sender_clientid;
-                pub.username = sender_username;
+                    pack.parsePublishData(dummyClient);
+                    Publish pub(pack.getPublishData());
 
-                const uint32_t newPubAge = persistence_state_age + originalPubAge;
-                if (pub.expireInfo)
-                    pub.expireInfo->createdAt = timepointFromAge(newPubAge);
+                    pub.client_id = sender_clientid;
+                    pub.username = sender_username;
 
-                logger->logf(LOG_DEBUG, "Loaded QoS %d message for topic '%s' for session '%s'.", pub.qos, pub.topic.c_str(), ses->getClientId().c_str());
-                ses->qosPacketQueue.queuePublish(std::move(pub), id);
+                    const uint32_t newPubAge = persistence_state_age + originalPubAge;
+                    if (pub.expireInfo)
+                        pub.expireInfo->createdAt = timepointFromAge(newPubAge);
+
+                    logger->logf(LOG_DEBUG, "Loaded QoS %d message for topic '%s' for session '%s'.", pub.qos, pub.topic.c_str(), ses->getClientId().c_str());
+                    qos_locked->qosPacketQueue.queuePublish(std::move(pub), id);
+                }
+
+                const uint32_t nrOfIncomingPacketIds = readUint32(eofFound);
+                for (uint32_t i = 0; i < nrOfIncomingPacketIds; i++)
+                {
+                    uint16_t id = readUint16(eofFound);
+                    assert(id > 0);
+                    logger->logf(LOG_DEBUG, "Loaded incomming QoS2 message id %d.", id);
+                    qos_locked->incomingQoS2MessageIds.insert(id);
+                }
+
+                const uint32_t nrOfOutgoingPacketIds = readUint32(eofFound);
+                for (uint32_t i = 0; i < nrOfOutgoingPacketIds; i++)
+                {
+                    uint16_t id = readUint16(eofFound);
+                    assert(id > 0);
+                    logger->logf(LOG_DEBUG, "Loaded outgoing QoS2 message id %d.", id);
+                    qos_locked->outgoingQoS2MessageIds.insert(id);
+                }
+
+                const uint16_t nextPacketId = readUint16(eofFound);
+                logger->logf(LOG_DEBUG, "Loaded next packetid %d.", qos_locked->nextPacketId);
+                qos_locked->nextPacketId = nextPacketId;
             }
-
-            const uint32_t nrOfIncomingPacketIds = readUint32(eofFound);
-            for (uint32_t i = 0; i < nrOfIncomingPacketIds; i++)
-            {
-                uint16_t id = readUint16(eofFound);
-                assert(id > 0);
-                logger->logf(LOG_DEBUG, "Loaded incomming QoS2 message id %d.", id);
-                ses->incomingQoS2MessageIds.insert(id);
-            }
-
-            const uint32_t nrOfOutgoingPacketIds = readUint32(eofFound);
-            for (uint32_t i = 0; i < nrOfOutgoingPacketIds; i++)
-            {
-                uint16_t id = readUint16(eofFound);
-                assert(id > 0);
-                logger->logf(LOG_DEBUG, "Loaded outgoing QoS2 message id %d.", id);
-                ses->outgoingQoS2MessageIds.insert(id);
-            }
-
-            const uint16_t nextPacketId = readUint16(eofFound);
-            logger->logf(LOG_DEBUG, "Loaded next packetid %d.", ses->nextPacketId);
-            ses->nextPacketId = nextPacketId;
 
             const uint32_t originalSessionExpiryInterval = readUint32(eofFound);
             const uint32_t compensatedSessionExpiry = persistence_state_age > originalSessionExpiryInterval ? 0 : originalSessionExpiryInterval - persistence_state_age;
@@ -308,7 +312,7 @@ void SessionsAndSubscriptionsDB::saveData(const std::vector<std::shared_ptr<Sess
     for (std::shared_ptr<Session> &ses : sessionsToSave)
     {
         {
-            std::lock_guard<std::mutex> sessionLocker(ses->qosQueueMutex);
+            MutexLocked<Session::QoSData> qos_locked = ses->qos.lock();
 
             logger->logf(LOG_DEBUG, "Saving session '%s'.", ses->getClientId().c_str());
 
@@ -319,11 +323,11 @@ void SessionsAndSubscriptionsDB::saveData(const std::vector<std::shared_ptr<Sess
             writeString(ses->username);
             writeString(ses->client_id);
 
-            const size_t qosPacketsExpected = ses->qosPacketQueue.size();
+            const size_t qosPacketsExpected = qos_locked->qosPacketQueue.size();
             size_t qosPacketsCounted = 0;
             writeUint32(qosPacketsExpected);
 
-            std::shared_ptr<QueuedPublish> qp = ses->qosPacketQueue.getTail();
+            std::shared_ptr<QueuedPublish> qp = qos_locked->qosPacketQueue.getTail();
             while (qp)
             {
                 QueuedPublish &p = *qp;
@@ -359,22 +363,22 @@ void SessionsAndSubscriptionsDB::saveData(const std::vector<std::shared_ptr<Sess
 
             assert(qosPacketsExpected == qosPacketsCounted);
 
-            writeUint32(ses->incomingQoS2MessageIds.size());
-            for (uint16_t id : ses->incomingQoS2MessageIds)
+            writeUint32(qos_locked->incomingQoS2MessageIds.size());
+            for (uint16_t id : qos_locked->incomingQoS2MessageIds)
             {
                 logger->logf(LOG_DEBUG, "Writing incomming QoS2 message id %d.", id);
                 writeUint16(id);
             }
 
-            writeUint32(ses->outgoingQoS2MessageIds.size());
-            for (uint16_t id : ses->outgoingQoS2MessageIds)
+            writeUint32(qos_locked->outgoingQoS2MessageIds.size());
+            for (uint16_t id : qos_locked->outgoingQoS2MessageIds)
             {
                 logger->logf(LOG_DEBUG, "Writing outgoing QoS2 message id %d.", id);
                 writeUint16(id);
             }
 
-            logger->logf(LOG_DEBUG, "Writing next packetid %d.", ses->nextPacketId);
-            writeUint16(ses->nextPacketId);
+            logger->logf(LOG_DEBUG, "Writing next packetid %d.", qos_locked->nextPacketId);
+            writeUint16(qos_locked->nextPacketId);
 
             writeUint32(ses->getCurrentSessionExpiryInterval());
 
