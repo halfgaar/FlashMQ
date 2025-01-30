@@ -16,13 +16,13 @@ See LICENSE for license details.
 #include <string>
 
 #include "derivablecounter.h"
+#include "mutexowned.h"
 
 class GlobalStats
 {
     static GlobalStats *instance;
 
-    std::mutex extras_mutex;
-    std::unordered_map<std::string, std::string> extras;
+    MutexOwned<std::unordered_map<std::string, std::string>> extras;
 
     GlobalStats();
 public:
