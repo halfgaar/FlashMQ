@@ -44,9 +44,9 @@ void BackgroundWorker::doWork()
         std::list<std::function<void()>> copied_tasks;
 
         {
-            std::lock_guard<std::mutex> locker(task_mutex);
-            copied_tasks = std::move(this->tasks);
-            this->tasks.clear();
+            auto locked_tasks = tasks.lock();
+            copied_tasks = std::move(*locked_tasks);
+            locked_tasks->clear();
         }
 
         for(auto &f : copied_tasks)
@@ -101,7 +101,7 @@ BackgroundWorker::~BackgroundWorker()
 
 void BackgroundWorker::start()
 {
-    std::lock_guard<std::mutex> locker(task_mutex);
+    auto locked_tasks = tasks.lock();
 
     if (t.joinable())
         return;
@@ -131,8 +131,8 @@ void BackgroundWorker::addTask(std::function<void ()> f, bool only_if_idle)
         return;
 
     {
-        std::lock_guard<std::mutex> locker(task_mutex);
-        this->tasks.push_front(f);
+        auto locked_tasks = tasks.lock();
+        locked_tasks->push_front(f);
     }
 
     wake_up_thread();

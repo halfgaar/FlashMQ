@@ -7,6 +7,7 @@
 #include <list>
 #include <mutex>
 #include <sys/eventfd.h>
+#include "mutexowned.h"
 
 class BackgroundWorker
 {
@@ -15,8 +16,7 @@ class BackgroundWorker
     bool executing_task = false;
     int wakeup_fd = -1;
 
-    std::mutex task_mutex;
-    std::list<std::function<void()>> tasks;
+    MutexOwned<std::list<std::function<void()>>> tasks;
 
     void doWork();
     void wake_up_thread();
