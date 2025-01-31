@@ -230,6 +230,7 @@ public:
     std::string client_id;
     std::string username;
     std::string topic;
+    std::string topicPrefix;
     std::string payload;
 private:
     NoCopy<std::vector<std::string>> subtopics;

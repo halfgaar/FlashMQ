@@ -256,6 +256,7 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validBridgeKeys.insert("remote_retain_available");
     validBridgeKeys.insert("local_clean_start");
     validBridgeKeys.insert("local_session_expiry_interval");
+    validBridgeKeys.insert("topic_prefix");
     validBridgeKeys.insert("subscribe");
     validBridgeKeys.insert("publish");
     validBridgeKeys.insert("clientid_prefix");
@@ -581,6 +582,13 @@ void ConfigFileParser::loadFile(bool test)
                         throw ConfigFileException(formatString("Value '%d' doesn't fit in uint32_t.", newVal));
                     }
                     curBridge->localSessionExpiryInterval = newVal;
+                }
+                if (testKeyValidity(key, "topic_prefix", validBridgeKeys))
+                {
+                    if (!isValidUtf8(value) || !isValidSubscribePath(value))
+                        throw ConfigFileException(formatString("Path '%s' is not a valid subscribe match", value.c_str()));
+
+                    curBridge->topicPrefix = value;
                 }
                 if (testKeyValidity(key, "subscribe", validBridgeKeys))
                 {

@@ -54,6 +54,7 @@ public:
     uint16_t maxOutgoingTopicAliases = 0;
     bool useSavedClientId = false;
     bool remoteRetainAvailable = true;
+    std::optional<std::string> topicPrefix;
     std::vector<BridgeTopicPath> subscribes;
     std::vector<BridgeTopicPath> publishes;
     std::weak_ptr<ThreadData> owner;

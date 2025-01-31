@@ -182,17 +182,16 @@ void BridgeConfig::isValid()
     setClientId();
 }
 
-bool BridgeConfig::operator ==(const BridgeConfig &other) const
+bool BridgeConfig::operator==(const BridgeConfig &other) const
 {
-    return this->address == other.address && this->port == other.port && this->inet_protocol == other.inet_protocol && this->tlsMode == other.tlsMode
-           && this->caFile == other.caFile && this->caDir == other.caDir && this->protocolVersion == other.protocolVersion
-           && this->bridgeProtocolBit == other.bridgeProtocolBit && this->keepalive == other.keepalive && this->clientidPrefix == other.clientidPrefix
-           && this->publishes == other.publishes && this->subscribes == other.subscribes && this->local_username == other.local_username
-           && this->remote_username == other.remote_username && this->remote_password == other.remote_password && this->remoteCleanStart == other.remoteCleanStart
-           && this->localCleanStart == other.localCleanStart && this->remoteSessionExpiryInterval == other.remoteSessionExpiryInterval
-           && this->localSessionExpiryInterval == other.localSessionExpiryInterval && this->remoteRetainAvailable == other.remoteRetainAvailable
-           && this->useSavedClientId == other.useSavedClientId && this->maxOutgoingTopicAliases == other.maxOutgoingTopicAliases
-           && this->maxIncomingTopicAliases == other.maxIncomingTopicAliases && this->tcpNoDelay == other.tcpNoDelay;
+    return this->address == other.address && this->port == other.port && this->inet_protocol == other.inet_protocol && this->tlsMode == other.tlsMode &&
+           this->caFile == other.caFile && this->caDir == other.caDir && this->protocolVersion == other.protocolVersion && this->bridgeProtocolBit == other.bridgeProtocolBit &&
+           this->keepalive == other.keepalive && this->clientidPrefix == other.clientidPrefix && this->topicPrefix == other.topicPrefix && this->publishes == other.publishes &&
+           this->subscribes == other.subscribes && this->local_username == other.local_username && this->remote_username == other.remote_username &&
+           this->remote_password == other.remote_password && this->remoteCleanStart == other.remoteCleanStart && this->localCleanStart == other.localCleanStart &&
+           this->remoteSessionExpiryInterval == other.remoteSessionExpiryInterval && this->localSessionExpiryInterval == other.localSessionExpiryInterval &&
+           this->remoteRetainAvailable == other.remoteRetainAvailable && this->useSavedClientId == other.useSavedClientId &&
+           this->maxOutgoingTopicAliases == other.maxOutgoingTopicAliases && this->maxIncomingTopicAliases == other.maxIncomingTopicAliases && this->tcpNoDelay == other.tcpNoDelay;
 }
 
 bool BridgeConfig::operator !=(const BridgeConfig &other) const

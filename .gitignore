@@ -4,3 +4,9 @@ FlashMQBuild*
 *.swp
 compile_commands.json
 .clangd/
+/cmake-build-debug/
+/.idea/
+/cmake-build-debug-remote/
+/cmake-build-release/
+/cmake-build-release-remote/
+.*

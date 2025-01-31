@@ -1267,6 +1267,36 @@ listen {
       
 
       
+      <dt id="bridge__topic_prefix"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.7.0">≥ v1.7.0</div><code class="option">topic_prefix</code> <code class="replaceable">prefix</code><a class="hash-anchor" href="#bridge__topic_prefix">#</a></dt>
+      <dd>
+        <p>
+          When sending messages to a remote server, the topic defined in <code class="option">subscribe</code> or <code class="option">publish</code> will be prepended with <code class="replaceable">prefix</code>. This gives the ability to publish all topics from this broker under a common topic on the remote site.
+        </p>
+        <p>
+          The difference in using <code class="option">topic_prefix</code> instead of adding it manually to <code class="option">subscribe</code> or <code class="option">publish</code> is, that the <code class="replaceable">prefix</code> is being dynamically added or removed when messages are sent or received to/from the broker. This applies to all <code class="option">subscribe</code> or <code class="option">publish</code> options at once.
+        </p>
+        <p>
+          Always add a trailing slash (/) to the prefix! Otherwise something like <code class="literal">topic1/</code> on the local site becomes <code class="literal">prefixtopic1/</code> on the remote site and this is probably not intended.
+        </p>
+        <p>
+          Example 1: Publish all messages in all local topics to the remote system under topic <code class="literal">bridge1/</code> and receive all messages from the remote system in topic <code class="literal">bridge1/</code> in local. For instance, the local topic <code class="literal">home/sensor1/temp</code> becomes <code class="literal">bridge1/home/sensor1/temp</code> on the remote site and vice versa.
+        </p>
+        <p>
+          Example 2: Publish all messages from local <code class="literal">topic1/</code> to the remote system under <code class="literal">bridge1/topic1/</code> and receive all messages from the remote system under <code class="literal">bridge1/topic2/</code> to local <code class="literal">topic2/</code>.
+        </p>
+        <pre class="literallayout monospaced"># Example 1:
+topic_prefix bridge1/
+publish #
+subscribe #
+
+# Example 2:
+topic_prefix bridge1/
+publish topic1/#
+subscribe topic2/#</pre>
+      </dd>
+    
+
+      
         <dt id="bridge__local_username"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.7.0">≥ v1.7.0</div><code class="option">local_username</code> <code class="replaceable">username</code><a class="hash-anchor" href="#bridge__local_username">#</a></dt>
         <dd>
           <p>
