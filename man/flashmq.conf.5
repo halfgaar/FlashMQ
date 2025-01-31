@@ -5,7 +5,7 @@
 \\$2 \(la\\$1\(ra\\$3
 ..
 .if \n(.g .mso www.tmac
-.TH flashmq.conf 5 "Dec 23 2024" "" ""
+.TH flashmq.conf 5 "Jan 31 2025" "" ""
 .SH NAME
 flashmq.conf \- FlashMQ configuration file format
 .SH SYNOPSIS
@@ -237,7 +237,7 @@ Default value: \fI\m[blue]enabled\m[]\fR
 \*(T<\fB\m[green]expire_retained_messages_after_seconds\m[] \fI\m[cyan]seconds\m[]\fR\fR\*(T>
 Use this to limit the life time of retained messages. Without this, the amount of retained messages may never decrease.
 
-Default value: \fI\m[blue]4294967296\m[]\fR
+Default value: \fI\m[blue]4294967295\m[]\fR
 .TP
 \*(T<\fB\m[green]retained_messages_delivery_limit\m[] \fI\m[cyan]number\m[]\fR\fR\*(T>
 Deprecated.
@@ -247,7 +247,7 @@ When clients place a subscription, they will get the retained messages matching 
 
 Note that the topic \fIone/two/three\fR is three nodes, and each node doesn't necessarilly need to contain a message.
 
-Default value: \fI\m[blue]4294967296\m[]\fR
+Default value: \fI\m[blue]4294967295\m[]\fR
 .TP
 \*(T<\fB\m[green]set_retained_message_defer_timeout\m[] \fI\m[cyan]milliseconds\m[]\fR\fR\*(T>
 The time after which FlashMQ will fall back to (b)locking vs queued mode for setting retained messages. 0, the default, disables queued mode altogether. It's disabled by default because it can incur some extra CPU and memory overhead.

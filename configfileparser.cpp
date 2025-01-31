@@ -819,7 +819,7 @@ void ConfigFileParser::loadFile(bool test)
                     if (newVal > ABSOLUTE_MAX_PACKET_SIZE)
                     {
                         std::ostringstream oss;
-                        oss << "Value for max_packet_size " << newVal << "is higher than absolute maximum " << ABSOLUTE_MAX_PACKET_SIZE;
+                        oss << "Value for max_packet_size " << newVal << " is higher than absolute maximum " << ABSOLUTE_MAX_PACKET_SIZE;
                         throw ConfigFileException(oss.str());
                     }
                     tmpSettings.maxPacketSize = newVal;
@@ -892,7 +892,7 @@ void ConfigFileParser::loadFile(bool test)
 
                 if (testKeyValidity(key, "expire_sessions_after_seconds", validKeys))
                 {
-                    uint32_t newVal = full_stoi(key, value);
+                    uint32_t newVal = full_stoul(key, value);
                     if (newVal > 0 && newVal < 60) // 0 means disable
                     {
                         throw ConfigFileException(formatString("expire_sessions_after_seconds value '%d' is invalid. Valid values are 0, or 60 or higher.", newVal));
@@ -999,7 +999,7 @@ void ConfigFileParser::loadFile(bool test)
                     uint32_t newVal = full_stoi(key, value);
                     if (newVal < 1)
                     {
-                        throw ConfigFileException(formatString("expire_retained_messages_after_seconds value '%d' is invalid. Valid values are between 1 and 4294967296.", newVal));
+                        throw ConfigFileException(formatString("expire_retained_messages_after_seconds value '%d' is invalid. Valid values are between 1 and 4294967295.", newVal));
                     }
                     tmpSettings.expireRetainedMessagesAfterSeconds = std::chrono::seconds(newVal);
                 }
