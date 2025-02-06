@@ -84,7 +84,7 @@ void SessionsAndSubscriptionsDB::openWrite()
 
 void SessionsAndSubscriptionsDB::openRead()
 {
-    const std::string current_magic_string(MAGIC_STRING_SESSION_FILE_V6);
+    const std::string current_magic_string(MAGIC_STRING_SESSION_FILE_V7);
 
     PersistenceFile::openRead(current_magic_string);
 
@@ -98,7 +98,7 @@ void SessionsAndSubscriptionsDB::openRead()
         readVersion = ReadVersion::v4;
     else if (detectedVersionString == MAGIC_STRING_SESSION_FILE_V5)
         readVersion = ReadVersion::v5;
-    else if (detectedVersionString == current_magic_string)
+    else if (detectedVersionString == MAGIC_STRING_SESSION_FILE_V6)
         readVersion = ReadVersion::v6;
     else if (detectedVersionString == MAGIC_STRING_SESSION_FILE_V7)
         readVersion = ReadVersion::v7;
