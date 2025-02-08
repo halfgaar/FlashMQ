@@ -289,6 +289,11 @@ X509Manager IoWrapper::getPeerCertificate() const
     return result;
 }
 
+const char *IoWrapper::getSslVersion() const
+{
+    return SSL_get_version(ssl);
+}
+
 bool IoWrapper::needsHaProxyParsing() const
 {
     return _needsHaProxyParsing;

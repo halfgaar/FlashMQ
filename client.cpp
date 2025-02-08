@@ -202,8 +202,15 @@ void Client::startOrContinueSslHandshake()
 
     ioWrapper.startOrContinueSslHandshake();
 
-    if (this->outgoingConnection && !acceptedBefore && isSslAccepted())
-        writeLoginPacket();
+    if (!acceptedBefore && isSslAccepted())
+    {
+        ssl_version = ioWrapper.getSslVersion();
+
+        if (this->outgoingConnection)
+        {
+            writeLoginPacket();
+        }
+    }
 }
 
 void Client::setDisconnectStage(DisconnectStage val)
@@ -483,8 +490,15 @@ std::string Client::repr()
     else if (clientType == ClientType::LocalBridge)
         bridge = "LocalBridge ";
 
+    std::string transport(this->transportStr);
+
+    if (!ssl_version.empty())
+    {
+        transport = transport + " (" + ssl_version + ")";
+    }
+
     std::string s = formatString("[%sClientID='%s', username='%s', fd=%d, keepalive=%ds, transport='%s', address='%s', prot=%s, clean=%d]",
-                                 bridge.c_str(), clientid.c_str(), username.c_str(), fd.get(), keepalive, this->transportStr.c_str(), this->address.c_str(),
+                                 bridge.c_str(), clientid.c_str(), username.c_str(), fd.get(), keepalive, transport.c_str(), this->address.c_str(),
                                  protocolVersionString(protocolVersion).c_str(), this->clean_start);
     return s;
 }

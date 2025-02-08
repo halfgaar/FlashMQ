@@ -138,6 +138,7 @@ public:
     bool isWebsocket() const;
     WebsocketState getWebsocketState() const;
     X509Manager getPeerCertificate() const;
+    const char *getSslVersion() const;
 
     bool needsHaProxyParsing() const;
     HaProxyConnectionType readHaProxyData(int fd, struct sockaddr *addr);

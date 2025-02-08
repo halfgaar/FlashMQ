@@ -114,6 +114,7 @@ class Client
     std::string disconnectReason;
     std::chrono::time_point<std::chrono::steady_clock> lastActivity = std::chrono::steady_clock::now();
 
+    std::string ssl_version;
     std::string clientid;
     std::string username;
     uint16_t keepalive = 10;
