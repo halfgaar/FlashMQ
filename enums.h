@@ -25,4 +25,12 @@ enum class AllowListenerAnonymous
     No
 };
 
+enum class TLSVersion
+{
+    TLSv1_0,
+    TLSv1_1,
+    TLSv1_2,
+    TLSv1_3
+};
+
 #endif // ENUMS_H

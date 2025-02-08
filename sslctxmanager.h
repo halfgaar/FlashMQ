@@ -12,6 +12,7 @@ See LICENSE for license details.
 #define SSLCTXMANAGER_H
 
 #include <openssl/ssl.h>
+#include "enums.h"
 
 class SslCtxManager
 {
@@ -25,6 +26,9 @@ public:
 
     SSL_CTX *get() const;
     operator bool() const;
+
+    static int tlsEnumToInt(TLSVersion v);
+    void setMinimumTlsVersion(TLSVersion min_version);
 };
 
 #endif // SSLCTXMANAGER_H

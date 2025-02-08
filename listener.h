@@ -40,6 +40,7 @@ struct Listener
     bool clientVerifictionStillDoAuthn = false;
     std::unique_ptr<SslCtxManager> sslctx;
     AllowListenerAnonymous allowAnonymous = AllowListenerAnonymous::None;
+    TLSVersion minimumTlsVersion = TLSVersion::TLSv1_1;
 
     void isValid();
     bool isSsl() const;

@@ -247,6 +247,7 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validListenKeys.insert("client_verification_still_do_authn");
     validListenKeys.insert("allow_anonymous");
     validListenKeys.insert("tcp_nodelay");
+    validListenKeys.insert("minimum_tls_version");
 
     validBridgeKeys.insert("local_username");
     validBridgeKeys.insert("remote_username");
@@ -539,6 +540,17 @@ void ConfigFileParser::loadFile(bool test)
                 {
                     bool val = stringTruthiness(value);
                     curListener->tcpNoDelay = val;
+                }
+                if (testKeyValidity(key, "minimum_tls_version", validListenKeys))
+                {
+                    if (valueTrimmed == "tlsv1.3")
+                        curListener->minimumTlsVersion = TLSVersion::TLSv1_3;
+                    else if (valueTrimmed == "tlsv1.2")
+                        curListener->minimumTlsVersion = TLSVersion::TLSv1_2;
+                    else if (valueTrimmed == "tlsv1.1")
+                        curListener->minimumTlsVersion = TLSVersion::TLSv1_1;
+                    else
+                        throw ConfigFileException("Value '" + valueTrimmed + "' is not a valid value for " + key);
                 }
 
                 testCorrectNumberOfValues(key, number_of_expected_values, values);
