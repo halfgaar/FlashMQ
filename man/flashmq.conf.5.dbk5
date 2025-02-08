@@ -783,6 +783,21 @@ multi-value-param one 'two' "three" "with ' char"
         </listitem>
       </varlistentry>
 
+      <varlistentry xml:id="listen__minimum_tls_version" condition="flashmq ≥ 1.20.0">
+        <term><option>minimum_tls_version</option> <replaceable>tlsv1.1</replaceable>|<replaceable>tlsv1.2</replaceable>|<replaceable>tlsv1.3</replaceable></term>
+        <listitem>
+          <para>
+            Set minimum supported TLS version for TLS listeners. Note that setting this value low many not actually enable that protocol version if OpenSSL won't support it (anymore).
+          </para>
+          <para>
+            The TLS version clients use is logged.
+          </para>
+          <para>
+            Default: <replaceable>tlsv1.1</replaceable>
+          </para>
+        </listitem>
+      </varlistentry>
+
       <varlistentry xml:id="client_verification_ca_file" condition="flashmq ≥ 1.8.0">
         <term><option>client_verification_ca_file</option> <replaceable>/foobar/client_authority.crt</replaceable></term>
         <listitem>

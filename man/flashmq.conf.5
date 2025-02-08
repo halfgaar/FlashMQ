@@ -5,7 +5,7 @@
 \\$2 \(la\\$1\(ra\\$3
 ..
 .if \n(.g .mso www.tmac
-.TH flashmq.conf 5 "Jan 31 2025" "" ""
+.TH flashmq.conf 5 "Feb 09 2025" "" ""
 .SH NAME
 flashmq.conf \- FlashMQ configuration file format
 .SH SYNOPSIS
@@ -379,6 +379,13 @@ Specifying a chain makes the listener SSL, and also requires the \fB\m[green]pri
 .TP
 \*(T<\fB\m[green]privkey\m[] \fI\m[cyan]/foobar/server.key\m[]\fR\fR\*(T>
 Specifying a private key makes the listener SSL, and also requires the \fB\m[green]fullchain\fR\m[] to be set.
+.TP
+\*(T<\fB\m[green]minimum_tls_version\m[] \fI\m[cyan]tlsv1.1\m[]\fR|\fI\m[cyan]tlsv1.2\m[]\fR|\fI\m[cyan]tlsv1.3\m[]\fR\fR\*(T>
+Set minimum supported TLS version for TLS listeners. Note that setting this value low many not actually enable that protocol version if OpenSSL won't support it (anymore).
+
+The TLS version clients use is logged.
+
+Default: \fI\m[cyan]tlsv1.1\m[]\fR
 .TP
 \*(T<\fB\m[green]client_verification_ca_file\m[] \fI\m[cyan]/foobar/client_authority.crt\m[]\fR\fR\*(T>
 Clients can be authenticated using X509 certificates, and the username taken from the CN (common name) field. Use this directive to specify the certificate authority you trust.
