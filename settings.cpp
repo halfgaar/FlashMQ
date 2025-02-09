@@ -18,14 +18,11 @@ void Settings::checkUniqueBridgeNames() const
 {
     std::unordered_set<std::string> prefixes;
 
-    for (auto &bridge : bridges)
+    for (const BridgeConfig &bridge : bridges)
     {
-        if (!bridge)
-            continue;
+        const std::string &prefix = bridge.clientidPrefix;
 
-        const std::string &prefix = bridge->clientidPrefix;
-
-        if (prefixes.find(bridge->clientidPrefix) != prefixes.end())
+        if (prefixes.find(bridge.clientidPrefix) != prefixes.end())
         {
             std::string err = formatString("Value '%s' is not unique. All bridge prefixes must be unique.", prefix.c_str());
             throw ConfigFileException(err);
@@ -96,9 +93,9 @@ bool Settings::matchAddrWithSetRealIpFrom(const sockaddr_in *addr) const
     return matchAddrWithSetRealIpFrom(reinterpret_cast<const struct sockaddr*>(addr));
 }
 
-std::list<std::shared_ptr<BridgeConfig>> Settings::stealBridges()
+std::list<BridgeConfig> Settings::stealBridges()
 {
-    std::list<std::shared_ptr<BridgeConfig>> result = this->bridges;
+    std::list<BridgeConfig> result = std::move(this->bridges);
     this->bridges.clear();
     return result;
 }

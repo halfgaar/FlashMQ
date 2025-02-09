@@ -265,15 +265,15 @@ void MainTests::testPreviouslyValidConfigFile()
 
     Settings settings = parser.getSettings();
 
-    std::list<std::shared_ptr<BridgeConfig>> bridges = settings.stealBridges();
+    std::list<BridgeConfig> bridges = settings.stealBridges();
     MYCASTCOMPARE(bridges.size(), 1);
 
-    std::shared_ptr<BridgeConfig> &bridge = bridges.front();
+    BridgeConfig &bridge = bridges.front();
 
-    FMQ_COMPARE(bridge->subscribes.at(0).topic, "asdfasdfee/wer/+");
-    FMQ_COMPARE(bridge->subscribes.at(0).qos, (uint8_t)2);
-    FMQ_COMPARE(bridge->local_username, "abcde#fAEBF4_-/:+");
-    FMQ_COMPARE(bridge->clientidPrefix, "zH53_-::_");
+    FMQ_COMPARE(bridge.subscribes.at(0).topic, "asdfasdfee/wer/+");
+    FMQ_COMPARE(bridge.subscribes.at(0).qos, (uint8_t)2);
+    FMQ_COMPARE(bridge.local_username, "abcde#fAEBF4_-/:+");
+    FMQ_COMPARE(bridge.clientidPrefix, "zH53_-::_");
 }
 
 void MainTests::testNoCopy()

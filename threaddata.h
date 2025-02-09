@@ -113,7 +113,7 @@ class ThreadData
 
     void removeQueuedClients();
     void publishWithAcl(Publish &pub, bool setRetain=false);
-    void removeBridge(std::shared_ptr<BridgeConfig> bridgeConfig, const std::string &reason);
+    void removeBridge(const BridgeConfig &bridgeConfig, const std::string &reason);
 
 public:
     Settings settingsLocalCopy; // Is updated on reload, within the thread loop.
@@ -153,7 +153,7 @@ public:
 
     void giveClient(std::shared_ptr<Client> &&client);
     void giveBridge(std::shared_ptr<BridgeState> &bridgeState);
-    void removeBridgeQueued(std::shared_ptr<BridgeConfig> bridgeConfig, const std::string &reason);
+    void removeBridgeQueued(const BridgeConfig &bridgeConfig, const std::string &reason);
     std::shared_ptr<Client> getClient(int fd);
     void removeClientQueued(const std::shared_ptr<Client> &client);
     void removeClientQueued(int fd);

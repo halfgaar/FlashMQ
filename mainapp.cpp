@@ -334,27 +334,24 @@ void MainApp::sendBridgesToThreads()
         auto cur = bridge_pos;
         bridge_pos++;
 
-        std::shared_ptr<BridgeConfig> bridge = cur->second;
+        BridgeConfig &bridge = cur->second;
 
-        if (!bridge)
-            continue;
-
-        std::shared_ptr<ThreadData> owner = bridge->owner.lock();
+        std::shared_ptr<ThreadData> owner = bridge.owner.lock();
 
         if (!owner)
         {
             owner = threads.at(i++ % threads.size()).getThreadData();
-            bridge->owner = owner;
+            bridge.owner = owner;
         }
 
-        if (bridge->queueForDelete)
+        if (bridge.queueForDelete)
         {
             owner->removeBridgeQueued(bridge, "Bridge disappeared from config");
             this->bridgeConfigs.erase(cur);
         }
         else
         {
-            std::shared_ptr<BridgeState> bridgeState = std::make_shared<BridgeState>(*bridge);
+            std::shared_ptr<BridgeState> bridgeState = std::make_shared<BridgeState>(bridge);
             bridgeState->threadData = owner;
             owner->giveBridge(bridgeState);
         }
@@ -463,10 +460,10 @@ void MainApp::saveBridgeInfo(const std::string &filePath, const std::list<Bridge
     bridgeInfoDb.saveInfo(bridgeInfos);
 }
 
-std::list<std::shared_ptr<BridgeConfig>> MainApp::loadBridgeInfo(Settings &settings)
+std::list<BridgeConfig> MainApp::loadBridgeInfo(Settings &settings)
 {
     Logger *logger = Logger::getInstance();
-    std::list<std::shared_ptr<BridgeConfig>> bridges = settings.stealBridges();
+    std::list<BridgeConfig> bridges = settings.stealBridges();
 
     if (settings.storageDir.empty())
         return bridges;
@@ -483,15 +480,15 @@ std::list<std::shared_ptr<BridgeConfig>> MainApp::loadBridgeInfo(Settings &setti
 
         for(const BridgeInfoForSerializing &info : bridgeInfos)
         {
-            for(std::shared_ptr<BridgeConfig> &bridgeConfig : bridges)
+            for(BridgeConfig &bridgeConfig : bridges)
             {
-                if (!bridgeConfig->useSavedClientId)
+                if (!bridgeConfig.useSavedClientId)
                     continue;
 
-                if (bridgeConfig->clientidPrefix == info.prefix)
+                if (bridgeConfig.clientidPrefix == info.prefix)
                 {
                     logger->log(LOG_INFO) << "Assigning stored bridge clientid '" << info.clientId << "' to bridge '" << info.prefix << "'.";
-                    bridgeConfig->setClientId(info.prefix, info.clientId);
+                    bridgeConfig.setClientId(info.prefix, info.clientId);
                     break;
                 }
             }
@@ -1075,42 +1072,36 @@ void MainApp::loadConfig(bool reload)
     {
         for (auto &pair : bridgeConfigs)
         {
-            pair.second->queueForDelete = true;
+            pair.second.queueForDelete = true;
         }
 
-        std::list<std::shared_ptr<BridgeConfig>> bridges = loadBridgeInfo(this->settings);
+        std::list<BridgeConfig> bridges = loadBridgeInfo(this->settings);
 
-        for (std::shared_ptr<BridgeConfig> &bridge : bridges)
+        for (BridgeConfig &bridge : bridges)
         {
-            if (!bridge)
-                continue;
-
-            auto pos = this->bridgeConfigs.find(bridge->clientidPrefix);
+            auto pos = this->bridgeConfigs.find(bridge.clientidPrefix);
             if (pos != this->bridgeConfigs.end())
             {
-                logger->log(LOG_NOTICE) << "Assing new config to bridge '" << bridge->clientidPrefix << "' and reconnect if needed.";
+                logger->log(LOG_NOTICE) << "Assing new config to bridge '" << bridge.clientidPrefix << "' and reconnect if needed.";
 
-                std::shared_ptr<BridgeConfig> &cur = pos->second;
+                BridgeConfig &cur = pos->second;
 
-                if (!cur)
-                    continue;
-
-                std::shared_ptr<ThreadData> owner = cur->owner.lock();
-                std::string clientid = cur->getClientid();
+                std::shared_ptr<ThreadData> owner = cur.owner.lock();
+                std::string clientid = cur.getClientid();
                 cur = bridge;
-                cur->owner = owner;
-                cur->setClientId(cur->clientidPrefix, clientid);
+                cur.owner = owner;
+                cur.setClientId(cur.clientidPrefix, clientid);
             }
             else
             {
-                logger->log(LOG_NOTICE) << "Adding bridge '" << bridge->clientidPrefix << "'.";
-                this->bridgeConfigs[bridge->clientidPrefix] = bridge;
+                logger->log(LOG_NOTICE) << "Adding bridge '" << bridge.clientidPrefix << "'.";
+                this->bridgeConfigs[bridge.clientidPrefix] = bridge;
             }
         }
 
         for (auto &pair : bridgeConfigs)
         {
-            if (pair.second->queueForDelete)
+            if (pair.second.queueForDelete)
             {
                 logger->log(LOG_NOTICE) << "Queueing bridge '" << pair.first << "' for removal, because it disappeared from config.";
             }

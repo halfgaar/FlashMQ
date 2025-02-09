@@ -1,23 +1,21 @@
 #include "bridgeinfodb.h"
 
-BridgeInfoForSerializing::BridgeInfoForSerializing(const std::shared_ptr<BridgeConfig> bridge) :
-    prefix(bridge->clientidPrefix),
-    clientId(bridge->getClientid())
+using std::unordered_map;
+
+BridgeInfoForSerializing::BridgeInfoForSerializing(const BridgeConfig &bridge) :
+    prefix(bridge.clientidPrefix),
+    clientId(bridge.getClientid())
 {
 
 }
 
-std::list<BridgeInfoForSerializing> BridgeInfoForSerializing::getBridgeInfosForSerializing(const std::unordered_map<std::string, std::shared_ptr<BridgeConfig>> &input)
+std::list<BridgeInfoForSerializing> BridgeInfoForSerializing::getBridgeInfosForSerializing(const unordered_map<std::string, BridgeConfig> &input)
 {
     std::list<BridgeInfoForSerializing> result;
 
     for (auto &pair : input)
     {
-        const std::shared_ptr<BridgeConfig> &bridge = pair.second;
-
-        if (!bridge)
-            continue;
-
+        const BridgeConfig &bridge = pair.second;
         result.emplace_back(bridge);
     }
 

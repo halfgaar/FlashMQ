@@ -56,7 +56,7 @@ class Settings
     AuthOptCompatWrap authOptCompatWrap;
     std::unordered_map<std::string, std::string> flashmqpluginOpts;
 
-    std::list<std::shared_ptr<BridgeConfig>> bridges;
+    std::list<BridgeConfig> bridges;
 
     void checkUniqueBridgeNames() const;
 
@@ -126,7 +126,7 @@ public:
     bool matchAddrWithSetRealIpFrom(const struct sockaddr_in6 *addr) const;
     bool matchAddrWithSetRealIpFrom(const struct sockaddr_in *addr) const;
 
-    std::list<std::shared_ptr<BridgeConfig>> stealBridges();
+    std::list<BridgeConfig> stealBridges();
 };
 
 #endif // SETTINGS_H

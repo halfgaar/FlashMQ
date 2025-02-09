@@ -16,6 +16,7 @@ See LICENSE for license details.
 #include <fstream>
 #include <regex>
 #include <sys/stat.h>
+#include <optional>
 
 #include <openssl/ssl.h>
 #include <openssl/err.h>
@@ -406,7 +407,7 @@ void ConfigFileParser::loadFile(bool test)
 
     ConfigParseLevel curParseLevel = ConfigParseLevel::Root;
     std::shared_ptr<Listener> curListener;
-    std::shared_ptr<BridgeConfig> curBridge;
+    std::optional<BridgeConfig> curBridge;
     Settings tmpSettings;
 
     const std::set<std::string> blockNames {"listen", "bridge"};
@@ -427,7 +428,7 @@ void ConfigFileParser::loadFile(bool test)
             else if (testKeyValidity(key, "bridge", blockNames))
             {
                 curParseLevel = ConfigParseLevel::Bridge;
-                curBridge = std::make_unique<BridgeConfig>();
+                curBridge = std::make_optional<BridgeConfig>();
             }
             else
             {
@@ -471,7 +472,7 @@ void ConfigFileParser::loadFile(bool test)
             {
                 curBridge->isValid();
 
-                tmpSettings.bridges.push_back(std::move(curBridge));
+                tmpSettings.bridges.push_back(std::move(*curBridge));
             }
 
             curParseLevel = ConfigParseLevel::Root;

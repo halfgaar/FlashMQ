@@ -791,7 +791,7 @@ void ThreadData::giveBridge(std::shared_ptr<BridgeState> &bridgeState)
     }
 }
 
-void ThreadData::removeBridgeQueued(std::shared_ptr<BridgeConfig> bridgeConfig, const std::string &reason)
+void ThreadData::removeBridgeQueued(const BridgeConfig &bridgeConfig, const std::string &reason)
 {
     auto f = std::bind(&ThreadData::removeBridge, this, bridgeConfig, reason);
     auto task_queue_locked = taskQueue.lock();
@@ -799,14 +799,11 @@ void ThreadData::removeBridgeQueued(std::shared_ptr<BridgeConfig> bridgeConfig, 
     wakeUpThread();
 }
 
-void ThreadData::removeBridge(std::shared_ptr<BridgeConfig> bridgeConfig, const std::string &reason)
+void ThreadData::removeBridge(const BridgeConfig &bridgeConfig, const std::string &reason)
 {
-    if (!bridgeConfig)
-        return;
-
     auto clients_locked = clients.lock();
 
-    auto pos = clients_locked->bridges.find(bridgeConfig->clientidPrefix);
+    auto pos = clients_locked->bridges.find(bridgeConfig.clientidPrefix);
 
     if (pos == clients_locked->bridges.end())
         return;

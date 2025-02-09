@@ -19,10 +19,12 @@ void MainTests::test_loading_second_value()
 
         Settings settings = parser.getSettings();
 
-        std::shared_ptr<BridgeConfig> bridge = settings.stealBridges().front();
+        std::list<BridgeConfig> bridges = settings.stealBridges();
+        FMQ_VERIFY(!bridges.empty());
+        BridgeConfig &bridge = bridges.front();
 
-        FMQ_COMPARE(bridge->publishes[0].topic, "send/this");
-        FMQ_COMPARE(bridge->publishes[0].qos, (uint8_t)1);
+        FMQ_COMPARE(bridge.publishes[0].topic, "send/this");
+        FMQ_COMPARE(bridge.publishes[0].qos, (uint8_t)1);
     }
 
     /* this is expecte to fail because "address" doesn't take a second value */
