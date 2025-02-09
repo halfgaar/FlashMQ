@@ -275,6 +275,7 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validBridgeKeys.insert("tcp_nodelay");
     validBridgeKeys.insert("local_prefix");
     validBridgeKeys.insert("remote_prefix");
+    validBridgeKeys.insert("minimum_tls_version");
 }
 
 std::list<std::string> ConfigFileParser::readFileRecursively(const std::string &path) const
@@ -780,6 +781,17 @@ void ConfigFileParser::loadFile(bool test)
                         throw ConfigFileException("Option '" + key + "' must end in a '/'.");
 
                     curBridge->remote_prefix = value;
+                }
+                if (testKeyValidity(key, "minimum_tls_version", validBridgeKeys))
+                {
+                    if (valueTrimmed == "tlsv1.3")
+                        curBridge->minimumTlsVersion = TLSVersion::TLSv1_3;
+                    else if (valueTrimmed == "tlsv1.2")
+                        curBridge->minimumTlsVersion = TLSVersion::TLSv1_2;
+                    else if (valueTrimmed == "tlsv1.1")
+                        curBridge->minimumTlsVersion = TLSVersion::TLSv1_1;
+                    else
+                        throw ConfigFileException("Value '" + valueTrimmed + "' is not a valid value for " + key);
                 }
 
                 testCorrectNumberOfValues(key, number_of_expected_values, values);

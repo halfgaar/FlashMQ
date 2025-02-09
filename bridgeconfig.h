@@ -59,6 +59,7 @@ public:
     std::weak_ptr<ThreadData> owner;
     bool queueForDelete = false;
     bool tcpNoDelay = false;
+    TLSVersion minimumTlsVersion = TLSVersion::TLSv1_1;
 
     std::optional<std::string> local_prefix;
     std::optional<std::string> remote_prefix;
