@@ -1186,6 +1186,18 @@ listen {
       
 
       
+        <dt id="bridge__minimum_tls_version"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.20.0">≥ v1.20.0</div><code class="option">minimum_tls_version</code> <code class="replaceable">tlsv1.1</code>|<code class="replaceable">tlsv1.2</code>|<code class="replaceable">tlsv1.3</code><a class="hash-anchor" href="#bridge__minimum_tls_version">#</a></dt>
+        <dd>
+          <p>
+            Set minimum supported TLS version the bridge will negotiate with the other side. Note that setting this value low many not actually enable that protocol version if OpenSSL won't support it (anymore).
+          </p>
+          <p>
+            Default: <code class="replaceable">tlsv1.1</code>
+          </p>
+        </dd>
+      
+
+      
         <dt id="bridge__ca_file"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.7.0">≥ v1.7.0</div><code class="option">ca_file</code> <code class="replaceable">path</code><a class="hash-anchor" href="#bridge__ca_file">#</a></dt>
         <dd>
           <p>

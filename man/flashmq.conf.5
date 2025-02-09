@@ -485,6 +485,11 @@ Default: \fIip4_ip6\fR
 \*(T<\fB\m[green]tls\m[] \fI\m[cyan]off/on/unverified\m[]\fR\fR\*(T>
 Set TLS mode. The value \fB\m[green]unverified\fR\m[] means the x509 chain is not verified.
 .TP
+\*(T<\fB\m[green]minimum_tls_version\m[] \fI\m[cyan]tlsv1.1\m[]\fR|\fI\m[cyan]tlsv1.2\m[]\fR|\fI\m[cyan]tlsv1.3\m[]\fR\fR\*(T>
+Set minimum supported TLS version the bridge will negotiate with the other side. Note that setting this value low many not actually enable that protocol version if OpenSSL won't support it (anymore).
+
+Default: \fI\m[cyan]tlsv1.1\m[]\fR
+.TP
 \*(T<\fB\m[green]ca_file\m[] \fI\m[cyan]path\m[]\fR\fR\*(T>
 File to be used for x509 certificate chain validation.
 .TP
