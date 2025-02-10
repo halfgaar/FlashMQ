@@ -50,6 +50,33 @@ void BridgeState::initSSL(bool reloadCertificates)
     sslctx->setMinimumTlsVersion(c.minimumTlsVersion);
     SSL_CTX_set_mode(sslctx->get(), SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
 
+    const char *privkey = c.sslPrivkey.empty() ? nullptr : c.sslPrivkey.c_str();
+    const char *fullchain = c.sslFullchain.empty() ? nullptr : c.sslFullchain.c_str();
+
+    if (fullchain)
+    {
+        if (SSL_CTX_use_certificate_chain_file(sslctx->get(), fullchain) != 1)
+        {
+            ERR_print_errors_cb(logSslError, NULL);
+            throw std::runtime_error("Loading bridge SSL fullchain failed. This was after test loading the certificate, so is very unexpected.");
+        }
+    }
+
+    if (privkey)
+    {
+        if (SSL_CTX_use_PrivateKey_file(sslctx->get(), privkey, SSL_FILETYPE_PEM) != 1)
+        {
+            ERR_print_errors_cb(logSslError, NULL);
+            throw std::runtime_error("Loading bridge SSL privkey failed. This was after test loading the certificate, so is very unexpected.");
+        }
+
+        if (SSL_CTX_check_private_key(sslctx->get()) != 1)
+        {
+            ERR_print_errors_cb(logSslError, NULL);
+            throw std::runtime_error("Verifying bridge SSL privkey failed. This was after test loading the certificate, so is very unexpected.");
+        }
+    }
+
     const char *ca_file = c.caFile.empty() ? nullptr : c.caFile.c_str();
     const char *ca_dir = c.caDir.empty() ? nullptr : c.caDir.c_str();
 
@@ -147,6 +174,9 @@ const std::string &BridgeConfig::getClientid() const
 
 void BridgeConfig::isValid()
 {
+    if (sslPrivkey.empty() != sslFullchain.empty())
+        throw ConfigFileException("Specify both 'privkey' and 'fullchain' or neither.");
+
     if (tlsMode > BridgeTLSMode::None)
     {
         if (port == 0)
@@ -154,6 +184,10 @@ void BridgeConfig::isValid()
             port = 8883;
         }
 
+        if (sslFullchain.size() || sslPrivkey.size())
+        {
+            testSsl(sslFullchain, sslPrivkey);
+        }
         testSslVerifyLocations(caFile, caDir, "Loading bridge ca_file/ca_dir failed.");
     }
     else
@@ -191,7 +225,7 @@ void BridgeConfig::isValid()
 bool BridgeConfig::operator ==(const BridgeConfig &other) const
 {
     return this->address == other.address && this->port == other.port && this->inet_protocol == other.inet_protocol && this->tlsMode == other.tlsMode
-           && this->caFile == other.caFile && this->caDir == other.caDir && this->protocolVersion == other.protocolVersion
+           && this->sslFullchain == other.sslFullchain && this->sslPrivkey == other.sslPrivkey && this->caFile == other.caFile && this->caDir == other.caDir && this->protocolVersion == other.protocolVersion
            && this->bridgeProtocolBit == other.bridgeProtocolBit && this->keepalive == other.keepalive && this->clientidPrefix == other.clientidPrefix
            && this->publishes == other.publishes && this->subscribes == other.subscribes && this->local_username == other.local_username
            && this->remote_username == other.remote_username && this->remote_password == other.remote_password && this->remoteCleanStart == other.remoteCleanStart

@@ -988,6 +988,24 @@ listen {
         </listitem>
       </varlistentry>
 
+      <varlistentry xml:id="bridge__fullchain">
+        <term><option>fullchain</option> <replaceable>/foobar/bridge.crt</replaceable></term>
+        <listitem>
+          <para>
+            With TLS enabled, specifying a chain makes the bridge connection authenticate to the remote broker using a public certificate, and also requires the <option>privkey</option> to be set.
+          </para>
+        </listitem>
+      </varlistentry>
+      
+      <varlistentry xml:id="bridge__privkey">
+        <term><option>privkey</option> <replaceable>/foobar/bridge.key</replaceable></term>
+        <listitem>
+          <para>
+            With TLS enabled, specifying a private key makes the bridge connection to remote broker use that key, and also requires the <option>fullchain</option> to be set.
+          </para>
+        </listitem>
+      </varlistentry>
+
       <varlistentry xml:id="bridge__ca_file" condition="flashmq ≥ 1.7.0">
         <term><option>ca_file</option> <replaceable>path</replaceable></term>
         <listitem>

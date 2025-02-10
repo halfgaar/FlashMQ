@@ -37,6 +37,8 @@ public:
     std::string address;
     uint16_t port = 0;
     BridgeTLSMode tlsMode = BridgeTLSMode::None;
+    std::string sslFullchain;
+    std::string sslPrivkey;
     std::string caFile;
     std::string caDir;
     ProtocolVersion protocolVersion = ProtocolVersion::Mqtt311;

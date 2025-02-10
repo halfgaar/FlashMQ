@@ -1198,6 +1198,24 @@ listen {
       
 
       
+        <dt id="bridge__fullchain"><code class="option">fullchain</code> <code class="replaceable">/foobar/bridge.crt</code><a class="hash-anchor" href="#bridge__fullchain">#</a></dt>
+        <dd>
+          <p>
+            With TLS enabled, specifying a chain makes the bridge connection authenticate to the remote broker using a public certificate, and also requires the <code class="option">privkey</code> to be set.
+          </p>
+        </dd>
+      
+      
+      
+        <dt id="bridge__privkey"><code class="option">privkey</code> <code class="replaceable">/foobar/bridge.key</code><a class="hash-anchor" href="#bridge__privkey">#</a></dt>
+        <dd>
+          <p>
+            With TLS enabled, specifying a private key makes the bridge connection to remote broker use that key, and also requires the <code class="option">fullchain</code> to be set.
+          </p>
+        </dd>
+      
+
+      
         <dt id="bridge__ca_file"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.7.0">≥ v1.7.0</div><code class="option">ca_file</code> <code class="replaceable">path</code><a class="hash-anchor" href="#bridge__ca_file">#</a></dt>
         <dd>
           <p>

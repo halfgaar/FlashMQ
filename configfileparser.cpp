@@ -263,6 +263,8 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validBridgeKeys.insert("use_saved_clientid");
     validBridgeKeys.insert("inet_protocol");
     validBridgeKeys.insert("address");
+    validBridgeKeys.insert("fullchain");
+    validBridgeKeys.insert("privkey");
     validBridgeKeys.insert("ca_file");
     validBridgeKeys.insert("ca_dir");
     validBridgeKeys.insert("port");
@@ -710,6 +712,16 @@ void ConfigFileParser::loadFile(bool test)
                         throw ConfigFileException(formatString("Value '%s' is not valid for 'tls'", value.c_str()));
 
                     curBridge->tlsMode = mode;
+                }
+                if (testKeyValidity(key, "fullchain", validBridgeKeys))
+                {
+                   checkFileExistsAndReadable(key, value, 1024*1024*100);
+                   curBridge->sslFullchain = value;
+                }
+                if (testKeyValidity(key, "privkey", validBridgeKeys))
+                {
+                   checkFileExistsAndReadable(key, value, 1024*1024*100);
+                   curBridge->sslPrivkey = value;
                 }
                 if (testKeyValidity(key, "ca_file", validBridgeKeys))
                 {
