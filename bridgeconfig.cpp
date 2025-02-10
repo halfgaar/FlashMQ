@@ -40,31 +40,33 @@ void BridgeState::initSSL(bool reloadCertificates)
     if (this->c.tlsMode == BridgeTLSMode::None)
         return;
 
-    if (!sslctx)
-    {
-        sslctx = std::make_unique<SslCtxManager>(TLS_client_method());
-        sslctx->setMinimumTlsVersion(c.minimumTlsVersion);
-        SSL_CTX_set_mode(sslctx->get(), SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
+    if (reloadCertificates)
+        this->sslInitialized = false;
 
+    if (this->sslInitialized)
+        return;
+
+    sslctx = std::make_unique<SslCtxManager>(TLS_client_method());
+    sslctx->setMinimumTlsVersion(c.minimumTlsVersion);
+    SSL_CTX_set_mode(sslctx->get(), SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
+
+    const char *ca_file = c.caFile.empty() ? nullptr : c.caFile.c_str();
+    const char *ca_dir = c.caDir.empty() ? nullptr : c.caDir.c_str();
+
+    if (ca_file || ca_dir)
+    {
+        if (SSL_CTX_load_verify_locations(sslctx->get(), ca_file, ca_dir) != 1)
+        {
+            ERR_print_errors_cb(logSslError, NULL);
+            throw std::runtime_error("Loading ca_dir/ca_file failed. This was after test loading the certificate, so is very unexpected.");
+        }
+    }
+    else
+    {
         if (SSL_CTX_set_default_verify_paths(sslctx->get()) != 1)
         {
             ERR_print_errors_cb(logSslError, NULL);
             throw std::runtime_error("Setting default SSL paths failed.");
-        }
-    }
-
-    if (!this->sslInitialized || reloadCertificates)
-    {
-        const char *ca_file = c.caFile.empty() ? nullptr : c.caFile.c_str();
-        const char *ca_dir = c.caDir.empty() ? nullptr : c.caDir.c_str();
-
-        if (ca_file || ca_dir)
-        {
-            if (SSL_CTX_load_verify_locations(sslctx->get(), ca_file, ca_dir) != 1)
-            {
-                ERR_print_errors_cb(logSslError, NULL);
-                throw std::runtime_error("Loading ca_dir/ca_file failed. This was after test loading the certificate, so is very unexpected.");
-            }
         }
     }
 
