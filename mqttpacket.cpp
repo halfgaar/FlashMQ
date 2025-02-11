@@ -2086,6 +2086,10 @@ void MqttPacket::handlePublish(std::shared_ptr<Client> &sender)
                 MainApp::getMainApp()->getSubscriptionStore()->queuePacketAtSubscribers(factory, sender->getClientId());
             }
         }
+        else if (authResult == AuthResult::success_but_drop_publish)
+        {
+            ackSender.sendNow();
+        }
         else
         {
             ackSender.setAckCode(ReasonCodes::NotAuthorized);
