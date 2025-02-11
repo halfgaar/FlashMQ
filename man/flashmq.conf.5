@@ -5,7 +5,7 @@
 \\$2 \(la\\$1\(ra\\$3
 ..
 .if \n(.g .mso www.tmac
-.TH flashmq.conf 5 "Feb 10 2025" "" ""
+.TH flashmq.conf 5 "Feb 11 2025" "" ""
 .SH NAME
 flashmq.conf \- FlashMQ configuration file format
 .SH SYNOPSIS
@@ -290,12 +290,14 @@ The header \fI\m[cyan]X-Forwarded-For\m[]\fR is not used, because that's designe
 
 As a side note about using a proxy on your listener; you can only have an absolute max of 65535 connections to an IP+port combination (and the practical limit is lower). If you need more, you have to set up multiple listeners. This can be multiple IP addresses, or simply multiple ports.
 .TP
-\*(T<\fB\m[green]shared_subscription_targeting\m[] \fI\m[cyan]round_robin\m[]\fR|\fI\m[cyan]sender_hash\m[]\fR\fR\*(T>
+\*(T<\fB\m[green]shared_subscription_targeting\m[] \fI\m[cyan]round_robin\m[]\fR|\fI\m[cyan]sender_hash\m[]\fR|\fI\m[cyan]first\m[]\fR\fR\*(T>
 When having multiple subscribers on a shared subscription (like '$share/myshare/jane/doe'), select how the messages should be distributed over the subscribers.
 
 \fI\m[cyan]round_robin\m[]\fR. Select the next subscriber for each message. There is still some amount of randomness to it because the counter for this is not thread safe. Using an atomic/mutexed counter for it would just be too slow to justify.
 
 \fI\m[cyan]sender_hash\m[]\fR. Selects a receiver deterministically based on the hash of the client ID of the sender. The selected subscriber will depend on how many subscribers there are, so if some disconnect, the distribution will change. Moreover, the selection may also change when FlashMQ cleans up empty spaces in the list of shared subscribers.
+
+\fI\m[cyan]first\m[]\fR. Selects the first subscriber in the list. This mode can be useful for fallback. When one client disappears, the other will seamlessly take over.
 
 Default: \fI\m[cyan]round_robin\m[]\fR
 .TP

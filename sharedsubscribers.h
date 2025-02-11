@@ -34,6 +34,7 @@ public:
 
     void setName(const std::string &name);
     Subscription& operator[](const std::string &clientid);
+    const Subscription *getFirst() const;
     const Subscription *getNext();
     const Subscription *getNext(size_t hash) const;
     void erase(const std::string &clientid);

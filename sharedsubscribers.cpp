@@ -48,6 +48,22 @@ Subscription &SharedSubscribers::operator[](const std::string &clientid)
     return r;
 }
 
+const Subscription *SharedSubscribers::getFirst() const
+{
+    const Subscription *result = nullptr;
+
+    for (const Subscription &s : members)
+    {
+        if (!s.session.expired())
+        {
+            result = &s;
+            break;
+        }
+    }
+
+    return result;
+}
+
 const Subscription *SharedSubscribers::getNext()
 {
     const Subscription *result = nullptr;

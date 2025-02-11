@@ -585,7 +585,7 @@ multi-value-param one 'two' "three" "with ' char"
       </varlistentry>
 
       <varlistentry xml:id="shared_subscription_targeting" condition="flashmq ≥ 1.2.0">
-        <term><option>shared_subscription_targeting</option> <replaceable>round_robin</replaceable>|<replaceable>sender_hash</replaceable></term>
+        <term><option>shared_subscription_targeting</option> <replaceable>round_robin</replaceable>|<replaceable>sender_hash</replaceable>|<replaceable>first</replaceable></term>
         <listitem>
           <para>
             When having multiple subscribers on a shared subscription (like '$share/myshare/jane/doe'), select how the messages should be distributed over the subscribers.
@@ -595,6 +595,9 @@ multi-value-param one 'two' "three" "with ' char"
           </para>
           <para>
             <replaceable>sender_hash</replaceable>. Selects a receiver deterministically based on the hash of the client ID of the sender. The selected subscriber will depend on how many subscribers there are, so if some disconnect, the distribution will change. Moreover, the selection may also change when FlashMQ cleans up empty spaces in the list of shared subscribers.
+          </para>
+          <para>
+            <replaceable>first</replaceable>. Selects the first subscriber in the list. This mode can be useful for fallback. When one client disappears, the other will seamlessly take over.
           </para>
           <para>
             Default: <replaceable>round_robin</replaceable>

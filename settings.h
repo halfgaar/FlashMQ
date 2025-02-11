@@ -38,7 +38,8 @@ enum class RetainedMessagesMode
 enum class SharedSubscriptionTargeting
 {
     RoundRobin,
-    SenderHash
+    SenderHash,
+    First
 };
 
 enum class WildcardSubscriptionDenyMode

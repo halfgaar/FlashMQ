@@ -559,8 +559,10 @@ void SubscriptionStore::publishNonRecursively(
 
         if (settings->sharedSubscriptionTargeting == SharedSubscriptionTargeting::SenderHash)
             sub = subscribers.getNext(distributionHash);
-        else
+        else if (settings->sharedSubscriptionTargeting == SharedSubscriptionTargeting::RoundRobin)
             sub = subscribers.getNext();
+        else if (settings->sharedSubscriptionTargeting == SharedSubscriptionTargeting::First)
+            sub = subscribers.getFirst();
 
         if (sub == nullptr)
             continue;

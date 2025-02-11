@@ -1091,6 +1091,8 @@ void ConfigFileParser::loadFile(bool test)
                         tmpSettings.sharedSubscriptionTargeting = SharedSubscriptionTargeting::RoundRobin;
                     else if (_val == "sender_hash")
                         tmpSettings.sharedSubscriptionTargeting = SharedSubscriptionTargeting::SenderHash;
+                    else if (_val == "first")
+                        tmpSettings.sharedSubscriptionTargeting = SharedSubscriptionTargeting::First;
                     else
                         throw ConfigFileException(formatString("Value '%s' for '%s' is invalid.", value.c_str(), key.c_str()));
                 }
