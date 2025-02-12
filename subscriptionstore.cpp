@@ -85,9 +85,7 @@ AddSubscriptionType SubscriptionNode::addSubscriber(
     }
     else
     {
-        SharedSubscribers &subscribers = sharedSubscribers[shareName];
-        subscribers.setName(shareName); // c++14 doesn't have try-emplace yet, in which case this separate step wouldn't be needed.
-
+        SharedSubscribers &subscribers = sharedSubscribers.try_emplace(shareName, shareName, subscriber->getFmqClientGroupId()).first->second;
         Subscription &s = subscribers[client_id];
         result = s.session.expired() ? AddSubscriptionType::NewSubscription : AddSubscriptionType::ExistingSubscription;
         s = sub;
@@ -544,16 +542,19 @@ void SubscriptionStore::publishNonRecursively(
     {
         SharedSubscribers &subscribers = pair.second;
 
+        // See SharedSubscribers for details about the target override. In short: we need to ensure delivery order.
+        const SharedSubscriptionTargeting targetting = subscribers.overrideSharedSubscriptionTarget.value_or(settings->sharedSubscriptionTargeting);
+
         const Subscription *sub = nullptr;
 
-        if (settings->sharedSubscriptionTargeting == SharedSubscriptionTargeting::SenderHash)
+        if (targetting == SharedSubscriptionTargeting::SenderHash)
         {
             const size_t hash = std::hash<std::string>()(senderClientId);
             sub = subscribers.getNext(hash);
         }
-        else if (settings->sharedSubscriptionTargeting == SharedSubscriptionTargeting::RoundRobin)
+        else if (targetting == SharedSubscriptionTargeting::RoundRobin)
             sub = subscribers.getNext();
-        else if (settings->sharedSubscriptionTargeting == SharedSubscriptionTargeting::First)
+        else if (targetting == SharedSubscriptionTargeting::First)
             sub = subscribers.getFirst();
 
         if (sub == nullptr)

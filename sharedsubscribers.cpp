@@ -11,17 +11,11 @@ See LICENSE for license details.
 #include "sharedsubscribers.h"
 #include <cassert>
 
-SharedSubscribers::SharedSubscribers() noexcept
+SharedSubscribers::SharedSubscribers(const std::string &shareName, const std::optional<std::string> &fmq_group_id) noexcept :
+    shareName(shareName),
+    overrideSharedSubscriptionTarget(fmq_group_id ? SharedSubscriptionTargeting::SenderHash : std::optional<SharedSubscriptionTargeting>())
 {
 
-}
-
-void SharedSubscribers::setName(const std::string &name)
-{
-    if (!shareName.empty() || name.empty())
-        return;
-
-    this->shareName = name;
 }
 
 /**

@@ -15,9 +15,11 @@ See LICENSE for license details.
 #include <vector>
 #include <unordered_map>
 #include <memory>
+#include <optional>
 
 #include "forward_declarations.h"
 #include "subscription.h"
+#include "settings.h"
 
 class SharedSubscribers
 {
@@ -27,12 +29,20 @@ class SharedSubscribers
     std::vector<Subscription> members;
     std::unordered_map<std::string, int> index;
     int roundRobinCounter = 0;
-    std::string shareName;
 
 public:
-    SharedSubscribers() noexcept;
+    const std::string shareName;
 
-    void setName(const std::string &name);
+    /*
+     * We need to ensure message ordering when using multiple fmq_group_id connections, so we stick publishers on the other
+     * end to one connection (by using SharedSubscriptionTargeting::SenderHash). This doesn't just guarantee order,
+     * but also thread stickiness, which is useful in auth plugins, like when you do caching assuming clients
+     * will send many messages in a row.
+     */
+    const std::optional<SharedSubscriptionTargeting> overrideSharedSubscriptionTarget;
+
+    SharedSubscribers(const std::string &shareName, const std::optional<std::string> &fmq_group_id) noexcept;
+
     Subscription& operator[](const std::string &clientid);
     const Subscription *getFirst() const;
     const Subscription *getNext();

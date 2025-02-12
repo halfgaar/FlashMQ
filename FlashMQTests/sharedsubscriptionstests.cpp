@@ -33,7 +33,7 @@ void MainTests::testSharedSubscribersUnit()
     std::shared_ptr<Session> ses3 = std::make_shared<Session>(c3->getClientId(), c3->getUsername(), std::optional<std::string>());
     ses3->assignActiveConnection(c3);
 
-    SharedSubscribers s;
+    SharedSubscribers s("dummy", {});
 
     s[ses1->getClientId()].session = ses1;
     MYCASTCOMPARE(s.members.size(), 1);
