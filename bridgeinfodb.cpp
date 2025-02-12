@@ -4,7 +4,8 @@ using std::unordered_map;
 
 BridgeInfoForSerializing::BridgeInfoForSerializing(const BridgeConfig &bridge) :
     prefix(bridge.clientidPrefix),
-    clientId(bridge.getClientid())
+    clientId(bridge.getClientid()),
+    client_group_share_name("") // In this context (constructing from BridgeConfig) we don't save this. It's done at an earlier stage.
 {
 
 }
@@ -29,16 +30,18 @@ BridgeInfoDb::BridgeInfoDb(const std::string &filePath) : PersistenceFile(filePa
 
 void BridgeInfoDb::openWrite()
 {
-    PersistenceFile::openWrite(MAGIC_STRING_BRIDGEINFO_FILE_V1);
+    PersistenceFile::openWrite(MAGIC_STRING_BRIDGEINFO_FILE_V2);
 }
 
 void BridgeInfoDb::openRead()
 {
-    const std::string current_magic_string(MAGIC_STRING_BRIDGEINFO_FILE_V1);
+    const std::string current_magic_string(MAGIC_STRING_BRIDGEINFO_FILE_V2);
     PersistenceFile::openRead(current_magic_string);
 
-    if (detectedVersionString == current_magic_string)
+    if (detectedVersionString == MAGIC_STRING_BRIDGEINFO_FILE_V1)
         readVersion = ReadVersion::v1;
+    else if (detectedVersionString == current_magic_string)
+        readVersion = ReadVersion::v2;
     else
         throw std::runtime_error("Unknown file version.");
 }
@@ -54,6 +57,7 @@ void BridgeInfoDb::saveInfo(const std::list<BridgeInfoForSerializing> &bridgeInf
     {
         writeString(b.prefix);
         writeString(b.clientId);
+        writeString(b.client_group_share_name);
     }
 }
 
@@ -79,6 +83,9 @@ std::list<BridgeInfoForSerializing> BridgeInfoDb::readInfo()
 
             r.prefix = readString(eofFound);
             r.clientId = readString(eofFound);
+
+            if (readVersion >= ReadVersion::v2)
+                r.client_group_share_name = readString(eofFound);
 
             result.push_back(std::move(r));
         }

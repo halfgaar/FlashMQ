@@ -441,7 +441,7 @@ void Client::writeLoginPacket()
     connectInfo.sessionExpiryInterval = config->c.remoteSessionExpiryInterval;
     connectInfo.maxIncomingTopicAliasValue = config->c.maxIncomingTopicAliases;
     connectInfo.bridgeProtocolBit = config->c.bridgeProtocolBit;
-    connectInfo.fmq_client_group_id = config->c.fmq_client_group_id;
+    connectInfo.fmq_client_group_id = config->c.getFmqClientGroupId();
 
     MqttPacket pack(connectInfo);
     writeMqttPacket(pack);
@@ -724,7 +724,7 @@ void Client::setBridgeState(std::shared_ptr<BridgeState> bridgeState)
         this->protocolVersion = bridgeState->c.protocolVersion;
         this->clean_start = bridgeState->c.localCleanStart;
         this->clientid = bridgeState->c.getClientid();
-        this->fmq_client_group_id = bridgeState->c.fmq_client_group_id;
+        this->fmq_client_group_id = bridgeState->c.getFmqClientGroupId();
         this->username = bridgeState->c.local_username.value_or(std::string());
         this->keepalive = bridgeState->c.keepalive;
         this->addr.setAddressName(bridgeState->c.address);

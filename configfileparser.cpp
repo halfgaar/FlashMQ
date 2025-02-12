@@ -17,6 +17,7 @@ See LICENSE for license details.
 #include <regex>
 #include <sys/stat.h>
 #include <optional>
+#include <sys/sysinfo.h>
 
 #include <openssl/ssl.h>
 #include <openssl/err.h>
@@ -24,6 +25,7 @@ See LICENSE for license details.
 #include "exceptions.h"
 #include "utils.h"
 #include "globber.h"
+#include "globals.h"
 
 /**
  * @brief Like std::stoi, but demands that the entire value is consumed
@@ -283,6 +285,7 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validBridgeKeys.insert("local_prefix");
     validBridgeKeys.insert("remote_prefix");
     validBridgeKeys.insert("minimum_tls_version");
+    validBridgeKeys.insert("connection_count");
 }
 
 std::list<std::string> ConfigFileParser::readFileRecursively(const std::string &path) const
@@ -408,6 +411,7 @@ void ConfigFileParser::loadFile(bool test)
     ConfigParseLevel curParseLevel = ConfigParseLevel::Root;
     std::shared_ptr<Listener> curListener;
     std::optional<BridgeConfig> curBridge;
+    std::list<BridgeConfig> preMultipliedBridges;
     Settings tmpSettings;
 
     const std::set<std::string> blockNames {"listen", "bridge"};
@@ -471,8 +475,7 @@ void ConfigFileParser::loadFile(bool test)
             else if (curParseLevel == ConfigParseLevel::Bridge)
             {
                 curBridge->isValid();
-
-                tmpSettings.bridges.push_back(std::move(*curBridge));
+                preMultipliedBridges.push_back(std::move(curBridge.value()));
             }
 
             curParseLevel = ConfigParseLevel::Root;
@@ -851,6 +854,15 @@ void ConfigFileParser::loadFile(bool test)
                         curBridge->minimumTlsVersion = TLSVersion::TLSv1_1;
                     else
                         throw ConfigFileException("Value '" + valueTrimmed + "' is not a valid value for " + key);
+                }
+                if (testKeyValidity(key, "connection_count", validBridgeKeys))
+                {
+                    if (valueTrimmed == "auto")
+                    {
+                        curBridge->connection_count = get_nprocs();
+                    }
+                    else
+                        curBridge->connection_count = full_stoul(key, valueTrimmed);
                 }
 
                 testCorrectNumberOfValues(key, number_of_expected_values, values);
@@ -1276,12 +1288,28 @@ void ConfigFileParser::loadFile(bool test)
         testCorrectNumberOfValues(key, number_of_expected_values, values);
     }
 
-    tmpSettings.checkUniqueBridgeNames();
+    checkUniqueBridgeNames(preMultipliedBridges);
+
+    const std::string share_name_path = tmpSettings.getGeneratedShareNamesFilePath();
+    globals->bridgeClientGroupIds.loadShareNames(share_name_path, !test);
+
+    for (const BridgeConfig &bc : preMultipliedBridges)
+    {
+        std::vector<BridgeConfig> many = bc.multiply();
+
+        for (BridgeConfig &b : many)
+        {
+            tmpSettings.bridges.push_back(std::move(b));
+        }
+    }
+
     tmpSettings.authOptCompatWrap = AuthOptCompatWrap(pluginOpts);
     tmpSettings.flashmqpluginOpts = std::move(pluginOpts);
 
     if (!test)
     {
+        globals->bridgeClientGroupIds.saveShareNames(share_name_path);
+
         this->settings = tmpSettings;
     }
 }

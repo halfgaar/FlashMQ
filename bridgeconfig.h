@@ -26,11 +26,41 @@ struct BridgeTopicPath
     bool operator==(const BridgeTopicPath &other) const;
 };
 
+/**
+ * @brief The BridgeClientGroupIds class manages the random IDs used in fmq_client_group_id and shared
+ * subscription names for them.
+ *
+ * They need to remain constant during the program's lifetime, and also be settable when loading state from disk.
+ */
+class BridgeClientGroupIds
+{
+    std::unordered_map<std::string, std::string> bridge_group_ids;
+    std::unordered_map<std::string, std::string> bridge_share_names;
+
+public:
+    BridgeClientGroupIds() = default;
+    BridgeClientGroupIds(const BridgeClientGroupIds &other) = delete;
+    BridgeClientGroupIds(BridgeClientGroupIds &&other) = delete;
+    BridgeClientGroupIds &operator=(const BridgeClientGroupIds &other) = delete;
+
+    std::string getClientGroupShareName(const std::string &client_id_prefix);
+    void setClientGroupShareName(const std::string &client_id_prefix, const std::string &share_name);
+
+    std::string getClientGroupId(const std::string &client_id_prefix);
+
+    void loadShareNames(const std::string &path, bool real);
+    void saveShareNames(const std::string &path) const;
+};
+
 class BridgeConfig
 {
     std::string clientid;
+    std::optional<std::string> fmq_client_group_id; // For a custom feature of no-local shared subscriptions.
+    size_t client_id_max_length = 10;
 
     void setClientId();
+    void appendConnectionNumber(size_t no);
+    static void setSharedSubscriptionName(std::vector<BridgeTopicPath> &topics, const std::string &share_name);
 
 public:
     ListenerProtocol inet_protocol = ListenerProtocol::IPv46;
@@ -44,7 +74,7 @@ public:
     ProtocolVersion protocolVersion = ProtocolVersion::Mqtt311;
     bool bridgeProtocolBit = true;
     std::string clientidPrefix = "fmqbridge";
-    std::optional<std::string> fmq_client_group_id;
+    size_t connection_count = 1;
     std::optional<std::string> local_username;
     std::optional<std::string> remote_username;
     std::optional<std::string> remote_password;
@@ -69,7 +99,10 @@ public:
 
     void setClientId(const std::string &prefix, const std::string &id);
     const std::string &getClientid() const;
+    const std::optional<std::string> &getFmqClientGroupId() const;
     void isValid();
+    std::vector<BridgeConfig> multiply() const;
+    void setSharedSubscriptionName(const std::string &share_name);
 
     bool operator ==(const BridgeConfig &other) const;
     bool operator !=(const BridgeConfig &other) const;

@@ -8,11 +8,13 @@
 
 
 #define MAGIC_STRING_BRIDGEINFO_FILE_V1 "BridgeInfoDbV1"
+#define MAGIC_STRING_BRIDGEINFO_FILE_V2 "BridgeInfoDbV2"
 
 struct BridgeInfoForSerializing
 {
     std::string prefix;
     std::string clientId;
+    std::string client_group_share_name;
 
     BridgeInfoForSerializing() = default;
     BridgeInfoForSerializing(const BridgeConfig &bridge);
@@ -26,6 +28,7 @@ class BridgeInfoDb : private PersistenceFile
     {
         unknown,
         v1,
+        v2
     };
 
     ReadVersion readVersion = ReadVersion::unknown;

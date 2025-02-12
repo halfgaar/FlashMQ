@@ -49,6 +49,8 @@ enum class WildcardSubscriptionDenyMode
     DenyRetainedOnly
 };
 
+void checkUniqueBridgeNames(const std::list<BridgeConfig> &bridges);
+
 class Settings
 {
     friend class ConfigFileParser;
@@ -57,8 +59,6 @@ class Settings
     std::unordered_map<std::string, std::string> flashmqpluginOpts;
 
     std::list<BridgeConfig> bridges;
-
-    void checkUniqueBridgeNames() const;
 
 public:
     // Actual config options with their defaults.
@@ -119,6 +119,7 @@ public:
     std::string getRetainedMessagesDBFile() const;
     std::string getSessionsDBFile() const;
     std::string getBridgeNamesDBFile() const;
+    std::string getGeneratedShareNamesFilePath() const;
 
     uint32_t getExpireSessionAfterSeconds() const;
 

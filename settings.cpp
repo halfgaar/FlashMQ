@@ -14,7 +14,7 @@ See LICENSE for license details.
 #include "settings.h"
 #include "utils.h"
 
-void Settings::checkUniqueBridgeNames() const
+void checkUniqueBridgeNames(const std::list<BridgeConfig> &bridges)
 {
     std::unordered_set<std::string> prefixes;
 
@@ -66,6 +66,15 @@ std::string Settings::getBridgeNamesDBFile() const
         return "";
 
     std::string path = formatString("%s/%s", storageDir.c_str(), "bridgenames.db");
+    return path;
+}
+
+std::string Settings::getGeneratedShareNamesFilePath() const
+{
+    if (storageDir.empty())
+        return "";
+
+    std::string path = formatString("%s/%s", storageDir.c_str(), "sharenames.db");
     return path;
 }
 

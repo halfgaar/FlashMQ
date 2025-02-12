@@ -5,6 +5,7 @@
 
 #include "subscriptionstore.h"
 #include "globalstats.h"
+#include "bridgeconfig.h"
 
 /**
  * The idea about it being a shared pointer is having globals that are still tied to a MainApp instance (which
@@ -19,6 +20,7 @@ class Globals
         bool quitting = false;
         std::shared_ptr<SubscriptionStore> subscriptionStore = std::make_shared<SubscriptionStore>();
         GlobalStats stats;
+        BridgeClientGroupIds bridgeClientGroupIds;
     };
 
     std::shared_ptr<GlobalsData> data = std::make_shared<GlobalsData>();
