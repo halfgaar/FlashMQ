@@ -3076,7 +3076,7 @@ void MainTests::testTopicMatchingInSubscriptionTreeHelper(const std::string &sub
     store.addSubscription(client, subscribe_subtopics, 0, false, false, 0);
 
     std::vector<ReceivingSubscriber> receivers;
-    store.publishRecursively(publish_subtopics.begin(), publish_subtopics.end(), store.root.get(), receivers, 0, "fakeclientid");
+    store.publishRecursively(publish_subtopics.begin(), publish_subtopics.end(), store.root.get(), receivers, "fakeclientid");
 
     QVERIFY2(std::distance(receivers.begin(), receivers.end()) == match_count, publish_topic.c_str());
 }

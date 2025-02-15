@@ -2075,13 +2075,6 @@ void MqttPacket::handlePublish(std::shared_ptr<Client> &sender)
                 first_byte = bites[0];
 
                 PublishCopyFactory factory(this);
-
-                if (settings->sharedSubscriptionTargeting == SharedSubscriptionTargeting::SenderHash)
-                {
-                    const size_t senderHash = std::hash<std::string>()(sender->getClientId());
-                    factory.setSharedSubscriptionHashKey(senderHash);
-                }
-
                 ackSender.sendNow();
                 MainApp::getMainApp()->getSubscriptionStore()->queuePacketAtSubscribers(factory, sender->getClientId());
             }

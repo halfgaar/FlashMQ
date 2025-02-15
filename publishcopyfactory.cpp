@@ -195,11 +195,6 @@ const std::optional<std::string> &PublishCopyFactory::getResponseTopic() const
     return publish->responseTopic;
 }
 
-void PublishCopyFactory::setSharedSubscriptionHashKey(size_t hash)
-{
-    this->sharedSubscriptionHashKey = hash;
-}
-
 int PublishCopyFactory::getPublishLayoutCompareKey(ProtocolVersion pv, uint8_t qos)
 {
     int key = 0;

@@ -36,7 +36,6 @@ class PublishCopyFactory
     const uint8_t orgQos;
     const bool orgRetain = false;
     std::unordered_map<uint8_t, std::optional<MqttPacket>> constructedPacketCache;
-    size_t sharedSubscriptionHashKey;
 public:
     PublishCopyFactory(MqttPacket *packet);
     PublishCopyFactory(Publish *publish);
@@ -56,8 +55,6 @@ public:
     const std::vector<std::pair<std::string, std::string>> *getUserProperties() const;
     const std::optional<std::string> &getCorrelationData() const;
     const std::optional<std::string> &getResponseTopic() const;
-    void setSharedSubscriptionHashKey(size_t hash);
-    size_t getSharedSubscriptionHashKey() const { return sharedSubscriptionHashKey; }
     static int getPublishLayoutCompareKey(ProtocolVersion pv, uint8_t qos);
 };
 
