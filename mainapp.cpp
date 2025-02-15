@@ -681,8 +681,6 @@ void MainApp::start()
     sendBridgesToThreads();
     queueBridgeReconnectAllThreads(true);
 
-    uint next_thread_index = 0;
-
     this->bgWorker.start();
 
     struct epoll_event events[MAX_EVENTS];
@@ -717,7 +715,7 @@ void MainApp::start()
                     if (!listener)
                         continue;
 
-                    std::shared_ptr<ThreadData> thread_data = threads[next_thread_index++ % num_threads];
+                    std::shared_ptr<ThreadData> thread_data = threads[listener->next_thread_index++ % num_threads];
 
                     logger->logf(LOG_DEBUG, "Accepting connection on thread %d on %s", thread_data->threadnr, listener->getProtocolName().c_str());
 

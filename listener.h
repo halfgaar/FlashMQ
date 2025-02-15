@@ -26,6 +26,12 @@ enum class ListenerProtocol
 
 struct Listener
 {
+    /*
+     * We track this per listener so that if you isolate clients to a specific listener, you have
+     * control over on which thread it ends up.
+     */
+    size_t next_thread_index = 0;
+
     ListenerProtocol protocol = ListenerProtocol::IPv46;
     std::string inet4BindAddress;
     std::string inet6BindAddress;
