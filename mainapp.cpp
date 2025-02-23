@@ -734,8 +734,9 @@ void MainApp::start()
                     {
                         const std::string addr_s = sockaddrToString(addr);
                         bool do_close = false;
+                        const OverloadMode overload_mode = listener->overloadMode.value_or(settings.overloadMode);
 
-                        if (settings.overloadMode == OverloadMode::CloseNewClients)
+                        if (overload_mode == OverloadMode::CloseNewClients)
                         {
                             if (overloadLogCounter <= OVERLOAD_LOGS_MUTE_AFTER_LINES)
                             {
@@ -745,7 +746,7 @@ void MainApp::start()
                             }
                             do_close = true;
                         }
-                        else if (settings.overloadMode == OverloadMode::Log)
+                        else if (overload_mode == OverloadMode::Log)
                         {
                             if (overloadLogCounter <= OVERLOAD_LOGS_MUTE_AFTER_LINES)
                             {

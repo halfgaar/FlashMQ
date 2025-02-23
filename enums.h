@@ -33,4 +33,10 @@ enum class TLSVersion
     TLSv1_3
 };
 
+enum class OverloadMode
+{
+    Log,
+    CloseNewClients
+};
+
 #endif // ENUMS_H

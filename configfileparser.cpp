@@ -248,6 +248,7 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validListenKeys.insert("allow_anonymous");
     validListenKeys.insert("tcp_nodelay");
     validListenKeys.insert("minimum_tls_version");
+    validListenKeys.insert("overload_mode");
 
     validBridgeKeys.insert("local_username");
     validBridgeKeys.insert("remote_username");
@@ -554,6 +555,17 @@ void ConfigFileParser::loadFile(bool test)
                         curListener->minimumTlsVersion = TLSVersion::TLSv1_1;
                     else
                         throw ConfigFileException("Value '" + valueTrimmed + "' is not a valid value for " + key);
+                }
+                if (testKeyValidity(key, "overload_mode", validListenKeys))
+                {
+                    const std::string _val = str_tolower(value);
+
+                    if (_val == "log")
+                        curListener->overloadMode = OverloadMode::Log;
+                    else if (_val == "close_new_clients")
+                        curListener->overloadMode = OverloadMode::CloseNewClients;
+                    else
+                        throw ConfigFileException(formatString("Value '%s' for '%s' is invalid.", value.c_str(), key.c_str()));
                 }
 
                 testCorrectNumberOfValues(key, number_of_expected_values, values);

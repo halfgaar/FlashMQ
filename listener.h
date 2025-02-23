@@ -13,6 +13,7 @@ See LICENSE for license details.
 
 #include <string>
 #include <memory>
+#include <optional>
 
 #include "sslctxmanager.h"
 #include "enums.h"
@@ -47,6 +48,7 @@ struct Listener
     std::unique_ptr<SslCtxManager> sslctx;
     AllowListenerAnonymous allowAnonymous = AllowListenerAnonymous::None;
     TLSVersion minimumTlsVersion = TLSVersion::TLSv1_1;
+    std::optional<OverloadMode> overloadMode;
 
     void isValid();
     bool isSsl() const;

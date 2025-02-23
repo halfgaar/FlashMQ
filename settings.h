@@ -16,6 +16,7 @@ See LICENSE for license details.
 #include <limits>
 #include <optional>
 
+#include "enums.h"
 #include "mosquittoauthoptcompatwrap.h"
 #include "listener.h"
 #include "network.h"
@@ -46,12 +47,6 @@ enum class WildcardSubscriptionDenyMode
 {
     DenyAll,
     DenyRetainedOnly
-};
-
-enum class OverloadMode
-{
-    Log,
-    CloseNewClients
 };
 
 class Settings
