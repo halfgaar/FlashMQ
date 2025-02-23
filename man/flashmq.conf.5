@@ -5,7 +5,7 @@
 \\$2 \(la\\$1\(ra\\$3
 ..
 .if \n(.g .mso www.tmac
-.TH flashmq.conf 5 "Feb 11 2025" "" ""
+.TH flashmq.conf 5 "Feb 23 2025" "" ""
 .SH NAME
 flashmq.conf \- FlashMQ configuration file format
 .SH SYNOPSIS
@@ -406,6 +406,9 @@ When using X509 client authentication with \fB\m[green]client_verification_ca_fi
 .TP
 \*(T<\fB\m[green]allow_anonymous\m[] \fI\m[cyan]true\m[]\fR|\fI\m[cyan]false\m[]\fR\fR\*(T>
 This allows you to override the \fBglobal \fB\m[green]allow_anonymous\fR\m[]\fR setting on the listener level.
+.TP
+\*(T<\fB\m[green]overload_mode\m[] \fI\m[cyan]log\m[]\fR|\fI\m[cyan]close_new_clients\m[]\fR\fR\*(T>
+This allows you to override the \fBglobal \fB\m[green]overload_mode\fR\m[]\fR setting on the listener level.
 .TP
 \*(T<\fB\m[green]haproxy\m[] \fI\m[cyan]true\m[]\fR|\fI\m[cyan]false\m[]\fR\fR\*(T>
 Setting the listener to haproxy makes it expect the PROXY protocol and set client source address to the original client. Make sure this listener is private / firewalled, otherwise anybody can set a different source address.

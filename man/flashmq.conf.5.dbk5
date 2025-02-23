@@ -846,6 +846,15 @@ multi-value-param one 'two' "three" "with ' char"
         </listitem>
       </varlistentry>
 
+      <varlistentry xml:id="listen__overload_mode" condition="flashmq ≥ 1.21.0">
+        <term><option>overload_mode</option> <replaceable>log</replaceable>|<replaceable>close_new_clients</replaceable></term>
+        <listitem>
+          <para>
+            This allows you to override the <link xlink:href="#overload_mode">global <option>overload_mode</option></link> setting on the listener level.
+          </para>
+        </listitem>
+      </varlistentry>
+
       <varlistentry xml:id="haproxy" condition="flashmq ≥ 1.1.0">
         <term><option>haproxy</option> <replaceable>true</replaceable>|<replaceable>false</replaceable></term>
         <listitem>
