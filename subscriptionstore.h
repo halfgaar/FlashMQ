@@ -204,6 +204,7 @@ public:
     AddSubscriptionType addSubscription(
         const std::shared_ptr<Session> &session, const std::string &topicFilter, uint8_t qos, bool noLocal, bool retainAsPublished,
         const uint32_t subscriptionIdentifier);
+    void removeSubscription(const std::shared_ptr<Session> &session, const std::string &topic);
     void removeSubscription(std::shared_ptr<Client> &client, const std::string &topic);
     std::shared_ptr<Session> getBridgeSession(std::shared_ptr<Client> &client);
     void registerClientAndKickExistingOne(std::shared_ptr<Client> &client);

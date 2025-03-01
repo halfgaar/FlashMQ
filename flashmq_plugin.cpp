@@ -56,16 +56,8 @@ void flashmq_plugin_remove_subscription(const std::string &clientid, const std::
 {
     std::shared_ptr<SubscriptionStore> store = MainApp::getMainApp()->getSubscriptionStore();
     std::shared_ptr<Session> session = store->lockSession(clientid);
-
-    if (session)
-    {
-        std::shared_ptr<Client> client = session->makeSharedClient();
-
-        if (client)
-        {
-            store->removeSubscription(client, topicFilter);
-        }
-    }
+    if (!session) return;
+    store->removeSubscription(session, topicFilter);
 }
 
 bool flashmq_plugin_add_subscription(

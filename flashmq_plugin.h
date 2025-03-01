@@ -163,6 +163,8 @@ void flashmq_plugin_remove_client(const std::string &clientid, bool alsoSession,
  *
  * You need to keep track of subscriptions in 'flashmq_plugin_acl_check()' to be able to know what to remove.
  *
+ * Will throw exceptions on certain errors.
+ *
  * Can be called from any thread, because the global subscription store is mutexed.
  *
  * [Function provided by FlashMQ]

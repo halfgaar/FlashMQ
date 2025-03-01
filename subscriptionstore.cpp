@@ -293,8 +293,11 @@ AddSubscriptionType SubscriptionStore::addSubscription(
     return deepestNode->addSubscriber(session, qos, noLocal, retainAsPublished, shareName, subscriptionIdentifier);
 }
 
-void SubscriptionStore::removeSubscription(std::shared_ptr<Client> &client, const std::string &topic)
+void SubscriptionStore::removeSubscription(const std::shared_ptr<Session> &session, const std::string &topic)
 {
+    if (!session)
+        return;
+
     std::vector<std::string> subtopics = splitTopic(topic);
 
     std::string shareName;
@@ -305,21 +308,16 @@ void SubscriptionStore::removeSubscription(std::shared_ptr<Client> &client, cons
     if (!node)
         return;
 
-    std::shared_ptr<Session> ses;
+    node->removeSubscriber(session, shareName);
+}
 
-    {
-        std::shared_lock session_locker(sessions_lock);
-        auto session_it = sessionsByIdConst.find(client->getClientId());
-        if (session_it != sessionsByIdConst.end())
-        {
-            ses = session_it->second;
-        }
-    }
-
-    if (!ses)
+void SubscriptionStore::removeSubscription(std::shared_ptr<Client> &client, const std::string &topic)
+{
+    if (!client)
         return;
 
-    node->removeSubscriber(ses, shareName);
+    std::shared_ptr<Session> session = client->getSession();
+    removeSubscription(session, topic);
 }
 
 std::shared_ptr<Session> SubscriptionStore::getBridgeSession(std::shared_ptr<Client> &client)
