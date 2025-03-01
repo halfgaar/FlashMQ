@@ -168,6 +168,22 @@ void flashmq_plugin_remove_client(const std::string &clientid, bool alsoSession,
 void flashmq_plugin_remove_subscription(const std::string &clientid, const std::string &topicFilter);
 
 /**
+ * @brief flashmq_plugin_add_subscription
+ * @param clientid
+ * @param topicFilter
+ * @return boolean True when session found and subscription actually added.
+ *
+ * Will throw exceptions on certain errors.
+ *
+ * Can be called from any thread, because the global subscription store is mutexed.
+ *
+ * [Function provided by FlashMQ]
+ */
+bool flashmq_plugin_add_subscription(
+    const std::string &clientid, const std::string &topicFilter, uint8_t qos, bool noLocal, bool retainAsPublished,
+    const uint32_t subscriptionIdentifier);
+
+/**
  * @brief flashmq_continue_async_authentication is to continue/finish async authentication.
  * @param client
  * @param result

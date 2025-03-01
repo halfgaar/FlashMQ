@@ -275,6 +275,24 @@ AddSubscriptionType SubscriptionStore::addSubscription(
     return deepestNode->addSubscriber(client->getSession(), qos, noLocal, retainAsPublished, shareName, subscriptionIdentifier);
 }
 
+AddSubscriptionType SubscriptionStore::addSubscription(
+    const std::shared_ptr<Session> &session, const std::string &topicFilter, uint8_t qos, bool noLocal, bool retainAsPublished,
+    const uint32_t subscriptionIdentifier)
+{
+    if (!session) return AddSubscriptionType::Invalid;
+
+    std::vector<std::string> subtopics = splitTopic(topicFilter);
+    const std::shared_ptr<SubscriptionNode> deepestNode = getDeepestNode(subtopics);
+
+    if (!deepestNode)
+        return AddSubscriptionType::Invalid;
+
+    std::string shareName;
+    parseSubscriptionShare(subtopics, shareName);
+
+    return deepestNode->addSubscriber(session, qos, noLocal, retainAsPublished, shareName, subscriptionIdentifier);
+}
+
 void SubscriptionStore::removeSubscription(std::shared_ptr<Client> &client, const std::string &topic)
 {
     std::vector<std::string> subtopics = splitTopic(topic);
