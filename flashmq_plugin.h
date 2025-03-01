@@ -80,9 +80,10 @@ enum class AclAccess
  * with). MQTT5 subscribers with 'retain as published' will still see the retain flag set. This value is only valid for
  * AclAccess::write and requires a FlashMQ version 1.16.0 or higher.
  *
- * success_but_drop_publish = send success PUBACK back to client (if QoS) but don't process the publish. This may be useful in
- * combination with flashmq_publish_message() if you need to publish something new entirely (different topic or payload for
- * instance). This only works with AclAccess::write and requires FlashMQ 1.20.0 or higher.
+ * success_but_drop_publish / success_but_drop = send success SUBACK or PUBACK back to client (if QoS) but don't process the packet. This
+ * may be useful in combination with flashmq_publish_message() or flashmq_plugin_add_subscription() if you need to publish or subscribe
+ * something new entirely (different topic(s) or payload for instance). This only works with AclAccess::write (FlashMQ 1.20.0 or higher)
+ * and AclAccess::subscribe (FlashMQ 1.21.0 or higher).
  *
  * server_not_available = to be used as log-in result, for when you don't have auth data yet, for instance. MQTT3 and MQTT5 both support
  * sending 'ServerUnavailble' in their CONNACK, when this result is used. Requires FlashMQ 1.17.0 or newer.
@@ -99,6 +100,7 @@ enum class AuthResult
     success_without_retained_delivery = 51,
     success_without_setting_retained = 52,
     success_but_drop_publish = 53,
+    success_but_drop = 53,
     auth_continue = -4
 };
 

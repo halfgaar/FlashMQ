@@ -1664,7 +1664,7 @@ void MqttPacket::handleSubscribe(std::shared_ptr<Client> &sender)
                 authResult = newAuthResult;
         }
 
-        if (authResult == AuthResult::success || authResult == AuthResult::success_without_retained_delivery)
+        if (authResult == AuthResult::success || authResult == AuthResult::success_without_retained_delivery || authResult == AuthResult::success_but_drop)
         {
             const uint32_t subscr_id = settings->subscriptionIdentifierEnabled ? subscription_identifier : 0;
             deferredSubscribes.emplace_front(topic, subtopics, qos, noLocal, retainedAsPublished, shareName, authResult, subscr_id, retainHandling);
@@ -1693,6 +1693,9 @@ void MqttPacket::handleSubscribe(std::shared_ptr<Client> &sender)
     // Adding the subscription will also send publishes for retained messages, so that's why we're doing it at the end.
     for(const SubscriptionTuple &tup : deferredSubscribes)
     {
+        if (tup.authResult == AuthResult::success_but_drop)
+            continue;
+
         auto store = MainApp::getMainApp()->getSubscriptionStore();
 
         logger->log(LOG_SUBSCRIBE) << "Client '" << sender->repr() << "' subscribed to '" << tup.topic << "' QoS " << static_cast<int>(tup.qos);
