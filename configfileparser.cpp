@@ -286,6 +286,7 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validBridgeKeys.insert("remote_prefix");
     validBridgeKeys.insert("minimum_tls_version");
     validBridgeKeys.insert("connection_count");
+    validBridgeKeys.insert("max_buffer_size");
 }
 
 std::list<std::string> ConfigFileParser::readFileRecursively(const std::string &path) const
@@ -863,6 +864,15 @@ void ConfigFileParser::loadFile(bool test)
                     }
                     else
                         curBridge->connection_count = full_stoul(key, valueTrimmed);
+                }
+                if (testKeyValidity(key, "max_buffer_size", validBridgeKeys))
+                {
+                    size_t val = full_stoul(key, valueTrimmed);
+
+                    if (val > 1073741824)
+                        throw ConfigFileException("Bridge's " + key + " cannot be bigger than 1 GB");
+
+                    curBridge->maxBufferSize = val;
                 }
 
                 testCorrectNumberOfValues(key, number_of_expected_values, values);

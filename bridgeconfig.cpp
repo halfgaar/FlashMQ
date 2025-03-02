@@ -398,7 +398,8 @@ bool BridgeConfig::operator ==(const BridgeConfig &other) const
            && this->localSessionExpiryInterval == other.localSessionExpiryInterval && this->remoteRetainAvailable == other.remoteRetainAvailable
            && this->useSavedClientId == other.useSavedClientId && this->maxOutgoingTopicAliases == other.maxOutgoingTopicAliases
            && this->maxIncomingTopicAliases == other.maxIncomingTopicAliases && this->tcpNoDelay == other.tcpNoDelay
-           && this->local_prefix == other.local_prefix && this->remote_prefix == other.remote_prefix && this->connection_count == other.connection_count;
+           && this->local_prefix == other.local_prefix && this->remote_prefix == other.remote_prefix && this->connection_count == other.connection_count
+           && this->maxBufferSize == other.maxBufferSize;
 }
 
 bool BridgeConfig::operator !=(const BridgeConfig &other) const

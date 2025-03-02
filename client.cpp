@@ -201,6 +201,11 @@ void Client::connectToBridgeTarget(FMQSockaddr addr)
     setBridgeConnected();
 }
 
+void Client::setMaxBufSizeOverride(uint32_t val)
+{
+    this->maxBufSizeOverride = val;
+}
+
 void Client::startOrContinueSslHandshake()
 {
     const bool acceptedBefore = isSslAccepted();
@@ -250,10 +255,11 @@ DisconnectStage Client::readFdIntoBuffer()
         {
             const Settings *settings = ThreadGlobals::getSettings();
             // I guess I should have just made a 'max buffer size' option, and not distinguish between read/write?
-            const uint32_t maxBufferSize = std::max<uint32_t>(this->maxIncomingPacketSize, settings->clientMaxWriteBufferSize);
+            const uint32_t maxBufSize = this->maxBufSizeOverride.value_or(settings->clientMaxWriteBufferSize);
+            const uint32_t maxBufOrBigPacketSize= std::max<uint32_t>(this->maxIncomingPacketSize, maxBufSize);
 
             // We always grow for another iteration when there are still decoded websocket/SSL bytes, because epoll doesn't tell us that buffer has data.
-            if (readbuf.getCapacity() * 2 <= maxBufferSize || error == IoWrapResult::WantRead || ioWrapper.hasProcessedBufferedBytesToRead())
+            if (readbuf.getCapacity() * 2 <= maxBufOrBigPacketSize || error == IoWrapResult::WantRead || ioWrapper.hasProcessedBufferedBytesToRead())
             {
                 readbuf.doubleCapacity();
             }
@@ -303,7 +309,8 @@ PacketDropReason Client::writeMqttPacket(const MqttPacket &packet)
     const Settings *settings = ThreadGlobals::getSettings();
 
     // After introducing the client_max_write_buffer_size with low default, this makes it somewhat backwards compatible with the default big packet size.
-    const uint32_t growBufMaxTo = std::max<uint32_t>(settings->clientMaxWriteBufferSize, packetSize * 2);
+    const uint32_t maxBufSize = this->maxBufSizeOverride.value_or(settings->clientMaxWriteBufferSize);
+    const uint32_t growBufMaxTo = std::max<uint32_t>(maxBufSize, packetSize * 2);
 
     auto write_buf_locked = writebuf.lock();
 

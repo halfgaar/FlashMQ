@@ -328,6 +328,8 @@ void ThreadData::bridgeReconnect()
 
             std::shared_ptr<Client> c(new Client(ClientType::LocalBridge, sockfd, _threadData, clientSSL, ConnectionProtocol::Mqtt, false, addr.getSockaddr(), settingsLocalCopy));
             c->setBridgeState(bridge);
+            if (bridge->c.maxBufferSize)
+                c->setMaxBufSizeOverride(bridge->c.maxBufferSize.value());
 
             logger->logf(LOG_NOTICE, "Connecting brige: %s", c->repr().c_str());
 

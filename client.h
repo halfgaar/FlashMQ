@@ -92,6 +92,7 @@ class Client
 
     uint32_t maxOutgoingPacketSize;
     const uint32_t maxIncomingPacketSize;
+    std::optional<uint32_t> maxBufSizeOverride;
 
     uint16_t maxOutgoingTopicAliasValue = 0;
     uint16_t maxIncomingTopicAliasValue = 0;
@@ -178,6 +179,7 @@ public:
     void setProtocolVersion(ProtocolVersion version);
     void connectToBridgeTarget(FMQSockaddr addr);
 
+    void setMaxBufSizeOverride(uint32_t val);
     void startOrContinueSslHandshake();
     void setDisconnectStage(DisconnectStage val);
     DisconnectStage readFdIntoBuffer();
