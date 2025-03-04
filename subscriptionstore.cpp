@@ -326,11 +326,14 @@ std::shared_ptr<Session> SubscriptionStore::getBridgeSession(std::shared_ptr<Cli
 
     std::unique_lock locker(sessions_lock);
 
-    std::shared_ptr<Session> session = std::make_shared<Session>(client_id, client->getUsername());
+    std::shared_ptr<Session> &session = sessionsById[client_id];
+
+    if (!session)
+        session = std::make_shared<Session>(client_id, client->getUsername());
+
     session->assignActiveConnection(client);
     client->assignSession(session);
     session->setClientType(ClientType::LocalBridge);
-    sessionsById[client_id] = session;
     return session;
 }
 
