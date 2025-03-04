@@ -405,7 +405,21 @@ void ThreadData::bridgeReconnect()
 
 void ThreadData::queueContinuationOfAuthentication(const std::shared_ptr<Client> &client, AuthResult authResult, const std::string &authMethod, const std::string &returnData)
 {
-    client->setAsyncAuthResult({authResult, authMethod, returnData});
+    auto f = [client, authResult, authMethod, returnData]
+    {
+        client->setAsyncAuthResult({authResult, authMethod, returnData});
+    };
+
+    bool wake_up_needed = false;
+
+    {
+        auto task_queue_locked = taskQueue.lock();
+        wake_up_needed = task_queue_locked->empty();
+        task_queue_locked->push_back(std::move(f));
+    }
+
+    if (wake_up_needed)
+        wakeUpThread();
 }
 
 void ThreadData::clientDisconnectActions(
