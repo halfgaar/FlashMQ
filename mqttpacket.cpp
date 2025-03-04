@@ -1261,6 +1261,9 @@ void MqttPacket::handleConnAck(std::shared_ptr<Client> &sender)
     if (!session)
         return;
 
+    if (protocolVersion >= ProtocolVersion::Mqtt311 && !data.sessionPresent)
+        session->resetQoSData();
+
     const uint16_t keepalive = data.keep_alive ? data.keep_alive : bridgeState->c.keepalive;
 
     const uint16_t effectiveMaxOutgoingTopicAliases = std::min<uint16_t>(data.max_outgoing_topic_aliases, bridgeState->c.maxOutgoingTopicAliases);

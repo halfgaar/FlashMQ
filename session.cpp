@@ -422,6 +422,14 @@ uint16_t Session::getNextPacketIdLocked()
     return qos_locked->getNextPacketId();
 }
 
+void Session::resetQoSData()
+{
+    MutexLocked<QoSData> qos_locked = qos.lock();
+    QoSData &q = *qos_locked;
+    QoSData new_q(ThreadGlobals::getSettings()->maxQosMsgPendingPerClient);
+    q = std::move(new_q);
+}
+
 /**
  * @brief Session::getDestroyOnDisconnect
  * @return

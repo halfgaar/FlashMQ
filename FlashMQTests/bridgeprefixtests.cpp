@@ -3,6 +3,7 @@
 #include "flashmqtestclient.h"
 #include "mainappasfork.h"
 #include "testhelpers.h"
+#include "flashmqtempdir.h"
 
 void waitForMessagesOverBridge(FlashMQTestClient &one, FlashMQTestClient &two, const std::string &topic)
 {
@@ -696,12 +697,12 @@ listen {
  */
 void MainTests::forkingTestBridgeWithLocalAndRemotePrefixQueuedQoS()
 {
-    for (const std::string &protocol_version : {"mqtt5", "mqtt3.1"})
+    for (const std::string &protocol_version : {"mqtt5", "mqtt3.1.1"})
     {
         cleanup();
 
-        ConfFileTemp confFile;
-        const std::string config = R"(
+        ConfFileTemp conf_file_local;
+        const std::string config_local = R"(
 allow_anonymous true
 log_debug false
 
@@ -723,12 +724,12 @@ listen {
     protocol mqtt
     port 51883
 })";
-        confFile.writeLine(formatString(config, protocol_version.c_str()));
-        confFile.closeFile();
+        conf_file_local.writeLine(formatString(config_local, protocol_version.c_str()));
+        conf_file_local.closeFile();
 
-        std::vector<std::string> args {"--config-file", confFile.getFilePath()};
+        std::vector<std::string> args_local {"--config-file", conf_file_local.getFilePath()};
 
-        MainAppAsFork localServer(args);
+        MainAppAsFork localServer(args_local);
         localServer.start();
         localServer.waitForStarted(51883);
 
@@ -736,8 +737,25 @@ listen {
         clientToLocalWithBridge.start();
         clientToLocalWithBridge.connectClient(ProtocolVersion::Mqtt5, 51883);
 
+        FlashMQTempDir remote_server_storage_dir;
+
+        ConfFileTemp conf_file_remote;
+        const std::string config_remote = R"(
+allow_anonymous true
+log_debug false
+storage_dir %s
+
+listen {
+    protocol mqtt
+    port 21883
+}
+)";
+        conf_file_remote.writeLine(formatString(config_remote, remote_server_storage_dir.getPath().c_str()));
+        conf_file_remote.closeFile();
+        std::vector<std::string> args_remote {"--config-file", conf_file_remote.getFilePath()};
+
         // Bring the remote on-line
-        init();
+        init(args_remote);
 
         FlashMQTestClient clientToRemote;
         clientToRemote.start();
@@ -766,7 +784,7 @@ listen {
         std::cout << "Starting remote server again" << std::endl;
 
         // Start the remote again
-        init();
+        init(args_remote);
 
         {
             FlashMQTestClient clientToRemote;

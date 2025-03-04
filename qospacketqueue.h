@@ -61,6 +61,10 @@ public:
 
     // We make this uncopyable because of the linked list QueuedPublish objects, making a deep-copy difficult.
     QoSPublishQueue(const QoSPublishQueue &other) = delete;
+    QoSPublishQueue &operator=(const QoSPublishQueue &other) = delete;
+
+    QoSPublishQueue(QoSPublishQueue &&other) = default;
+    QoSPublishQueue &operator=(QoSPublishQueue &&other) = default;
 
     bool erase(const uint16_t packet_id);
     size_t size() const;
