@@ -484,11 +484,19 @@ uint32_t Session::getCurrentSessionExpiryInterval()
 
 void Session::setLocalPrefix(const std::optional<std::string> &s)
 {
+    // A work-around for prefixes of session being accessed cross-thread. The std::optional sets the 'engaged' flag last, so this works.
+    if (this->local_prefix)
+        return;
+
     this->local_prefix = s;
 }
 
 void Session::setRemotePrefix(const std::optional<std::string> &s)
 {
+    // A work-around for prefixes of session being accessed cross-thread. The std::optional sets the 'engaged' flag last, so this works.
+    if (this->remote_prefix)
+        return;
+
     this->remote_prefix = s;
 }
 
