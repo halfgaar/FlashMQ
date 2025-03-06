@@ -174,8 +174,7 @@ void flashmq_plugin_remove_subscription(const std::string &clientid, const std::
 
 /**
  * @brief flashmq_plugin_add_subscription
- * @param clientid
- * @param topicFilter
+ * @param session Can be obtained with flashmq_get_session_pointer().
  * @return boolean True when session found and subscription actually added.
  *
  * Will throw exceptions on certain errors.
@@ -185,7 +184,7 @@ void flashmq_plugin_remove_subscription(const std::string &clientid, const std::
  * [Function provided by FlashMQ]
  */
 bool flashmq_plugin_add_subscription(
-    const std::string &clientid, const std::string &topicFilter, uint8_t qos, bool noLocal, bool retainAsPublished,
+    const std::weak_ptr<Session> &session, const std::string &topicFilter, uint8_t qos, bool noLocal, bool retainAsPublished,
     const uint32_t subscriptionIdentifier);
 
 /**

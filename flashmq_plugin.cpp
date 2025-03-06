@@ -61,14 +61,14 @@ void flashmq_plugin_remove_subscription(const std::string &clientid, const std::
 }
 
 bool flashmq_plugin_add_subscription(
-    const std::string &clientid, const std::string &topicFilter, uint8_t qos, bool noLocal, bool retainAsPublished,
+    const std::weak_ptr<Session> &session, const std::string &topicFilter, uint8_t qos, bool noLocal, bool retainAsPublished,
     const uint32_t subscriptionIdentifier)
 {
     std::shared_ptr<SubscriptionStore> store = MainApp::getMainApp()->getSubscriptionStore();
     if (!store) return false;
-    std::shared_ptr<Session> session = store->lockSession(clientid);
-    if (!session) return false;
-    const AddSubscriptionType result = store->addSubscription(session, topicFilter, qos, noLocal, retainAsPublished, subscriptionIdentifier);
+    std::shared_ptr<Session> session_locked = session.lock();
+    if (!session_locked) return false;
+    const AddSubscriptionType result = store->addSubscription(session_locked, topicFilter, qos, noLocal, retainAsPublished, subscriptionIdentifier);
     return result == AddSubscriptionType::Invalid ? false : true;
 }
 
