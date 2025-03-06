@@ -180,9 +180,9 @@ AuthResult flashmq_plugin_login_check(void *thread_data, const std::string &clie
 }
 
 AuthResult flashmq_plugin_acl_check(void *thread_data, const AclAccess access, const std::string &clientid, const std::string &username,
-                                    const std::string &topic, const std::vector<std::string> &subtopics, std::string_view payload,
-                                    const uint8_t qos, const bool retain, const std::optional<std::string> &correlationData,
-                                    const std::optional<std::string> &responseTopic,
+                                    const std::string &topic, const std::vector<std::string> &subtopics, const std::string &shareName,
+                                    std::string_view payload, const uint8_t qos, const bool retain,
+                                    const std::optional<std::string> &correlationData, const std::optional<std::string> &responseTopic,
                                     const std::vector<std::pair<std::string, std::string>> *userProperties)
 {
     (void)thread_data;
@@ -195,6 +195,7 @@ AuthResult flashmq_plugin_acl_check(void *thread_data, const AclAccess access, c
     (void)correlationData;
     (void)responseTopic;
     (void)userProperties;
+    (void)shareName;
 
     if (clientid == "return_error")
         return AuthResult::error;

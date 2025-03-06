@@ -31,7 +31,7 @@
 #include <string_view>
 #include <optional>
 
-#define FLASHMQ_PLUGIN_VERSION 3
+#define FLASHMQ_PLUGIN_VERSION 4
 
 // Compatible with Mosquitto, for (auth) plugin compatability.
 #define LOG_NONE 0x00
@@ -499,6 +499,7 @@ void flashmq_plugin_client_disconnected(void *thread_data, const std::string &cl
 /**
  * @brief flashmq_plugin_acl_check is called on publish, deliver and subscribe.
  * @param thread_data is memory allocated in flashmq_plugin_allocate_thread_memory().
+ * @param shareName The shared subscription name in a filter like '$share/my_share_name/one/two'. Is only present on AclAccess::subscribe.
  * @return
  *
  * You could throw exceptions here, but that will be slow and pointless. It will just get converted into AuthResult::error,
@@ -516,14 +517,14 @@ void flashmq_plugin_client_disconnected(void *thread_data, const std::string &cl
  * thread-safe. It will negate much of FlashMQ's multi-core model.
  *
  * When the 'access' is 'subscribe' and it's a shared subscription (like '$share/myshare/one/two/three'), you only get
- * the effective topic filter (like 'one/two/three').
+ * the effective topic filter (like 'one/two/three'). However, since plugin version 4, there is the argument 'shareName' for that.
  *
  * [Must be implemented by plugin]
  */
 AuthResult flashmq_plugin_acl_check(void *thread_data, const AclAccess access, const std::string &clientid, const std::string &username,
-                                    const std::string &topic, const std::vector<std::string> &subtopics, std::string_view payload,
-                                    const uint8_t qos, const bool retain, const std::optional<std::string> &correlationData,
-                                    const std::optional<std::string> &responseTopic,
+                                    const std::string &topic, const std::vector<std::string> &subtopics, const std::string &shareName,
+                                    std::string_view payload, const uint8_t qos, const bool retain,
+                                    const std::optional<std::string> &correlationData, const std::optional<std::string> &responseTopic,
                                     const std::vector<std::pair<std::string, std::string>> *userProperties);
 
 /**

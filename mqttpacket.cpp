@@ -1659,7 +1659,7 @@ void MqttPacket::handleSubscribe(std::shared_ptr<Client> &sender)
         if (authResult == AuthResult::success || authResult == AuthResult::success_without_retained_delivery)
         {
             const AuthResult newAuthResult = authentication.aclCheck(
-                sender->getClientId(), sender->getUsername(), topic, subtopics, std::string_view(), AclAccess::subscribe, qos,
+                sender->getClientId(), sender->getUsername(), topic, subtopics, shareName, std::string_view(), AclAccess::subscribe, qos,
                 false, std::optional<std::string>(), std::optional<std::string>(), getUserProperties());
 
             // We don't allow upgrading back to success. This gets too complicated between having no additional ACL, having an ACL file, and/or a plugin.

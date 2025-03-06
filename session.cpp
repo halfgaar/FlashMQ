@@ -133,7 +133,7 @@ PacketDropReason Session::writePacket(PublishCopyFactory &copyFactory, const uin
     assert(auth);
 
     const AuthResult aclResult = auth->aclCheck(
-        client_id, username, copyFactory.getTopic(), copyFactory.getSubtopics(), copyFactory.getPayload(), AclAccess::read,
+        client_id, username, copyFactory.getTopic(), copyFactory.getSubtopics(), "", copyFactory.getPayload(), AclAccess::read,
         effectiveQos, effectiveRetain, copyFactory.getCorrelationData(), copyFactory.getResponseTopic(), copyFactory.getUserProperties());
 
     if (aclResult != AuthResult::success)
