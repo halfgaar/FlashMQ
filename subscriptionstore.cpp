@@ -282,13 +282,14 @@ AddSubscriptionType SubscriptionStore::addSubscription(
     if (!session) return AddSubscriptionType::Invalid;
 
     std::vector<std::string> subtopics = splitTopic(topicFilter);
+
+    std::string shareName;
+    parseSubscriptionShare(subtopics, shareName);
+
     const std::shared_ptr<SubscriptionNode> deepestNode = getDeepestNode(subtopics);
 
     if (!deepestNode)
         return AddSubscriptionType::Invalid;
-
-    std::string shareName;
-    parseSubscriptionShare(subtopics, shareName);
 
     return deepestNode->addSubscriber(session, qos, noLocal, retainAsPublished, shareName, subscriptionIdentifier);
 }
