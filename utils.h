@@ -263,7 +263,7 @@ ReasonCodes authResultToReasonCode(AuthResult authResult);
 
 int maskAllSignalsCurrentThread();
 
-void parseSubscriptionShare(std::vector<std::string> &subtopics, std::string &shareName);
+void parseSubscriptionShare(std::vector<std::string> &subtopics, std::string &shareName, std::string &topic);
 
 std::string timestampWithMillis();
 

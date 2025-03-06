@@ -1626,7 +1626,7 @@ void MqttPacket::handleSubscribe(std::shared_ptr<Client> &sender)
             throw ProtocolError("QoS is greater than 2, and/or reserved bytes in QoS field are not 0.", ReasonCodes::MalformedPacket);
 
         std::string shareName;
-        parseSubscriptionShare(subtopics, shareName);
+        parseSubscriptionShare(subtopics, shareName, topic);
 
         if (!shareName.empty() && noLocal)
         {

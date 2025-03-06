@@ -284,7 +284,8 @@ AddSubscriptionType SubscriptionStore::addSubscription(
     std::vector<std::string> subtopics = splitTopic(topicFilter);
 
     std::string shareName;
-    parseSubscriptionShare(subtopics, shareName);
+    std::string topicDummy;
+    parseSubscriptionShare(subtopics, shareName, topicDummy);
 
     const std::shared_ptr<SubscriptionNode> deepestNode = getDeepestNode(subtopics);
 
@@ -302,7 +303,8 @@ void SubscriptionStore::removeSubscription(const std::shared_ptr<Session> &sessi
     std::vector<std::string> subtopics = splitTopic(topic);
 
     std::string shareName;
-    parseSubscriptionShare(subtopics, shareName);
+    std::string topicDummy;
+    parseSubscriptionShare(subtopics, shareName, topicDummy);
 
     std::shared_ptr<SubscriptionNode> node = getDeepestNode(subtopics, true);
 
