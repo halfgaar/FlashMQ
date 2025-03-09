@@ -157,7 +157,7 @@ void flashmq_plugin_remove_client(const std::string &clientid, bool alsoSession,
 /**
  * @brief flashmq_plugin_remove_subscription removes a client's subscription from the central store. It can be called by plugin code (meaning
  *        this function does not need to be implemented).
- * @param clientid
+ * @param session Can be obtained with flashmq_get_session_pointer().
  * @param topicFilter
  *
  * It matches only literal filters. So removing '#' would only remove an active subscription on '#', not 'everything'.
@@ -170,7 +170,7 @@ void flashmq_plugin_remove_client(const std::string &clientid, bool alsoSession,
  *
  * [Function provided by FlashMQ]
  */
-void flashmq_plugin_remove_subscription(const std::string &clientid, const std::string &topicFilter);
+void flashmq_plugin_remove_subscription(const std::weak_ptr<Session> &session, const std::string &topicFilter);
 
 /**
  * @brief flashmq_plugin_add_subscription
