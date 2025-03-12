@@ -48,6 +48,7 @@ set(FLASHMQ_HEADERS
     ${RELPATH}enums.h
     ${RELPATH}threadlocalutils.h
     ${RELPATH}flashmq_plugin.h
+    ${RELPATH}flashmq_plugin_deprecated.h
     ${RELPATH}retainedmessagesdb.h
     ${RELPATH}persistencefile.h
     ${RELPATH}sessionsandsubscriptionsdb.h

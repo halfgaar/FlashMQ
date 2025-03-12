@@ -9,6 +9,7 @@ See LICENSE for license details.
 */
 
 #include "flashmq_plugin.h"
+#include "flashmq_plugin_deprecated.h"
 
 #include "logger.h"
 #include "threaddata.h"
@@ -63,7 +64,7 @@ void flashmq_plugin_remove_subscription(const std::string &clientid, const std::
     store->removeSubscription(session, topicFilter);
 }
 
-void flashmq_plugin_remove_subscription(const std::weak_ptr<Session> &session, const std::string &topicFilter)
+void flashmq_plugin_remove_subscription_v4(const std::weak_ptr<Session> &session, const std::string &topicFilter)
 {
     std::shared_ptr<SubscriptionStore> store = MainApp::getMainApp()->getSubscriptionStore();
     std::shared_ptr<Session> session_locked = session.lock();

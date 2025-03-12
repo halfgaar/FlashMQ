@@ -221,7 +221,7 @@ AuthResult flashmq_plugin_acl_check(void *thread_data, const AclAccess access, c
     {
         std::weak_ptr<Session> session;
         flashmq_get_session_pointer(clientid, session);
-        flashmq_plugin_remove_subscription(session, topic);
+        flashmq_plugin_remove_subscription_v4(session, topic);
     }
 
     if (clientid == "generate_publish")

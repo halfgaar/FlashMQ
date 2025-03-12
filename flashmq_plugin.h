@@ -168,9 +168,9 @@ void flashmq_plugin_remove_client(const std::string &clientid, bool alsoSession,
  *
  * Can be called from any thread, because the global subscription store is mutexed.
  *
- * [Function provided by FlashMQ]
+ * [Function provided by FlashMQ; new version since plugin version 4]
  */
-void flashmq_plugin_remove_subscription(const std::weak_ptr<Session> &session, const std::string &topicFilter);
+void flashmq_plugin_remove_subscription_v4(const std::weak_ptr<Session> &session, const std::string &topicFilter);
 
 /**
  * @brief flashmq_plugin_add_subscription
