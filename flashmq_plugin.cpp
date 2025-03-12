@@ -28,6 +28,9 @@ void flashmq_logf(int level, const char *str, ...)
     va_end(valist);
 }
 
+/**
+ * @brief flashmq_plugin_remove_client for previous plugin versions.
+ */
 void flashmq_plugin_remove_client(const std::string &clientid, bool alsoSession, ServerDisconnectReasons reasonCode)
 {
     std::shared_ptr<SubscriptionStore> store = MainApp::getMainApp()->getSubscriptionStore();
@@ -51,6 +54,24 @@ void flashmq_plugin_remove_client(const std::string &clientid, bool alsoSession,
         if (alsoSession)
             store->removeSession(session);
     }
+}
+
+void flashmq_plugin_remove_client_v4(const std::weak_ptr<Session> &session, bool alsoSession, ServerDisconnectReasons reasonCode)
+{
+    std::shared_ptr<SubscriptionStore> store = MainApp::getMainApp()->getSubscriptionStore();
+    if (!store) return;
+    std::shared_ptr<Session> session_locked = session.lock();
+    if (!session_locked) return;
+    std::shared_ptr<Client> client = session_locked->makeSharedClient();
+    if (!client) return;
+    std::shared_ptr<ThreadData> td = client->lockThreadData();
+    if (!td) return;
+
+    ReasonCodes _code = static_cast<ReasonCodes>(reasonCode);
+    td->serverInitiatedDisconnect(client, _code, "Removed from plugin");
+
+    if (alsoSession)
+        store->removeSession(session_locked);
 }
 
 /**

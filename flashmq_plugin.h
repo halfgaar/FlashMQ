@@ -142,7 +142,7 @@ enum class ServerDisconnectReasons
 /**
  * @brief flashmq_plugin_remove_client queues a removal of a client in the proper thread, including session if required. It can be called by
  *        plugin code (meaning this function does not need to be implemented).
- * @param clientid
+ * @param session Can be obtained with flashmq_get_session_pointer().
  * @param alsoSession also remove the session if it would otherwise remain.
  * @param reasonCode is only for MQTT5, because MQTT3 doesn't have server-initiated disconnect packets.
  *
@@ -150,9 +150,9 @@ enum class ServerDisconnectReasons
  *
  * Can be called from any thread: the action will be queued properly.
  *
- * [Function provided by FlashMQ]
+ * [Function provided by FlashMQ; new version since plugin version 4]
  */
-void flashmq_plugin_remove_client(const std::string &clientid, bool alsoSession, ServerDisconnectReasons reasonCode);
+void flashmq_plugin_remove_client_v4(const std::weak_ptr<Session> &session, bool alsoSession, ServerDisconnectReasons reasonCode);
 
 /**
  * @brief flashmq_plugin_remove_subscription removes a client's subscription from the central store. It can be called by plugin code (meaning

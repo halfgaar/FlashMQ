@@ -215,7 +215,11 @@ AuthResult flashmq_plugin_acl_check(void *thread_data, const AclAccess access, c
         return AuthResult::acl_denied;
 
     if (topic == "removeclient" || topic == "removeclientandsession")
-        flashmq_plugin_remove_client(clientid, topic == "removeclientandsession", ServerDisconnectReasons::NormalDisconnect);
+    {
+        std::weak_ptr<Session> ses;
+        flashmq_get_session_pointer(clientid, ses);
+        flashmq_plugin_remove_client_v4(ses, topic == "removeclientandsession", ServerDisconnectReasons::NormalDisconnect);
+    }
 
     if (clientid == "unsubscribe" && access == AclAccess::write)
     {
