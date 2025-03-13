@@ -242,3 +242,10 @@ void flashmq_get_session_pointer(const std::string &clientid, std::weak_ptr<Sess
     if (!session) return;
     sessionOut = session;
 }
+
+void flashmq_get_client_pointer(const std::weak_ptr<Session> &session, std::weak_ptr<Client> &clientOut)
+{
+    std::shared_ptr<Session> sessionLocked = session.lock();
+    if (!sessionLocked) return;
+    clientOut = sessionLocked->makeSharedClient();
+}

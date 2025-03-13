@@ -254,6 +254,16 @@ void flashmq_get_client_address(const std::weak_ptr<Client> &client, std::string
 void flashmq_get_session_pointer(const std::string &clientid, std::weak_ptr<Session> &sessionOut);
 
 /**
+ * @brief flashmq_get_client_pointer Get reference counted client pointer of a session.
+ * @param clientOut The result (has to be an output parameter because we can't return it).
+ *
+ * Can we used to feed to other functions, or to check if the client is still online.
+ *
+ * [Function provided by FlashMQ]
+ */
+void flashmq_get_client_pointer(const std::weak_ptr<Session> &session, std::weak_ptr<Client> &clientOut);
+
+/**
  * @brief Allows async operation of outgoing connections you may need to make. It adds the file descriptor to
  *        the epoll listener.
  * @param fd
