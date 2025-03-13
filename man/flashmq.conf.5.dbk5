@@ -222,6 +222,9 @@ multi-value-param one 'two' "three" "with ' char"
             The client's write buffer is where packets are stored before the event loop has the chance to flush them out. Any time a client's connection is bad and bytes can't be flushed, this buffer fills. So, there's good reason to limit this to something sensible. A good indication is your average packet size (or better yet, a configured <option>max_packet_size</option>) multiplied by the amount of packets you want to be able to buffer.
           </para>
           <para>
+            Despite the name, this settings also control the read buffer's maximum size. Having a bigger read buffer may be necessary when you know your clients receive many packets.
+          </para>
+          <para>
             Note that it's an approximate value and not a hard limit. Buffer sizes only grow by powers of two, and buffers are always allowed to grow to make place for ping packets. Additionally, upon arrival of large packets (up to <option>max_packet_size</option> bytes), room will be made up to twice their size. So, you may also want to reduce <option>max_packet_size</option> from the default.
           </para>
           <para>
@@ -875,6 +878,30 @@ multi-value-param one 'two' "three" "with ' char"
         </listitem>
       </varlistentry>
 
+      <varlistentry xml:id="listen__only_allow_from" condition="flashmq ≥ 1.22.0">
+        <term><option>only_allow_from</option> <replaceable>inet4_address</replaceable>|<replaceable>inet6_address</replaceable></term>
+        <listitem>
+          <para>
+            When set, restricts the listener to the source address/network given.
+          </para>
+          <para>
+            You can repeat the option to allow multiple addresses/networks. Valid notations are <replaceable>1.2.3.4</replaceable>, <replaceable>1.2.3.4/16</replaceable>, <replaceable>1.2.0.0/16</replaceable>, <replaceable>2a01:1337::1</replaceable>, <replaceable>2a01:1337::1/64</replaceable>, etc.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry xml:id="listen__deny_from" condition="flashmq ≥ 1.22.0">
+        <term><option>deny_from</option> <replaceable>inet4_address</replaceable>|<replaceable>inet6_address</replaceable></term>
+        <listitem>
+          <para>
+            Block connections from this address or network.
+          </para>
+          <para>
+            You can repeat the option multiple times. Valid notations are <replaceable>1.2.3.4</replaceable>, <replaceable>1.2.3.4/16</replaceable>, <replaceable>1.2.0.0/16</replaceable>, <replaceable>2a01:1337::1</replaceable>, <replaceable>2a01:1337::1/64</replaceable>, etc.
+          </para>
+        </listitem>
+      </varlistentry>
+
       <varlistentry xml:id="listen__allow_anonymous" condition="flashmq ≥ 1.10.0">
         <term><option>allow_anonymous</option> <replaceable>true</replaceable>|<replaceable>false</replaceable></term>
         <listitem>
@@ -928,6 +955,16 @@ multi-value-param one 'two' "three" "with ' char"
           </para>
         </listitem>
       </varlistentry>
+
+      <varlistentry xml:id="listen__max_buffer_size" condition="flashmq ≥ 1.22.0">
+        <term><option>max_buffer_size</option> <replaceable>number</replaceable></term>
+        <listitem>
+          <para>
+            Override the <option>client_max_write_buffer_size</option> for this listener. This is especially useful when this listener is the receiving side of a bridge, because these clients will likely see more traffic.
+          </para>
+        </listitem>
+      </varlistentry>
+
     </variablelist>
   </refsect1>
 
@@ -982,7 +1019,7 @@ listen {
   <refsect1 xml:id="bridge" condition="flashmq ≥ 1.7.0">
     <title>Bridge configuration</title>
     <para>
-       Bridges can be defined inside <literal>bridge { }</literal> blocks. A bridge is essentially just an outgoing connection to another server with loop-detection and retain flag relaying. It is not a form of clustering. Also note that one bridge is one connection, and because FlashMQ's threading model is that clients are serviced by one selected thread only, a bridge has the potential to saturate a thread, if it's heavily loaded. You could work around that by defining multiple bridges to the same server, for various topic paths. A future version of FlashMQ will likely improve upon this.
+      Bridges can be defined inside <literal>bridge { }</literal> blocks. A bridge is essentially just an outgoing connection to another server with loop-detection and retain flag relaying. It is not a form of clustering, although with careful design, it can be deployed to achieve some sort of load balancing. Note that normally (unless <option>connection_count</option> is set) one bridge is one connection, and because FlashMQ's threading model is that clients are serviced by one selected thread only, a bridge has the potential to saturate a thread, if it's heavily loaded. You can improve that with <option>connection_count</option>.
     </para>
 
     <para>
@@ -1348,6 +1385,46 @@ listen {
           </para>
         </listitem>
       </varlistentry>
+
+      <varlistentry xml:id="bridge__connection_count" condition="flashmq ≥ 1.22.0">
+        <term><option>connection_count</option> <replaceable>number</replaceable>|<replaceable>auto</replaceable></term>
+        <listitem>
+          <para>
+            Normally a bridge has one TCP connection to the other side. This means that dealing with bridge traffic is limited to one thread, which also applies to the remote side if that is also FlashMQ. With this option, you can make a bridge have multiple connections, and share the traffic load over them using MQTT5 'shared subscriptions'.
+          </para>
+          <para>
+            When you specify a <option>publish</option> or <option>subscribe</option> path of <literal>one/two/three</literal>, the topic is adjusted to <literal>$share/RANDOM/one/two/three</literal> to create a shared subscription so that load is balanced. With FlashMQ, load balancing is especially important for the side processing publishes (because each received publish packet means subscribers have to be looked up, auth checked, etc).
+          </para>
+          <para>
+            The <option>shared_subscription_targeting</option> mode is automatically set to <literal>sender_hash</literal>. This is required to ensure sequential message relaying (to retain ordering), and it's also better in plugin code when messages from one source are kept to one thread, as it would be under normal circumstances.
+          </para>
+          <para>
+            If FlashMQ is also on the receiving end of these load balanced connections, it uses an extra feature to group clients of one bridge together to enhance loop detection. Normally MQTT5 supports the 'no-local' subscription option for that, but the standard states that is not allowed for shared subscriptions. FlashMQ uses 'user properties' to communicate the group they belong to, so that we can still do this kind of loop detection. This allows you to specify overlapping paths in the <option>subscribe</option> and <option>publish</option> options of a bridge. Note that both ends should use FlashMQ version 1.22.0 or higher.
+          </para>
+          <para>
+            When the target server indeed is also FlashMQ, it may be smart to create a dedicated listener, for several reasons. One is that incoming connections are given to threads in a sequential order per listener, this ensures the best spread over worker threads. It also allows you to set <option>overload_mode</option>, <option>max_buffer_size</option> and posssibly <option>only_allow_from</option> and <option>deny_from</option> differently for that listener.
+          </para>
+          <para>
+              You can specify an amount of connections, or <literal>auto</literal> for one connection per CPU. FlashMQs load is mostly on the receiver of messages, so <literal>auto</literal> will likely be a good choice if most of your message load from the other side is incoming, vs outgoing. Otherwise it's best matched to the other side's number of CPUs.
+          </para>
+          <para>
+            Default: <replaceable>1</replaceable>
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry xml:id="bridge__max_buffer_size" condition="flashmq ≥ 1.22.0">
+        <term><option>max_buffer_size</option> <replaceable>number</replaceable></term>
+        <listitem>
+          <para>
+            Override the <option>client_max_write_buffer_size</option> for this bridge. When <option>connection_count</option> is used, this size applies to each connection individually.
+          </para>
+          <para>
+            Bridges typically have more traffic than single clients, in which case it makes sense to increase this.
+          </para>
+        </listitem>
+      </varlistentry>
+
 
     </variablelist>
   </refsect1>

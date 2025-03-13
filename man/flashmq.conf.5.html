@@ -437,6 +437,9 @@ multi-value-param one 'two' "three" "with ' char"
             The client's write buffer is where packets are stored before the event loop has the chance to flush them out. Any time a client's connection is bad and bytes can't be flushed, this buffer fills. So, there's good reason to limit this to something sensible. A good indication is your average packet size (or better yet, a configured <code class="option">max_packet_size</code>) multiplied by the amount of packets you want to be able to buffer.
           </p>
           <p>
+            Despite the name, this settings also control the read buffer's maximum size. Having a bigger read buffer may be necessary when you know your clients receive many packets.
+          </p>
+          <p>
             Note that it's an approximate value and not a hard limit. Buffer sizes only grow by powers of two, and buffers are always allowed to grow to make place for ping packets. Additionally, upon arrival of large packets (up to <code class="option">max_packet_size</code> bytes), room will be made up to twice their size. So, you may also want to reduce <code class="option">max_packet_size</code> from the default.
           </p>
           <p>
@@ -1089,6 +1092,30 @@ multi-value-param one 'two' "three" "with ' char"
       
 
       
+        <dt id="listen__only_allow_from"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.22.0">≥ v1.22.0</div><code class="option">only_allow_from</code> <code class="replaceable">inet4_address</code>|<code class="replaceable">inet6_address</code><a class="hash-anchor" href="#listen__only_allow_from">#</a></dt>
+        <dd>
+          <p>
+            When set, restricts the listener to the source address/network given.
+          </p>
+          <p>
+            You can repeat the option to allow multiple addresses/networks. Valid notations are <code class="replaceable">1.2.3.4</code>, <code class="replaceable">1.2.3.4/16</code>, <code class="replaceable">1.2.0.0/16</code>, <code class="replaceable">2a01:1337::1</code>, <code class="replaceable">2a01:1337::1/64</code>, etc.
+          </p>
+        </dd>
+      
+
+      
+        <dt id="listen__deny_from"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.22.0">≥ v1.22.0</div><code class="option">deny_from</code> <code class="replaceable">inet4_address</code>|<code class="replaceable">inet6_address</code><a class="hash-anchor" href="#listen__deny_from">#</a></dt>
+        <dd>
+          <p>
+            Block connections from this address or network.
+          </p>
+          <p>
+            You can repeat the option multiple times. Valid notations are <code class="replaceable">1.2.3.4</code>, <code class="replaceable">1.2.3.4/16</code>, <code class="replaceable">1.2.0.0/16</code>, <code class="replaceable">2a01:1337::1</code>, <code class="replaceable">2a01:1337::1/64</code>, etc.
+          </p>
+        </dd>
+      
+
+      
         <dt id="listen__allow_anonymous"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.10.0">≥ v1.10.0</div><code class="option">allow_anonymous</code> <code class="replaceable">true</code>|<code class="replaceable">false</code><a class="hash-anchor" href="#listen__allow_anonymous">#</a></dt>
         <dd>
           <p>
@@ -1141,6 +1168,16 @@ multi-value-param one 'two' "three" "with ' char"
           </p>
         </dd>
       
+
+      
+        <dt id="listen__max_buffer_size"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.22.0">≥ v1.22.0</div><code class="option">max_buffer_size</code> <code class="replaceable">number</code><a class="hash-anchor" href="#listen__max_buffer_size">#</a></dt>
+        <dd>
+          <p>
+            Override the <code class="option">client_max_write_buffer_size</code> for this listener. This is especially useful when this listener is the receiving side of a bridge, because these clients will likely see more traffic.
+          </p>
+        </dd>
+      
+
     </dl>
   </section><section class="refsect1" id="example_listeners">
     <header><h2>Example listeners<a class="hash-anchor" href="#example_listeners">#</a></h2></header>
@@ -1191,7 +1228,7 @@ listen {
   </section><section class="refsect1" id="bridge" data-since-flashmq-version="1.7.0">
     <header><h2>Bridge configuration<a class="hash-anchor" href="#bridge">#</a></h2></header>
     <p>
-       Bridges can be defined inside <code class="literal">bridge { }</code> blocks. A bridge is essentially just an outgoing connection to another server with loop-detection and retain flag relaying. It is not a form of clustering. Also note that one bridge is one connection, and because FlashMQ's threading model is that clients are serviced by one selected thread only, a bridge has the potential to saturate a thread, if it's heavily loaded. You could work around that by defining multiple bridges to the same server, for various topic paths. A future version of FlashMQ will likely improve upon this.
+      Bridges can be defined inside <code class="literal">bridge { }</code> blocks. A bridge is essentially just an outgoing connection to another server with loop-detection and retain flag relaying. It is not a form of clustering, although with careful design, it can be deployed to achieve some sort of load balancing. Note that normally (unless <code class="option">connection_count</code> is set) one bridge is one connection, and because FlashMQ's threading model is that clients are serviced by one selected thread only, a bridge has the potential to saturate a thread, if it's heavily loaded. You can improve that with <code class="option">connection_count</code>.
     </p>
 
     <p>
@@ -1557,6 +1594,46 @@ listen {
           </p>
         </dd>
       
+
+      
+        <dt id="bridge__connection_count"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.22.0">≥ v1.22.0</div><code class="option">connection_count</code> <code class="replaceable">number</code>|<code class="replaceable">auto</code><a class="hash-anchor" href="#bridge__connection_count">#</a></dt>
+        <dd>
+          <p>
+            Normally a bridge has one TCP connection to the other side. This means that dealing with bridge traffic is limited to one thread, which also applies to the remote side if that is also FlashMQ. With this option, you can make a bridge have multiple connections, and share the traffic load over them using MQTT5 'shared subscriptions'.
+          </p>
+          <p>
+            When you specify a <code class="option">publish</code> or <code class="option">subscribe</code> path of <code class="literal">one/two/three</code>, the topic is adjusted to <code class="literal">$share/RANDOM/one/two/three</code> to create a shared subscription so that load is balanced. With FlashMQ, load balancing is especially important for the side processing publishes (because each received publish packet means subscribers have to be looked up, auth checked, etc).
+          </p>
+          <p>
+            The <code class="option">shared_subscription_targeting</code> mode is automatically set to <code class="literal">sender_hash</code>. This is required to ensure sequential message relaying (to retain ordering), and it's also better in plugin code when messages from one source are kept to one thread, as it would be under normal circumstances.
+          </p>
+          <p>
+            If FlashMQ is also on the receiving end of these load balanced connections, it uses an extra feature to group clients of one bridge together to enhance loop detection. Normally MQTT5 supports the 'no-local' subscription option for that, but the standard states that is not allowed for shared subscriptions. FlashMQ uses 'user properties' to communicate the group they belong to, so that we can still do this kind of loop detection. This allows you to specify overlapping paths in the <code class="option">subscribe</code> and <code class="option">publish</code> options of a bridge. Note that both ends should use FlashMQ version 1.22.0 or higher.
+          </p>
+          <p>
+            When the target server indeed is also FlashMQ, it may be smart to create a dedicated listener, for several reasons. One is that incoming connections are given to threads in a sequential order per listener, this ensures the best spread over worker threads. It also allows you to set <code class="option">overload_mode</code>, <code class="option">max_buffer_size</code> and posssibly <code class="option">only_allow_from</code> and <code class="option">deny_from</code> differently for that listener.
+          </p>
+          <p>
+              You can specify an amount of connections, or <code class="literal">auto</code> for one connection per CPU. FlashMQs load is mostly on the receiver of messages, so <code class="literal">auto</code> will likely be a good choice if most of your message load from the other side is incoming, vs outgoing. Otherwise it's best matched to the other side's number of CPUs.
+          </p>
+          <p>
+            Default: <code class="replaceable">1</code>
+          </p>
+        </dd>
+      
+
+      
+        <dt id="bridge__max_buffer_size"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.22.0">≥ v1.22.0</div><code class="option">max_buffer_size</code> <code class="replaceable">number</code><a class="hash-anchor" href="#bridge__max_buffer_size">#</a></dt>
+        <dd>
+          <p>
+            Override the <code class="option">client_max_write_buffer_size</code> for this bridge. When <code class="option">connection_count</code> is used, this size applies to each connection individually.
+          </p>
+          <p>
+            Bridges typically have more traffic than single clients, in which case it makes sense to increase this.
+          </p>
+        </dd>
+      
+
 
     </dl>
   </section><section class="refsect1" id="example_bridge" data-since-flashmq-version="1.7.0">

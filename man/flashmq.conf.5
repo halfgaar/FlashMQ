@@ -5,7 +5,7 @@
 \\$2 \(la\\$1\(ra\\$3
 ..
 .if \n(.g .mso www.tmac
-.TH flashmq.conf 5 "mei 31 2025" "" ""
+.TH flashmq.conf 5 "jun 07 2025" "" ""
 .SH NAME
 flashmq.conf \- FlashMQ configuration file format
 .SH SYNOPSIS
@@ -111,6 +111,8 @@ Default value: \fI268435461\fR
 .TP
 \*(T<\fB\m[green]client_max_write_buffer_size\m[] \fI\m[cyan]bytes\m[]\fR\fR\*(T>
 The client's write buffer is where packets are stored before the event loop has the chance to flush them out. Any time a client's connection is bad and bytes can't be flushed, this buffer fills. So, there's good reason to limit this to something sensible. A good indication is your average packet size (or better yet, a configured \fB\m[green]max_packet_size\fR\m[]) multiplied by the amount of packets you want to be able to buffer.
+
+Despite the name, this settings also control the read buffer's maximum size. Having a bigger read buffer may be necessary when you know your clients receive many packets.
 
 Note that it's an approximate value and not a hard limit. Buffer sizes only grow by powers of two, and buffers are always allowed to grow to make place for ping packets. Additionally, upon arrival of large packets (up to \fB\m[green]max_packet_size\fR\m[] bytes), room will be made up to twice their size. So, you may also want to reduce \fB\m[green]max_packet_size\fR\m[] from the default.
 
@@ -421,6 +423,16 @@ This can either be configured on a dedicated listener with \fB\m[green]protocol\
 \*(T<\fB\m[green]drop_on_absent_certificate\m[] \fI\m[cyan]true\m[]\fR|\fI\m[cyan]false\m[]\fR\fR\*(T>
 When both \fB\m[green]privkey\fR\m[] and \fB\m[green]fullchain\fR\m[] are absent, don't create this listener. This can help in situations where you don't have the certificate and key yet, but you are expecting them.
 .TP
+\*(T<\fB\m[green]only_allow_from\m[] \fI\m[cyan]inet4_address\m[]\fR|\fI\m[cyan]inet6_address\m[]\fR\fR\*(T>
+When set, restricts the listener to the source address/network given.
+
+You can repeat the option to allow multiple addresses/networks. Valid notations are \fI\m[cyan]1.2.3.4\m[]\fR, \fI\m[cyan]1.2.3.4/16\m[]\fR, \fI\m[cyan]1.2.0.0/16\m[]\fR, \fI\m[cyan]2a01:1337::1\m[]\fR, \fI\m[cyan]2a01:1337::1/64\m[]\fR, etc.
+.TP
+\*(T<\fB\m[green]deny_from\m[] \fI\m[cyan]inet4_address\m[]\fR|\fI\m[cyan]inet6_address\m[]\fR\fR\*(T>
+Block connections from this address or network.
+
+You can repeat the option multiple times. Valid notations are \fI\m[cyan]1.2.3.4\m[]\fR, \fI\m[cyan]1.2.3.4/16\m[]\fR, \fI\m[cyan]1.2.0.0/16\m[]\fR, \fI\m[cyan]2a01:1337::1\m[]\fR, \fI\m[cyan]2a01:1337::1/64\m[]\fR, etc.
+.TP
 \*(T<\fB\m[green]allow_anonymous\m[] \fI\m[cyan]true\m[]\fR|\fI\m[cyan]false\m[]\fR\fR\*(T>
 This allows you to override the \fBglobal \fB\m[green]allow_anonymous\fR\m[]\fR setting on the listener level.
 .TP
@@ -444,6 +456,9 @@ See \m[blue]haproxy.org\m[] \(lB\fI\m[blue]http://www.haproxy.org/\m[]\fR\(rB.
 Foregoing Nagle's algorithm by setting \fB\m[green]tcp_nodelay\fR\m[] to \fI\m[cyan]true\m[]\fR \fBmay\fR decrease latency, at the likely cost of some network efficiency.
 
 Default: \fI\m[cyan]false\m[]\fR
+.TP
+\*(T<\fB\m[green]max_buffer_size\m[] \fI\m[cyan]number\m[]\fR\fR\*(T>
+Override the \fB\m[green]client_max_write_buffer_size\fR\m[] for this listener. This is especially useful when this listener is the receiving side of a bridge, because these clients will likely see more traffic.
 .SH EXAMPLE LISTENERS
 .PP
 .nf
@@ -491,7 +506,7 @@ Default: \fI\m[cyan]false\m[]\fR
 .in
 .fi
 .SH BRIDGE CONFIGURATION
-Bridges can be defined inside \fIbridge { }\fR blocks. A bridge is essentially just an outgoing connection to another server with loop-detection and retain flag relaying. It is not a form of clustering. Also note that one bridge is one connection, and because FlashMQ's threading model is that clients are serviced by one selected thread only, a bridge has the potential to saturate a thread, if it's heavily loaded. You could work around that by defining multiple bridges to the same server, for various topic paths. A future version of FlashMQ will likely improve upon this.
+Bridges can be defined inside \fIbridge { }\fR blocks. A bridge is essentially just an outgoing connection to another server with loop-detection and retain flag relaying. It is not a form of clustering, although with careful design, it can be deployed to achieve some sort of load balancing. Note that normally (unless \fB\m[green]connection_count\fR\m[] is set) one bridge is one connection, and because FlashMQ's threading model is that clients are serviced by one selected thread only, a bridge has the potential to saturate a thread, if it's heavily loaded. You can improve that with \fB\m[green]connection_count\fR\m[].
 
 Bridges are dynamically created, removed or changed upon config reload. When a bridge configuration changes, it will disconnect and reconnect.
 .TP
@@ -643,6 +658,26 @@ If you define a prefix, they are required to end with a \fI/\fR. It's valid to h
 .TP
 \*(T<\fB\m[green]remote_prefix\m[] \fI\m[cyan]prefix\m[]\fR\fR\*(T>
 See \fB\fB\m[green]local_prefix\fR\m[]\fR.
+.TP
+\*(T<\fB\m[green]connection_count\m[] \fI\m[cyan]number\m[]\fR|\fI\m[cyan]auto\m[]\fR\fR\*(T>
+Normally a bridge has one TCP connection to the other side. This means that dealing with bridge traffic is limited to one thread, which also applies to the remote side if that is also FlashMQ. With this option, you can make a bridge have multiple connections, and share the traffic load over them using MQTT5 'shared subscriptions'.
+
+When you specify a \fB\m[green]publish\fR\m[] or \fB\m[green]subscribe\fR\m[] path of \fIone/two/three\fR, the topic is adjusted to \fI$share/RANDOM/one/two/three\fR to create a shared subscription so that load is balanced. With FlashMQ, load balancing is especially important for the side processing publishes (because each received publish packet means subscribers have to be looked up, auth checked, etc).
+
+The \fB\m[green]shared_subscription_targeting\fR\m[] mode is automatically set to \fIsender_hash\fR. This is required to ensure sequential message relaying (to retain ordering), and it's also better in plugin code when messages from one source are kept to one thread, as it would be under normal circumstances.
+
+If FlashMQ is also on the receiving end of these load balanced connections, it uses an extra feature to group clients of one bridge together to enhance loop detection. Normally MQTT5 supports the 'no-local' subscription option for that, but the standard states that is not allowed for shared subscriptions. FlashMQ uses 'user properties' to communicate the group they belong to, so that we can still do this kind of loop detection. This allows you to specify overlapping paths in the \fB\m[green]subscribe\fR\m[] and \fB\m[green]publish\fR\m[] options of a bridge. Note that both ends should use FlashMQ version 1.22.0 or higher.
+
+When the target server indeed is also FlashMQ, it may be smart to create a dedicated listener, for several reasons. One is that incoming connections are given to threads in a sequential order per listener, this ensures the best spread over worker threads. It also allows you to set \fB\m[green]overload_mode\fR\m[], \fB\m[green]max_buffer_size\fR\m[] and posssibly \fB\m[green]only_allow_from\fR\m[] and \fB\m[green]deny_from\fR\m[] differently for that listener.
+
+You can specify an amount of connections, or \fIauto\fR for one connection per CPU. FlashMQs load is mostly on the receiver of messages, so \fIauto\fR will likely be a good choice if most of your message load from the other side is incoming, vs outgoing. Otherwise it's best matched to the other side's number of CPUs.
+
+Default: \fI\m[cyan]1\m[]\fR
+.TP
+\*(T<\fB\m[green]max_buffer_size\m[] \fI\m[cyan]number\m[]\fR\fR\*(T>
+Override the \fB\m[green]client_max_write_buffer_size\fR\m[] for this bridge. When \fB\m[green]connection_count\fR\m[] is used, this size applies to each connection individually.
+
+Bridges typically have more traffic than single clients, in which case it makes sense to increase this.
 .SH EXAMPLE BRIDGE
 .PP
 .nf
