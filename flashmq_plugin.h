@@ -242,16 +242,16 @@ void flashmq_get_client_address(const std::weak_ptr<Client> &client, std::string
 
 /**
  * @brief flashmq_get_session_pointer Get reference counted weak pointer of a session.
+ * @param clientid The client ID of the session you're retrieving.
+ * @param username The username is used for verification, as a security measure.
  * @param sessionOut The result (has to be an output parameter because we can't return it).
  *
- * This can be used for checking if a session is actually still valid, even if it was replaced with
- * a new one with the same client id. An example of when you may need this, is if you use take the
- * client id from the ACL function and store it for later use. During that 'later use', the session
- * may be gone, or replaced by a new one.
+ * The weak pointer will acurately reflect the original session. If it has been replaced with a new one with
+ * the same client ID, this weak pointer will be 'expired'.
  *
  * [Function provided by FlashMQ]
  */
-void flashmq_get_session_pointer(const std::string &clientid, std::weak_ptr<Session> &sessionOut);
+void flashmq_get_session_pointer(const std::string &clientid, const std::string &username, std::weak_ptr<Session> &sessionOut);
 
 /**
  * @brief flashmq_get_client_pointer Get reference counted client pointer of a session.

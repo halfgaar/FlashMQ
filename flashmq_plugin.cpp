@@ -234,12 +234,13 @@ void flashmq_remove_task(uint32_t id)
     d->removeDelayedTask(id);
 }
 
-void flashmq_get_session_pointer(const std::string &clientid, std::weak_ptr<Session> &sessionOut)
+void flashmq_get_session_pointer(const std::string &clientid, const std::string &username, std::weak_ptr<Session> &sessionOut)
 {
     std::shared_ptr<SubscriptionStore> store = MainApp::getMainApp()->getSubscriptionStore();
     if (!store) return;
     std::shared_ptr<Session> session = store->lockSession(clientid);
     if (!session) return;
+    if (session->getUsername() != username) return;
     sessionOut = session;
 }
 
