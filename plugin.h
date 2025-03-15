@@ -106,6 +106,10 @@ typedef AuthResult(*F_flashmq_plugin_acl_check_v4)(
     const std::string &topic, const std::vector<std::string> &subtopics, const std::string &sharename, std::string_view payload,
     const uint8_t qos, const bool retain, const std::optional<std::string> &correlationData,
     const std::optional<std::string> &responseTopic, const std::vector<std::pair<std::string, std::string>> *userProperties);
+typedef void(*F_flashmq_plugin_on_unsubscribe_v4)(
+    void *thread_data, const std::weak_ptr<Session> &session, const std::string &clientid,
+    const std::string &username, const std::string &topic, const std::vector<std::string> &subtopics,
+    const std::string &shareName, const std::vector<std::pair<std::string, std::string>> *userProperties);
 
 extern "C"
 {
@@ -151,6 +155,7 @@ class Authentication
     F_flashmq_plugin_alter_publish_v3 flashmq_plugin_alter_publish_v3 = nullptr;
 
     F_flashmq_plugin_acl_check_v4 flashmq_plugin_acl_check_v4 = nullptr;
+    F_flashmq_plugin_on_unsubscribe_v4 flashmq_plugin_on_unsubscribe_v4 = nullptr;
 
     static std::mutex initMutex;
     static std::mutex deinitMutex;
@@ -197,6 +202,10 @@ public:
     void cleanup();
     void securityInit(bool reloading);
     void securityCleanup(bool reloading);
+    void onUnsubscribe(
+        const std::shared_ptr<Session> &session, const std::string &clientid,
+        const std::string &username, const std::string &topic, const std::vector<std::string> &subtopics,
+        const std::string &shareName, const std::vector<std::pair<std::string, std::string>> *userProperties) const;
     AuthResult aclCheck(Publish &publishData, std::string_view payload, AclAccess access = AclAccess::write);
     AuthResult aclCheck(
             const std::string &clientid, const std::string &username, const std::string &topic, const std::vector<std::string> &subtopics,

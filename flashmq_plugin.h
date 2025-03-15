@@ -506,6 +506,17 @@ AuthResult flashmq_plugin_login_check(void *thread_data, const std::string &clie
 void flashmq_plugin_client_disconnected(void *thread_data, const std::string &clientid);
 
 /**
+ * @brief flashmq_plugin_on_unsubscribe is called after unsubscribe. Unsubscribe actions can't be manipulated or blocked.
+ * @param topic Does not contain the share name.
+ * @param subtopics Does not contain the share name.
+ *
+ * [Can optionally be implemented by plugin]
+ */
+void flashmq_plugin_on_unsubscribe(void *thread_data, const std::weak_ptr<Session> &session, const std::string &clientid,
+                                   const std::string &username, const std::string &topic, const std::vector<std::string> &subtopics,
+                                   const std::string &shareName, const std::vector<std::pair<std::string, std::string>> *userProperties);
+
+/**
  * @brief flashmq_plugin_acl_check is called on publish, deliver and subscribe.
  * @param thread_data is memory allocated in flashmq_plugin_allocate_thread_memory().
  * @param shareName The shared subscription name in a filter like '$share/my_share_name/one/two'. Is only present on AclAccess::subscribe.

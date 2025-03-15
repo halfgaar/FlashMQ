@@ -137,6 +137,7 @@ void Authentication::loadPlugin(const PluginLoader &l)
         {
             flashmq_plugin_acl_check_v4 = (F_flashmq_plugin_acl_check_v4)l.loadSymbol("flashmq_plugin_acl_check");
             flashmq_plugin_alter_publish_v3 = (F_flashmq_plugin_alter_publish_v3)l.loadSymbol("flashmq_plugin_alter_publish", false);
+            flashmq_plugin_on_unsubscribe_v4 = (F_flashmq_plugin_on_unsubscribe_v4)l.loadSymbol("flashmq_plugin_on_unsubscribe", false);
         }
         else
         {
@@ -278,6 +279,38 @@ void Authentication::securityCleanup(bool reloading)
         // The exception handling is higher up in the call stack, because it needs to be different on first start vs reload.
         std::unordered_map<std::string, std::string> &authOpts = settings.getFlashmqpluginOpts();
         flashmq_plugin_deinit_v1(pluginData, authOpts, reloading);
+    }
+}
+
+void Authentication::onUnsubscribe(
+    const std::shared_ptr<Session> &session, const std::string &clientid, const std::string &username, const std::string &topic,
+    const std::vector<std::string> &subtopics, const std::string &shareName,
+    const std::vector<std::pair<std::string, std::string> > *userProperties) const
+{
+    assert(subtopics.size() > 0);
+
+    if (pluginFamily == PluginFamily::None)
+    {
+        return;
+    }
+
+    if (!initialized)
+    {
+        logger->logf(LOG_ERR, "Plugin clientDisconnected called, but initialization failed or not performed.");
+        return;
+    }
+
+    if (pluginFamily == PluginFamily::FlashMQ)
+    {
+        try
+        {
+            if (flashmq_plugin_on_unsubscribe_v4)
+                flashmq_plugin_on_unsubscribe_v4(pluginData, session, clientid, username, topic, subtopics, shareName, userProperties);
+        }
+        catch (std::exception &ex)
+        {
+            logger->logf(LOG_ERR, "Exception in 'flashmq_plugin_on_unsubscribe': '%s'.", ex.what());
+        }
     }
 }
 

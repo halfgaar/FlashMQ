@@ -1803,10 +1803,13 @@ void MqttPacket::handleUnsubscribe(std::shared_ptr<Client> &sender)
 
         std::vector<std::string> subtopics = splitTopic(topic);
         std::string shareName;
-        std::string topic_without_sharename;
+        std::string topic_without_sharename = topic;
         parseSubscriptionShare(subtopics, shareName, topic_without_sharename);
 
         MainApp::getMainApp()->getSubscriptionStore()->removeSubscription(session, subtopics, shareName);
+
+        const Authentication *auth = ThreadGlobals::getAuth();
+        auth->onUnsubscribe(session, sender->getClientId(), sender->getUsername(), topic_without_sharename, subtopics, shareName, getUserProperties());
 
         logger->logf(LOG_UNSUBSCRIBE, "Client '%s' unsubscribed from '%s'", sender->repr().c_str(), topic.c_str());
     }
