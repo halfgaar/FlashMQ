@@ -95,19 +95,41 @@ void MainTests::testSharedSubscribers()
     receiver1.waitForMessageCount(1);
     receiver2.waitForMessageCount(1);
 
-    auto ro1 = receiver1.receivedObjects.lock();
-    auto ro2 = receiver2.receivedObjects.lock();
+    {
+        auto ro1 = receiver1.receivedObjects.lock();
+        auto ro2 = receiver2.receivedObjects.lock();
 
-    MYCASTCOMPARE(ro1->receivedPublishes.size(), 1);
-    MYCASTCOMPARE(ro2->receivedPublishes.size(), 1);
+        MYCASTCOMPARE(ro1->receivedPublishes.size(), 1);
+        MYCASTCOMPARE(ro2->receivedPublishes.size(), 1);
 
-    int rain = std::count_if(ro1->receivedPublishes.begin(), ro1->receivedPublishes.end(),
-                             [](const MqttPacket &pack) { return pack.getPayloadCopy() == "rainy day";});
-    int sun = std::count_if(ro2->receivedPublishes.begin(), ro2->receivedPublishes.end(),
-                            [](const MqttPacket &pack) { return pack.getPayloadCopy() == "sunny day";});
+        int rain = std::count_if(ro1->receivedPublishes.begin(), ro1->receivedPublishes.end(),
+                                 [](const MqttPacket &pack) { return pack.getPayloadCopy() == "rainy day";});
+        int sun = std::count_if(ro2->receivedPublishes.begin(), ro2->receivedPublishes.end(),
+                                [](const MqttPacket &pack) { return pack.getPayloadCopy() == "sunny day";});
 
-    QCOMPARE(rain, 1);
-    QCOMPARE(sun, 1);
+        QCOMPARE(rain, 1);
+        QCOMPARE(sun, 1);
+    }
+
+    receiver1.unsubscribe("$share/ahTahHu5/one/two/three");
+
+    receiver1.clearReceivedLists();
+    receiver2.clearReceivedLists();
+
+    sender.publish("one/two/three", "received by one", 1);
+    sender.publish("one/two/three", "received by one", 1);
+
+    receiver2.waitForMessageCount(2);
+
+    {
+        auto ro1 = receiver1.receivedObjects.lock();
+        auto ro2 = receiver2.receivedObjects.lock();
+
+        MYCASTCOMPARE(ro1->receivedPublishes.size(), 0);
+        MYCASTCOMPARE(ro2->receivedPublishes.size(), 2);
+
+        QCOMPARE(ro2->receivedPublishes.at(0).getPayloadCopy(), "received by one");
+    }
 }
 
 void MainTests::testDisconnectedSharedSubscribers()

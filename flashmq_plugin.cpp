@@ -82,7 +82,13 @@ void flashmq_plugin_remove_subscription(const std::string &clientid, const std::
     std::shared_ptr<SubscriptionStore> store = MainApp::getMainApp()->getSubscriptionStore();
     std::shared_ptr<Session> session = store->lockSession(clientid);
     if (!session) return;
-    store->removeSubscription(session, topicFilter);
+
+    std::vector<std::string> subtopics = splitTopic(topicFilter);
+    std::string shareName;
+    std::string _;
+    parseSubscriptionShare(subtopics, shareName, _);
+
+    store->removeSubscription(session, subtopics, shareName);
 }
 
 void flashmq_plugin_remove_subscription_v4(const std::weak_ptr<Session> &session, const std::string &topicFilter)
@@ -90,7 +96,13 @@ void flashmq_plugin_remove_subscription_v4(const std::weak_ptr<Session> &session
     std::shared_ptr<SubscriptionStore> store = MainApp::getMainApp()->getSubscriptionStore();
     std::shared_ptr<Session> session_locked = session.lock();
     if (!session_locked) return;
-    store->removeSubscription(session_locked, topicFilter);
+
+    std::vector<std::string> subtopics = splitTopic(topicFilter);
+    std::string shareName;
+    std::string _;
+    parseSubscriptionShare(subtopics, shareName, _);
+
+    store->removeSubscription(session_locked, subtopics, shareName);
 }
 
 bool flashmq_plugin_add_subscription(
@@ -101,7 +113,13 @@ bool flashmq_plugin_add_subscription(
     if (!store) return false;
     std::shared_ptr<Session> session_locked = session.lock();
     if (!session_locked) return false;
-    const AddSubscriptionType result = store->addSubscription(session_locked, topicFilter, qos, noLocal, retainAsPublished, subscriptionIdentifier);
+
+    std::vector<std::string> subtopics = splitTopic(topicFilter);
+    std::string shareName;
+    std::string topicDummy;
+    parseSubscriptionShare(subtopics, shareName, topicDummy);
+
+    const AddSubscriptionType result = store->addSubscription(session_locked, subtopics, qos, noLocal, retainAsPublished, shareName, subscriptionIdentifier);
     return result == AddSubscriptionType::Invalid ? false : true;
 }
 

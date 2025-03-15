@@ -158,11 +158,9 @@ void flashmq_plugin_remove_client_v4(const std::weak_ptr<Session> &session, bool
  * @brief flashmq_plugin_remove_subscription removes a client's subscription from the central store. It can be called by plugin code (meaning
  *        this function does not need to be implemented).
  * @param session Can be obtained with flashmq_get_session_pointer().
- * @param topicFilter
+ * @param topicFilter Like 'one/two/three' or '$share/myshare/one/two/three'.
  *
  * It matches only literal filters. So removing '#' would only remove an active subscription on '#', not 'everything'.
- *
- * You need to keep track of subscriptions in 'flashmq_plugin_acl_check()' to be able to know what to remove.
  *
  * Will throw exceptions on certain errors.
  *
@@ -175,6 +173,7 @@ void flashmq_plugin_remove_subscription_v4(const std::weak_ptr<Session> &session
 /**
  * @brief flashmq_plugin_add_subscription
  * @param session Can be obtained with flashmq_get_session_pointer().
+ * @param topicFilter Like 'one/two/three' or '$share/myshare/one/two/three'.
  * @return boolean True when session found and subscription actually added.
  *
  * Will throw exceptions on certain errors.

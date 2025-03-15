@@ -979,20 +979,20 @@ void MainTests::testSavingSessions()
         const std::string topic1 = "one/two/three";
         std::vector<std::string> subtopics;
         subtopics = splitTopic(topic1);
-        store->addSubscription(c1, subtopics, 0, true, false, 0);
+        store->addSubscription(c1->getSession(), subtopics, 0, true, false, "", 0);
 
         const std::string topic2 = "four/five/six";
         subtopics = splitTopic(topic2);
-        store->addSubscription(c2, subtopics, 0, false, true, 0);
-        store->addSubscription(c1, subtopics, 0, false, false, 94612);
+        store->addSubscription(c2->getSession(), subtopics, 0, false, true, "", 0);
+        store->addSubscription(c1->getSession(), subtopics, 0, false, false, "", 94612);
 
         const std::string topic3 = "";
         subtopics = splitTopic(topic3);
-        store->addSubscription(c2, subtopics, 0, false, false, 0);
+        store->addSubscription(c2->getSession(), subtopics, 0, false, false, "", 0);
 
         const std::string topic4 = "#";
         subtopics = splitTopic(topic4);
-        store->addSubscription(c2, subtopics, 0, false, false, 0);
+        store->addSubscription(c2->getSession(), subtopics, 0, false, false, "", 0);
 
         Publish publish("a/b/c", "Hello Barry", 1);
         publish.client_id = "ClientIdFromFakePublisher";
@@ -3073,7 +3073,7 @@ void MainTests::testTopicMatchingInSubscriptionTreeHelper(const std::string &sub
     client->setClientProperties(ProtocolVersion::Mqtt5, "mytestclient", "myusername", true, 60);
     store.registerClientAndKickExistingOne(client);
 
-    store.addSubscription(client, subscribe_subtopics, 0, false, false, 0);
+    store.addSubscription(client->getSession(), subscribe_subtopics, 0, false, false, "", 0);
 
     std::vector<ReceivingSubscriber> receivers;
     store.publishRecursively(publish_subtopics.begin(), publish_subtopics.end(), store.root.get(), receivers, "fakeclientid");

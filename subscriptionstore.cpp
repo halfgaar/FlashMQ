@@ -256,36 +256,10 @@ std::shared_ptr<SubscriptionNode> SubscriptionStore::getDeepestNode(const std::v
 }
 
 AddSubscriptionType SubscriptionStore::addSubscription(
-    std::shared_ptr<Client> &client, const std::vector<std::string> &subtopics, uint8_t qos, bool noLocal, bool retainAsPublished,
-    uint32_t subscriptionIdentifier)
-{
-    const static std::string empty;
-    return addSubscription(client, subtopics, qos, noLocal, retainAsPublished, empty, subscriptionIdentifier);
-}
-
-AddSubscriptionType SubscriptionStore::addSubscription(
-    std::shared_ptr<Client> &client, const std::vector<std::string> &subtopics, uint8_t qos, bool noLocal, bool retainAsPublished,
+    const std::shared_ptr<Session> &session, const std::vector<std::string> &subtopics, uint8_t qos, bool noLocal, bool retainAsPublished,
     const std::string &shareName, const uint32_t subscriptionIdentifier)
 {
-    const std::shared_ptr<SubscriptionNode> deepestNode = getDeepestNode(subtopics);
-
-    if (!deepestNode)
-        return AddSubscriptionType::Invalid;
-
-    return deepestNode->addSubscriber(client->getSession(), qos, noLocal, retainAsPublished, shareName, subscriptionIdentifier);
-}
-
-AddSubscriptionType SubscriptionStore::addSubscription(
-    const std::shared_ptr<Session> &session, const std::string &topicFilter, uint8_t qos, bool noLocal, bool retainAsPublished,
-    const uint32_t subscriptionIdentifier)
-{
     if (!session) return AddSubscriptionType::Invalid;
-
-    std::vector<std::string> subtopics = splitTopic(topicFilter);
-
-    std::string shareName;
-    std::string topicDummy;
-    parseSubscriptionShare(subtopics, shareName, topicDummy);
 
     const std::shared_ptr<SubscriptionNode> deepestNode = getDeepestNode(subtopics);
 
@@ -295,16 +269,11 @@ AddSubscriptionType SubscriptionStore::addSubscription(
     return deepestNode->addSubscriber(session, qos, noLocal, retainAsPublished, shareName, subscriptionIdentifier);
 }
 
-void SubscriptionStore::removeSubscription(const std::shared_ptr<Session> &session, const std::string &topic)
+void SubscriptionStore::removeSubscription(
+    const std::shared_ptr<Session> &session, const std::vector<std::string> &subtopics, const std::string &shareName)
 {
     if (!session)
         return;
-
-    std::vector<std::string> subtopics = splitTopic(topic);
-
-    std::string shareName;
-    std::string topicDummy;
-    parseSubscriptionShare(subtopics, shareName, topicDummy);
 
     std::shared_ptr<SubscriptionNode> node = getDeepestNode(subtopics, true);
 
@@ -312,15 +281,6 @@ void SubscriptionStore::removeSubscription(const std::shared_ptr<Session> &sessi
         return;
 
     node->removeSubscriber(session, shareName);
-}
-
-void SubscriptionStore::removeSubscription(std::shared_ptr<Client> &client, const std::string &topic)
-{
-    if (!client)
-        return;
-
-    std::shared_ptr<Session> session = client->getSession();
-    removeSubscription(session, topic);
 }
 
 std::shared_ptr<Session> SubscriptionStore::getBridgeSession(std::shared_ptr<Client> &client)
