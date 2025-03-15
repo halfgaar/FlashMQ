@@ -284,6 +284,11 @@ void MainTests::test_validSubscribePath()
     QVERIFY(!isValidSubscribePath("#//three"));
     QVERIFY(!isValidSubscribePath("#//+"));
     QVERIFY(!isValidSubscribePath("one/#/+"));
+
+    QVERIFY(!isValidSubscribePath("one/two#"));
+    QVERIFY(!isValidSubscribePath("one/two#/three"));
+    QVERIFY(!isValidSubscribePath("one/asdf+/+"));
+    QVERIFY(!isValidSubscribePath("+one/asdf+/+"));
 }
 
 void MainTests::test_various_packet_sizes()

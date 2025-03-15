@@ -76,13 +76,13 @@ bool isValidPublishPath(const std::string &s)
 
 bool isValidSubscribePath(const std::string &s)
 {
-    bool plusAllowed = true;
+    bool wildcardAllowed = true;
     bool nextMustBeSlash = false;
     bool poundSeen = false;
 
     for (const char c : s)
     {
-        if (!plusAllowed && c == '+')
+        if (!wildcardAllowed && (c == '+' || c == '#'))
             return false;
 
         if (nextMustBeSlash && c != '/')
@@ -91,7 +91,7 @@ bool isValidSubscribePath(const std::string &s)
         if (poundSeen)
             return false;
 
-        plusAllowed = c == '/';
+        wildcardAllowed = c == '/';
         nextMustBeSlash = c == '+';
         poundSeen = c == '#';
     }
