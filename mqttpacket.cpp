@@ -1796,7 +1796,10 @@ void MqttPacket::handleUnsubscribe(std::shared_ptr<Client> &sender)
         const std::string topic = readBytesToString();
 
         if (topic.empty())
-            throw ProtocolError("Subscribe topic is empty.", ReasonCodes::MalformedPacket);
+            throw ProtocolError("Unsubscribe topic is empty.", ReasonCodes::MalformedPacket);
+
+        if (!isValidSubscribePath(topic))
+            throw ProtocolError("Unsubscribe topic is invalid: " + topic, ReasonCodes::MalformedPacket);
 
         std::vector<std::string> subtopics = splitTopic(topic);
         std::string shareName;
