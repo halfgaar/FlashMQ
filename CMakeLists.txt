@@ -3,7 +3,7 @@ cmake_policy(SET CMP0048 NEW)
 include(CheckCXXCompilerFlag)
 include(CMakeLists.shared)
 
-project(FlashMQ VERSION 1.21.0 LANGUAGES CXX)
+project(FlashMQ VERSION 1.21.1 LANGUAGES CXX)
 
 add_definitions(-DOPENSSL_API_COMPAT=0x10100000L)
 add_definitions(-DFLASHMQ_VERSION=\"${PROJECT_VERSION}\")
