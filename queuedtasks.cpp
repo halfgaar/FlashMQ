@@ -66,32 +66,26 @@ void QueuedTasks::performAll()
 {
     const auto now = std::chrono::steady_clock::now();
 
-    std::list<std::shared_ptr<std::function<void()>>> copiedTasks;
+    std::vector<std::shared_ptr<std::function<void()>>> functions;
 
-    auto _pos = queuedTasks.begin();
-    while (_pos != queuedTasks.end())
+    for (auto pos = queuedTasks.begin(); pos != queuedTasks.end(); )
     {
-        auto pos = _pos;
-        _pos++;
-
-        if (pos->when > now)
+        if (pos->when > now || functions.size() > 0xFFFF)
         {
             break;
         }
 
-        const uint32_t id = pos->id;
-        std::shared_ptr<std::function<void()>> queued_f = pos->f.lock();
-        queuedTasks.erase(pos);
+        const auto cur = pos++;
 
-        auto tpos = tasks.find(id);
-        if (tpos != tasks.end() && queued_f == tpos->second)
+        const auto tpos = tasks.find(cur->id);
+        if (tpos != tasks.end() && cur->f.lock() == tpos->second)
         {
-            copiedTasks.push_back(tpos->second);
+            functions.push_back(tpos->second);
 
-            if (pos->repeat)
+            if (cur->repeat)
             {
-                QueuedTask requeue = *pos;
-                requeue.when = std::chrono::steady_clock::now() + pos->interval;
+                QueuedTask requeue = *cur;
+                requeue.when = std::chrono::steady_clock::now() + requeue.interval;
                 queuedTasks.insert(requeue);
             }
             else
@@ -99,9 +93,11 @@ void QueuedTasks::performAll()
                 tasks.erase(tpos);
             }
         }
+
+        queuedTasks.erase(cur);
     }
 
-    for(std::shared_ptr<std::function<void()>> &f : copiedTasks)
+    for(const std::shared_ptr<std::function<void()>> &f : functions)
     {
         try
         {
