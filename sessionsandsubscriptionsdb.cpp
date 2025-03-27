@@ -276,7 +276,7 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV3V4V5V6V7()
                 if (readVersion >= ReadVersion::v6)
                     subscription_identifier = readUint32(eofFound);
 
-                logger->logf(LOG_DEBUG, "Saving session '%s' subscription to '%s' QoS %d.", clientId.c_str(), topic.c_str(), subscriptionOptions.getQos());
+                logger->logf(LOG_DEBUG, "Loading session '%s' subscription to '%s' QoS %d.", clientId.c_str(), topic.c_str(), subscriptionOptions.getQos());
 
                 SubscriptionForSerializing sub(std::move(clientId), subscriptionOptions, subscription_identifier, sharename);
                 result.subscriptions[topic].push_back(std::move(sub));
