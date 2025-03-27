@@ -5,7 +5,7 @@
 \\$2 \(la\\$1\(ra\\$3
 ..
 .if \n(.g .mso www.tmac
-.TH flashmq.conf 5 "Feb 23 2025" "" ""
+.TH flashmq.conf 5 "Mar 27 2025" "" ""
 .SH NAME
 flashmq.conf \- FlashMQ configuration file format
 .SH SYNOPSIS
@@ -562,7 +562,7 @@ Default value: \fItrue\fR
 \*(T<\fB\m[green]local_clean_start\m[] \fI\m[cyan]true\m[]\fR|\fI\m[cyan]false\m[]\fR\fR\*(T>
 In MQTT3 mode, this means 'clean session' and means the session is removed upon disconnect. If you want to reuse sessions on reconnect, set this to false. Any new start of FlashMQ will give you a new client ID so will always be a fresh session, except if you set \fB\m[green]use_saved_clientid\fR\m[].
 
-In MQTT5 mode, this has no effect. If you want the session to be removed immediately on disconnect, use \fB\m[green]local_session_expiry_interval\fR\m[] to 0.
+In MQTT5 mode, this only has effect on start, where any existing local session is removed if found. If you want the session to be removed immediately on disconnect, use \fB\m[green]local_session_expiry_interval\fR\m[] to 0.
 
 Also see \m[blue]understanding clean session and clean start\m[] \(lB\fI\m[blue]https://www.flashmq.org/2022/11/26/understanding-clean-session-and-clean-start/\m[]\fR\(rB.
 

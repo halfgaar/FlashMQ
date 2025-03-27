@@ -291,7 +291,7 @@ std::shared_ptr<Session> SubscriptionStore::getBridgeSession(std::shared_ptr<Cli
 
     std::shared_ptr<Session> &session = sessionsById[client_id];
 
-    if (!session)
+    if (!session || session->getDestroyOnDisconnect() || client->getCleanStart())
         session = std::make_shared<Session>(client_id, client->getUsername());
 
     session->assignActiveConnection(client);

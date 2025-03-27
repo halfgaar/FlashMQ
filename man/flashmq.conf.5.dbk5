@@ -1166,7 +1166,7 @@ listen {
               In MQTT3 mode, this means 'clean session' and means the session is removed upon disconnect. If you want to reuse sessions on reconnect, set this to false. Any new start of FlashMQ will give you a new client ID so will always be a fresh session, except if you set <option>use_saved_clientid</option>.
           </para>
           <para>
-            In MQTT5 mode, this has no effect. If you want the session to be removed immediately on disconnect, use <option>local_session_expiry_interval</option> to 0.
+            In MQTT5 mode, this only has effect on start, where any existing local session is removed if found. If you want the session to be removed immediately on disconnect, use <option>local_session_expiry_interval</option> to 0.
           </para>
           <para>
             Also see <link xlink:href="https://www.flashmq.org/2022/11/26/understanding-clean-session-and-clean-start/">understanding clean session and clean start</link>.

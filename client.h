@@ -273,6 +273,7 @@ public:
     void setAsyncAuthResult(const AsyncAuthResult &v);
     bool hasAsyncAuthResult() const { return this->asyncAuthResult.operator bool() ; }
     std::unique_ptr<AsyncAuthResult> stealAsyncAuthResult();
+    bool getCleanStart() const { return clean_start;}
 
 };
 
