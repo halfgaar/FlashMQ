@@ -430,6 +430,8 @@ bool MainTests::test(bool skip_tests_with_internet, bool skip_server_tests, cons
         std::cout << std::endl;
     }
 
+    Logger::getInstance()->quit();
+
     std::cout << "Tests run: " << testCount << ". Passed: " << testPassCount << ". Failed: "
               << testFailCount << " (of which " << testExceptionCount << " exceptions). Total assertions: "
               << assert_count << "." << std::endl;

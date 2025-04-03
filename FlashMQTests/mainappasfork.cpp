@@ -47,7 +47,7 @@ MainAppAsFork::~MainAppAsFork()
 void MainAppAsFork::start()
 {
     // We must not have threads when we fork.
-    Logger::stopAndReset();
+    Logger::getInstance()->quit();
 
     if (MainApp::instance)
     {

@@ -19,9 +19,6 @@ See LICENSE for license details.
 #include "threadglobals.h"
 #include "utils.h"
 
-Logger* Logger::instance = nullptr;
-std::mutex Logger::instanceMutex;
-
 LogLine::LogLine(std::string &&line, bool alsoToStdOut) :
     line(std::move(line)),
     alsoToStdOut(alsoToStdOut)
@@ -57,11 +54,7 @@ Logger::Logger()
     memset(&linesPending, 1, sizeof(sem_t));
     sem_init(&linesPending, 0, 0);
 
-    auto f = std::bind(&Logger::writeLog, this);
-    this->writerThread = std::thread(f, this);
-
-    pthread_t native = this->writerThread.native_handle();
-    pthread_setname_np(native, "LogWriter");
+    start();
 }
 
 Logger::~Logger()
@@ -105,27 +98,12 @@ std::string_view Logger::getLogLevelString(int level)
 
 Logger *Logger::getInstance()
 {
-    // Prevent duplicate creation without always needing the mutex.
-    if (instance == nullptr)
-    {
-        std::lock_guard<std::mutex> locker(instanceMutex);
-        if (instance == nullptr)
-            instance = new Logger();
-    }
-    return instance;
-}
+    static Logger instance;
 
-/**
- * @brief Logger::stopAndReset was created for the test binary. Normally you shouldn't use this. It's also not thread-safe (it's raw pointer, not
- * a smart pointer).
- */
-void Logger::stopAndReset()
-{
-    std::lock_guard<std::mutex> locker(instanceMutex);
+    if (!instance.running)
+        instance.start();
 
-    instance->quit();
-    delete instance;
-    instance = nullptr;
+    return &instance;
 }
 
 void Logger::logf(int level, const char *str, ...)
@@ -253,10 +231,28 @@ void Logger::setFlags(std::optional<bool> logDebug, std::optional<bool> quiet)
 
 void Logger::quit()
 {
+    std::lock_guard<std::mutex> locker(startStopMutex);
+
     running = false;
     sem_post(&linesPending);
     if (writerThread.joinable())
         writerThread.join();
+}
+
+void Logger::start()
+{
+    std::lock_guard<std::mutex> locker(startStopMutex);
+
+    if (writerThread.joinable())
+        return;
+
+    running = true;
+
+    auto f = std::bind(&Logger::writeLog, this);
+    this->writerThread = std::thread(f, this);
+
+    pthread_t native = this->writerThread.native_handle();
+    pthread_setname_np(native, "LogWriter");
 }
 
 void Logger::writeLog()
