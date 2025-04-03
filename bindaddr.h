@@ -12,16 +12,27 @@ See LICENSE for license details.
 #define BINDADDR_H
 
 #include <arpa/inet.h>
-#include <memory>
 
 /**
  * @brief The BindAddr struct helps creating the resource for bind(). It uses an intermediate struct sockaddr to avoid compiler warnings, and
  * this class helps a bit with resource management of it.
  */
-struct BindAddr
+class BindAddr
 {
-    std::unique_ptr<sockaddr> p;
+    sockaddr *p = nullptr;
     socklen_t len = 0;
+
+public:
+
+    BindAddr() = delete;
+    BindAddr(int family);
+    BindAddr(const BindAddr &other) = delete;
+    BindAddr(BindAddr &&other);
+    BindAddr &operator=(const BindAddr &other) = delete;
+    BindAddr &operator=(BindAddr &&other) = delete;
+    ~BindAddr();
+    sockaddr *get() const { return p; }
+    socklen_t getLen() const { return len; }
 };
 
 #endif // BINDADDR_H

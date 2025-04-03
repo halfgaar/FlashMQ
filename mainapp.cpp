@@ -158,7 +158,7 @@ std::list<ScopedSocket> MainApp::createListenSocket(const std::shared_ptr<Listen
             int flags = fcntl(uniqueListenFd.get(), F_GETFL);
             check<std::runtime_error>(fcntl(uniqueListenFd.get(), F_SETFL, flags | O_NONBLOCK ));
 
-            check<std::runtime_error>(bind(uniqueListenFd.get(), bindAddr.p.get(), bindAddr.len));
+            check<std::runtime_error>(bind(uniqueListenFd.get(), bindAddr.get(), bindAddr.getLen()));
             check<std::runtime_error>(listen(uniqueListenFd.get(), 32768));
 
             struct epoll_event ev;

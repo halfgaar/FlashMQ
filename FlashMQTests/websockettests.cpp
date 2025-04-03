@@ -73,7 +73,7 @@ void MainTests::testWebsocketPing()
 
         BindAddr bindAddr = getBindAddr(AF_INET, "127.0.0.1", 22123);
 
-        check<std::runtime_error>(bind(listen_socket, bindAddr.p.get(), bindAddr.len));
+        check<std::runtime_error>(bind(listen_socket, bindAddr.get(), bindAddr.getLen()));
         check<std::runtime_error>(listen(listen_socket, 64));
 
         int client_socket = socket(AF_INET, SOCK_STREAM, 0);
@@ -84,7 +84,7 @@ void MainTests::testWebsocketPing()
         std::shared_ptr<Client> client = c1;
         t->giveClient(std::move(c1));
 
-        ::connect(client_socket, bindAddr.p.get(), bindAddr.len);
+        ::connect(client_socket, bindAddr.get(), bindAddr.getLen());
 
         int socket_to_client = accept(listen_socket, nullptr, nullptr);
         FileCloser socket_to_client_closer(socket_to_client);
@@ -256,7 +256,7 @@ void MainTests::testWebsocketCorruptLengthFrame()
 
         BindAddr bindAddr = getBindAddr(AF_INET, "127.0.0.1", 22123);
 
-        check<std::runtime_error>(bind(listen_socket, bindAddr.p.get(), bindAddr.len));
+        check<std::runtime_error>(bind(listen_socket, bindAddr.get(), bindAddr.getLen()));
         check<std::runtime_error>(listen(listen_socket, 64));
 
         int client_socket = socket(AF_INET, SOCK_STREAM, 0);
@@ -267,7 +267,7 @@ void MainTests::testWebsocketCorruptLengthFrame()
         std::shared_ptr<Client> client = c1;
         t->giveClient(std::move(c1));
 
-        ::connect(client_socket, bindAddr.p.get(), bindAddr.len);
+        ::connect(client_socket, bindAddr.get(), bindAddr.getLen());
 
         int socket_to_client = accept(listen_socket, nullptr, nullptr);
         FileCloser socket_to_client_closer(socket_to_client);
@@ -388,7 +388,7 @@ void MainTests::testWebsocketHugePing()
 
         BindAddr bindAddr = getBindAddr(AF_INET, "127.0.0.1", 22123);
 
-        check<std::runtime_error>(bind(listen_socket, bindAddr.p.get(), bindAddr.len));
+        check<std::runtime_error>(bind(listen_socket, bindAddr.get(), bindAddr.getLen()));
         check<std::runtime_error>(listen(listen_socket, 64));
 
         int client_socket = socket(AF_INET, SOCK_STREAM, 0);
@@ -399,7 +399,7 @@ void MainTests::testWebsocketHugePing()
         std::shared_ptr<Client> client = c1;
         t->giveClient(std::move(c1));
 
-        ::connect(client_socket, bindAddr.p.get(), bindAddr.len);
+        ::connect(client_socket, bindAddr.get(), bindAddr.getLen());
 
         int socket_to_client = accept(listen_socket, nullptr, nullptr);
         FileCloser socket_to_client_closer(socket_to_client);
@@ -513,7 +513,7 @@ void MainTests::testWebsocketManyBigPingFrames()
 
         BindAddr bindAddr = getBindAddr(AF_INET, "127.0.0.1", 22123);
 
-        check<std::runtime_error>(bind(listen_socket, bindAddr.p.get(), bindAddr.len));
+        check<std::runtime_error>(bind(listen_socket, bindAddr.get(), bindAddr.getLen()));
         check<std::runtime_error>(listen(listen_socket, 64));
 
         int client_socket = socket(AF_INET, SOCK_STREAM, 0);
@@ -524,7 +524,7 @@ void MainTests::testWebsocketManyBigPingFrames()
         std::shared_ptr<Client> client = c1;
         t->giveClient(std::move(c1));
 
-        ::connect(client_socket, bindAddr.p.get(), bindAddr.len);
+        ::connect(client_socket, bindAddr.get(), bindAddr.getLen());
 
         int socket_to_client = accept(listen_socket, nullptr, nullptr);
         FileCloser socket_to_client_closer(socket_to_client);
@@ -664,7 +664,7 @@ void MainTests::testWebsocketClose()
 
         BindAddr bindAddr = getBindAddr(AF_INET, "127.0.0.1", 22123);
 
-        check<std::runtime_error>(bind(listen_socket, bindAddr.p.get(), bindAddr.len));
+        check<std::runtime_error>(bind(listen_socket, bindAddr.get(), bindAddr.getLen()));
         check<std::runtime_error>(listen(listen_socket, 64));
 
         int client_socket = socket(AF_INET, SOCK_STREAM, 0);
@@ -675,7 +675,7 @@ void MainTests::testWebsocketClose()
         std::shared_ptr<Client> client = c1;
         t->giveClient(std::move(c1));
 
-        ::connect(client_socket, bindAddr.p.get(), bindAddr.len);
+        ::connect(client_socket, bindAddr.get(), bindAddr.getLen());
 
         int socket_to_client = accept(listen_socket, nullptr, nullptr);
         FileCloser socket_to_client_closer(socket_to_client);
