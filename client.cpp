@@ -74,10 +74,15 @@ Client::Client(int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, bool we
     int flags = fcntl(fd, F_GETFL);
     fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 
-    if (addr)
-        memcpy(&this->addr, addr, sizeof(struct sockaddr_in6));
+    size_t sock_len = 0;
+    if (addr && (sock_len = addr->sa_family == AF_INET6 ? sizeof(struct sockaddr_in6) : sizeof(struct sockaddr_in)) > 0)
+    {
+        memcpy(&this->addr, addr, sock_len);
+    }
     else
+    {
         memset(&this->addr, 0, sizeof(struct sockaddr_in6));
+    }
 
     this->address = sockaddrToString(this->getAddr());
 
