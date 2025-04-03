@@ -26,7 +26,7 @@ void waitForMessagesOverBridge(FlashMQTestClient &one, FlashMQTestClient &two, c
 
 void MainTests::forkingTestBridgeWithLocalAndRemotePrefix()
 {
-    for (const std::string &protocol_version : {"mqtt5", "mqtt3.1"})
+    for (const std::string protocol_version : {"mqtt5", "mqtt3.1"})
     {
         cleanup();
 
@@ -108,7 +108,7 @@ listen {
  */
 void MainTests::forkingTestBridgePrefixesOtherClientsUnaffected()
 {
-    for (const std::string &protocol_version : {"mqtt5", "mqtt3.1"})
+    for (const std::string protocol_version : {"mqtt5", "mqtt3.1"})
     {
         cleanup();
 
@@ -224,7 +224,7 @@ listen {
 
 void MainTests::forkingTestBridgeWithOnlyRemotePrefix()
 {
-    for (const std::string &protocol_version : {"mqtt5", "mqtt3.1"})
+    for (const std::string protocol_version : {"mqtt5", "mqtt3.1"})
     {
         cleanup();
 
@@ -331,7 +331,7 @@ listen {
 
 void MainTests::forkingTestBridgeWithOnlyLocalPrefix()
 {
-    for (const std::string &protocol_version : {"mqtt5", "mqtt3.1"})
+    for (const std::string protocol_version : {"mqtt5", "mqtt3.1"})
     {
         cleanup();
 
@@ -556,7 +556,7 @@ listen {
 
 void MainTests::forkingTestBridgeZWithLocalAndRemotePrefixRetained()
 {
-    for (const std::string &protocol_version : {"mqtt5", "mqtt3.1"})
+    for (const std::string protocol_version : {"mqtt5", "mqtt3.1"})
     {
         cleanup();
 
@@ -697,7 +697,7 @@ listen {
  */
 void MainTests::forkingTestBridgeWithLocalAndRemotePrefixQueuedQoS()
 {
-    for (const std::string &protocol_version : {"mqtt5", "mqtt3.1.1"})
+    for (const std::string protocol_version : {"mqtt5", "mqtt3.1.1"})
     {
         cleanup();
 
