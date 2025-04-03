@@ -1086,7 +1086,8 @@ void ThreadData::queueQuit()
 
 void ThreadData::waitForQuit()
 {
-    thread.join();
+    if (thread.joinable())
+        thread.join();
 }
 
 void ThreadData::queuePasswdFileReload()

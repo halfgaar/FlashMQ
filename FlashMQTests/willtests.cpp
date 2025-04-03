@@ -424,6 +424,7 @@ log_level debug
     });
 
     sender.disconnect(ReasonCodes::DisconnectWithWill);
+    sender.waitForQuit(); // We have to quit now to not have threads when we fork again later.
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
     app.stop();
