@@ -9,7 +9,7 @@ DEFAULT_BUILD_TYPE="Release"
 usage() {
   cat <<EOF
 Usage:
-  $script_name [--fail-on-doc-failure] [--njobs-override <nr>] <build_type>
+  $script_name [--fail-on-doc-failure] [--njobs-override <nr>] [ --asan ] <build_type>
   $script_name --help     Display this help
 
   <build_type>  'Debug' or 'Release'; default: $DEFAULT_BUILD_TYPE
@@ -19,6 +19,7 @@ EOF
 FAIL_ON_DOC_FAILURE=""
 BUILD_TYPE="$DEFAULT_BUILD_TYPE"
 NJOBS_OVERRIDE=""
+FMQ_ASAN=""
 
 while [[ "$#" -gt 0 ]]; do
   case "$1" in
@@ -33,6 +34,10 @@ while [[ "$#" -gt 0 ]]; do
     --njobs-override)
       shift
       NJOBS_OVERRIDE="$1"
+      shift
+      ;;
+    --asan)
+      FMQ_ASAN=1
       shift
       ;;
     --*|-*)
@@ -87,9 +92,14 @@ if [[ -n "$NJOBS_OVERRIDE" ]]; then
   nprocs="$NJOBS_OVERRIDE"
 fi
 
+args=()
+if [[ -n "$FMQ_ASAN" ]]; then
+  args+=("-DFMQ_ASAN=1")
+fi
+
 cd "$BUILD_DIR"
 
-cmake -DCMAKE_BUILD_TYPE="$BUILD_TYPE" "$thisdir"
+cmake -DCMAKE_BUILD_TYPE="$BUILD_TYPE" "${args[@]}" "$thisdir"
 make -j "$nprocs"
 cpack
 

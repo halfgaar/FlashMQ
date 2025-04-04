@@ -11,6 +11,12 @@ add_definitions(-DFLASHMQ_VERSION=\"${PROJECT_VERSION}\")
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+if (FMQ_ASAN)
+    message("Building with ASAN.")
+    add_compile_options(-fsanitize=address)
+    set(ASAN_LIB asan)
+endif()
+
 check_cxx_compiler_flag("-msse4.2"   COMPILER_RT_HAS_MSSE4_2_FLAG)
 if (${COMPILER_RT_HAS_MSSE4_2_FLAG})
     SET(CMAKE_CXX_FLAGS "-msse4.2")
@@ -31,7 +37,7 @@ add_executable(flashmq
     main.cpp
     )
 
-target_link_libraries(flashmq pthread dl ssl crypto resolv anl)
+target_link_libraries(flashmq ${ASAN_LIB} pthread dl ssl crypto resolv anl)
 
 execute_process(COMMAND ../.get-os-codename-and-stamp.sh OUTPUT_VARIABLE OS_CODENAME)
 
