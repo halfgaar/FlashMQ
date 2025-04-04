@@ -12,7 +12,7 @@ Usage:
   $script_name [--fail-on-doc-failure] [--njobs-override <nr>] [ --asan ] <build_type>
   $script_name --help     Display this help
 
-  <build_type>  'Debug' or 'Release'; default: $DEFAULT_BUILD_TYPE
+  <build_type>  'Debug', 'Release' or 'RelWithDebInfo'; default: $DEFAULT_BUILD_TYPE
 EOF
 }
 
@@ -45,7 +45,7 @@ while [[ "$#" -gt 0 ]]; do
       usage >&2
       exit 2
       ;;
-    Debug|Release)
+    Debug|Release|RelWithDebInfo)
       if [[ "$#" -gt 1 ]]; then
         echo -e "\e[31mRelease type (\e[1m$1\e[22m) must be the last argument\e[0m" >&2
         usage >&2
@@ -53,6 +53,11 @@ while [[ "$#" -gt 0 ]]; do
       fi
       BUILD_TYPE="$1"
       shift
+      ;;
+    *)
+      echo -e "\e[31mUnknown positional argument: \e[1m$1\e[0m" >&2
+      usage >&2
+      exit 2
       ;;
   esac
 done
