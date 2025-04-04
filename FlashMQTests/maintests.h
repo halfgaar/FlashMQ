@@ -25,7 +25,7 @@ class MainTests
     std::shared_ptr<ThreadData> dummyThreadData;
     std::unique_ptr<MainAppInThread> mainApp;
     Settings settings;
-    PluginLoader pluginLoader;
+    std::shared_ptr<PluginLoader> pluginLoader = std::make_shared<PluginLoader>();
 
     std::map<std::string, TestFunction> testFunctions;
 

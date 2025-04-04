@@ -39,7 +39,7 @@ class FlashMQTestClient
         void clear();
     };
 
-    PluginLoader pluginLoader;
+    std::shared_ptr<PluginLoader> pluginLoader = std::make_shared<PluginLoader>();
     Settings settings;
     ThreadDataOwner testServerWorkerThreadData;
     CheckedWeakPtr<Client> client_weak;

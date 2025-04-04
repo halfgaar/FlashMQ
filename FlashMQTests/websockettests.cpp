@@ -56,7 +56,7 @@ void MainTests::testWebsocketPing()
     try
     {
         Settings settings;
-        PluginLoader pluginLoader;
+        std::shared_ptr<PluginLoader> pluginLoader = std::make_shared<PluginLoader>();
         std::shared_ptr<SubscriptionStore> store(new SubscriptionStore());
         std::shared_ptr<ThreadData> t(new ThreadData(0, settings, pluginLoader));
 
@@ -234,7 +234,7 @@ void MainTests::testWebsocketCorruptLengthFrame()
     try
     {
         Settings settings;
-        PluginLoader pluginLoader;
+        std::shared_ptr<PluginLoader> pluginLoader = std::make_shared<PluginLoader>();
         std::shared_ptr<SubscriptionStore> store(new SubscriptionStore());
         std::shared_ptr<ThreadData> t(new ThreadData(0, settings, pluginLoader));
 
@@ -361,7 +361,7 @@ void MainTests::testWebsocketHugePing()
     try
     {
         Settings settings;
-        PluginLoader pluginLoader;
+        std::shared_ptr<PluginLoader> pluginLoader = std::make_shared<PluginLoader>();
         std::shared_ptr<SubscriptionStore> store(new SubscriptionStore());
         std::shared_ptr<ThreadData> t(new ThreadData(0, settings, pluginLoader));
 
@@ -481,7 +481,7 @@ void MainTests::testWebsocketManyBigPingFrames()
         MYCASTCOMPARE(settings.clientMaxWriteBufferSize, 1048576);
         MYCASTCOMPARE(settings.clientInitialBufferSize, 1024);
 
-        PluginLoader pluginLoader;
+        std::shared_ptr<PluginLoader> pluginLoader = std::make_shared<PluginLoader>();
         std::shared_ptr<SubscriptionStore> store(new SubscriptionStore());
         std::shared_ptr<ThreadData> t(new ThreadData(0, settings, pluginLoader));
 
@@ -627,7 +627,7 @@ void MainTests::testWebsocketClose()
     try
     {
         Settings settings;
-        PluginLoader pluginLoader;
+        std::shared_ptr<PluginLoader> pluginLoader = std::make_shared<PluginLoader>();
         std::shared_ptr<SubscriptionStore> store(new SubscriptionStore());
         std::shared_ptr<ThreadData> t(new ThreadData(0, settings, pluginLoader));
 

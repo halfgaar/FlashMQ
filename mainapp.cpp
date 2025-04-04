@@ -26,7 +26,6 @@ See LICENSE for license details.
 #include "logger.h"
 #include "threadglobals.h"
 #include "threadloop.h"
-#include "plugin.h"
 #include "threadglobals.h"
 #include "globalstats.h"
 #include "utils.h"
@@ -613,7 +612,7 @@ void MainApp::start()
             std::vector<MqttPacket> packetQueueIn;
             std::vector<std::string> subtopics;
 
-            PluginLoader pluginLoader;
+            std::shared_ptr<PluginLoader> pluginLoader = std::make_shared<PluginLoader>();
 
             std::shared_ptr<ThreadData> threaddata = std::make_shared<ThreadData>(0, settings, pluginLoader);
             ThreadGlobals::assignThreadData(threaddata);
@@ -665,11 +664,11 @@ void MainApp::start()
 
     GlobalStats *globalStats = GlobalStats::getInstance();
 
-    PluginLoader pluginLoader;
-    pluginLoader.loadPlugin(settings.pluginPath);
+    std::shared_ptr<PluginLoader> pluginLoader = std::make_shared<PluginLoader>();
+    pluginLoader->loadPlugin(settings.pluginPath);
 
     std::unordered_map<std::string, std::string> &authOpts = settings.getFlashmqpluginOpts();
-    pluginLoader.mainInit(authOpts);
+    pluginLoader->mainInit(authOpts);
 
     for (int i = 0; i < num_threads; i++)
     {
@@ -915,7 +914,7 @@ void MainApp::start()
         }
     }
 
-    pluginLoader.mainDeinit(settings.getFlashmqpluginOpts());
+    pluginLoader->mainDeinit(settings.getFlashmqpluginOpts());
 
     Globals::getInstance().quitting = true;
     this->bgWorker.waitForStop();

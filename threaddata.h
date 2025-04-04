@@ -66,7 +66,7 @@ struct ThreadDataOwner
     ThreadDataOwner() = delete;
     ThreadDataOwner(const ThreadDataOwner &other) = delete;
     ThreadDataOwner(ThreadDataOwner &&other) = default;
-    ThreadDataOwner(int threadnr, const Settings &settings, const PluginLoader &pluginLoader);
+    ThreadDataOwner(int threadnr, const Settings &settings, const std::shared_ptr<PluginLoader> &pluginLoader);
     ~ThreadDataOwner();
 
     ThreadDataOwner &operator=(const ThreadDataOwner &other) = delete;
@@ -89,7 +89,7 @@ class ThreadData
 
     std::list<QueuedRetainedMessage> queuedRetainedMessages;
 
-    const PluginLoader &pluginLoader;
+    const std::shared_ptr<const PluginLoader> pluginLoader;
 
     void reload(const Settings &settings);
     void wakeUpThread();
@@ -144,7 +144,7 @@ public:
 
     std::minstd_rand randomish;
 
-    ThreadData(int threadnr, const Settings &settings, const PluginLoader &pluginLoader);
+    ThreadData(int threadnr, const Settings &settings, const std::shared_ptr<PluginLoader> &pluginLoader);
     ThreadData(const ThreadData &other) = delete;
     ThreadData(ThreadData &&other) = delete;
     ~ThreadData();

@@ -10,7 +10,7 @@
 void MainTests::testSharedSubscribersUnit()
 {
     Settings settings;
-    PluginLoader pluginLoader;
+    std::shared_ptr<PluginLoader> pluginLoader = std::make_shared<PluginLoader>();
     std::shared_ptr<ThreadData> t(new ThreadData(0, settings, pluginLoader));
 
     ThreadGlobals::assignThreadData(t);

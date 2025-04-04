@@ -960,7 +960,7 @@ void MainTests::testSavingSessions()
     try
     {
         Settings settings;
-        PluginLoader pluginLoader;
+        std::shared_ptr<PluginLoader> pluginLoader = std::make_shared<PluginLoader>();
         std::shared_ptr<SubscriptionStore> store(new SubscriptionStore());
         std::shared_ptr<ThreadData> t(new ThreadData(0, settings, pluginLoader));
 
@@ -1119,7 +1119,7 @@ void MainTests::testParsePacketHelper(const std::string &topic, uint8_t from_qos
     Settings settings;
     settings.logLevel = LogLevel::Info;
     std::shared_ptr<SubscriptionStore> store(new SubscriptionStore());
-    PluginLoader pluginLoader;
+    std::shared_ptr<PluginLoader> pluginLoader = std::make_shared<PluginLoader>();
     std::shared_ptr<ThreadData> t(new ThreadData(0, settings, pluginLoader));
 
     std::shared_ptr<Client> dummyClient(new Client(0, t, nullptr, false, false, nullptr, settings, false));
@@ -1187,7 +1187,7 @@ void MainTests::testbufferToMqttPacketsFuzz()
     Settings settings;
     settings.logLevel = LogLevel::Info;
     std::shared_ptr<SubscriptionStore> store(new SubscriptionStore());
-    PluginLoader pluginLoader;
+    std::shared_ptr<PluginLoader> pluginLoader = std::make_shared<PluginLoader>();
     std::shared_ptr<ThreadData> t(new ThreadData(0, settings, pluginLoader));
 
     settings.maxPacketSize = 32768;

@@ -33,7 +33,7 @@ QueuedRetainedMessage::QueuedRetainedMessage(const Publish &p, const std::vector
 
 }
 
-ThreadData::ThreadData(int threadnr, const Settings &settings, const PluginLoader &pluginLoader) :
+ThreadData::ThreadData(int threadnr, const Settings &settings, const std::shared_ptr<PluginLoader> &pluginLoader) :
     epollfd(check<std::runtime_error>(epoll_create(999))),
     pluginLoader(pluginLoader),
     settingsLocalCopy(settings),
@@ -1256,7 +1256,7 @@ void ThreadData::initplugin()
 {
     authentication.loadMosquittoPasswordFile();
     authentication.loadMosquittoAclFile();
-    authentication.loadPlugin(pluginLoader);
+    authentication.loadPlugin(*pluginLoader);
     authentication.init();
     authentication.securityInit(false);
 }
@@ -1315,7 +1315,7 @@ void ThreadData::wakeUpThread()
 }
 
 
-ThreadDataOwner::ThreadDataOwner(int threadnr, const Settings &settings, const PluginLoader &pluginLoader) :
+ThreadDataOwner::ThreadDataOwner(int threadnr, const Settings &settings, const std::shared_ptr<PluginLoader> &pluginLoader) :
     td(std::make_shared<ThreadData>(threadnr, settings, pluginLoader))
 {
 
