@@ -60,11 +60,6 @@ void MainTests::testWebsocketPing()
         std::shared_ptr<SubscriptionStore> store(new SubscriptionStore());
         std::shared_ptr<ThreadData> t(new ThreadData(0, settings, pluginLoader));
 
-        // Kind of a hack...
-        Authentication auth(settings);
-        ThreadGlobals::assign(&auth);
-        ThreadGlobals::assignThreadData(t.get());
-
         int listen_socket = socket(AF_INET, SOCK_STREAM, 0);
         FileCloser listener_closer(listen_socket);
 
@@ -243,11 +238,6 @@ void MainTests::testWebsocketCorruptLengthFrame()
         std::shared_ptr<SubscriptionStore> store(new SubscriptionStore());
         std::shared_ptr<ThreadData> t(new ThreadData(0, settings, pluginLoader));
 
-        // Kind of a hack...
-        Authentication auth(settings);
-        ThreadGlobals::assign(&auth);
-        ThreadGlobals::assignThreadData(t.get());
-
         int listen_socket = socket(AF_INET, SOCK_STREAM, 0);
         FileCloser listener_closer(listen_socket);
 
@@ -375,11 +365,6 @@ void MainTests::testWebsocketHugePing()
         std::shared_ptr<SubscriptionStore> store(new SubscriptionStore());
         std::shared_ptr<ThreadData> t(new ThreadData(0, settings, pluginLoader));
 
-        // Kind of a hack...
-        Authentication auth(settings);
-        ThreadGlobals::assign(&auth);
-        ThreadGlobals::assignThreadData(t.get());
-
         int listen_socket = socket(AF_INET, SOCK_STREAM, 0);
         FileCloser listener_closer(listen_socket);
 
@@ -499,11 +484,6 @@ void MainTests::testWebsocketManyBigPingFrames()
         PluginLoader pluginLoader;
         std::shared_ptr<SubscriptionStore> store(new SubscriptionStore());
         std::shared_ptr<ThreadData> t(new ThreadData(0, settings, pluginLoader));
-
-        // Kind of a hack...
-        Authentication auth(settings);
-        ThreadGlobals::assign(&auth);
-        ThreadGlobals::assignThreadData(t.get());
 
         int listen_socket = socket(AF_INET, SOCK_STREAM, 0);
         FileCloser listener_closer(listen_socket);
@@ -650,11 +630,6 @@ void MainTests::testWebsocketClose()
         PluginLoader pluginLoader;
         std::shared_ptr<SubscriptionStore> store(new SubscriptionStore());
         std::shared_ptr<ThreadData> t(new ThreadData(0, settings, pluginLoader));
-
-        // Kind of a hack...
-        Authentication auth(settings);
-        ThreadGlobals::assign(&auth);
-        ThreadGlobals::assignThreadData(t.get());
 
         int listen_socket = socket(AF_INET, SOCK_STREAM, 0);
         FileCloser listener_closer(listen_socket);

@@ -192,7 +192,7 @@ void MainApp::wakeUpThread()
 
 void MainApp::queueKeepAliveCheckAtAllThreads()
 {
-    for (std::shared_ptr<ThreadData> &thread : threads)
+    for (ThreadDataOwner &thread : threads)
     {
         thread->queueDoKeepAliveCheck();
     }
@@ -200,7 +200,7 @@ void MainApp::queueKeepAliveCheckAtAllThreads()
 
 void MainApp::queuePasswordFileReloadAllThreads()
 {
-    for (std::shared_ptr<ThreadData> &thread : threads)
+    for (ThreadDataOwner &thread : threads)
     {
         thread->queuePasswdFileReload();
     }
@@ -208,7 +208,7 @@ void MainApp::queuePasswordFileReloadAllThreads()
 
 void MainApp::queuepluginPeriodicEventAllThreads()
 {
-    for (std::shared_ptr<ThreadData> &thread : threads)
+    for (ThreadDataOwner &thread : threads)
     {
         thread->queuepluginPeriodicEvent();
     }
@@ -226,7 +226,14 @@ void MainApp::queuePublishStatsOnDollarTopic()
 {
     if (!threads.empty())
     {
-        threads.at(0)->queuePublishStatsOnDollarTopic(threads);
+        std::vector<std::shared_ptr<ThreadData>> thread_datas;
+
+        for(ThreadDataOwner &t : threads)
+        {
+            thread_datas.push_back(t.getThreadData());
+        }
+
+        threads.at(0)->queuePublishStatsOnDollarTopic(thread_datas);
     }
 }
 
@@ -246,7 +253,7 @@ void MainApp::queueSendQueuedWills()
     if (!threads.empty())
     {
         int threadnr = rand() % threads.size();
-        std::shared_ptr<ThreadData> t = threads[threadnr];
+        std::shared_ptr<ThreadData> t = threads[threadnr].getThreadData();
         t->queueSendingQueuedWills();
     }
 }
@@ -255,7 +262,7 @@ void MainApp::waitForWillsQueued()
 {
     int i = 0;
 
-    while(std::any_of(threads.begin(), threads.end(), [](std::shared_ptr<ThreadData> t){ return !t->allWillsQueued && t->running; }) && i++ < 5000)
+    while(std::any_of(threads.begin(), threads.end(), [](const ThreadDataOwner &t){ return !t->allWillsQueued && t->running; }) && i++ < 5000)
     {
         usleep(1000);
     }
@@ -266,7 +273,7 @@ void MainApp::queueRetainedMessageExpiration()
     if (!threads.empty())
     {
         int threadnr = rand() % threads.size();
-        std::shared_ptr<ThreadData> t = threads[threadnr];
+        std::shared_ptr<ThreadData> t = threads[threadnr].getThreadData();
         t->queueRemoveExpiredRetainedMessages();
     }
 }
@@ -292,7 +299,7 @@ void MainApp::sendBridgesToThreads()
 
         if (!owner)
         {
-            owner = threads.at(i++ % threads.size());
+            owner = threads.at(i++ % threads.size()).getThreadData();
             bridge->owner = owner;
         }
 
@@ -314,7 +321,7 @@ void MainApp::queueBridgeReconnectAllThreads(bool alsoQueueNexts)
 {
     try
     {
-        for (std::shared_ptr<ThreadData> &thread : threads)
+        for (ThreadDataOwner &thread : threads)
         {
             thread->queueBridgeReconnect();
         }
@@ -353,7 +360,7 @@ void MainApp::queueInternalHeartbeat()
 
     std::vector<std::chrono::milliseconds> drifts(threads.size());
 
-    std::transform(threads.begin(), threads.end(), drifts.begin(), [] (const std::shared_ptr<const ThreadData> &t) {
+    std::transform(threads.begin(), threads.end(), drifts.begin(), [] (const ThreadDataOwner &t) {
         return t->driftCounter.getDrift();
     });
 
@@ -361,7 +368,7 @@ void MainApp::queueInternalHeartbeat()
     std::nth_element(drifts.begin(), drifts.begin() + n, drifts.end());
     this->medianThreadDrift = drifts.at(n);
 
-    for (std::shared_ptr<ThreadData> &thread : threads)
+    for (ThreadDataOwner &thread : threads)
     {
         thread->queueInternalHeartbeat();
     }
@@ -603,16 +610,13 @@ void MainApp::start()
         {
             const std::string empty;
 
-            Authentication auth(settings);
-            ThreadGlobals::assign(&auth);
-
             std::vector<MqttPacket> packetQueueIn;
             std::vector<std::string> subtopics;
 
             PluginLoader pluginLoader;
 
             std::shared_ptr<ThreadData> threaddata = std::make_shared<ThreadData>(0, settings, pluginLoader);
-            ThreadGlobals::assignThreadData(threaddata.get());
+            ThreadGlobals::assignThreadData(threaddata);
 
             std::shared_ptr<Client> client = std::make_shared<Client>(fd, threaddata, nullptr, fuzzWebsockets, false, nullptr, settings, true);
             std::shared_ptr<Client> subscriber = std::make_shared<Client>(fdnull, threaddata, nullptr, fuzzWebsockets, false, nullptr, settings, true);
@@ -669,14 +673,22 @@ void MainApp::start()
 
     for (int i = 0; i < num_threads; i++)
     {
-        std::shared_ptr<ThreadData> t = std::make_shared<ThreadData>(i, settings, pluginLoader);
-        t->start(&do_thread_work);
-        threads.push_back(t);
+        threads.emplace_back(i, settings, pluginLoader);
+        threads.back().start();
     }
 
     // Populate the $SYS topics, otherwise you have to wait until the timer expires.
     if (!threads.empty())
-        threads.front()->queuePublishStatsOnDollarTopic(threads);
+    {
+        std::vector<std::shared_ptr<ThreadData>> thread_datas;
+
+        for(ThreadDataOwner &t : threads)
+        {
+            thread_datas.push_back(t.getThreadData());
+        }
+
+        threads.front()->queuePublishStatsOnDollarTopic(thread_datas);
+    }
 
     sendBridgesToThreads();
     queueBridgeReconnectAllThreads(true);
@@ -715,7 +727,7 @@ void MainApp::start()
                     if (!listener)
                         continue;
 
-                    std::shared_ptr<ThreadData> thread_data = threads[listener->next_thread_index++ % num_threads];
+                    std::shared_ptr<ThreadData> thread_data = threads[listener->next_thread_index++ % num_threads].getThreadData();
 
                     logger->logf(LOG_DEBUG, "Accepting connection on thread %d on %s", thread_data->threadnr, listener->getProtocolName().c_str());
 
@@ -851,7 +863,7 @@ void MainApp::start()
     if (settings.willsEnabled)
     {
         logger->logf(LOG_DEBUG, "Having all client in all threads send or queue their will.");
-        for(std::shared_ptr<ThreadData> &thread : threads)
+        for(ThreadDataOwner &thread : threads)
         {
             thread->queueSendWills();
         }
@@ -859,7 +871,7 @@ void MainApp::start()
     }
 
     logger->logf(LOG_DEBUG, "Having all client in all threads send a disconnect packet and initiate quit.");
-    for(std::shared_ptr<ThreadData> &thread : threads)
+    for(ThreadDataOwner &thread : threads)
     {
         thread->queueSendDisconnects();
     }
@@ -869,7 +881,7 @@ void MainApp::start()
     {
         logger->logf(LOG_DEBUG, "Waiting for our own quit event to have been queued.");
         int count = 0;
-        while(std::any_of(threads.begin(), threads.end(), [](std::shared_ptr<ThreadData> t){ return t->running; }))
+        while(std::any_of(threads.begin(), threads.end(), [](const ThreadDataOwner &t){ return t->running; }))
         {
             if (count++ >= 30000)
                 break;
@@ -880,7 +892,7 @@ void MainApp::start()
     logger->logf(LOG_DEBUG, "Waiting for threads clean-up functions to finish.");
     int count = 0;
     bool waitTimeExpired = false;
-    while(std::any_of(threads.begin(), threads.end(), [](std::shared_ptr<ThreadData> t){ return !t->finished; }))
+    while(std::any_of(threads.begin(), threads.end(), [](ThreadDataOwner &t){ return !t->finished; }))
     {
         if (count++ >= 30000)
         {
@@ -896,10 +908,10 @@ void MainApp::start()
     }
     else
     {
-        for(std::shared_ptr<ThreadData> &thread : threads)
+        for(ThreadDataOwner &thread : threads)
         {
             logger->logf(LOG_DEBUG, "Waiting for thread %d to join.", thread->threadnr);
-            thread->waitForQuit();
+            thread.waitForQuit();
         }
     }
 
@@ -1075,7 +1087,7 @@ void MainApp::loadConfig(bool reload)
 
     setlimits();
 
-    for (std::shared_ptr<ThreadData> &thread : threads)
+    for (ThreadDataOwner &thread : threads)
     {
         thread->queueReload(settings);
     }
@@ -1212,7 +1224,7 @@ void MainApp::queueCleanup()
     if (!threads.empty())
     {
         int threadnr = rand() % threads.size();
-        std::shared_ptr<ThreadData> t = threads[threadnr];
+        std::shared_ptr<ThreadData> t = threads[threadnr].getThreadData();
         t->queueRemoveExpiredSessions();
     }
 }
@@ -1222,7 +1234,7 @@ void MainApp::queuePurgeSubscriptionTree()
     if (!threads.empty())
     {
         int threadnr = rand() % threads.size();
-        std::shared_ptr<ThreadData> t = threads[threadnr];
+        std::shared_ptr<ThreadData> t = threads[threadnr].getThreadData();
         t->queuePurgeSubscriptionTree();
     }
 }

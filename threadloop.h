@@ -44,7 +44,7 @@ struct ReadyClient
     ReadyClient(uint32_t events, std::shared_ptr<Client> &&client);
 };
 
-void do_thread_work(ThreadData *threadData);
+void do_thread_work(std::shared_ptr<ThreadData> threadData);
 
 
 #endif // THREADLOOP_H

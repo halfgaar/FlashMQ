@@ -13,10 +13,7 @@ void MainTests::testSharedSubscribersUnit()
     PluginLoader pluginLoader;
     std::shared_ptr<ThreadData> t(new ThreadData(0, settings, pluginLoader));
 
-    // Kind of a hack...
-    Authentication auth(settings);
-    ThreadGlobals::assign(&auth);
-    ThreadGlobals::assignThreadData(t.get());
+    ThreadGlobals::assignThreadData(t);
 
     std::shared_ptr<Client> c1(new Client(0, t, nullptr, false, false, nullptr, settings, false));
     c1->setClientProperties(ProtocolVersion::Mqtt5, "clientid1", "user1", true, 60);

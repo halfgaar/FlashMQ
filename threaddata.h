@@ -35,8 +35,6 @@ See LICENSE for license details.
 #include "fdmanaged.h"
 #include "mutexowned.h"
 
-typedef void (*thread_f)(ThreadData *);
-
 struct KeepAliveCheck
 {
     std::weak_ptr<Client> client;
@@ -58,6 +56,26 @@ struct Clients
 {
     std::unordered_map<int, std::shared_ptr<Client>> by_fd;
     std::unordered_map<std::string, std::shared_ptr<BridgeState>> bridges;
+};
+
+struct ThreadDataOwner
+{
+    std::shared_ptr<ThreadData> td;
+    std::thread thread;
+
+    ThreadDataOwner() = delete;
+    ThreadDataOwner(const ThreadDataOwner &other) = delete;
+    ThreadDataOwner(ThreadDataOwner &&other) = default;
+    ThreadDataOwner(int threadnr, const Settings &settings, const PluginLoader &pluginLoader);
+    ~ThreadDataOwner();
+
+    ThreadDataOwner &operator=(const ThreadDataOwner &other) = delete;
+    ThreadDataOwner &operator=(ThreadDataOwner &&other) = delete;
+
+    void start();
+    void waitForQuit();
+    ThreadData *operator->() const;
+    std::shared_ptr<ThreadData> getThreadData() const;
 };
 
 class ThreadData
@@ -103,7 +121,7 @@ public:
     bool running = true;
     bool finished = false;
     bool allWillsQueued = false;
-    std::thread thread;
+    pthread_t thread_id = 0;
     int threadnr = 0;
     int taskEventFd = -1;
     int disconnectingAllEventFd = -1;
@@ -133,8 +151,6 @@ public:
 
     int getEpollFd() const { return epollfd.get(); }
 
-    void start(thread_f f);
-
     void giveClient(std::shared_ptr<Client> &&client);
     void giveBridge(std::shared_ptr<BridgeState> &bridgeState);
     void removeBridgeQueued(std::shared_ptr<BridgeConfig> bridgeConfig, const std::string &reason);
@@ -150,7 +166,6 @@ public:
     void queueReload(const Settings &settings);
     void queueDoKeepAliveCheck();
     void queueQuit();
-    void waitForQuit();
     void queuePasswdFileReload();
     void queuePublishStatsOnDollarTopic(std::vector<std::shared_ptr<ThreadData>> &threads);
     void queueSendingQueuedWills();
@@ -186,5 +201,7 @@ public:
 
     void addImmediateTask(std::function<void()> f);
 };
+
+
 
 #endif // THREADDATA_H

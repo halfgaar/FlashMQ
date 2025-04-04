@@ -17,18 +17,18 @@ class Authentication;
 
 class ThreadGlobals
 {
-    static thread_local Authentication *auth;
-    static thread_local ThreadData *threadData;
+    static thread_local std::shared_ptr<ThreadData> threadData;
     static thread_local Settings *settings;
 public:
     static void assign(Authentication *auth);
     static Authentication *getAuth();
 
-    static void assignThreadData(ThreadData *threadData);
-    static ThreadData *getThreadData();
+    static void assignThreadData(const std::shared_ptr<ThreadData> &threadData);
+    static const std::shared_ptr<ThreadData> &getThreadData();
 
     static void assignSettings(Settings *settings);
     static Settings *getSettings();
+
 };
 
 #endif // THREADGLOBALS_H

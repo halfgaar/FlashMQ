@@ -44,7 +44,7 @@ class MainApp
 
     bool started = false;
     bool running = true;
-    std::vector<std::shared_ptr<ThreadData>> threads;
+    std::vector<ThreadDataOwner> threads;
     std::shared_ptr<SubscriptionStore> subscriptionStore;
     std::unique_ptr<ConfigFileParser> confFileParser;
     int epollFdAccept = -1;

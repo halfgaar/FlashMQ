@@ -11,24 +11,10 @@ See LICENSE for license details.
 #include "threadglobals.h"
 #include <cassert>
 
-thread_local Authentication *ThreadGlobals::auth = nullptr;
-thread_local ThreadData *ThreadGlobals::threadData = nullptr;
+thread_local std::shared_ptr<ThreadData> ThreadGlobals::threadData;
 thread_local Settings *ThreadGlobals::settings = nullptr;
 
-void ThreadGlobals::assign(Authentication *auth)
-{
-#ifndef TESTING
-    assert(ThreadGlobals::auth == nullptr);
-#endif
-    ThreadGlobals::auth = auth;
-}
-
-Authentication *ThreadGlobals::getAuth()
-{
-    return auth;
-}
-
-void ThreadGlobals::assignThreadData(ThreadData *threadData)
+void ThreadGlobals::assignThreadData(const std::shared_ptr<ThreadData> &threadData)
 {
 #ifndef TESTING
     assert(ThreadGlobals::threadData == nullptr);
@@ -36,7 +22,7 @@ void ThreadGlobals::assignThreadData(ThreadData *threadData)
     ThreadGlobals::threadData = threadData;
 }
 
-ThreadData *ThreadGlobals::getThreadData()
+const std::shared_ptr<ThreadData> &ThreadGlobals::getThreadData()
 {
     return threadData;
 }
@@ -53,3 +39,4 @@ Settings *ThreadGlobals::getSettings()
 {
     return settings;
 }
+

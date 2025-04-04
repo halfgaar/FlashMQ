@@ -13,7 +13,7 @@ See LICENSE for license details.
 #include "session.h"
 #include "client.h"
 #include "threadglobals.h"
-#include "threadglobals.h"
+#include "threaddata.h"
 #include "exceptions.h"
 #include "plugin.h"
 #include "settings.h"
@@ -129,10 +129,7 @@ PacketDropReason Session::writePacket(PublishCopyFactory &copyFactory, const uin
     retainAsPublished = retainAsPublished || clientType == ClientType::Mqtt3DefactoBridge;
     bool effectiveRetain = copyFactory.getEffectiveRetain(retainAsPublished);
 
-    Authentication *auth = ThreadGlobals::getAuth();
-    assert(auth);
-
-    const AuthResult aclResult = auth->aclCheck(
+    const AuthResult aclResult = ThreadGlobals::getThreadData()->authentication.aclCheck(
         client_id, username, copyFactory.getTopic(), copyFactory.getSubtopics(), "", copyFactory.getPayload(), AclAccess::read,
         effectiveQos, effectiveRetain, copyFactory.getCorrelationData(), copyFactory.getResponseTopic(), copyFactory.getUserProperties());
 
@@ -263,7 +260,7 @@ bool Session::clearQosMessage(uint16_t packet_id, bool qosHandshakeEnds)
  */
 void Session::sendAllPendingQosData()
 {
-    Authentication &authentication = *ThreadGlobals::getAuth();
+    Authentication &authentication = ThreadGlobals::getThreadData()->authentication;
 
     std::shared_ptr<Client> c = makeSharedClient();
     if (c)

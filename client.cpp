@@ -321,7 +321,7 @@ PacketDropReason Client::writeMqttPacket(const MqttPacket &packet)
 
     if (packet.packetType == PacketType::PUBLISH)
     {
-        ThreadData *td = ThreadGlobals::getThreadData();
+        ThreadData *td = ThreadGlobals::getThreadData().get();
         td->sentMessageCounter.inc();
     }
     else if (packet.packetType == PacketType::DISCONNECT)
@@ -953,7 +953,7 @@ void Client::setDisconnectReason(const std::string &reason)
     auto td = this->threadData.lock();
     if (td)
     {
-        assert(pthread_self() == td->thread.native_handle());
+        assert(pthread_self() == td->thread_id);
     }
 #endif
 #endif

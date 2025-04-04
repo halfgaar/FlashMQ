@@ -308,7 +308,7 @@ void Logger::writeLog()
 std::string Logger::getPrefix(int level)
 {
     int threadnr = -1;
-    const ThreadData *td = ThreadGlobals::getThreadData();
+    const std::shared_ptr<ThreadData> td = ThreadGlobals::getThreadData();
     if (td)
         threadnr = td->threadnr;
 

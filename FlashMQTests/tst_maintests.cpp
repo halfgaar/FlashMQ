@@ -964,11 +964,6 @@ void MainTests::testSavingSessions()
         std::shared_ptr<SubscriptionStore> store(new SubscriptionStore());
         std::shared_ptr<ThreadData> t(new ThreadData(0, settings, pluginLoader));
 
-        // Kind of a hack...
-        Authentication auth(settings);
-        ThreadGlobals::assign(&auth);
-        ThreadGlobals::assignThreadData(t.get());
-
         std::shared_ptr<Client> c1(new Client(0, t, nullptr, false, false, nullptr, settings, false));
         c1->setClientProperties(ProtocolVersion::Mqtt5, "c1", "user1", true, 60);
         store->registerClientAndKickExistingOne(c1, false, 512, 120);
@@ -1127,10 +1122,6 @@ void MainTests::testParsePacketHelper(const std::string &topic, uint8_t from_qos
     PluginLoader pluginLoader;
     std::shared_ptr<ThreadData> t(new ThreadData(0, settings, pluginLoader));
 
-    // Kind of a hack...
-    Authentication auth(settings);
-    ThreadGlobals::assign(&auth);
-
     std::shared_ptr<Client> dummyClient(new Client(0, t, nullptr, false, false, nullptr, settings, false));
     dummyClient->setClientProperties(ProtocolVersion::Mqtt311, "qostestclient", "user1", true, 60);
     store->registerClientAndKickExistingOne(dummyClient, false, 512, 120);
@@ -1198,10 +1189,6 @@ void MainTests::testbufferToMqttPacketsFuzz()
     std::shared_ptr<SubscriptionStore> store(new SubscriptionStore());
     PluginLoader pluginLoader;
     std::shared_ptr<ThreadData> t(new ThreadData(0, settings, pluginLoader));
-
-    // Kind of a hack...
-    Authentication auth(settings);
-    ThreadGlobals::assign(&auth);
 
     settings.maxPacketSize = 32768;
 

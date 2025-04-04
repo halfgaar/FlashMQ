@@ -22,9 +22,10 @@ class MainTests
 {
     friend class TestInitializer;
 
-    std::unique_ptr<MainAppInThread> mainApp;
     std::shared_ptr<ThreadData> dummyThreadData;
+    std::unique_ptr<MainAppInThread> mainApp;
     Settings settings;
+    PluginLoader pluginLoader;
 
     std::map<std::string, TestFunction> testFunctions;
 

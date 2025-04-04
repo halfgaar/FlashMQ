@@ -19,6 +19,7 @@ See LICENSE for license details.
 #include "utils.h"
 #include "client.h"
 #include "threaddata.h"
+#include "threadglobals.h"
 
 #define TEST_CLIENT_MAX_EVENTS 25
 
@@ -31,10 +32,8 @@ void FlashMQTestClient::ReceivedObjects::clear()
 }
 
 FlashMQTestClient::FlashMQTestClient() :
-    testServerWorkerThreadData(std::make_shared<ThreadData>(0, settings, pluginLoader)),
-    dummyThreadData(std::make_shared<ThreadData>(666, settings, pluginLoader))
+    testServerWorkerThreadData(0, settings, pluginLoader)
 {
-
 }
 
 /**
@@ -88,7 +87,7 @@ void FlashMQTestClient::disconnect(ReasonCodes reason)
 
 void FlashMQTestClient::start()
 {
-    testServerWorkerThreadData->start(&do_thread_work);
+    testServerWorkerThreadData.start();
 }
 
 void FlashMQTestClient::connectClient(ProtocolVersion protocolVersion, int port, bool _waitForConnack)
@@ -127,7 +126,8 @@ void FlashMQTestClient::connectClient(ProtocolVersion protocolVersion, bool clea
 
     const std::string clientid = formatString("testclient_%d", clientCount++);
 
-    std::shared_ptr<Client> client = std::make_shared<Client>(sockfd, testServerWorkerThreadData, nullptr, false, false, reinterpret_cast<struct sockaddr*>(&servaddr), settings);
+    std::shared_ptr<Client> client = std::make_shared<Client>(
+        sockfd, testServerWorkerThreadData.getThreadData(), nullptr, false, false, reinterpret_cast<struct sockaddr*>(&servaddr), settings);
     this->client_weak = client;
     client->setClientProperties(protocolVersion, clientid, "user", false, 60);
 
@@ -332,7 +332,7 @@ void FlashMQTestClient::publish(const std::string &topic, const std::string &pay
 void FlashMQTestClient::waitForQuit()
 {
     testServerWorkerThreadData->queueQuit();
-    testServerWorkerThreadData->waitForQuit();
+    testServerWorkerThreadData.waitForQuit();
 }
 
 void FlashMQTestClient::waitForConnack()

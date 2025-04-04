@@ -407,7 +407,7 @@ void SubscriptionStore::sendWill(const std::shared_ptr<WillPublish> will, const 
 
     logger->log(LOG_DEBUG) << log << " " << will->topic;
 
-    Authentication &auth = *ThreadGlobals::getAuth();
+    Authentication &auth = ThreadGlobals::getThreadData()->authentication;
     const AuthResult authResult = auth.aclCheck(*will, will->payload, AclAccess::write);
 
     if (authResult == AuthResult::success || authResult == AuthResult::success_without_setting_retained)
@@ -676,7 +676,7 @@ void SubscriptionStore::giveClientRetainedMessagesRecursively(std::vector<std::s
 
     if (cur_subtopic_it == end)
     {
-        Authentication &auth = *ThreadGlobals::getAuth();
+        Authentication &auth = ThreadGlobals::getThreadData()->authentication;
 
         std::lock_guard<std::mutex> locker(this_node->messageSetMutex);
 
@@ -843,7 +843,7 @@ void SubscriptionStore::giveClientRetainedMessagesInitiateDeferred(const std::we
 
     if (!deferred->empty() && ++requeue_count < 100 && total_node_count < settings->retainedMessagesNodeLimit)
     {
-        ThreadData *t = ThreadGlobals::getThreadData();
+        ThreadData *t = ThreadGlobals::getThreadData().get();
         auto again = std::bind(&SubscriptionStore::giveClientRetainedMessagesInitiateDeferred, this,
                                ses, subscribeSubtopicsCopy, deferred, requeue_count, total_node_count, max_qos, subscription_identifier);
 
@@ -909,7 +909,7 @@ void SubscriptionStore::trySetRetainedMessages(const Publish &publish, const std
     const Settings *settings = ThreadGlobals::getSettings();
     const bool try_lock_fail = settings->setRetainedMessageDeferTimeout.count() != 0;
 
-    ThreadData *td = ThreadGlobals::getThreadData();
+    ThreadData *td = ThreadGlobals::getThreadData().get();
 
     if (!td)
         return;

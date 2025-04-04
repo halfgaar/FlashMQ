@@ -17,6 +17,7 @@ See LICENSE for license details.
 #include "subscriptionstore.h"
 #include "mainapp.h"
 #include "utils.h"
+#include "threadloop.h"
 
 KeepAliveCheck::KeepAliveCheck(const std::shared_ptr<Client> client) :
     client(client)
@@ -73,35 +74,6 @@ ThreadData::~ThreadData()
         disconnectingAllEventFd = -1;
     }
 
-}
-
-void ThreadData::start(thread_f f)
-{
-    this->thread = std::thread(f, this);
-
-    pthread_t native = this->thread.native_handle();
-    std::ostringstream threadName;
-    threadName << "FlashMQ T " << threadnr;
-    threadName.flush();
-    std::string name = threadName.str();
-    const char *c_str = name.c_str();
-    pthread_setname_np(native, c_str);
-
-    /*
-    cpu_set_t cpuset;
-    CPU_ZERO(&cpuset);
-    CPU_SET(threadnr, &cpuset);
-    check<std::runtime_error>(pthread_setaffinity_np(native, sizeof(cpuset), &cpuset));
-
-    // It's not really necessary to get affinity again, but now I'm logging truth instead assumption.
-    check<std::runtime_error>(pthread_getaffinity_np(native, sizeof(cpuset), &cpuset));
-    int pinned_cpu = -1;
-    for (int j = 0; j < CPU_SETSIZE; j++)
-        if (CPU_ISSET(j, &cpuset))
-            pinned_cpu = j;
-
-    logger->logf(LOG_NOTICE, "Thread '%s' pinned to CPU %d", c_str, pinned_cpu);
-    */
 }
 
 void ThreadData::quit()
@@ -206,7 +178,7 @@ void ThreadData::queueClientNextKeepAliveCheck(std::shared_ptr<Client> &client, 
  */
 void ThreadData::continuationOfAuthentication(std::shared_ptr<Client> &client, AuthResult authResult, const std::string &authMethod, const std::string &returnData)
 {
-    assert(pthread_self() == thread.native_handle());
+    assert(pthread_self() == thread_id);
 
     std::shared_ptr<SubscriptionStore> subscriptionStore = MainApp::getMainApp()->getSubscriptionStore();
 
@@ -626,7 +598,7 @@ void ThreadData::publishBridgeState(std::shared_ptr<BridgeState> bridge, bool co
 
 void ThreadData::queueSettingRetainedMessage(const Publish &p, const std::vector<std::string> &subtopics, const std::chrono::time_point<std::chrono::steady_clock> limit)
 {
-    assert(pthread_self() == thread.native_handle());
+    assert(pthread_self() == thread_id);
     const bool wakeup_required = this->queuedRetainedMessages.empty();
     this->queuedRetainedMessages.emplace_front(p, subtopics, limit);
     this->deferredRetainedMessagesSet.inc(1);
@@ -950,7 +922,7 @@ void ThreadData::removeClientQueued(const std::shared_ptr<Client> &client)
 {
     // This is for same-thread calling, to avoid the calling thread to be slower and ending up with
     // the last reference on the shared pointer to client.
-    assert(pthread_self() == thread.native_handle());
+    assert(pthread_self() == thread_id);
 
     bool wakeUpNeeded = true;
 
@@ -1006,7 +978,7 @@ void ThreadData::removeClientQueued(int fd)
 void ThreadData::removeClient(std::shared_ptr<Client> client)
 {
     // This function is only for same-thread calling.
-    assert(pthread_self() == thread.native_handle());
+    assert(pthread_self() == thread_id);
 
     if (!client)
         return;
@@ -1082,12 +1054,6 @@ void ThreadData::queueQuit()
     authentication.setQuitting();
 
     wakeUpThread();
-}
-
-void ThreadData::waitForQuit()
-{
-    if (thread.joinable())
-        thread.join();
 }
 
 void ThreadData::queuePasswdFileReload()
@@ -1349,6 +1315,43 @@ void ThreadData::wakeUpThread()
 }
 
 
+ThreadDataOwner::ThreadDataOwner(int threadnr, const Settings &settings, const PluginLoader &pluginLoader) :
+    td(std::make_shared<ThreadData>(threadnr, settings, pluginLoader))
+{
 
+}
 
+ThreadDataOwner::~ThreadDataOwner()
+{
+    waitForQuit();
+}
 
+void ThreadDataOwner::start()
+{
+    this->thread = std::thread(&do_thread_work, td);
+
+    pthread_t native = this->thread.native_handle();
+    td->thread_id = native;
+    std::ostringstream threadName;
+    threadName << "FlashMQ T " << td->threadnr;
+    threadName.flush();
+    std::string name = threadName.str();
+    const char *c_str = name.c_str();
+    pthread_setname_np(native, c_str);
+}
+
+void ThreadDataOwner::waitForQuit()
+{
+    if (thread.joinable())
+        thread.join();
+}
+
+ThreadData *ThreadDataOwner::operator->() const
+{
+    return td.get();
+}
+
+std::shared_ptr<ThreadData> ThreadDataOwner::getThreadData() const
+{
+    return td;
+}

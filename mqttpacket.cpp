@@ -1040,9 +1040,9 @@ void MqttPacket::handleConnect(std::shared_ptr<Client> &sender)
 
     std::shared_ptr<SubscriptionStore> subscriptionStore = MainApp::getMainApp()->getSubscriptionStore();
 
-    Authentication &authentication = *ThreadGlobals::getAuth();
+    Authentication &authentication = ThreadGlobals::getThreadData()->authentication;
 
-    ThreadData *threadData = ThreadGlobals::getThreadData();
+    ThreadData *threadData = ThreadGlobals::getThreadData().get();
     threadData->mqttConnectCounter.inc();
 
     ConnectData connectData = parseConnectData(sender);
@@ -1405,8 +1405,7 @@ void MqttPacket::handleExtendedAuth(std::shared_ptr<Client> &sender)
         throw ProtocolError("Trying to reauth when client was not authenticated.", ReasonCodes::ProtocolError);
     }
 
-    Authentication &authentication = *ThreadGlobals::getAuth();
-    ThreadData *threadData = ThreadGlobals::getThreadData();
+    Authentication &authentication = ThreadGlobals::getThreadData()->authentication;
 
     std::string returnData;
     const AuthResult authResult = authentication.extendedAuth(sender->getClientId(), authStage, data.method, data.data,
@@ -1414,7 +1413,7 @@ void MqttPacket::handleExtendedAuth(std::shared_ptr<Client> &sender)
 
     if (authResult != AuthResult::async)
     {
-        threadData->continuationOfAuthentication(sender, authResult, data.method, returnData);
+        ThreadGlobals::getThreadData()->continuationOfAuthentication(sender, authResult, data.method, returnData);
     }
     else
     {
@@ -1589,7 +1588,7 @@ void MqttPacket::handleSubscribe(std::shared_ptr<Client> &sender)
         }
     }
 
-    Authentication &authentication = *ThreadGlobals::getAuth();
+    Authentication &authentication = ThreadGlobals::getThreadData()->authentication;
 
     std::forward_list<SubscriptionTuple> deferredSubscribes;
 
@@ -1808,8 +1807,8 @@ void MqttPacket::handleUnsubscribe(std::shared_ptr<Client> &sender)
 
         MainApp::getMainApp()->getSubscriptionStore()->removeSubscription(session, subtopics, shareName);
 
-        const Authentication *auth = ThreadGlobals::getAuth();
-        auth->onUnsubscribe(session, sender->getClientId(), sender->getUsername(), topic_without_sharename, subtopics, shareName, getUserProperties());
+        const Authentication &auth = ThreadGlobals::getThreadData()->authentication;
+        auth.onUnsubscribe(session, sender->getClientId(), sender->getUsername(), topic_without_sharename, subtopics, shareName, getUserProperties());
 
         logger->logf(LOG_UNSUBSCRIBE, "Client '%s' unsubscribed from '%s'", sender->repr().c_str(), topic.c_str());
     }
@@ -2033,7 +2032,7 @@ void MqttPacket::handlePublish(std::shared_ptr<Client> &sender)
         }
     }
 
-    Authentication &authentication = *ThreadGlobals::getAuth();
+    Authentication &authentication = ThreadGlobals::getThreadData()->authentication;
     const Settings *settings = ThreadGlobals::getSettings();
 
     // Working with a local copy because the subscribing action will modify this->packet_id. See the PublishCopyFactory.
