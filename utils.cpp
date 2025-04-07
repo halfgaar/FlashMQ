@@ -315,8 +315,19 @@ bool parseHttpHeader(CirBuf &buf, std::string &websocket_key, int &websocket_ver
         trim(value);
         std::string value_lower = str_tolower(value);
 
-        if (name == "upgrade" && value_lower == "websocket")
-            upgradeHeaderSeen = true;
+        if (name == "upgrade")
+        {
+            std::vector<std::string> protocols = splitToVector(value_lower, ',');
+            for (std::string &prot : protocols)
+            {
+                trim(prot);
+
+                if (prot == "websocket")
+                {
+                    upgradeHeaderSeen = true;
+                }
+            }
+        }
         else if (name == "connection" && strContains(value_lower, "upgrade"))
             connectionHeaderSeen = true;
         else if (name == "sec-websocket-key")
