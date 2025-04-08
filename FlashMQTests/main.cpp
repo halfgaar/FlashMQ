@@ -1,3 +1,4 @@
+#include <csignal>
 #include <iostream>
 #include <vector>
 
@@ -9,8 +10,15 @@ void printHelp(const std::string &arg0)
     std::cout << "Usage: " << arg0 << " [ --skip-tests-with-internet ] [ --skip-server-tests ] " << " <tests> " << std::endl;
 }
 
+void signal_noop(int signal)
+{
+    std::cout << "Signal NoOP (if you used save-core-on-sigvtalrm.gdb a core dump will now be created)" << std::endl;
+}
+
 int main(int argc, char *argv[])
 {
+    std::signal(SIGVTALRM, signal_noop);
+
     bool skip_tests_with_internet = false;
     bool skip_server_tests = false;
     std::vector<std::string> tests;
