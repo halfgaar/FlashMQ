@@ -370,7 +370,7 @@ void MainTests::test_retained_removed()
 
     sender.connectClient(ProtocolVersion::Mqtt311);
 
-    Publish pub1(topic, payload, 0);
+    Publish pub1(topic, payload, 1);
     pub1.retain = true;
     sender.publish(pub1);
 
