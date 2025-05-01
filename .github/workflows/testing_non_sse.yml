@@ -5,6 +5,14 @@ jobs:
     strategy:
       matrix:
         include:
+          - os: ubuntu-24.04
+            friendly: clang
+            compiler: clang++
+            aptpkg: clang
+          - os: ubuntu-24.04
+            friendly: gcc
+            compiler: g++
+            aptpkg: build-essential
           - os: ubuntu-22.04
             friendly: clang
             compiler: clang++
