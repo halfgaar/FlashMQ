@@ -13,6 +13,7 @@ See LICENSE for license details.
 
 #define MAX_EVENTS 65536
 
+#include <cstdint>
 #include <vector>
 #include "forward_declarations.h"
 
