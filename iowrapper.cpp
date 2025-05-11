@@ -22,6 +22,7 @@ See LICENSE for license details.
 #include "exceptions.h"
 #include "threadglobals.h"
 #include "settings.h"
+#include "http.h"
 
 IncompleteSslWrite::IncompleteSslWrite(size_t nbytes) :
     valid(true),
