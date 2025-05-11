@@ -522,8 +522,11 @@ std::string formatString(const std::string str, ...)
 
     va_list valist;
     va_start(valist, str);
-    vsnprintf(buf, bufsize, str.c_str(), valist);
+    int rc = vsnprintf(buf, bufsize, str.c_str(), valist);
     va_end(valist);
+
+    if (rc < 0)
+        return std::string();
 
     size_t len = std::min<size_t>(strlen(buf), bufsize);
     std::string result(buf, len);

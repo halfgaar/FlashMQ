@@ -358,10 +358,13 @@ void Logger::logf(int level, const char *str, va_list valist)
 
     va_list valist2;
     va_copy(valist2, valist);
-    vsnprintf(buf, buf_size, logfmtstring, valist2);
+
+    const int rc = vsnprintf(buf, buf_size, logfmtstring, valist2);
+    va_end(valist2);
+    if (rc < 0)
+        return;
     size_t len = std::min<size_t>(buf_size, strlen(buf));
     LogLine line(buf, len, alsoLogToStd);
-    va_end(valist2);
 
     {
         std::lock_guard<std::mutex> locker(logMutex);
