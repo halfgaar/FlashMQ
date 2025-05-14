@@ -163,6 +163,7 @@ bool containsDangerousCharacters(const std::string &s);
 
 void ltrim(std::string &s);
 void rtrim(std::string &s);
+void rtrim(std::string &s, char c);
 void trim(std::string &s);
 bool startsWith(const std::string &s, const std::string &needle);
 bool endsWith(const std::string &s, const std::string &ending);

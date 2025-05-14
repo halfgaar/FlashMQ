@@ -187,6 +187,13 @@ void rtrim(std::string &s)
     }).base(), s.end());
 }
 
+void rtrim(std::string &s, char c)
+{
+    s.erase(std::find_if(s.rbegin(), s.rend(), [c](unsigned char ch) {
+        return c != ch;
+    }).base(), s.end());
+}
+
 void trim(std::string &s)
 {
     ltrim(s);

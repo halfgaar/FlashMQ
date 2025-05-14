@@ -75,7 +75,7 @@ void MainTests::testWebsocketPing()
         int flags = fcntl(listen_socket, F_GETFL);
         check<std::runtime_error>(fcntl(client_socket, F_SETFL, flags | O_NONBLOCK ));
 
-        std::shared_ptr<Client> c1(new Client(ClientType::Normal, client_socket, t, nullptr, true, false, nullptr, settings, false));
+        std::shared_ptr<Client> c1(new Client(ClientType::Normal, client_socket, t, nullptr, ConnectionProtocol::WebsocketMqtt, false, nullptr, settings, false));
         std::shared_ptr<Client> client = c1;
         t->giveClient(std::move(c1));
 
@@ -253,7 +253,7 @@ void MainTests::testWebsocketCorruptLengthFrame()
         int flags = fcntl(listen_socket, F_GETFL);
         check<std::runtime_error>(fcntl(client_socket, F_SETFL, flags | O_NONBLOCK ));
 
-        std::shared_ptr<Client> c1(new Client(ClientType::Normal, client_socket, t, nullptr, true, false, nullptr, settings, false));
+        std::shared_ptr<Client> c1(new Client(ClientType::Normal, client_socket, t, nullptr, ConnectionProtocol::WebsocketMqtt, false, nullptr, settings, false));
         std::shared_ptr<Client> client = c1;
         t->giveClient(std::move(c1));
 
@@ -380,7 +380,7 @@ void MainTests::testWebsocketHugePing()
         int flags = fcntl(listen_socket, F_GETFL);
         check<std::runtime_error>(fcntl(client_socket, F_SETFL, flags | O_NONBLOCK ));
 
-        std::shared_ptr<Client> c1(new Client(ClientType::Normal, client_socket, t, nullptr, true, false, nullptr, settings, false));
+        std::shared_ptr<Client> c1(new Client(ClientType::Normal, client_socket, t, nullptr, ConnectionProtocol::WebsocketMqtt, false, nullptr, settings, false));
         std::shared_ptr<Client> client = c1;
         t->giveClient(std::move(c1));
 
@@ -500,7 +500,7 @@ void MainTests::testWebsocketManyBigPingFrames()
         int flags = fcntl(listen_socket, F_GETFL);
         check<std::runtime_error>(fcntl(client_socket, F_SETFL, flags | O_NONBLOCK ));
 
-        std::shared_ptr<Client> c1(new Client(ClientType::Normal, client_socket, t, nullptr, true, false, nullptr, settings, false));
+        std::shared_ptr<Client> c1(new Client(ClientType::Normal, client_socket, t, nullptr, ConnectionProtocol::WebsocketMqtt, false, nullptr, settings, false));
         std::shared_ptr<Client> client = c1;
         t->giveClient(std::move(c1));
 
@@ -646,7 +646,7 @@ void MainTests::testWebsocketClose()
         int flags = fcntl(listen_socket, F_GETFL);
         check<std::runtime_error>(fcntl(client_socket, F_SETFL, flags | O_NONBLOCK ));
 
-        std::shared_ptr<Client> c1(new Client(ClientType::Normal, client_socket, t, nullptr, true, false, nullptr, settings, false));
+        std::shared_ptr<Client> c1(new Client(ClientType::Normal, client_socket, t, nullptr, ConnectionProtocol::WebsocketMqtt, false, nullptr, settings, false));
         std::shared_ptr<Client> client = c1;
         t->giveClient(std::move(c1));
 

@@ -250,6 +250,7 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validListenKeys.insert("tcp_nodelay");
     validListenKeys.insert("minimum_tls_version");
     validListenKeys.insert("overload_mode");
+    validListenKeys.insert("acme_redirect_url");
 
     validBridgeKeys.insert("local_username");
     validBridgeKeys.insert("remote_username");
@@ -479,9 +480,15 @@ void ConfigFileParser::loadFile(bool test)
             {
                 if (testKeyValidity(key, "protocol", validListenKeys))
                 {
-                    if (value != "mqtt" && value != "websockets")
+                    if (value != "mqtt" && value != "websockets" && value != "acme")
                         throw ConfigFileException(formatString("Protocol '%s' is not a valid listener protocol", value.c_str()));
-                    curListener->websocket = value == "websockets";
+
+                    if (value == "mqtt")
+                        curListener->connectionProtocol = ConnectionProtocol::Mqtt;
+                    else if (value == "websockets")
+                        curListener->connectionProtocol = ConnectionProtocol::WebsocketMqtt;
+                    else if (value == "acme")
+                        curListener->connectionProtocol = ConnectionProtocol::AcmeOnly;
                 }
                 else if (testKeyValidity(key, "port", validListenKeys))
                 {
@@ -573,6 +580,10 @@ void ConfigFileParser::loadFile(bool test)
                         curListener->overloadMode = OverloadMode::CloseNewClients;
                     else
                         throw ConfigFileException(formatString("Value '%s' for '%s' is invalid.", value.c_str(), key.c_str()));
+                }
+                if (testKeyValidity(key, "acme_redirect_url", validListenKeys))
+                {
+                    curListener->acmeRedirectURL = valueTrimmed;
                 }
 
                 testCorrectNumberOfValues(key, number_of_expected_values, values);

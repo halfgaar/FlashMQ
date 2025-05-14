@@ -39,7 +39,7 @@ struct Listener
     std::string inet6BindAddress;
     std::string unixSocketPath;
     int port = 0;
-    bool websocket = false;
+    ConnectionProtocol connectionProtocol = ConnectionProtocol::Mqtt;
     bool tcpNoDelay = false;
     bool haproxy = false;
     std::string sslFullchain;
@@ -49,6 +49,7 @@ struct Listener
     bool clientVerifictionStillDoAuthn = false;
     std::unique_ptr<SslCtxManager> sslctx;
     AllowListenerAnonymous allowAnonymous = AllowListenerAnonymous::None;
+    std::optional<std::string> acmeRedirectURL;
     TLSVersion minimumTlsVersion = TLSVersion::TLSv1_1;
     std::optional<OverloadMode> overloadMode;
 

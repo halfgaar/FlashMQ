@@ -66,12 +66,12 @@ IncompleteWebsocketRead::IncompleteWebsocketRead()
     reset();
 }
 
-IoWrapper::IoWrapper(SSL *ssl, bool websocket, const size_t initialBufferSize, Client *parent) :
+IoWrapper::IoWrapper(SSL *ssl, ConnectionProtocol connectionProtocol, const size_t initialBufferSize, Client *parent) :
     parentClient(parent),
     ssl(ssl),
-    websocket(websocket),
-    websocketPendingBytes(websocket ? initialBufferSize : 0),
-    websocketWriteRemainder(websocket ? initialBufferSize : 0)
+    connectionProtocol(connectionProtocol),
+    websocketPendingBytes(connectionProtocol == ConnectionProtocol::WebsocketMqtt ? initialBufferSize : 0),
+    websocketWriteRemainder(connectionProtocol == ConnectionProtocol::WebsocketMqtt ? initialBufferSize : 0)
 {
 
 }
@@ -269,15 +269,10 @@ bool IoWrapper::hasProcessedBufferedBytesToRead() const
      * Note that this is tecnhically not 100% correct. If the only bytes are part of a header, doing a read will actually
      * result in 0 bytes. But, for the intended purpose at time of writing (see git), we can get away with this.
      */
-    if (websocket)
+    if (connectionProtocol == ConnectionProtocol::WebsocketMqtt)
         result |= websocketPendingBytes.usedBytes() > 0;
 
     return result;
-}
-
-bool IoWrapper::isWebsocket() const
-{
-    return websocket;
 }
 
 WebsocketState IoWrapper::getWebsocketState() const
@@ -606,7 +601,7 @@ ssize_t IoWrapper::writeOrSslWrite(int fd, const void *buf, size_t nbytes, IoWra
  */
 ssize_t IoWrapper::readWebsocketAndOrSsl(int fd, void *buf, size_t nbytes, IoWrapResult *error)
 {
-    if (!websocket)
+    if (connectionProtocol < ConnectionProtocol::WebsocketMqtt)
     {
         return readOrSslRead(fd, buf, nbytes, error);
     }
@@ -662,33 +657,42 @@ ssize_t IoWrapper::readWebsocketAndOrSsl(int fd, void *buf, size_t nbytes, IoWra
     {
         try
         {
-            std::string websocketKey;
-            int websocketVersion;
-            std::string subprotocol;
-            std::string xRealIp;
+            std::optional<HttpRequest> req = parseHttpHeader(websocketPendingBytes);
 
-            if (!parseHttpHeader(websocketPendingBytes, websocketKey, websocketVersion, subprotocol, xRealIp))
+            if (!req)
                 return 0;
 
-            if (websocketKey.empty())
+            const HttpRequest::Data &req_data = req.value().value();
+
+            if (parentClient->getAcmeRedirectUrl() && startsWith(req_data.request, "/.well-known/acme-challenge/"))
+            {
+                parentClient->respondWithRedirectURL(req_data.request);
+                return 0;
+            }
+
+            if (!req_data.connectionUpgrade || !req_data.upgrade)
+                throw BadHttpRequest("HTTP request is not a websocket upgrade request.");
+            if (!req_data.subprotocol)
+                throw BadHttpRequest("HTTP header Sec-WebSocket-Protocol with value 'mqtt' must be present.");
+            if (!req_data.websocketKey)
                 throw BadHttpRequest("No websocket key specified.");
-            if (websocketVersion != 13)
+            if (req_data.websocketVersion != 13)
                 throw BadWebsocketVersionException("Websocket version 13 required.");
 
-            const std::string acceptString = generateWebsocketAcceptString(websocketKey);
+            const std::string acceptString = generateWebsocketAcceptString(req_data.websocketKey.value());
 
             const Settings *settings = ThreadGlobals::getSettings();
             const size_t initialBufferSize = settings->clientInitialBufferSize;
 
-            std::string answer = generateWebsocketAnswer(acceptString, subprotocol);
+            std::string answer = generateWebsocketAnswer(acceptString, req_data.subprotocol.value());
             parentClient->writeText(answer);
             websocketState = WebsocketState::Upgrading;
             websocketPendingBytes.reset();
             websocketPendingBytes.resetSize(initialBufferSize);
             *error = IoWrapResult::Success;
 
-            if (!xRealIp.empty())
-                parentClient->setAddr(xRealIp);
+            if (req_data.xRealIp)
+                parentClient->setAddr(req_data.xRealIp.value());
 
             return 0;
         }
@@ -1017,7 +1021,7 @@ ssize_t IoWrapper::writeWebsocketAndOrSsl(int fd, const void *buf, size_t nbytes
 {
     if (websocketState != WebsocketState::Upgraded)
     {
-        if (websocket && websocketState == WebsocketState::Upgrading)
+        if (connectionProtocol == ConnectionProtocol::WebsocketMqtt && websocketState == WebsocketState::Upgrading)
             websocketState = WebsocketState::Upgraded;
 
         return writeOrSslWrite(fd, buf, nbytes, error);
@@ -1045,7 +1049,7 @@ void IoWrapper::resetBuffersIfEligible()
     const Settings *settings = ThreadGlobals::getSettings();
     const size_t initialBufferSize = settings->clientInitialBufferSize;
 
-    const size_t sz = websocket ? initialBufferSize : 0;
+    const size_t sz = connectionProtocol == ConnectionProtocol::WebsocketMqtt ? initialBufferSize : 0;
     websocketPendingBytes.resetSizeIfEligable(sz),
     websocketWriteRemainder.resetSizeIfEligable(sz);
 }

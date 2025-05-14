@@ -61,40 +61,86 @@ std::string generateWebsocketAnswer(const std::string &acceptString, const std::
     return oss.str();
 }
 
-bool parseHttpHeader(CirBuf &buf, std::string &websocket_key, int &websocket_version, std::string &subprotocol, std::string &xRealIp)
+std::string generateRedirect(const std::string &location)
 {
-    std::vector<char> buf_data = buf.peekAllToVector();
+    const std::string text("Redirecting ACME request.");
 
-    const std::string s(buf_data.data(), buf_data.size());
-    std::istringstream is(s);
-    bool doubleEmptyLine = false; // meaning, the HTTP header is complete
-    bool upgradeHeaderSeen = false;
-    bool connectionHeaderSeen = false;
-    bool firstLine = true;
-    bool subprotocol_seen = false;
+    std::ostringstream oss;
+    oss << "HTTP/1.1 301 Redirect\r\n";
+    oss << "Content-Type: text/plain\r\n";
+    oss << "Content-Length: " << text.size() << "\r\n";
+    oss << "Location: " << location << "\r\n";
+    oss << "\r\n";
+    oss << text;
+    oss.flush();
+    return oss.str();
+}
 
-    std::string line;
-    while (std::getline(is, line))
+std::optional<HttpRequest> parseHttpHeader(CirBuf &buf)
+{
+    if (buf.usedBytes() >= 16384)
     {
-        trim(line);
+        return BadHttpRequest("Too much data for HTTP request");
+    }
+
+    HttpRequest::Data result;
+    std::vector<std::string> lines;
+
+    {
+        bool doubleEmptyLine = false; // meaning, the HTTP header is complete
+
+        const std::vector<char> buf_data = buf.peekAllToVector();
+
+        const std::string beginning(buf_data.data(), std::min<size_t>(4, buf_data.size()));
+
+        if (buf_data.size() >= 4 && beginning != "GET ")
+        {
+            return BadHttpRequest("HTTP request should start with GET.");
+        }
+
+        const std::string s(buf_data.data(), buf_data.size());
+        std::istringstream is(s);
+        for (std::string line; std::getline(is, line);)
+        {
+            trim(line);
+
+            if (line.empty())
+            {
+                doubleEmptyLine = true;
+                break;
+            }
+
+            lines.push_back(line);
+        }
+
+        if (!doubleEmptyLine)
+            return {};
+    }
+
+    bool firstLine = true;
+
+    for (const std::string &line : lines)
+    {
         if (firstLine)
         {
             firstLine = false;
             if (!startsWith(line, "GET"))
-                throw BadHttpRequest("Websocket request should start with GET.");
+                return BadHttpRequest("HTTP request should start with GET.");
+
+            const std::vector<std::string> fields = splitToVector(line, ' ', std::numeric_limits<size_t>::max(), false);
+
+            if (fields.size() != 3)
+                return BadHttpRequest("HTTP request should include three fields.");
+
+            result.request = fields.at(1);
             continue;
-        }
-        if (line.empty())
-        {
-            doubleEmptyLine = true;
-            break;
         }
 
         std::list<std::string> fields = split(line, ':', 1);
 
         if (fields.size() != 2)
         {
-            throw BadHttpRequest("This does not look like a HTTP request.");
+            return BadHttpRequest("This does not look like a HTTP request.");
         }
 
         const std::vector<std::string> fields2(fields.begin(), fields.end());
@@ -113,16 +159,16 @@ bool parseHttpHeader(CirBuf &buf, std::string &websocket_key, int &websocket_ver
 
                 if (prot == "websocket")
                 {
-                    upgradeHeaderSeen = true;
+                    result.upgrade = true;
                 }
             }
         }
         else if (name == "connection" && strContains(value_lower, "upgrade"))
-            connectionHeaderSeen = true;
+            result.connectionUpgrade = true;
         else if (name == "sec-websocket-key")
-            websocket_key = value;
+            result.websocketKey = value;
         else if (name == "sec-websocket-version")
-            websocket_version = stoi(value);
+            result.websocketVersion = stoi(value);
         else if (name == "sec-websocket-protocol" && strContains(value_lower, "mqtt"))
         {
             std::vector<std::string> protocols = splitToVector(value, ',');
@@ -134,26 +180,17 @@ bool parseHttpHeader(CirBuf &buf, std::string &websocket_key, int &websocket_ver
                 // Return what is requested, which can be 'mqttv3.1' or 'mqtt', or whatever variant.
                 if (strContains(str_tolower(prot), "mqtt"))
                 {
-                    subprotocol = prot;
-                    subprotocol_seen = true;
+                    result.subprotocol = prot;
                 }
             }
         }
         else if (name == "x-real-ip" && value.length() < 64)
         {
-            xRealIp = value;
+            result.xRealIp = value;
         }
     }
 
-    if (doubleEmptyLine)
-    {
-        if (!connectionHeaderSeen || !upgradeHeaderSeen)
-            throw BadHttpRequest("HTTP request is not a websocket upgrade request.");
-        if (!subprotocol_seen)
-            throw BadHttpRequest("HTTP header Sec-WebSocket-Protocol with value 'mqtt' must be present.");
-    }
-
-    return doubleEmptyLine;
+    return result;
 }
 
 std::string websocketCloseCodeToString(uint16_t code)
@@ -169,3 +206,28 @@ std::string websocketCloseCodeToString(uint16_t code)
 }
 
 
+
+HttpRequest::HttpRequest(const Data &data) :
+    d(data)
+{
+
+}
+
+HttpRequest::HttpRequest(BadHttpRequest &&other) :
+    e(std::move(other))
+{
+
+}
+
+const HttpRequest::Data &HttpRequest::value()
+{
+    if (e)
+        throw *e;
+
+    return d;
+}
+
+HttpRequest::operator bool() const
+{
+    return (!e);
+}

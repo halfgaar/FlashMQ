@@ -23,6 +23,7 @@ See LICENSE for license details.
 #include "cirbuf.h"
 #include "x509manager.h"
 #include "fmqsockaddr.h"
+#include "enums.h"
 
 #define WEBSOCKET_MIN_HEADER_BYTES_NEEDED 2
 #define WEBSOCKET_MAX_SENDING_HEADER_SIZE 10
@@ -106,7 +107,7 @@ class IoWrapper
     bool sslReadWantsWrite = false;
     bool sslWriteWantsRead = false;
 
-    bool websocket;
+    ConnectionProtocol connectionProtocol;
     WebsocketState websocketState = WebsocketState::NotUpgraded;
     CirBuf websocketPendingBytes;
     IncompleteWebsocketRead incompleteWebsocketRead;
@@ -125,7 +126,7 @@ class IoWrapper
     void startOrContinueSslAccept();
 
 public:
-    IoWrapper(SSL *ssl, bool websocket, const size_t initialBufferSize, Client *parent);
+    IoWrapper(SSL *ssl, ConnectionProtocol connectionProtocol, const size_t initialBufferSize, Client *parent);
     ~IoWrapper();
 
     void startOrContinueSslHandshake();
@@ -136,7 +137,7 @@ public:
     void setSslVerify(int mode, const std::string &hostname);
     bool hasPendingWrite() const;
     bool hasProcessedBufferedBytesToRead() const;
-    bool isWebsocket() const;
+    ConnectionProtocol getConnectionProtocol() const { return this->connectionProtocol; };
     WebsocketState getWebsocketState() const;
     X509Manager getPeerCertificate() const;
     const char *getSslVersion() const;

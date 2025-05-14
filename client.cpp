@@ -25,6 +25,7 @@ See LICENSE for license details.
 #include "settings.h"
 #include "threaddata.h"
 #include "globals.h"
+#include "http.h"
 
 StowedClientRegistrationData::StowedClientRegistrationData(bool clean_start, uint16_t clientReceiveMax, uint32_t sessionExpiryInterval) :
     clean_start(clean_start),
@@ -60,14 +61,14 @@ Client::WriteBuf::WriteBuf(size_t size) :
  * @param fuzzMode
  */
 Client::Client(
-        ClientType type, int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, bool websocket,
+        ClientType type, int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, ConnectionProtocol connectionProtocol,
         bool haproxy, const struct sockaddr *addr, const Settings &settings, bool fuzzMode) :
     fd(fd),
     fuzzMode(fuzzMode),
     maxOutgoingPacketSize(settings.maxPacketSize),
     maxIncomingPacketSize(settings.maxPacketSize),
     maxIncomingTopicAliasValue(settings.maxIncomingTopicAliasValue), // Retaining snapshot of current setting, to not confuse clients when the setting changes.
-    ioWrapper(ssl, websocket, settings.clientInitialBufferSize, this),
+    ioWrapper(ssl, connectionProtocol, settings.clientInitialBufferSize, this),
     readbuf(settings.clientInitialBufferSize),
     writebuf(settings.clientInitialBufferSize),
     clientType(type),
@@ -82,7 +83,7 @@ Client::Client(
 
     const std::string haproxy_s = haproxy ? "/HAProxy" : "";
     const std::string ssl_s = ssl ? "/SSL" : "/Non-SSL";
-    const std::string websocket_s = websocket ? "/Websocket" : "";
+    const std::string websocket_s = connectionProtocol == ConnectionProtocol::WebsocketMqtt ? "/Websocket" : "";
 
     transportStr = formatString("TCP%s%s%s", haproxy_s.c_str(), websocket_s.c_str(), ssl_s.c_str());
 
@@ -273,7 +274,7 @@ DisconnectStage Client::readFdIntoBuffer()
 
 void Client::writeText(const std::string &text)
 {
-    assert(ioWrapper.isWebsocket());
+    assert(ioWrapper.getConnectionProtocol() == ConnectionProtocol::WebsocketMqtt || !authenticated );
     assert(ioWrapper.getWebsocketState() == WebsocketState::NotUpgraded);
 
     auto write_buf_locked = writebuf.lock();
@@ -857,6 +858,54 @@ void Client::setAddr(const std::string &address)
     addr.setAddress(address);
 }
 
+bool Client::tryAcmeRedirect()
+{
+    if (authenticated)
+        return false;
+
+    if (isSsl())
+        return false;
+
+    if (getConnectionProtocol() == ConnectionProtocol::AcmeOnly && !acmeRedirectUrl)
+        throw std::runtime_error("ACME-only client has no redirect URL.");
+
+    if (!acmeRedirectUrl)
+        return false;
+
+    std::optional<HttpRequest> req = parseHttpHeader(readbuf);
+
+    if (!req)
+        return false;
+
+    if (!req.value())
+        return false;
+
+    const HttpRequest::Data &d = req.value().value();
+
+    if (startsWith(d.request, "/.well-known/acme-challenge/"))
+    {
+        respondWithRedirectURL(d.request);
+        return true;
+    }
+
+    return false;
+}
+
+void Client::respondWithRedirectURL(const std::string &request)
+{
+    if (!acmeRedirectUrl)
+        throw std::runtime_error("Trying to redirect ACME without URL defined.");
+
+    std::string redirected_request = *acmeRedirectUrl;
+    rtrim(redirected_request, '/');
+    redirected_request.append(request);
+
+    std::string response = generateRedirect(redirected_request);
+    writeText(response);
+    setDisconnectReason("Redirecting ACME request");
+    setDisconnectStage(DisconnectStage::SendPendingAppData);
+}
+
 void Client::bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn, std::shared_ptr<Client> &sender)
 {
     MqttPacket::bufferToMqttPackets(readbuf, packetQueueIn, sender);
@@ -1063,6 +1112,12 @@ void Client::setAllowAnonymousOverride(const AllowListenerAnonymous allow)
 AllowListenerAnonymous Client::getAllowAnonymousOverride() const
 {
     return allowAnonymousOverride;
+}
+
+void Client::setAcmeRedirect(const std::optional<std::string> &url)
+{
+    if (url)
+        this->acmeRedirectUrl = std::make_unique<std::string>(url.value());
 }
 
 void Client::addPacketToAfterAsyncQueue(MqttPacket &&p)

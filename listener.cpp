@@ -22,10 +22,15 @@ void Listener::isValid()
     {
         if (port == 0)
         {
-            if (websocket)
+            if (connectionProtocol == ConnectionProtocol::WebsocketMqtt)
                 port = 4443;
             else
                 port = 8883;
+        }
+
+        if (acmeRedirectURL)
+        {
+            throw ConfigFileException("An SSL listener can't have an acme_redirect_url.");
         }
 
         testSsl(sslFullchain, sslPrivkey);
@@ -35,7 +40,9 @@ void Listener::isValid()
     {
         if (port == 0)
         {
-            if (websocket)
+            if (connectionProtocol == ConnectionProtocol::AcmeOnly)
+                port = 80;
+            else if (connectionProtocol == ConnectionProtocol::WebsocketMqtt)
                 port = 8080;
             else
                 port = 1883;
@@ -57,6 +64,9 @@ void Listener::isValid()
 
         if (isSsl())
             throw ConfigFileException("TLS on domain sockets is not supported.");
+
+        if (acmeRedirectURL)
+            throw ConfigFileException("ACME redirect is not support on unix sockets");
     }
 
     if ((!clientVerificationCaDir.empty() || !clientVerificationCaFile.empty()) && !isSsl())
@@ -67,6 +77,11 @@ void Listener::isValid()
     if (port <= 0 || port > 65534)
     {
         throw ConfigFileException(formatString("Port nr %d is not valid", port));
+    }
+
+    if (connectionProtocol == ConnectionProtocol::AcmeOnly && !acmeRedirectURL)
+    {
+        throw ConfigFileException("An ACME listener needs to have an acme_redirect_url");
     }
 }
 
@@ -91,19 +106,29 @@ std::string Listener::getProtocolName() const
     {
         return "unix socket";
     }
-    if (isSsl())
+    if (connectionProtocol == ConnectionProtocol::AcmeOnly)
     {
-        if (websocket)
+        return "ACME-only";
+    }
+    else if (isSsl())
+    {
+        if (connectionProtocol == ConnectionProtocol::WebsocketMqtt)
             return "SSL websocket";
         else
             return "SSL TCP";
     }
     else
     {
-        if (websocket)
-            return "non-SSL websocket";
+        std::string answer;
+
+        if (connectionProtocol == ConnectionProtocol::WebsocketMqtt)
+            answer = "non-SSL websocket";
         else
-            return "non-SSL TCP";
+            answer = "non-SSL TCP";
+
+        if (acmeRedirectURL)
+            answer.append(" with ACME redirect to ").append(acmeRedirectURL.value());
+        return answer;
     }
 
     return "whoops";
