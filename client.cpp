@@ -23,6 +23,7 @@ See LICENSE for license details.
 #include "subscriptionstore.h"
 #include "mainapp.h"
 #include "exceptions.h"
+#include "http.h"
 
 StowedClientRegistrationData::StowedClientRegistrationData(bool clean_start, uint16_t clientReceiveMax, uint32_t sessionExpiryInterval) :
     clean_start(clean_start),
@@ -57,13 +58,13 @@ Client::WriteBuf::WriteBuf(size_t size) :
  * @param settings The client is constructed in the main thread, so we need to use its settings copy
  * @param fuzzMode
  */
-Client::Client(int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, bool websocket, bool haproxy, struct sockaddr *addr, const Settings &settings, bool fuzzMode) :
+Client::Client(int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, ConnectionProtocol connectionProtocol, bool haproxy, struct sockaddr *addr, const Settings &settings, bool fuzzMode) :
     fd(fd),
     fuzzMode(fuzzMode),
     maxOutgoingPacketSize(settings.maxPacketSize),
     maxIncomingPacketSize(settings.maxPacketSize),
     maxIncomingTopicAliasValue(settings.maxIncomingTopicAliasValue), // Retaining snapshot of current setting, to not confuse clients when the setting changes.
-    ioWrapper(ssl, websocket, settings.clientInitialBufferSize, this),
+    ioWrapper(ssl, connectionProtocol, settings.clientInitialBufferSize, this),
     readbuf(settings.clientInitialBufferSize),
     writebuf(settings.clientInitialBufferSize),
     epoll_fd(threadData ? threadData->getEpollFd() : 0),
@@ -88,7 +89,7 @@ Client::Client(int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, bool we
 
     const std::string haproxy_s = haproxy ? "/HAProxy" : "";
     const std::string ssl_s = ssl ? "/SSL" : "/Non-SSL";
-    const std::string websocket_s = websocket ? "/Websocket" : "";
+    const std::string websocket_s = connectionProtocol == ConnectionProtocol::WebsocketMqtt ? "/Websocket" : "";
 
     transportStr = formatString("TCP%s%s%s", haproxy_s.c_str(), websocket_s.c_str(), ssl_s.c_str());
 
@@ -274,7 +275,7 @@ DisconnectStage Client::readFdIntoBuffer()
 
 void Client::writeText(const std::string &text)
 {
-    assert(ioWrapper.isWebsocket());
+    assert(ioWrapper.getConnectionProtocol() == ConnectionProtocol::WebsocketMqtt || ioWrapper.getConnectionProtocol() == ConnectionProtocol::AcmeOnly );
     assert(ioWrapper.getWebsocketState() == WebsocketState::NotUpgraded);
 
     auto write_buf_locked = writebuf.lock();
@@ -883,6 +884,55 @@ void Client::setAddr(const std::string &address)
     }
 }
 
+bool Client::tryAcmeRedirect()
+{
+    if (authenticated)
+        return false;
+
+    if (isSsl())
+        return false;
+
+    if (getConnectinoProtocol() == ConnectionProtocol::AcmeOnly && !acmeRedirectUrl)
+        throw std::runtime_error("ACME-only client has no redirect URL.");
+
+    if (!acmeRedirectUrl)
+        return false;
+
+    std::optional<HttpRequest> req = parseHttpHeader(readbuf);
+
+    if (!req)
+        return false;
+
+    if (!req.value())
+        return false;
+
+    const HttpRequest::Data &d = req.value().value();
+
+    if (startsWith(d.request, "/.well-known/acme-challenge/"))
+    {
+        std::string response = generateRedirect(*acmeRedirectUrl);
+        writeText(response);
+        const std::string reason = formatString("Redirecting ACME request");
+        setDisconnectReason(reason);
+        setDisconnectStage(DisconnectStage::SendPendingAppData);
+
+        return true;
+    }
+
+    return false;
+}
+
+void Client::respondWithRedirectURL()
+{
+    if (!acmeRedirectUrl)
+        throw std::runtime_error("Trying to redirect ACME without URL defined.");
+
+    std::string response = generateRedirect(*acmeRedirectUrl);
+    writeText(response);
+    setDisconnectReason("Redirecting ACME request");
+    setDisconnectStage(DisconnectStage::SendPendingAppData);
+}
+
 void Client::bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn, std::shared_ptr<Client> &sender)
 {
     MqttPacket::bufferToMqttPackets(readbuf, packetQueueIn, sender);
@@ -1089,6 +1139,12 @@ void Client::setAllowAnonymousOverride(const AllowListenerAnonymous allow)
 AllowListenerAnonymous Client::getAllowAnonymousOverride() const
 {
     return allowAnonymousOverride;
+}
+
+void Client::setAcmeRedirect(const std::optional<std::string> &url)
+{
+    if (url)
+        this->acmeRedirectUrl = std::make_unique<std::string>(url.value());
 }
 
 void Client::addPacketToAfterAsyncQueue(MqttPacket &&p)

@@ -439,6 +439,17 @@ MqttPacket::MqttPacket(const Unsubscribe &unsubscribe) :
 
 void MqttPacket::bufferToMqttPackets(CirBuf &buf, std::vector<MqttPacket> &packetQueueIn, std::shared_ptr<Client> &sender)
 {
+    if (!sender)
+        return;
+
+    if (!sender->getAuthenticated() && sender->getConnectinoProtocol() < ConnectionProtocol::WebsocketMqtt && sender->getAcmeRedirectUrl())
+    {
+        if (sender->tryAcmeRedirect())
+            return;
+        else if (sender->getConnectinoProtocol() == ConnectionProtocol::AcmeOnly)
+            throw BadClientException("Non-HTTP client on ACME-only listener");
+    }
+
     while (buf.usedBytes() >= MQTT_HEADER_LENGH)
     {
         // Determine the packet length by decoding the variable length

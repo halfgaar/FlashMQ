@@ -22,10 +22,15 @@ void Listener::isValid()
     {
         if (port == 0)
         {
-            if (websocket)
+            if (connectionProtocol == ConnectionProtocol::WebsocketMqtt)
                 port = 4443;
             else
                 port = 8883;
+        }
+
+        if (acmeRedirectURL)
+        {
+            throw ConfigFileException("An SSL listener can't have an acme_redirect_url.");
         }
 
         testSsl(sslFullchain, sslPrivkey);
@@ -35,7 +40,7 @@ void Listener::isValid()
     {
         if (port == 0)
         {
-            if (websocket)
+            if (connectionProtocol == ConnectionProtocol::WebsocketMqtt)
                 port = 8080;
             else
                 port = 1883;
@@ -50,6 +55,24 @@ void Listener::isValid()
     if (port <= 0 || port > 65534)
     {
         throw ConfigFileException(formatString("Port nr %d is not valid", port));
+    }
+
+    if (!connectionProtocol)
+    {
+        if (port == 80)
+            connectionProtocol = ConnectionProtocol::AcmeOnly;
+        else
+            connectionProtocol = ConnectionProtocol::Mqtt;
+    }
+
+    if (connectionProtocol == ConnectionProtocol::AcmeOnly && !acmeRedirectURL)
+    {
+        throw ConfigFileException("An ACME listener needs to have an acme_redirect_url");
+    }
+
+    if (acmeRedirectURL && port != 80)
+    {
+        throw ConfigFileException("A listener with an acme_redirect_url must be on port 80.");
     }
 }
 
@@ -70,16 +93,20 @@ bool Listener::isHaProxy() const
 
 std::string Listener::getProtocolName() const
 {
-    if (isSsl())
+    if (connectionProtocol == ConnectionProtocol::AcmeOnly)
     {
-        if (websocket)
+        return "ACME-only";
+    }
+    else if (isSsl())
+    {
+        if (connectionProtocol == ConnectionProtocol::WebsocketMqtt)
             return "SSL websocket";
         else
             return "SSL TCP";
     }
     else
     {
-        if (websocket)
+        if (connectionProtocol == ConnectionProtocol::WebsocketMqtt)
             return "non-SSL websocket";
         else
             return "non-SSL TCP";

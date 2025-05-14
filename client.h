@@ -122,6 +122,8 @@ class Client
     X509ClientVerification x509ClientVerification = X509ClientVerification::None;
     AllowListenerAnonymous allowAnonymousOverride = AllowListenerAnonymous::None;
 
+    std::unique_ptr<std::string> acmeRedirectUrl;
+
     std::shared_ptr<WillPublish> stagedWillPublish;
     std::shared_ptr<WillPublish> willPublish;
 
@@ -157,7 +159,7 @@ class Client
 public:
     uint8_t preAuthPacketCounter = 0;
 
-    Client(int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, bool websocket, bool haproxy, struct sockaddr *addr, const Settings &settings, bool fuzzMode=false);
+    Client(int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, ConnectionProtocol connectionProtocol, bool haproxy, struct sockaddr *addr, const Settings &settings, bool fuzzMode=false);
     Client(const Client &other) = delete;
     Client(Client &&other) = delete;
     ~Client();
@@ -170,12 +172,15 @@ public:
     bool getSslReadWantsWrite() const;
     bool getSslWriteWantsRead() const;
     ProtocolVersion getProtocolVersion() const;
+    ConnectionProtocol getConnectinoProtocol() const { return this->ioWrapper.getConnectionProtocol(); }
     void setProtocolVersion(ProtocolVersion version);
     void connectToBridgeTarget(FMQSockaddr_in6 addr);
 
     void startOrContinueSslHandshake();
     void setDisconnectStage(DisconnectStage val);
     DisconnectStage readFdIntoBuffer();
+    bool tryAcmeRedirect();
+    void respondWithRedirectURL();
     void bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn, std::shared_ptr<Client> &sender);
     void setClientProperties(ProtocolVersion protocolVersion, const std::string &clientId, const std::string username, bool connectPacketSeen, uint16_t keepalive);
     void setClientProperties(ProtocolVersion protocolVersion, const std::string &clientId, const std::string username, bool connectPacketSeen, uint16_t keepalive,
@@ -265,6 +270,8 @@ public:
     X509ClientVerification getX509ClientVerification() const;
     void setAllowAnonymousOverride(const AllowListenerAnonymous allow);
     AllowListenerAnonymous getAllowAnonymousOverride() const;
+    void setAcmeRedirect(const std::optional<std::string> &url);
+    const std::unique_ptr<std::string> &getAcmeRedirectUrl() const { return this->acmeRedirectUrl; };
 
     void setAsyncAuthenticating() { this->asyncAuthenticating = true; }
     bool getAsyncAuthenticating() const { return this->asyncAuthenticating; }
