@@ -251,6 +251,7 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validListenKeys.insert("minimum_tls_version");
     validListenKeys.insert("overload_mode");
     validListenKeys.insert("acme_redirect_url");
+    validListenKeys.insert("drop_on_absent_certificate");
 
     validBridgeKeys.insert("local_username");
     validBridgeKeys.insert("remote_username");
@@ -450,7 +451,20 @@ void ConfigFileParser::loadFile(bool test)
             if (curParseLevel == ConfigParseLevel::Listen)
             {
                 curListener->isValid();
-                tmpSettings.listeners.push_back(curListener);
+
+                if (curListener->dropListener())
+                {
+                    if (test)
+                    {
+                        Logger::getInstance()->log(LOG_NOTICE)
+                            << "Approved missing certificates: dropping " << curListener->getProtocolName()
+                            << " listener, port " << curListener->port;
+                    }
+                }
+                else
+                {
+                    tmpSettings.listeners.push_back(curListener);
+                }
                 curListener.reset();
             }
             else if (curParseLevel == ConfigParseLevel::Bridge)
@@ -496,12 +510,10 @@ void ConfigFileParser::loadFile(bool test)
                 }
                 else if (testKeyValidity(key, "fullchain", validListenKeys))
                 {
-                    checkFileExistsAndReadable("SSL fullchain", value, 1024*1024);
                     curListener->sslFullchain = value;
                 }
                 if (testKeyValidity(key, "privkey", validListenKeys))
                 {
-                    checkFileExistsAndReadable("SSL privkey", value, 1024*1024);
                     curListener->sslPrivkey = value;
                 }
                 if (testKeyValidity(key, "inet_protocol", validListenKeys))
@@ -584,6 +596,10 @@ void ConfigFileParser::loadFile(bool test)
                 if (testKeyValidity(key, "acme_redirect_url", validListenKeys))
                 {
                     curListener->acmeRedirectURL = valueTrimmed;
+                }
+                if (testKeyValidity(key, "drop_on_absent_certificate", validListenKeys))
+                {
+                    curListener->dropOnAbsentCertificates = stringTruthiness(value);
                 }
 
                 testCorrectNumberOfValues(key, number_of_expected_values, values);

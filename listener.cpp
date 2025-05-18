@@ -15,6 +15,7 @@ See LICENSE for license details.
 #include "utils.h"
 #include "exceptions.h"
 #include "logger.h"
+#include "configfileparser.h"
 
 void Listener::isValid()
 {
@@ -33,7 +34,13 @@ void Listener::isValid()
             throw ConfigFileException("An SSL listener can't have an acme_redirect_url.");
         }
 
-        testSsl(sslFullchain, sslPrivkey);
+        if (!dropListener())
+        {
+            ConfigFileParser::checkFileExistsAndReadable("SSL fullchain", sslFullchain, 1024*1024);
+            ConfigFileParser::checkFileExistsAndReadable("SSL privkey", sslPrivkey, 1024*1024);
+            testSsl(sslFullchain, sslPrivkey);
+        }
+
         testSslVerifyLocations(clientVerificationCaFile, clientVerificationCaDir, "Loading client_verification_ca_dir/client_verification_ca_file failed.");
     }
     else
@@ -46,6 +53,11 @@ void Listener::isValid()
                 port = 8080;
             else
                 port = 1883;
+        }
+
+        if (dropOnAbsentCertificates)
+        {
+            throw ConfigFileException("Using drop_on_absent_certificate is only valid on SSL listeners; define privkey and fullchain.");
         }
     }
 
@@ -185,6 +197,14 @@ X509ClientVerification Listener::getX509ClientVerficationMode() const
         result = X509ClientVerification::X509AndUsernamePassword;
 
     return result;
+}
+
+bool Listener::dropListener() const
+{
+    if (!dropOnAbsentCertificates || !isSsl())
+        return false;
+
+    return access(sslPrivkey.c_str(), R_OK) != 0 && access(sslFullchain.c_str(), R_OK) != 0;
 }
 
 std::string Listener::getBindAddress(ListenerProtocol p)

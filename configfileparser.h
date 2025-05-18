@@ -44,11 +44,12 @@ class ConfigFileParser
 
     void static testCorrectNumberOfValues(const std::string &key, size_t expected_values, const std::vector<std::string> &values);
     bool testKeyValidity(const std::string &key, const std::string &matchKey, const std::set<std::string> &validKeys) const;
+
+public:
     void static checkFileExistsAndReadable(const std::string &key, const std::string &pathToCheck, ssize_t max_size = std::numeric_limits<ssize_t>::max());
     void static checkFileOrItsDirWritable(const std::string &filepath);
     void static checkDirExists(const std::string &key, const std::string &dir);
 
-public:
     ConfigFileParser(const std::string &path);
     void loadFile(bool test);
     std::list<std::string> readFileRecursively(const std::string &path) const;

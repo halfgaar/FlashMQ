@@ -52,6 +52,7 @@ struct Listener
     std::optional<std::string> acmeRedirectURL;
     TLSVersion minimumTlsVersion = TLSVersion::TLSv1_1;
     std::optional<OverloadMode> overloadMode;
+    bool dropOnAbsentCertificates = false;
 
     void isValid();
     bool isSsl() const;
@@ -60,6 +61,7 @@ struct Listener
     std::string getProtocolName() const;
     void loadCertAndKeyFromConfig();
     X509ClientVerification getX509ClientVerficationMode() const;
+    bool dropListener() const;
 
     std::string getBindAddress(ListenerProtocol p);
 };
