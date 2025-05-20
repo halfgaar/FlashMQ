@@ -449,36 +449,52 @@ size_t getFreeSpace(const std::string &path)
     return result;
 }
 
+/**
+ * @brief Get socket family from addr that works with strict type aliasing.
+ *
+ * Disgruntled: if type aliasing rules are so strict, why is there no library
+ * function to obtain the family from a sockaddr...?
+ */
+sa_family_t getFamilyFromSockAddr(const sockaddr *addr)
+{
+    if (!addr)
+        return AF_UNSPEC;
+
+    sockaddr tmp;
+    std::memcpy(&tmp, addr, sizeof(tmp));
+
+    return tmp.sa_family;
+}
+
 std::string sockaddrToString(const sockaddr *addr)
 {
     if (!addr)
         return "[unknown address]";
 
-    char buf[INET6_ADDRSTRLEN];
-    const void *addr_in = nullptr;
+    std::array<char, INET6_ADDRSTRLEN> buf;
+    std::fill(buf.begin(), buf.end(), 0);
 
-    if (addr->sa_family == AF_INET)
-    {
-        const struct sockaddr_in *ipv4sockAddr = reinterpret_cast<const struct sockaddr_in*>(addr);
-        addr_in = &ipv4sockAddr->sin_addr;
-    }
-    else if (addr->sa_family == AF_INET6)
-    {
-        const struct sockaddr_in6 *ipv6sockAddr = reinterpret_cast<const struct sockaddr_in6*>(addr);
-        addr_in = &ipv6sockAddr->sin6_addr;
-    }
+    const int family = getFamilyFromSockAddr(addr);
+    const char *rc = nullptr;
 
-    if (addr_in)
+    if (family == AF_INET)
     {
-        const char *rc = inet_ntop(addr->sa_family, addr_in, buf, INET6_ADDRSTRLEN);
-        if (rc)
-        {
-            std::string remote_addr(rc);
-            return remote_addr;
-        }
+        struct sockaddr_in ipv4sockAddr;
+        std::memcpy(&ipv4sockAddr, addr, sizeof(struct sockaddr_in));
+        rc = inet_ntop(family, &ipv4sockAddr.sin_addr, buf.data(), buf.size());
+    }
+    else if (family == AF_INET6)
+    {
+        struct sockaddr_in6 ipv6sockAddr;
+        std::memcpy(&ipv6sockAddr, addr, sizeof(struct sockaddr_in6));
+        rc = inet_ntop(family, &ipv6sockAddr.sin6_addr, buf.data(), buf.size());
     }
 
-    return "[unknown address]";
+    if (rc == nullptr)
+        return "[unknown address]";
+
+    std::string remote_addr(rc);
+    return remote_addr;
 }
 
 std::string protocolVersionString(ProtocolVersion p)
