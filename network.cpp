@@ -11,32 +11,39 @@ See LICENSE for license details.
 #include "network.h"
 #include "utils.h"
 #include <stdexcept>
+#include <cstring>
 
 Network::Network(const std::string &network)
 {
-    memset(&this->data, 0, sizeof (struct sockaddr_in6));
+    std::fill(this->data.begin(), this->data.end(), 0);
 
     if (strContains(network, "."))
     {
-        struct sockaddr_in *_sockaddr_in = reinterpret_cast<struct sockaddr_in*>(&this->data);
+        struct sockaddr_in tmpaddr;
+        std::memset(&tmpaddr, 0, sizeof(tmpaddr));
 
-        _sockaddr_in->sin_family = AF_INET;
+        tmpaddr.sin_family = AF_INET;
 
-        int maskbits = inet_net_pton(AF_INET, network.c_str(), &_sockaddr_in->sin_addr, sizeof(struct in_addr));
+        int maskbits = inet_net_pton(AF_INET, network.c_str(), &tmpaddr.sin_addr, sizeof(struct in_addr));
 
         if (maskbits < 0)
             throw std::runtime_error(formatString("Network '%s' is not a valid network notation.", network.c_str()));
 
+        std::memcpy(this->data.data(), &tmpaddr, sizeof(tmpaddr));
+
         uint32_t _netmask = (uint64_t)0xFFFFFFFFu << (32 - maskbits);
         this->in_mask = htonl(_netmask);
+
+        this->family = AF_INET;
     }
     else if (strContains(network, ":"))
     {
         // Why does inet_net_pton not support AF_INET6...?
 
-        struct sockaddr_in6 *_sockaddr_in6 = reinterpret_cast<struct sockaddr_in6*>(&this->data);
+        struct sockaddr_in6 tmpaddr;
+        std::memset(&tmpaddr, 0, sizeof(tmpaddr));
 
-        _sockaddr_in6->sin6_family = AF_INET6;
+        tmpaddr.sin6_family = AF_INET6;
 
         std::vector<std::string> parts = splitToVector(network, '/', 2, false);
         std::string &addrPart = parts[0];
@@ -53,10 +60,12 @@ Network::Network(const std::string &network)
             maskbits = std::stoi(maskstring);
         }
 
-        if (inet_pton(AF_INET6, addrPart.c_str(), &_sockaddr_in6->sin6_addr) != 1)
+        if (inet_pton(AF_INET6, addrPart.c_str(), &tmpaddr.sin6_addr) != 1)
         {
             throw std::runtime_error(formatString("Network '%s' is not a valid network notation.", network.c_str()));
         }
+
+        std::memcpy(this->data.data(), &tmpaddr, sizeof(tmpaddr));
 
         if (maskbits > 128 || maskbits < 0)
         {
@@ -78,8 +87,10 @@ Network::Network(const std::string &network)
 
         for (int i = 0; i < 4; i++)
         {
-            network_addr_relevant_bits.__in6_u.__u6_addr32[i] = _sockaddr_in6->sin6_addr.__in6_u.__u6_addr32[i] & in6_mask[i];
+            network_addr_relevant_bits.__in6_u.__u6_addr32[i] = tmpaddr.sin6_addr.__in6_u.__u6_addr32[i] & in6_mask[i];
         }
+
+        this->family = AF_INET6;
     }
     else
     {
@@ -89,22 +100,30 @@ Network::Network(const std::string &network)
 
 bool Network::match(const sockaddr *addr) const
 {
-    const struct sockaddr* _sockaddr = reinterpret_cast<const struct sockaddr*>(&this->data);
+    const sa_family_t fam_arg = getFamilyFromSockAddr(addr);
 
-    if (_sockaddr->sa_family == AF_INET)
+    if (this->family != fam_arg)
+        return false;
+
+    if (this->family == AF_INET)
     {
-        const struct sockaddr_in *_sockaddr_in = reinterpret_cast<const struct sockaddr_in*>(&this->data);
-        const struct sockaddr_in *_addr = reinterpret_cast<const struct sockaddr_in*>(addr);
-        return _sockaddr->sa_family == addr->sa_family && ((_sockaddr_in->sin_addr.s_addr & this->in_mask) == (_addr->sin_addr.s_addr & this->in_mask));
+        struct sockaddr_in tmp_this;
+        struct sockaddr_in tmp_arg;
+
+        std::memcpy(&tmp_this, this->data.data(), sizeof(tmp_this));
+        std::memcpy(&tmp_arg, addr, sizeof(tmp_arg));
+
+        return (tmp_this.sin_addr.s_addr & this->in_mask) == (tmp_arg.sin_addr.s_addr & this->in_mask);
     }
-    else if (_sockaddr->sa_family == AF_INET6)
+    else if (this->family == AF_INET6)
     {
-        const struct sockaddr_in6 *arg_addr = reinterpret_cast<const struct sockaddr_in6*>(addr);
+        struct sockaddr_in6 tmp_arg;
+        std::memcpy(&tmp_arg, addr, sizeof(tmp_arg));
 
         struct in6_addr arg_addr_relevant_bits;
         for (int i = 0; i < 4; i++)
         {
-            arg_addr_relevant_bits.__in6_u.__u6_addr32[i] = arg_addr->sin6_addr.__in6_u.__u6_addr32[i] & in6_mask[i];
+            arg_addr_relevant_bits.__in6_u.__u6_addr32[i] = tmp_arg.sin6_addr.__in6_u.__u6_addr32[i] & in6_mask[i];
         }
 
         uint8_t matches[4];
@@ -113,7 +132,7 @@ bool Network::match(const sockaddr *addr) const
             matches[i] = arg_addr_relevant_bits.__in6_u.__u6_addr32[i] == network_addr_relevant_bits.__in6_u.__u6_addr32[i];
         }
 
-        return (_sockaddr->sa_family == addr->sa_family) & (matches[0] & matches[1] & matches[2] & matches[3]);
+        return (matches[0] & matches[1] & matches[2] & matches[3]);
     }
 
     return false;

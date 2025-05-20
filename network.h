@@ -14,10 +14,12 @@ See LICENSE for license details.
 #include <arpa/inet.h>
 #include <string>
 #include <memory>
+#include <array>
 
 class Network
 {
-    sockaddr_in6 data;
+    std::array<char, sizeof(struct sockaddr_storage)> data;
+    sa_family_t family = AF_UNSPEC;
 
     uint32_t in_mask = 0;
 
