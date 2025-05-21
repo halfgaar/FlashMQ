@@ -84,6 +84,7 @@ set(FLASHMQ_HEADERS
     ${RELPATH}checkedweakptr.h
     ${RELPATH}mutexowned.h
     ${RELPATH}http.h
+    ${RELPATH}fmqsockaddr.h
 )
 
 set(FLASHMQ_IMPLS
@@ -147,4 +148,5 @@ set(FLASHMQ_IMPLS
     ${RELPATH}nocopy.cpp
     ${RELPATH}fdmanaged.cpp
     ${RELPATH}http.cpp
+    ${RELPATH}fmqsockaddr.cpp
     )

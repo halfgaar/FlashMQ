@@ -7,73 +7,6 @@
 #include <thread>
 #include "utils.h"
 
-FMQSockaddr_in6::FMQSockaddr_in6(sockaddr *addr)
-{
-    std::memset(&val, 0, sizeof(struct sockaddr_in6));
-
-    if (addr->sa_family == AF_INET)
-    {
-        std::memcpy(&val, addr, sizeof(struct sockaddr_in));
-    }
-    else if (addr->sa_family == AF_INET6)
-    {
-        std::memcpy(&val, addr, sizeof(struct sockaddr_in6));
-    }
-    else
-    {
-        throw std::runtime_error("Trying to make IPv4 or IPv6 address from address structure that is neither of those");
-    }
-
-    char buf[INET6_ADDRSTRLEN];
-    memset(buf, 0, INET6_ADDRSTRLEN);
-
-    void *myaddr = nullptr;
-
-    if (val.sin6_family == AF_INET)
-    {
-        struct sockaddr_in *inaddr = reinterpret_cast<struct sockaddr_in*>(&val);
-        myaddr = &inaddr->sin_addr;
-    }
-    else if (val.sin6_family == AF_INET6)
-    {
-        myaddr = &val.sin6_addr;
-    }
-
-    if (inet_ntop(val.sin6_family, myaddr, buf, INET6_ADDRSTRLEN) != nullptr)
-    {
-        this->text = std::string(buf);
-    }
-}
-
-const sockaddr *FMQSockaddr_in6::getSockaddr() const
-{
-    return reinterpret_cast<const struct sockaddr*>(&val);
-}
-
-socklen_t FMQSockaddr_in6::getSize() const
-{
-    if (val.sin6_family == AF_INET)
-        return sizeof(struct sockaddr_in);
-    if (val.sin6_family == AF_INET6)
-        return sizeof(struct sockaddr_in6);
-    return 0;
-}
-
-void FMQSockaddr_in6::setPort(uint16_t port)
-{
-    val.sin6_port = htons(port);
-}
-
-const std::string &FMQSockaddr_in6::getText() const
-{
-    return text;
-}
-
-int FMQSockaddr_in6::getFamily() const
-{
-    return val.sin6_family;
-}
-
 
 void DnsResolver::freeStuff()
 {
@@ -136,7 +69,7 @@ void DnsResolver::query(const std::string &text, ListenerProtocol protocol, std:
     }
 }
 
-std::list<FMQSockaddr_in6> DnsResolver::getResult()
+std::list<FMQSockaddr> DnsResolver::getResult()
 {
     if (curName.empty() || lookup.ar_name == nullptr)
     {
@@ -150,7 +83,7 @@ std::list<FMQSockaddr_in6> DnsResolver::getResult()
         throw std::runtime_error(formatString("DNS query for '%s' timed out.", name.c_str()));
     }
 
-    std::list<FMQSockaddr_in6> results;
+    std::list<FMQSockaddr> results;
     int err = gai_error(&lookup);
 
     if (err == EAI_INPROGRESS)
@@ -167,7 +100,7 @@ std::list<FMQSockaddr_in6> DnsResolver::getResult()
 
     while (cur_result)
     {
-        FMQSockaddr_in6 result_sockaddr(cur_result->ai_addr);
+        FMQSockaddr result_sockaddr(cur_result->ai_addr);
         results.push_back(result_sockaddr);
         cur_result = cur_result->ai_next;
     }

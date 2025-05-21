@@ -25,12 +25,12 @@ BridgeState::BridgeState(const BridgeConfig &config) :
 
 }
 
-FMQSockaddr_in6 BridgeState::popDnsResult()
+FMQSockaddr BridgeState::popDnsResult()
 {
     if (dnsResults.empty())
         throw std::runtime_error("Trying to get DNS results when there are none");
 
-    FMQSockaddr_in6 addr = dnsResults.front();
+    FMQSockaddr addr = dnsResults.front();
     dnsResults.pop_front();
     return addr;
 }

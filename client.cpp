@@ -170,7 +170,7 @@ void Client::setProtocolVersion(ProtocolVersion version)
     this->protocolVersion = version;
 }
 
-void Client::connectToBridgeTarget(FMQSockaddr_in6 addr)
+void Client::connectToBridgeTarget(FMQSockaddr addr)
 {
     this->lastActivity = std::chrono::steady_clock::now();
 

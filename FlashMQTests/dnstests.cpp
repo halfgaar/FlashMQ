@@ -13,11 +13,11 @@ void MainTests::testDnsResolver()
         int count = 0;
         while (++count < 100)
         {
-            std::list<FMQSockaddr_in6> results = resolver.getResult();
+            std::list<FMQSockaddr> results = resolver.getResult();
             if (!results.empty())
             {
-                QVERIFY(std::any_of(results.begin(), results.end(), [](FMQSockaddr_in6 &x){return x.getText() == "89.188.6.194";}));
-                QVERIFY(std::any_of(results.begin(), results.end(), [](FMQSockaddr_in6 &x){return x.getText() == "2a01:1b0:7996:418:83:137:146:230";}));
+                QVERIFY(std::any_of(results.begin(), results.end(), [](FMQSockaddr &x){return x.getText() == "89.188.6.194";}));
+                QVERIFY(std::any_of(results.begin(), results.end(), [](FMQSockaddr &x){return x.getText() == "2a01:1b0:7996:418:83:137:146:230";}));
                 break;
             }
 
@@ -44,11 +44,11 @@ void MainTests::testDnsResolverDontCancel()
         int count = 0;
         while (++count < 100)
         {
-            std::list<FMQSockaddr_in6> results = resolver.getResult();
+            std::list<FMQSockaddr> results = resolver.getResult();
             if (!results.empty())
             {
-                QVERIFY(std::any_of(results.begin(), results.end(), [](FMQSockaddr_in6 &x){return x.getText() == "89.188.6.194";}));
-                QVERIFY(std::any_of(results.begin(), results.end(), [](FMQSockaddr_in6 &x){return x.getText() == "2a01:1b0:7996:418:83:137:146:230";}));
+                QVERIFY(std::any_of(results.begin(), results.end(), [](FMQSockaddr &x){return x.getText() == "89.188.6.194";}));
+                QVERIFY(std::any_of(results.begin(), results.end(), [](FMQSockaddr &x){return x.getText() == "2a01:1b0:7996:418:83:137:146:230";}));
                 break;
             }
 
@@ -76,11 +76,11 @@ void MainTests::testDnsResolverSecondQuery()
             int count = 0;
             while (++count < 100)
             {
-                std::list<FMQSockaddr_in6> results = resolver.getResult();
+                std::list<FMQSockaddr> results = resolver.getResult();
                 if (!results.empty())
                 {
-                    QVERIFY(std::any_of(results.begin(), results.end(), [](FMQSockaddr_in6 &x){return x.getText() == "89.188.6.194";}));
-                    QVERIFY(std::any_of(results.begin(), results.end(), [](FMQSockaddr_in6 &x){return x.getText() == "2a01:1b0:7996:418:83:137:146:230";}));
+                    QVERIFY(std::any_of(results.begin(), results.end(), [](FMQSockaddr &x){return x.getText() == "89.188.6.194";}));
+                    QVERIFY(std::any_of(results.begin(), results.end(), [](FMQSockaddr &x){return x.getText() == "2a01:1b0:7996:418:83:137:146:230";}));
                     break;
                 }
 
@@ -109,7 +109,7 @@ void MainTests::testDnsResolverInvalid()
         int count = 0;
         while (count++ < 60)
         {
-            std::list<FMQSockaddr_in6> results = resolver.getResult();
+            std::list<FMQSockaddr> results = resolver.getResult();
             if (!results.empty())
             {
                 for (const auto &r : results)
@@ -138,7 +138,7 @@ void MainTests::testGetResultWhenThereIsNone()
     try
     {
         DnsResolver resolver;
-        std::list<FMQSockaddr_in6> results = resolver.getResult();
+        std::list<FMQSockaddr> results = resolver.getResult();
         QVERIFY(results.empty());
         QVERIFY(false);
     }

@@ -291,7 +291,7 @@ void ThreadData::bridgeReconnect()
                     continue;
                 }
 
-                const std::list<FMQSockaddr_in6> &results = bridge->dns.getResult();
+                const std::list<FMQSockaddr> &results = bridge->dns.getResult();
 
                 // If empty, we're still waiting for the result but there is no error.
                 if (results.empty())
@@ -303,7 +303,7 @@ void ThreadData::bridgeReconnect()
                 bridge->dnsResults = results;
             }
 
-            FMQSockaddr_in6 addr = bridge->popDnsResult();
+            FMQSockaddr addr = bridge->popDnsResult();
 
             bridge->registerReconnect();
 

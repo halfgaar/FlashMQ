@@ -8,23 +8,9 @@
 #include <chrono>
 
 #include "listener.h"
+#include "fmqsockaddr.h"
 
-/**
- * @brief A class for storing an address up to in6 size. So, it's used for IPv4 and IPv6.
- */
-class FMQSockaddr_in6
-{
-    struct sockaddr_in6 val;
-    std::string text;
 
-public:
-    FMQSockaddr_in6(struct sockaddr *addr);
-    const struct sockaddr *getSockaddr() const;
-    socklen_t getSize() const;
-    void setPort(uint16_t port);
-    const std::string &getText() const;
-    int getFamily() const;
-};
 
 /**
  * @brief The DnsResolver class does async DNS with getaddrinfo_a.
@@ -51,7 +37,7 @@ public:
     ~DnsResolver();
 
     void query(const std::string &text, ListenerProtocol protocol, std::chrono::milliseconds timeout);
-    std::list<FMQSockaddr_in6> getResult();
+    std::list<FMQSockaddr> getResult();
     bool idle() const;
 };
 

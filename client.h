@@ -171,7 +171,7 @@ public:
     bool getSslWriteWantsRead() const;
     ProtocolVersion getProtocolVersion() const;
     void setProtocolVersion(ProtocolVersion version);
-    void connectToBridgeTarget(FMQSockaddr_in6 addr);
+    void connectToBridgeTarget(FMQSockaddr addr);
 
     void startOrContinueSslHandshake();
     void setDisconnectStage(DisconnectStage val);

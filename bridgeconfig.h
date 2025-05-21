@@ -89,9 +89,9 @@ public:
 
     BridgeState(const BridgeConfig &config);
     DnsResolver dns;
-    std::list<FMQSockaddr_in6> dnsResults;
+    std::list<FMQSockaddr> dnsResults;
 
-    FMQSockaddr_in6 popDnsResult();
+    FMQSockaddr popDnsResult();
     void initSSL(bool reloadCertificates);
 
     bool timeForNewReconnectAttempt();
