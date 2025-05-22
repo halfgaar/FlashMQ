@@ -2,62 +2,70 @@
 
 #include <cstring>
 #include <stdexcept>
+#include "utils.h"
 
-FMQSockaddr::FMQSockaddr(sockaddr *addr)
+FMQSockaddr::FMQSockaddr(const sockaddr *addr) :
+    family(getFamilyFromSockAddr(addr))
 {
-    std::memset(&val, 0, sizeof(struct sockaddr_in6));
+    if (addr == nullptr)
+        return;
 
-    if (addr->sa_family == AF_INET)
+    if (this->family == AF_INET)
     {
-        std::memcpy(&val, addr, sizeof(struct sockaddr_in));
+        std::memcpy(dat.data(), addr, sizeof(struct sockaddr_in));
     }
-    else if (addr->sa_family == AF_INET6)
+    else if (this->family == AF_INET6)
     {
-        std::memcpy(&val, addr, sizeof(struct sockaddr_in6));
+        std::memcpy(dat.data(), addr, sizeof(struct sockaddr_in6));
     }
     else
     {
         throw std::runtime_error("Trying to make IPv4 or IPv6 address from address structure that is neither of those");
     }
 
-    char buf[INET6_ADDRSTRLEN];
-    memset(buf, 0, INET6_ADDRSTRLEN);
-
-    void *myaddr = nullptr;
-
-    if (val.sin6_family == AF_INET)
-    {
-        struct sockaddr_in *inaddr = reinterpret_cast<struct sockaddr_in*>(&val);
-        myaddr = &inaddr->sin_addr;
-    }
-    else if (val.sin6_family == AF_INET6)
-    {
-        myaddr = &val.sin6_addr;
-    }
-
-    if (inet_ntop(val.sin6_family, myaddr, buf, INET6_ADDRSTRLEN) != nullptr)
-    {
-        this->text = std::string(buf);
-    }
+    this->text = sockaddrToString(addr);
 }
 
+/**
+ * This should (mostly) only be necessary when it's needed to pass to a system API. Don't be tempted to cast this back
+ * into a specific sockaddr, because that will result in undefined behavior because of type aliasing
+ * violations, unless your compiler bends the rules.
+ */
 const sockaddr *FMQSockaddr::getSockaddr() const
 {
-    return reinterpret_cast<const struct sockaddr*>(&val);
+    return reinterpret_cast<const struct sockaddr*>(dat.data());
+}
+
+const char *FMQSockaddr::getData() const
+{
+    return dat.data();
 }
 
 socklen_t FMQSockaddr::getSize() const
 {
-    if (val.sin6_family == AF_INET)
+    if (this->family == AF_INET)
         return sizeof(struct sockaddr_in);
-    if (val.sin6_family == AF_INET6)
+    if (this->family == AF_INET6)
         return sizeof(struct sockaddr_in6);
     return 0;
 }
 
 void FMQSockaddr::setPort(uint16_t port)
 {
-    val.sin6_port = htons(port);
+    if (this->family == AF_INET)
+    {
+        struct sockaddr_in tmp;
+        std::memcpy(&tmp, dat.data(), sizeof(tmp));
+        tmp.sin_port = htons(port);
+        std::memcpy(dat.data(), &tmp, sizeof(tmp));
+    }
+    else if (this->family == AF_INET6)
+    {
+        struct sockaddr_in6 tmp;
+        std::memcpy(&tmp, dat.data(), sizeof(tmp));
+        tmp.sin6_port = htons(port);
+        std::memcpy(dat.data(), &tmp, sizeof(tmp));
+    }
 }
 
 const std::string &FMQSockaddr::getText() const
@@ -67,5 +75,5 @@ const std::string &FMQSockaddr::getText() const
 
 int FMQSockaddr::getFamily() const
 {
-    return val.sin6_family;
+    return this->family;
 }

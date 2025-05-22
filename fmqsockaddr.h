@@ -3,18 +3,21 @@
 
 #include <string>
 #include <arpa/inet.h>
+#include <vector>
 
 /**
- * @brief A class for storing an address up to in6 size. So, it's used for IPv4 and IPv6.
+ * @brief A class for storing socket addresses, and accesses them in a way that avoids type aliasing violations.
  */
 class FMQSockaddr
 {
-    struct sockaddr_in6 val;
+    std::vector<char> dat = std::vector<char>(sizeof(sockaddr_storage));
+    sa_family_t family = AF_UNSPEC;
     std::string text;
 
 public:
-    FMQSockaddr(struct sockaddr *addr);
+    FMQSockaddr(const struct sockaddr *addr);
     const struct sockaddr *getSockaddr() const;
+    const char *getData() const;
     socklen_t getSize() const;
     void setPort(uint16_t port);
     const std::string &getText() const;
