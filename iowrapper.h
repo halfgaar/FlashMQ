@@ -22,6 +22,7 @@ See LICENSE for license details.
 #include "haproxy.h"
 #include "cirbuf.h"
 #include "x509manager.h"
+#include "fmqsockaddr.h"
 
 #define WEBSOCKET_MIN_HEADER_BYTES_NEEDED 2
 #define WEBSOCKET_MAX_SENDING_HEADER_SIZE 10
@@ -141,7 +142,7 @@ public:
     const char *getSslVersion() const;
 
     bool needsHaProxyParsing() const;
-    HaProxyConnectionType readHaProxyData(int fd, struct sockaddr *addr);
+    std::tuple<HaProxyConnectionType, std::optional<FMQSockaddr>> readHaProxyData(int fd);
     void setHaProxy(bool val);
 
 #ifndef NDEBUG

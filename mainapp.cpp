@@ -730,10 +730,10 @@ void MainApp::start()
 
                     logger->logf(LOG_DEBUG, "Accepting connection on thread %d on %s", thread_data->threadnr, listener->getProtocolName().c_str());
 
-                    struct sockaddr_in6 addrBiggest;
-                    struct sockaddr *addr = reinterpret_cast<sockaddr*>(&addrBiggest);
-                    socklen_t len = sizeof(struct sockaddr_in6);
-                    memset(addr, 0, len);
+                    struct sockaddr_storage addr_mem;
+                    std::memset(&addr_mem, 0, sizeof(addr_mem));
+                    struct sockaddr *addr = reinterpret_cast<sockaddr*>(&addr_mem);
+                    socklen_t len = sizeof(addr_mem);
                     int fd = check<std::runtime_error>(accept(cur_fd, addr, &len));
 
                     /*

@@ -326,7 +326,7 @@ void ThreadData::bridgeReconnect()
                 SSL_set_fd(clientSSL, sockfd);
             }
 
-            std::shared_ptr<Client> c(new Client(sockfd, _threadData, clientSSL, false, false, nullptr, settingsLocalCopy));
+            std::shared_ptr<Client> c(new Client(sockfd, _threadData, clientSSL, false, false, addr.getSockaddr(), settingsLocalCopy));
             c->setBridgeState(bridge);
 
             logger->logf(LOG_NOTICE, "Connecting brige: %s", c->repr().c_str());

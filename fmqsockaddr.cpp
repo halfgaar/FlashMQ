@@ -68,8 +68,70 @@ void FMQSockaddr::setPort(uint16_t port)
     }
 }
 
+void FMQSockaddr::setAddress(const std::string &address)
+{
+    in_port_t port = 0;
+
+    if (this->family == AF_INET)
+    {
+        struct sockaddr_in tmp;
+        std::memcpy(&tmp, dat.data(), sizeof(tmp));
+        port = tmp.sin_port;
+    }
+    else if (this->family == AF_INET6)
+    {
+        struct sockaddr_in6 tmp;
+        std::memcpy(&tmp, dat.data(), sizeof(tmp));
+        port = tmp.sin6_port;
+    }
+
+    {
+        struct in_addr a;
+        std::memset(&a, 0, sizeof(a));
+        if (inet_pton(AF_INET, address.c_str(), &a) > 0)
+        {
+            sockaddr_in addr;
+            std::memset(&addr, 0, sizeof(addr));
+
+            addr.sin_addr = a;
+            addr.sin_port = port;
+            addr.sin_family = AF_INET;
+
+            memcpy(dat.data(), &addr, sizeof(addr));
+            text = sockaddrToString(getSockaddr());
+
+            return;
+        }
+    }
+
+    {
+        struct in6_addr a;
+        std::memset(&a, 0, sizeof(a));
+        if (inet_pton(AF_INET6, address.c_str(), &a) > 0)
+        {
+            sockaddr_in6 addr;
+            std::memset(&addr, 0, sizeof(addr));
+
+            addr.sin6_addr = a;
+            addr.sin6_port = port;
+            addr.sin6_family = AF_INET6;
+
+            memcpy(dat.data(), &addr, sizeof(addr));
+            text = sockaddrToString(getSockaddr());
+        }
+    }
+}
+
+void FMQSockaddr::setAddressName(const std::string &addressName)
+{
+    this->name = addressName;
+}
+
 const std::string &FMQSockaddr::getText() const
 {
+    if (name)
+        return name.value();
+
     return text;
 }
 

@@ -15,6 +15,7 @@ See LICENSE for license details.
 #include <openssl/x509v3.h>
 #include <openssl/sslerr.h>
 #include <signal.h>
+#include <array>
 
 #include "logger.h"
 #include "client.h"
@@ -304,78 +305,84 @@ bool IoWrapper::needsHaProxyParsing() const
  * @brief IoWrapper::readHaProxyData Reads the PROXY protocol header in one go. It must fit in one TCP segment.
  * @param fd
  * @param addr
+ *
+ * https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt
  */
-HaProxyConnectionType IoWrapper::readHaProxyData(int fd, struct sockaddr *addr)
+std::tuple<HaProxyConnectionType, std::optional<FMQSockaddr>> IoWrapper::readHaProxyData(int fd)
 {
     _needsHaProxyParsing = false;
 
-    constexpr const int sig_len = 12;
-    constexpr const int min_len = 16;
-    const std::string signature("\r\n\r\n\0\r\nQUIT\n", sig_len);
+    struct proxy_hdr_v2 hdr;
+    memset(&hdr, 0, sizeof(hdr));
 
-    char buf[min_len];
-    memset(buf, 0, min_len);
+    const size_t read = read_ha_proxy_helper(fd, &hdr, sizeof(hdr));
 
-    read_ha_proxy_helper(fd, buf, min_len);
+    if (read != sizeof(hdr))
+        throw std::runtime_error("Reading haproxy header resulted in wrong number of bytes.");
 
-    int i = 0;
-
-    const std::string received_signature(buf, sig_len);
-    i += sig_len;
-
-    if (received_signature != signature)
+    if (std::memcmp(hdr.sig, "\r\n\r\n\0\r\nQUIT\n", 12) != 0)
         throw std::runtime_error("Invalid HAProxy signature.");
 
-    const uint8_t ver_cmd = buf[i++];
-    const uint8_t fam_prot = buf[i++];
-    const uint8_t family = (fam_prot & 0xF0) >> 4;
-    const uint8_t prot = fam_prot & 0x0F;
+    const uint8_t family = (hdr.fam & 0xF0) >> 4;
+    const uint8_t prot = hdr.fam & 0x0F;
 
-    const uint8_t ver = (ver_cmd & 0xF0) >> 4;
-    const uint8_t cmd = ver_cmd & 0x0F;
+    const uint8_t ver = (hdr.ver_cmd & 0xF0) >> 4;
+    const uint8_t cmd = hdr.ver_cmd & 0x0F;
 
-    const uint8_t len_high = buf[i++];
-    const uint8_t len_low = buf[i++];
-    const uint16_t len = len_high | len_low;
+    const uint16_t len = ntohs(hdr.len);
 
     if (len > sizeof(union proxy_addr))
         throw std::runtime_error("Hacker be gone.");
 
-    union proxy_addr proxy_addr;
-    memset(&proxy_addr, 0, sizeof(union proxy_addr));
-    read_ha_proxy_helper(fd, &proxy_addr, len);
+    std::array<char, sizeof(union proxy_addr)> addr_block;
+    std::fill(addr_block.begin(), addr_block.end(), 0);
+    read_ha_proxy_helper(fd, addr_block.data(), len);
 
     if (ver != 2)
         throw std::runtime_error("Only HAProxy protocol version 2 is supported");
 
     if (cmd == 0)
-        return HaProxyConnectionType::Local;
+        return {HaProxyConnectionType::Local, {}};
 
     if (cmd != 1)
         throw std::runtime_error("HAProxy command must be 1");
 
     if (prot == 0)
-        return HaProxyConnectionType::Local;
+        return {HaProxyConnectionType::Local, {}};
 
     if (prot > 2)
         throw std::runtime_error("Invalid protocol in HAProxy.");
 
     if (family == 1)
     {
-        struct sockaddr_in *a = reinterpret_cast<struct sockaddr_in*>(addr);
-        a->sin_family = AF_INET;
-        a->sin_addr.s_addr = proxy_addr.ipv4_addr.src_addr;
-        a->sin_port = proxy_addr.ipv4_addr.src_port;
+        struct proxy_ipv4_addr paddr;
+        std::memcpy(&paddr, addr_block.data(), sizeof(paddr));
+
+        struct sockaddr_in addr;
+        std::memset(&addr, 0, sizeof(addr));
+
+        addr.sin_family = AF_INET;
+        addr.sin_addr.s_addr = paddr.src_addr;
+        addr.sin_port = paddr.src_port;
+
+        return {HaProxyConnectionType::Remote, FMQSockaddr(reinterpret_cast<struct sockaddr*>(&addr))};
     }
     else if (family == 2)
     {
-        struct sockaddr_in6 *a = reinterpret_cast<struct sockaddr_in6*>(addr);
-        a->sin6_family = AF_INET6;
-        memcpy(&a->sin6_addr, proxy_addr.ipv6_addr.src_addr, 16);
-        a->sin6_port = proxy_addr.ipv6_addr.src_port;
+        struct proxy_ipv6_addr paddr;
+        std::memcpy(&paddr, addr_block.data(), sizeof(paddr));
+
+        struct sockaddr_in6 addr;
+        std::memset(&addr, 0, sizeof(addr));
+
+        addr.sin6_family = AF_INET6;
+        memcpy(&addr.sin6_addr, paddr.src_addr, sizeof(struct in6_addr));
+        addr.sin6_port = paddr.src_port;
+
+        return {HaProxyConnectionType::Remote, FMQSockaddr(reinterpret_cast<struct sockaddr*>(&addr))};
     }
 
-    return HaProxyConnectionType::Remote;
+    throw std::runtime_error("Unsupported haproxy address family");
 }
 
 void IoWrapper::setHaProxy(bool val)

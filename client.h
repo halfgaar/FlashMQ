@@ -98,7 +98,6 @@ class Client
 
     IoWrapper ioWrapper;
     std::string transportStr;
-    std::string address;
 
     CirBuf readbuf;
     MutexOwned<WriteBuf> writebuf;
@@ -141,7 +140,7 @@ class Client
 
     Logger *logger = Logger::getInstance();
 
-    sockaddr_in6 addr;
+    FMQSockaddr addr;
 
     std::weak_ptr<BridgeState> bridgeState;
 
@@ -157,7 +156,7 @@ class Client
 public:
     uint8_t preAuthPacketCounter = 0;
 
-    Client(int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, bool websocket, bool haproxy, struct sockaddr *addr, const Settings &settings, bool fuzzMode=false);
+    Client(int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, bool websocket, bool haproxy, const struct sockaddr *addr, const Settings &settings, bool fuzzMode=false);
     Client(const Client &other) = delete;
     Client(Client &&other) = delete;
     ~Client();

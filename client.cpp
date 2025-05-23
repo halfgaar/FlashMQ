@@ -57,7 +57,7 @@ Client::WriteBuf::WriteBuf(size_t size) :
  * @param settings The client is constructed in the main thread, so we need to use its settings copy
  * @param fuzzMode
  */
-Client::Client(int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, bool websocket, bool haproxy, struct sockaddr *addr, const Settings &settings, bool fuzzMode) :
+Client::Client(int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, bool websocket, bool haproxy, const struct sockaddr *addr, const Settings &settings, bool fuzzMode) :
     fd(fd),
     fuzzMode(fuzzMode),
     maxOutgoingPacketSize(settings.maxPacketSize),
@@ -67,24 +67,13 @@ Client::Client(int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, bool we
     readbuf(settings.clientInitialBufferSize),
     writebuf(settings.clientInitialBufferSize),
     epoll_fd(threadData ? threadData->getEpollFd() : 0),
-    threadData(threadData)
+    threadData(threadData),
+    addr(addr)
 {
     ioWrapper.setHaProxy(haproxy);
 
     int flags = fcntl(fd, F_GETFL);
     fcntl(fd, F_SETFL, flags | O_NONBLOCK);
-
-    size_t sock_len = 0;
-    if (addr && (sock_len = addr->sa_family == AF_INET6 ? sizeof(struct sockaddr_in6) : sizeof(struct sockaddr_in)) > 0)
-    {
-        memcpy(&this->addr, addr, sock_len);
-    }
-    else
-    {
-        memset(&this->addr, 0, sizeof(struct sockaddr_in6));
-    }
-
-    this->address = sockaddrToString(this->getAddr());
 
     const std::string haproxy_s = haproxy ? "/HAProxy" : "";
     const std::string ssl_s = ssl ? "/SSL" : "/Non-SSL";
@@ -144,10 +133,13 @@ bool Client::needsHaProxyParsing() const
 
 HaProxyConnectionType Client::readHaProxyData()
 {
-    struct sockaddr* addr = reinterpret_cast<struct sockaddr*>(&this->addr);
-    HaProxyConnectionType result = this->ioWrapper.readHaProxyData(this->fd.get(), addr);
-    this->address = sockaddrToString(this->getAddr());
-    return result;
+    auto result = this->ioWrapper.readHaProxyData(this->fd.get());
+    const std::optional<FMQSockaddr> &new_sock_addr = std::get<std::optional<FMQSockaddr>>(result);
+
+    if (new_sock_addr)
+        addr = new_sock_addr.value();
+
+    return std::get<HaProxyConnectionType>(result);
 }
 
 bool Client::getSslReadWantsWrite() const
@@ -483,7 +475,7 @@ void Client::writeBufIntoFd()
 
 const sockaddr *Client::getAddr() const
 {
-    return reinterpret_cast<const struct sockaddr*>(&this->addr);
+    return this->addr.getSockaddr();
 }
 
 std::string Client::repr()
@@ -503,7 +495,7 @@ std::string Client::repr()
     }
 
     std::string s = formatString("[%sClientID='%s', username='%s', fd=%d, keepalive=%ds, transport='%s', address='%s', prot=%s, clean=%d]",
-                                 bridge.c_str(), clientid.c_str(), username.c_str(), fd.get(), keepalive, transport.c_str(), this->address.c_str(),
+                                 bridge.c_str(), clientid.c_str(), username.c_str(), fd.get(), keepalive, transport.c_str(), this->addr.getText().c_str(),
                                  protocolVersionString(protocolVersion).c_str(), this->clean_start);
     return s;
 }
@@ -511,7 +503,7 @@ std::string Client::repr()
 std::string Client::repr_endpoint()
 {
     std::string s = formatString("address='%s', transport='%s', fd=%d",
-                                 this->address.c_str(), this->transportStr.c_str(), fd.get());
+                                 this->addr.getText().c_str(), this->transportStr.c_str(), fd.get());
     return s;
 }
 
@@ -710,11 +702,11 @@ void Client::setBridgeState(std::shared_ptr<BridgeState> bridgeState)
     if (bridgeState)
     {
         this->protocolVersion = bridgeState->c.protocolVersion;
-        this->address = bridgeState->c.address;
         this->clean_start = bridgeState->c.localCleanStart;
         this->clientid = bridgeState->c.getClientid();
         this->username = bridgeState->c.local_username.value_or(std::string());
         this->keepalive = bridgeState->c.keepalive;
+        this->addr.setAddressName(bridgeState->c.address);
 
         // Not setting maxOutgoingTopicAliasValue, because that must remain 0 until the other side says (in the connack) we can uses aliases.
         this->maxIncomingTopicAliasValue = bridgeState->c.maxIncomingTopicAliases;
@@ -852,35 +844,10 @@ void Client::setAddr(const std::string &address)
 {
     const Settings *settings = ThreadGlobals::getSettings();
 
-    if (!settings->matchAddrWithSetRealIpFrom(&this->addr))
+    if (!settings->matchAddrWithSetRealIpFrom(this->addr.getSockaddr()))
         return;
 
-    bool success = false;
-
-    {
-        struct sockaddr_in *a = reinterpret_cast<struct sockaddr_in*>(&this->addr);
-        success = inet_pton(AF_INET, address.c_str(), &a->sin_addr) > 0;
-        if (success)
-        {
-            a->sin_port = 0;
-            a->sin_family = AF_INET;
-        }
-    }
-
-    if (!success)
-    {
-        success = inet_pton(AF_INET6, address.c_str(), &this->addr.sin6_addr) > 0;
-        if (success)
-        {
-            this->addr.sin6_port = 0;
-            this->addr.sin6_family = AF_INET6;
-        }
-    }
-
-    if (success)
-    {
-        this->address = sockaddrToString(this->getAddr());
-    }
+    addr.setAddress(address);
 }
 
 void Client::bufferToMqttPackets(std::vector<MqttPacket> &packetQueueIn, std::shared_ptr<Client> &sender)
