@@ -197,18 +197,49 @@ void flashmq_publish_message(const std::string &topic, const uint8_t qos, const 
 
 void flashmq_get_client_address(const std::weak_ptr<Client> &client, std::string *text, FlashMQSockAddr *addr)
 {
+    if (addr)
+    {
+        std::memset(addr, 0, sizeof(FlashMQSockAddr));
+    }
+
     std::shared_ptr<Client> c = client.lock();
 
     if (!c)
         return;
 
-    const struct sockaddr *orgAddr = c->getAddr();
+    const FMQSockaddr &client_addr = c->getAddr();
 
     if (text)
-        *text = sockaddrToString(orgAddr);
+        *text = client_addr.getText();
 
     if (addr)
-        memcpy(addr->getAddr(), orgAddr, addr->getLen());
+    {
+        const socklen_t addrlen_min = std::min<socklen_t>(client_addr.getSize(), sizeof(FlashMQSockAddr));
+        memcpy(addr->getAddr(), client_addr.getData(), addrlen_min);
+    }
+}
+
+void flashmq_get_client_address_v4(const std::weak_ptr<Client> &client, std::string *text, sockaddr *addr, socklen_t *addrlen)
+{
+    if (addr && addrlen)
+        std::memset(addr, 0, *addrlen);
+
+    std::shared_ptr<Client> c = client.lock();
+
+    if (!c)
+        return;
+
+    const FMQSockaddr &client_addr = c->getAddr();
+
+    if (text)
+        *text = client_addr.getText();
+
+    if (addr && addrlen)
+    {
+        const socklen_t addrlen_min = std::min<socklen_t>(client_addr.getSize(), *addrlen);
+        memcpy(addr, client_addr.getData(), addrlen_min);
+        *addrlen = addrlen_min;
+    }
 }
 
 void flashmq_poll_add_fd(int fd, uint32_t events, const std::weak_ptr<void> &p)

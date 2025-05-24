@@ -141,13 +141,19 @@ AuthResult flashmq_plugin_login_check(void *thread_data, const std::string &clie
 
     if (username == "getaddress")
     {
+        struct sockaddr_storage addr_mem;
+        struct sockaddr *addr = reinterpret_cast<sockaddr*>(&addr_mem);
+        socklen_t addrlen = sizeof(addr_mem);
+
         std::string text;
-        FlashMQSockAddr addr;
-        flashmq_get_client_address(client, &text, &addr);
+        flashmq_get_client_address_v4(client, &text, addr, &addrlen);
+
+        sockaddr sockaddr_after;
+        std::memcpy(&sockaddr_after, addr, std::min<socklen_t>(addrlen, sizeof(sockaddr)));
 
         flashmq_publish_message("getaddresstest/address", 0, false, text);
 
-        if (addr.getAddr()->sa_family == AF_INET)
+        if (sockaddr_after.sa_family == AF_INET)
         {
             flashmq_publish_message("getaddresstest/family", 0, false, "AF_INET");
         }

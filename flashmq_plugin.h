@@ -214,30 +214,30 @@ void flashmq_publish_message(const std::string &topic, const uint8_t qos, const 
                              const std::string *responseTopic=nullptr, const std::string *correlationData=nullptr, const std::string *contentType=nullptr);
 
 /**
- * @brief The FlashMQSockAddr class is a simple helper for the C-style polymorfism of all the sockaddr structs.
- *
- * Primary struct is an sockaddr_in6 because that is the biggest one.
- */
-class FlashMQSockAddr
-{
-    struct sockaddr_in6 addr_in6;
-
-public:
-    struct sockaddr *getAddr();
-    static constexpr int getLen();
-};
-
-/**
- * @brief flashmq_get_client_address
+ * @brief flashmq_get_client_address_v4
  * @param client A client pointer as provided by 'flashmq_plugin_login_check'.
  * @param text If not nullptr, will be assigned the address in text form, like 192.168.1.1 or "2001:0db8:85a3:0000:1319:8a2e:0370:7344".
- * @param addr If not nullptr, will provide a sockaddr struct, for low level operations.
+ * @param addr If not nullptr, will fill a sockaddr struct, for low level operations.
+ * @param addrlen Size of addr. Supply the length. Afterwards, the actual size will be reported.
  *
- * The text and addr can be pointers to local variables in the calling context.
+ * The text, addr and addrlen must be pointers to local variables in the calling context.
  *
- * [Function provided by FlashMQ]
+ * Note that the sockaddr API is hard to use safely in C++. Use of addr can very easily lead to undetected undefined behavior in
+ * C++ because of type aliasing violations. The only safe way is to avoid using a casted object, instead use memcpy into structs of the
+ * correct type: first 'struct sockaddr', to read the family, then like 'struct sockaddr_in' or 'struct sockaddr_in6'. In other
+ * words, avoid accessing the members of the struct, even those of 'struct sockaddr'.
+ *
+ * Example of initializing the addr variable:
+ *
+ * struct sockaddr_storage addr_mem;
+ * struct sockaddr *addr = reinterpret_cast<sockaddr*>(&addr_mem);
+ * socklen_t addrlen = sizeof(addr_mem);
+ *
+ * Afterwards, do the memcpy stuff to read it, or pass it verbatim to library functions.
+ *
+ * [Function provided by FlashMQ; new version since plugin version 4]
  */
-void flashmq_get_client_address(const std::weak_ptr<Client> &client, std::string *text, FlashMQSockAddr *addr);
+void flashmq_get_client_address_v4(const std::weak_ptr<Client> &client, std::string *text, sockaddr *addr, socklen_t *addrlen);
 
 /**
  * @brief flashmq_get_session_pointer Get reference counted weak pointer of a session.

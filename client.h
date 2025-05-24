@@ -213,7 +213,7 @@ public:
     void writeBufIntoFd();
     DisconnectStage getDisconnectStage() const { return disconnectStage; }
 
-    const sockaddr *getAddr() const;
+    const FMQSockaddr &getAddr() const;
     std::string repr();
     std::string repr_endpoint();
     bool keepAliveExpired();

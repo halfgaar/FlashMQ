@@ -473,9 +473,9 @@ void Client::writeBufIntoFd()
     setReadyForWriting(data_pending, write_buf_locked);
 }
 
-const sockaddr *Client::getAddr() const
+const FMQSockaddr &Client::getAddr() const
 {
-    return this->addr.getSockaddr();
+    return this->addr;
 }
 
 std::string Client::repr()
