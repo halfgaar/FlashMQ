@@ -140,7 +140,7 @@ std::list<ScopedSocket> MainApp::createListenSocket(const std::shared_ptr<Listen
             logger->logf(LOG_NOTICE, "Creating %s %s %slistener on [%s]:%d", pname.c_str(), listener->getProtocolName().c_str(),
                          haproxy.c_str(), listener->getBindAddress(p).c_str(), listener->port);
 
-            BindAddr bindAddr = getBindAddr(family, listener->getBindAddress(p), listener->port);
+            BindAddr bindAddr(family, listener->getBindAddress(p), listener->port);
 
             ScopedSocket uniqueListenFd(check<std::runtime_error>(socket(family, SOCK_STREAM, 0)), listener);
 

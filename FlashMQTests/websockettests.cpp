@@ -66,7 +66,7 @@ void MainTests::testWebsocketPing()
         int optval = 1;
         check<std::runtime_error>(setsockopt(listen_socket, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &optval, sizeof(optval)));
 
-        BindAddr bindAddr = getBindAddr(AF_INET, "127.0.0.1", 22123);
+        BindAddr bindAddr(AF_INET, "127.0.0.1", 22123);
 
         check<std::runtime_error>(bind(listen_socket, bindAddr.get(), bindAddr.getLen()));
         check<std::runtime_error>(listen(listen_socket, 64));
@@ -244,7 +244,7 @@ void MainTests::testWebsocketCorruptLengthFrame()
         int optval = 1;
         check<std::runtime_error>(setsockopt(listen_socket, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &optval, sizeof(optval)));
 
-        BindAddr bindAddr = getBindAddr(AF_INET, "127.0.0.1", 22123);
+        BindAddr bindAddr(AF_INET, "127.0.0.1", 22123);
 
         check<std::runtime_error>(bind(listen_socket, bindAddr.get(), bindAddr.getLen()));
         check<std::runtime_error>(listen(listen_socket, 64));
@@ -371,7 +371,7 @@ void MainTests::testWebsocketHugePing()
         int optval = 1;
         check<std::runtime_error>(setsockopt(listen_socket, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &optval, sizeof(optval)));
 
-        BindAddr bindAddr = getBindAddr(AF_INET, "127.0.0.1", 22123);
+        BindAddr bindAddr(AF_INET, "127.0.0.1", 22123);
 
         check<std::runtime_error>(bind(listen_socket, bindAddr.get(), bindAddr.getLen()));
         check<std::runtime_error>(listen(listen_socket, 64));
@@ -491,7 +491,7 @@ void MainTests::testWebsocketManyBigPingFrames()
         int optval = 1;
         check<std::runtime_error>(setsockopt(listen_socket, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &optval, sizeof(optval)));
 
-        BindAddr bindAddr = getBindAddr(AF_INET, "127.0.0.1", 22123);
+        BindAddr bindAddr(AF_INET, "127.0.0.1", 22123);
 
         check<std::runtime_error>(bind(listen_socket, bindAddr.get(), bindAddr.getLen()));
         check<std::runtime_error>(listen(listen_socket, 64));
@@ -637,7 +637,7 @@ void MainTests::testWebsocketClose()
         int optval = 1;
         check<std::runtime_error>(setsockopt(listen_socket, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &optval, sizeof(optval)));
 
-        BindAddr bindAddr = getBindAddr(AF_INET, "127.0.0.1", 22123);
+        BindAddr bindAddr(AF_INET, "127.0.0.1", 22123);
 
         check<std::runtime_error>(bind(listen_socket, bindAddr.get(), bindAddr.getLen()));
         check<std::runtime_error>(listen(listen_socket, 64));

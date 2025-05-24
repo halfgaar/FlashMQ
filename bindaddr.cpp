@@ -13,46 +13,51 @@ See LICENSE for license details.
 #include <cstring>
 #include <new>
 
-BindAddr::BindAddr(BindAddr &&other)
-{
-    if (this == &other)
-        return;
 
-    this->p = other.p;
-    this->len = other.len;
-    other.p = nullptr;
-    other.len = 0;
-}
 
-BindAddr::BindAddr(int family)
+BindAddr::BindAddr(int family, const std::string &bindAddress, int port)
 {
     if (!(family == AF_INET || family == AF_INET6))
-        return;
+        throw std::exception();
+
+    if (port <= 0 || port > 0xFFFF)
+        throw std::exception();
+
+    this->family = family;
 
     if (family == AF_INET)
     {
-        this->len = sizeof(struct sockaddr_in);
+        struct sockaddr_in in_addr_v4;
+        std::memset(&in_addr_v4, 0, sizeof(in_addr_v4));
+
+        this->len = sizeof(in_addr_v4);
+
+        if (bindAddress.empty())
+            in_addr_v4.sin_addr.s_addr = INADDR_ANY;
+        else
+            inet_pton(AF_INET, bindAddress.c_str(), &in_addr_v4.sin_addr);
+
+        in_addr_v4.sin_port = htons(port);
+        in_addr_v4.sin_family = AF_INET;
+
+        std::memcpy(dat.data(), &in_addr_v4, sizeof(in_addr_v4));
     }
-    else if (family == AF_INET6)
+    if (family == AF_INET6)
     {
-        this->len = sizeof(struct sockaddr_in6);
+        struct sockaddr_in6 in_addr_v6;
+        std::memset(&in_addr_v6, 0, sizeof(in_addr_v6));
+
+        this->len = sizeof(in_addr_v6);
+
+        if (bindAddress.empty())
+            in_addr_v6.sin6_addr = IN6ADDR_ANY_INIT;
+        else
+            inet_pton(AF_INET6, bindAddress.c_str(), &in_addr_v6.sin6_addr);
+
+        in_addr_v6.sin6_port = htons(port);
+        in_addr_v6.sin6_family = AF_INET6;
+
+        std::memcpy(dat.data(), &in_addr_v6, sizeof(in_addr_v6));
     }
-
-    if (this->len == 0)
-        return;
-
-    this->p = reinterpret_cast<sockaddr*>(malloc(this->len));
-
-    if (this->p == nullptr)
-        throw std::bad_alloc();
-
-    memset(this->p, 0, this->len);
-    p->sa_family = family;
 }
 
-BindAddr::~BindAddr()
-{
-    free(p);
-    p = nullptr;
-    len = 0;
-}
