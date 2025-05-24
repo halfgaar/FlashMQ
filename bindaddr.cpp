@@ -12,16 +12,26 @@ See LICENSE for license details.
 #include <stdlib.h>
 #include <cstring>
 #include <new>
+#include <sys/un.h>
+#include <stdexcept>
 
 
 
 BindAddr::BindAddr(int family, const std::string &bindAddress, int port)
 {
-    if (!(family == AF_INET || family == AF_INET6))
+    if (!(family == AF_INET || family == AF_INET6 || family == AF_UNIX))
         throw std::exception();
 
-    if (port <= 0 || port > 0xFFFF)
-        throw std::exception();
+    if (family == AF_UNIX)
+    {
+        if (bindAddress.empty())
+            throw std::runtime_error("Binding to a unix socket requires a path.");
+    }
+    else
+    {
+        if (port <= 0 || port > 0xFFFF)
+            throw std::runtime_error("IP listen port invalid.");
+    }
 
     this->family = family;
 
@@ -58,6 +68,21 @@ BindAddr::BindAddr(int family, const std::string &bindAddress, int port)
         in_addr_v6.sin6_family = AF_INET6;
 
         std::memcpy(dat.data(), &in_addr_v6, sizeof(in_addr_v6));
+    }
+    if (family == AF_UNIX)
+    {
+        struct sockaddr_un path;
+        std::memset(&path, 0, sizeof(path));
+
+        this->len = sizeof(path);
+
+        if (bindAddress.length() > 100)
+            throw std::runtime_error("Unix domain socket path can't be longer than 100 chars.");
+
+        path.sun_family = AF_UNIX;
+
+        std::memcpy(path.sun_path, bindAddress.data(), bindAddress.size());
+        std::memcpy(dat.data(), &path, sizeof(path));
     }
 }
 

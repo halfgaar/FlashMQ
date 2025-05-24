@@ -21,10 +21,11 @@ See LICENSE for license details.
 class ScopedSocket
 {
     int socket = -1;
+    std::string unixSocketPath;
     std::weak_ptr<Listener> listener;
 public:
     ScopedSocket() = default;
-    ScopedSocket(int socket, const std::shared_ptr<Listener> &listener);
+    ScopedSocket(int socket, const std::string &unixSocketPath, const std::shared_ptr<Listener> &listener);
     ScopedSocket(const ScopedSocket &other) = delete;
     ScopedSocket(ScopedSocket &&other);
     ~ScopedSocket();

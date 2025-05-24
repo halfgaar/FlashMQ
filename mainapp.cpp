@@ -117,41 +117,83 @@ std::list<ScopedSocket> MainApp::createListenSocket(const std::shared_ptr<Listen
 {
     std::list<ScopedSocket> result;
 
-    if (listener->port <= 0)
+    if (listener->protocol != ListenerProtocol::Unix && listener->port <= 0)
         return result;
+
+    std::vector<ListenerProtocol> protocols;
+
+    if (listener->protocol == ListenerProtocol::IPv46)
+    {
+        protocols.push_back(ListenerProtocol::IPv4);
+        protocols.push_back(ListenerProtocol::IPv6);
+    }
+    else
+    {
+        protocols.push_back(listener->protocol);
+    }
 
     bool error = false;
 
-    for (ListenerProtocol p : std::list<ListenerProtocol>({ ListenerProtocol::IPv4, ListenerProtocol::IPv6}))
+    for (ListenerProtocol p : protocols)
     {
-        std::string pname = p == ListenerProtocol::IPv4 ? "IPv4" : "IPv6";
-        int family = p == ListenerProtocol::IPv4 ? AF_INET : AF_INET6;
+        std::string pname;
+        sa_family_t family = AF_UNSPEC;
 
-        if (!(listener->protocol == ListenerProtocol::IPv46 || listener->protocol == p))
-            continue;
+        if (p == ListenerProtocol::IPv4)
+        {
+            pname = "IPv4";
+            family = AF_INET;
+        }
+        else if (p == ListenerProtocol::IPv6)
+        {
+            pname = "IPv6";
+            family = AF_INET6;
+        }
+        else if (p == ListenerProtocol::Unix)
+        {
+            pname = "unix socket";
+            family = AF_UNIX;
+        }
+
+        std::ostringstream logtext;
 
         try
         {
-            std::string haproxy = "";
+            if (family == AF_UNIX)
+            {
+                logtext << "Creating unix socket listener on " << listener->unixSocketPath;
+            }
+            else
+            {
+                logtext << "Creating " << pname << " " << listener->getProtocolName() << " ";
 
-            if (listener->isHaProxy())
-                haproxy = "haproxy ";
+                if (listener->haproxy)
+                    logtext << "haproxy ";
 
-            logger->logf(LOG_NOTICE, "Creating %s %s %slistener on [%s]:%d", pname.c_str(), listener->getProtocolName().c_str(),
-                         haproxy.c_str(), listener->getBindAddress(p).c_str(), listener->port);
+                logtext << "listener on [" << listener->getBindAddress(p) << "]:" << listener->port;
+            }
+
+            logger->log(LOG_NOTICE) << logtext.str();
 
             BindAddr bindAddr(family, listener->getBindAddress(p), listener->port);
 
-            ScopedSocket uniqueListenFd(check<std::runtime_error>(socket(family, SOCK_STREAM, 0)), listener);
+            ScopedSocket uniqueListenFd(check<std::runtime_error>(socket(family, SOCK_STREAM, 0)), listener->unixSocketPath, listener);
 
-            // Not needed for now. Maybe I will make multiple accept threads later, with SO_REUSEPORT.
-            int optval = 1;
-            check<std::runtime_error>(setsockopt(uniqueListenFd.get(), SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &optval, sizeof(optval)));
-
-            if (listener->isTcpNoDelay())
+            if (p == ListenerProtocol::Unix)
             {
-                int tcp_nodelay_optval = 1;
-                check<std::runtime_error>(setsockopt(uniqueListenFd.get(), IPPROTO_TCP, TCP_NODELAY, &tcp_nodelay_optval, sizeof(tcp_nodelay_optval)));
+                unlink_if_my_sock(listener->unixSocketPath);
+            }
+            else
+            {
+                // Not needed for now. Maybe I will make multiple accept threads later, with SO_REUSEPORT.
+                int optval = 1;
+                check<std::runtime_error>(setsockopt(uniqueListenFd.get(), SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &optval, sizeof(optval)));
+
+                if (listener->isTcpNoDelay())
+                {
+                    int tcp_nodelay_optval = 1;
+                    check<std::runtime_error>(setsockopt(uniqueListenFd.get(), IPPROTO_TCP, TCP_NODELAY, &tcp_nodelay_optval, sizeof(tcp_nodelay_optval)));
+                }
             }
 
             int flags = fcntl(uniqueListenFd.get(), F_GETFL);
@@ -171,8 +213,7 @@ std::list<ScopedSocket> MainApp::createListenSocket(const std::shared_ptr<Listen
         }
         catch (std::exception &ex)
         {
-            logger->logf(LOG_ERR, "Creating %s %s listener on [%s]:%d failed: %s", pname.c_str(), listener->getProtocolName().c_str(),
-                         listener->getBindAddress(p).c_str(), listener->port, ex.what());
+            logger->log(LOG_ERR) << logtext.str() << " failed: " << ex.what();
             error = true;
         }
     }

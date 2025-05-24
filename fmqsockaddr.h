@@ -3,6 +3,7 @@
 
 #include <string>
 #include <arpa/inet.h>
+#include <sys/un.h>
 #include <vector>
 #include <optional>
 

@@ -18,6 +18,10 @@ FMQSockaddr::FMQSockaddr(const sockaddr *addr) :
     {
         std::memcpy(dat.data(), addr, sizeof(struct sockaddr_in6));
     }
+    else if (this->family == AF_UNIX)
+    {
+        std::memcpy(dat.data(), addr, sizeof(struct sockaddr_un));
+    }
     else
     {
         throw std::runtime_error("Trying to make IPv4 or IPv6 address from address structure that is neither of those");
@@ -47,6 +51,8 @@ socklen_t FMQSockaddr::getSize() const
         return sizeof(struct sockaddr_in);
     if (this->family == AF_INET6)
         return sizeof(struct sockaddr_in6);
+    if (this->family == AF_UNIX)
+        return sizeof(struct sockaddr_un);
     return 0;
 }
 

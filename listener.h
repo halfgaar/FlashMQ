@@ -22,7 +22,8 @@ enum class ListenerProtocol
 {
     IPv46,
     IPv4,
-    IPv6
+    IPv6,
+    Unix
 };
 
 struct Listener
@@ -36,6 +37,7 @@ struct Listener
     ListenerProtocol protocol = ListenerProtocol::IPv46;
     std::string inet4BindAddress;
     std::string inet6BindAddress;
+    std::string unixSocketPath;
     int port = 0;
     bool websocket = false;
     bool tcpNoDelay = false;

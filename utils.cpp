@@ -20,6 +20,8 @@ See LICENSE for license details.
 #include <signal.h>
 #include <iomanip>
 #include <time.h>
+#include <sys/un.h>
+#include <unistd.h>
 
 #include <openssl/ssl.h>
 #include <openssl/err.h>
@@ -457,6 +459,10 @@ std::string sockaddrToString(const sockaddr *addr)
         struct sockaddr_in6 ipv6sockAddr;
         std::memcpy(&ipv6sockAddr, addr, sizeof(struct sockaddr_in6));
         rc = inet_ntop(family, &ipv6sockAddr.sin6_addr, buf.data(), buf.size());
+    }
+    else if (family == AF_UNIX)
+    {
+        return std::string("unix");
     }
 
     if (rc == nullptr)
@@ -939,7 +945,18 @@ std::string propertyToString(Mqtt5Properties p)
     return oss.str();
 }
 
+void unlink_if_my_sock(const std::string &path)
+{
+    if (path.empty())
+        return;
 
+    struct stat statbuf;
+    std::memset(&statbuf, 0, sizeof(statbuf));
+    if (lstat(path.c_str(), &statbuf) < 0)
+        return;
 
-
-
+    if ((statbuf.st_mode & S_IFMT) == S_IFSOCK && statbuf.st_uid == getuid())
+    {
+        unlink(path.c_str());
+    }
+}

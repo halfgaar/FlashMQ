@@ -42,6 +42,23 @@ void Listener::isValid()
         }
     }
 
+    if (protocol < ListenerProtocol::Unix && !unixSocketPath.empty())
+    {
+        throw ConfigFileException("Specifying 'unix_socket_path' for IP listeners is not allowed.");
+    }
+
+    if (protocol == ListenerProtocol::Unix)
+    {
+        if (unixSocketPath.empty())
+            throw ConfigFileException("Option 'unix_socket_path' must be set for unix socket listeners.");
+
+        if (!inet4BindAddress.empty() || !inet6BindAddress.empty())
+            throw ConfigFileException("Specifying inet bind addresses is not allowed for unix socket listeners.");
+
+        if (isSsl())
+            throw ConfigFileException("TLS on domain sockets is not supported.");
+    }
+
     if ((!clientVerificationCaDir.empty() || !clientVerificationCaFile.empty()) && !isSsl())
     {
         throw ConfigFileException("X509 client verification can only be done on TLS listeners.");
@@ -70,6 +87,10 @@ bool Listener::isHaProxy() const
 
 std::string Listener::getProtocolName() const
 {
+    if (protocol == ListenerProtocol::Unix)
+    {
+        return "unix socket";
+    }
     if (isSsl())
     {
         if (websocket)
@@ -155,5 +176,18 @@ std::string Listener::getBindAddress(ListenerProtocol p)
             return "::";
         return inet6BindAddress;
     }
+    if (p == ListenerProtocol::Unix)
+    {
+        if (unixSocketPath.empty())
+            throw std::runtime_error("Listener's unix socket path is empty.");
+        return unixSocketPath;
+    }
     return "";
 }
+
+
+
+
+
+
+

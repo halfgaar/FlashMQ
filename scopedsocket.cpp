@@ -11,9 +11,11 @@ See LICENSE for license details.
 #include "scopedsocket.h"
 #include <stdexcept>
 #include <cassert>
+#include "utils.h"
 
-ScopedSocket::ScopedSocket(int socket, const std::shared_ptr<Listener> &listener) :
+ScopedSocket::ScopedSocket(int socket, const std::string &unixSocketPath, const std::shared_ptr<Listener> &listener) :
     socket(socket),
+    unixSocketPath(unixSocketPath),
     listener(listener)
 {
     if (this->socket < 0)
@@ -32,6 +34,8 @@ ScopedSocket::~ScopedSocket()
         close(socket);
     socket = -1;
     listener.reset();
+
+    unlink_if_my_sock(unixSocketPath);
 }
 
 int ScopedSocket::get() const
@@ -53,6 +57,9 @@ ScopedSocket &ScopedSocket::operator=(ScopedSocket &&other)
 
     this->socket = other.socket;
     other.socket = -1;
+
+    this->unixSocketPath = std::move(other.unixSocketPath);
+    other.unixSocketPath.clear();
 
     return *this;
 }

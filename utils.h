@@ -383,5 +383,7 @@ std::optional<T> &non_optional(std::optional<T> &o)
     return o;
 }
 
+void unlink_if_my_sock(const std::string &path);
+
 
 #endif // UTILS_H

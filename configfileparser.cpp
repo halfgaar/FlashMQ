@@ -241,6 +241,7 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validListenKeys.insert("inet_protocol");
     validListenKeys.insert("inet4_bind_address");
     validListenKeys.insert("inet6_bind_address");
+    validListenKeys.insert("unix_socket_path");
     validListenKeys.insert("haproxy");
     validListenKeys.insert("client_verification_ca_file");
     validListenKeys.insert("client_verification_ca_dir");
@@ -504,6 +505,8 @@ void ConfigFileParser::loadFile(bool test)
                         curListener->protocol = ListenerProtocol::IPv6;
                     else if (value == "ip4_ip6")
                         curListener->protocol = ListenerProtocol::IPv46;
+                    else if (value == "unix")
+                        curListener->protocol = ListenerProtocol::Unix;
                     else
                         throw ConfigFileException(formatString("Invalid inet protocol: %s", value.c_str()));
                 }
@@ -514,6 +517,10 @@ void ConfigFileParser::loadFile(bool test)
                 if (testKeyValidity(key, "inet6_bind_address", validListenKeys))
                 {
                     curListener->inet6BindAddress = value;
+                }
+                if (testKeyValidity(key, "unix_socket_path", validListenKeys))
+                {
+                    curListener->unixSocketPath = value;
                 }
                 if (testKeyValidity(key, "haproxy", validListenKeys))
                 {
