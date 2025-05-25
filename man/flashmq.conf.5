@@ -5,7 +5,7 @@
 \\$2 \(la\\$1\(ra\\$3
 ..
 .if \n(.g .mso www.tmac
-.TH flashmq.conf 5 "Mar 27 2025" "" ""
+.TH flashmq.conf 5 "mei 27 2025" "" ""
 .SH NAME
 flashmq.conf \- FlashMQ configuration file format
 .SH SYNOPSIS
@@ -367,7 +367,9 @@ For encrypted HTTPS websockets, the default port is \fI4443\fR
 \*(T<\fB\m[green]protocol\m[] \fI\m[cyan]mqtt\m[]\fR|\fI\m[cyan]websockets\m[]\fR\fR\*(T>
 This is a required parameter.
 .TP
-\*(T<\fB\m[green]inet_protocol\m[] \fI\m[cyan]ip4_ip6\m[]\fR|\fI\m[cyan]ip4\m[]\fR|\fI\m[cyan]ip6\m[]\fR\fR\*(T>
+\*(T<\fB\m[green]inet_protocol\m[] \fI\m[cyan]ip4_ip6\m[]\fR|\fI\m[cyan]ip4\m[]\fR|\fI\m[cyan]ip6\m[]\fR|\fI\m[cyan]unix\m[]\fR\fR\*(T>
+When using \fIunix\fR, a \fB\m[green]unix_socket_path\fR\m[] is required.
+
 Default: \fIip4_ip6\fR
 .TP
 \*(T<\fB\m[green]inet4_bind_address\m[] \fI\m[cyan]inet4address\m[]\fR\fR\*(T>
@@ -375,6 +377,11 @@ Default: 0.0.0.0
 .TP
 \*(T<\fB\m[green]inet6_bind_address\m[] \fI\m[cyan]inet6address\m[]\fR\fR\*(T>
 Default: ::0
+.TP
+\*(T<\fB\m[green]unix_socket_path\m[] \fI\m[cyan]path\m[]\fR\fR\*(T>
+When using \fIunix\fR for \fB\m[green]inet_protocol\fR\m[], the file path of the socket.
+
+FlashMQ will remove pre-existing socket files if the owner matches.
 .TP
 \*(T<\fB\m[green]fullchain\m[] \fI\m[cyan]/foobar/server.crt\m[]\fR\fR\*(T>
 Specifying a chain makes the listener SSL, and also requires the \fB\m[green]privkey\fR\m[] to be set.

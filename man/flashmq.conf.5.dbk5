@@ -746,8 +746,11 @@ multi-value-param one 'two' "three" "with ' char"
         </listitem>
       </varlistentry>
       <varlistentry xml:id="inet_protocol">
-        <term><option>inet_protocol</option> <replaceable>ip4_ip6</replaceable>|<replaceable>ip4</replaceable>|<replaceable>ip6</replaceable></term>
+        <term><option>inet_protocol</option> <replaceable>ip4_ip6</replaceable>|<replaceable>ip4</replaceable>|<replaceable>ip6</replaceable>|<replaceable>unix</replaceable></term>
         <listitem>
+          <para>
+              When using <literal>unix</literal>, a <option>unix_socket_path</option> is required.
+          </para>
           <para>
             Default: <literal>ip4_ip6</literal>
           </para>
@@ -766,6 +769,17 @@ multi-value-param one 'two' "three" "with ' char"
         <listitem>
           <para>
             Default: ::0
+          </para>
+        </listitem>
+      </varlistentry>
+      <varlistentry xml:id="unix_socket_path" condition="flashmq ≥ 1.22.0">
+        <term><option>unix_socket_path</option> <replaceable>path</replaceable></term>
+        <listitem>
+          <para>
+            When using <literal>unix</literal> for <option>inet_protocol</option>, the file path of the socket.
+          </para>
+          <para>
+            FlashMQ will remove pre-existing socket files if the owner matches.
           </para>
         </listitem>
       </varlistentry>
