@@ -951,10 +951,13 @@ multi-value-param one 'two' "three" "with ' char"
         </dd>
       
       
-        <dt id="protocol"><code class="option">protocol</code> <code class="replaceable">mqtt</code>|<code class="replaceable">websockets</code><a class="hash-anchor" href="#protocol">#</a></dt>
+        <dt id="protocol"><code class="option">protocol</code> <code class="replaceable">mqtt</code>|<code class="replaceable">websockets</code>|<code class="replaceable">acme</code><a class="hash-anchor" href="#protocol">#</a></dt>
         <dd>
           <p>
             This is a required parameter.
+          </p>
+          <p>
+              For <code class="literal">acme</code>, see <a href="#listen__acme_redirect_url">acme_redirect_url</a>.
           </p>
         </dd>
       
@@ -1060,6 +1063,27 @@ multi-value-param one 'two' "three" "with ' char"
         <dd>
           <p>
             When using X509 client authentication with <code class="option">client_verification_ca_file</code> or <code class="option">client_verification_ca_dir</code>, the username will not be checked with a user database or a plugin by default. Set this option to <code class="literal">true</code> to override that.
+          </p>
+        </dd>
+      
+
+      
+        <dt id="listen__acme_redirect_url"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.22.0">≥ v1.22.0</div><code class="option">acme_redirect_url</code> <code class="replaceable">http://example.com/</code><a class="hash-anchor" href="#listen__acme_redirect_url">#</a></dt>
+        <dd>
+          <p>
+            This allows an ACME (automated certificate management environment) challenge to be redirected elsewhere. This allows decoupling of the certificate creation from the host(s) that run FlashMQ.
+          </p>
+          <p>
+            This can either be configured on a dedicated listener with <code class="option">protocol</code> <code class="literal">acme</code>, or multiplexed on a non-SSL <code class="literal">mqtt</code> or <code class="literal">websockets</code> listener.
+          </p>
+        </dd>
+      
+
+      
+        <dt id="listen__drop_on_absent_certificate"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.22.0">≥ v1.22.0</div><code class="option">drop_on_absent_certificate</code> <code class="replaceable">true</code>|<code class="replaceable">false</code><a class="hash-anchor" href="#listen__drop_on_absent_certificate">#</a></dt>
+        <dd>
+          <p>
+            When both <code class="option">privkey</code> and <code class="option">fullchain</code> are absent, don't create this listener. This can help in situations where you don't have the certificate and key yet, but you are expecting them.
           </p>
         </dd>
       

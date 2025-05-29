@@ -5,7 +5,7 @@
 \\$2 \(la\\$1\(ra\\$3
 ..
 .if \n(.g .mso www.tmac
-.TH flashmq.conf 5 "mei 27 2025" "" ""
+.TH flashmq.conf 5 "mei 31 2025" "" ""
 .SH NAME
 flashmq.conf \- FlashMQ configuration file format
 .SH SYNOPSIS
@@ -364,8 +364,10 @@ For plain HTTP websockets, the default port is \fI8080\fR
 For encrypted HTTPS websockets, the default port is \fI4443\fR
 .RE
 .TP
-\*(T<\fB\m[green]protocol\m[] \fI\m[cyan]mqtt\m[]\fR|\fI\m[cyan]websockets\m[]\fR\fR\*(T>
+\*(T<\fB\m[green]protocol\m[] \fI\m[cyan]mqtt\m[]\fR|\fI\m[cyan]websockets\m[]\fR|\fI\m[cyan]acme\m[]\fR\fR\*(T>
 This is a required parameter.
+
+For \fIacme\fR, see \fBacme_redirect_url\fR.
 .TP
 \*(T<\fB\m[green]inet_protocol\m[] \fI\m[cyan]ip4_ip6\m[]\fR|\fI\m[cyan]ip4\m[]\fR|\fI\m[cyan]ip6\m[]\fR|\fI\m[cyan]unix\m[]\fR\fR\*(T>
 When using \fIunix\fR, a \fB\m[green]unix_socket_path\fR\m[] is required.
@@ -410,6 +412,14 @@ Specifying this or \fB\m[green]client_verification_ca_file\fR\m[] will require t
 .TP
 \*(T<\fB\m[green]client_verification_still_do_authn\m[] \fI\m[cyan]true\m[]\fR|\fI\m[cyan]false\m[]\fR\fR\*(T>
 When using X509 client authentication with \fB\m[green]client_verification_ca_file\fR\m[] or \fB\m[green]client_verification_ca_dir\fR\m[], the username will not be checked with a user database or a plugin by default. Set this option to \fItrue\fR to override that.
+.TP
+\*(T<\fB\m[green]acme_redirect_url\m[] \fI\m[cyan]http://example.com/\m[]\fR\fR\*(T>
+This allows an ACME (automated certificate management environment) challenge to be redirected elsewhere. This allows decoupling of the certificate creation from the host(s) that run FlashMQ.
+
+This can either be configured on a dedicated listener with \fB\m[green]protocol\fR\m[] \fIacme\fR, or multiplexed on a non-SSL \fImqtt\fR or \fIwebsockets\fR listener.
+.TP
+\*(T<\fB\m[green]drop_on_absent_certificate\m[] \fI\m[cyan]true\m[]\fR|\fI\m[cyan]false\m[]\fR\fR\*(T>
+When both \fB\m[green]privkey\fR\m[] and \fB\m[green]fullchain\fR\m[] are absent, don't create this listener. This can help in situations where you don't have the certificate and key yet, but you are expecting them.
 .TP
 \*(T<\fB\m[green]allow_anonymous\m[] \fI\m[cyan]true\m[]\fR|\fI\m[cyan]false\m[]\fR\fR\*(T>
 This allows you to override the \fBglobal \fB\m[green]allow_anonymous\fR\m[]\fR setting on the listener level.

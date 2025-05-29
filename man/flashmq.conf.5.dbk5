@@ -738,10 +738,13 @@ multi-value-param one 'two' "three" "with ' char"
         </listitem>
       </varlistentry>
       <varlistentry xml:id="protocol">
-        <term><option>protocol</option> <replaceable>mqtt</replaceable>|<replaceable>websockets</replaceable></term>
+        <term><option>protocol</option> <replaceable>mqtt</replaceable>|<replaceable>websockets</replaceable>|<replaceable>acme</replaceable></term>
         <listitem>
           <para>
             This is a required parameter.
+          </para>
+          <para>
+              For <literal>acme</literal>, see <link xlink:href="#listen__acme_redirect_url">acme_redirect_url</link>.
           </para>
         </listitem>
       </varlistentry>
@@ -847,6 +850,27 @@ multi-value-param one 'two' "three" "with ' char"
         <listitem>
           <para>
             When using X509 client authentication with <option>client_verification_ca_file</option> or <option>client_verification_ca_dir</option>, the username will not be checked with a user database or a plugin by default. Set this option to <literal>true</literal> to override that.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry xml:id="listen__acme_redirect_url" condition="flashmq ≥ 1.22.0">
+        <term><option>acme_redirect_url</option> <replaceable>http://example.com/</replaceable></term>
+        <listitem>
+          <para>
+            This allows an ACME (automated certificate management environment) challenge to be redirected elsewhere. This allows decoupling of the certificate creation from the host(s) that run FlashMQ.
+          </para>
+          <para>
+            This can either be configured on a dedicated listener with <option>protocol</option> <literal>acme</literal>, or multiplexed on a non-SSL <literal>mqtt</literal> or <literal>websockets</literal> listener.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry xml:id="listen__drop_on_absent_certificate" condition="flashmq ≥ 1.22.0">
+        <term><option>drop_on_absent_certificate</option> <replaceable>true</replaceable>|<replaceable>false</replaceable></term>
+        <listitem>
+          <para>
+            When both <option>privkey</option> and <option>fullchain</option> are absent, don't create this listener. This can help in situations where you don't have the certificate and key yet, but you are expecting them.
           </para>
         </listitem>
       </varlistentry>
