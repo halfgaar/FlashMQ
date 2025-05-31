@@ -156,7 +156,9 @@ class Client
 public:
     uint8_t preAuthPacketCounter = 0;
 
-    Client(int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, bool websocket, bool haproxy, const struct sockaddr *addr, const Settings &settings, bool fuzzMode=false);
+    Client(
+        ClientType type, int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, bool websocket, bool haproxy,
+        const struct sockaddr *addr, const Settings &settings, bool fuzzMode=false);
     Client(const Client &other) = delete;
     Client(Client &&other) = delete;
     ~Client();

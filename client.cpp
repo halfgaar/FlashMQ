@@ -59,7 +59,9 @@ Client::WriteBuf::WriteBuf(size_t size) :
  * @param settings The client is constructed in the main thread, so we need to use its settings copy
  * @param fuzzMode
  */
-Client::Client(int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, bool websocket, bool haproxy, const struct sockaddr *addr, const Settings &settings, bool fuzzMode) :
+Client::Client(
+        ClientType type, int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, bool websocket,
+        bool haproxy, const struct sockaddr *addr, const Settings &settings, bool fuzzMode) :
     fd(fd),
     fuzzMode(fuzzMode),
     maxOutgoingPacketSize(settings.maxPacketSize),
@@ -68,6 +70,7 @@ Client::Client(int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, bool we
     ioWrapper(ssl, websocket, settings.clientInitialBufferSize, this),
     readbuf(settings.clientInitialBufferSize),
     writebuf(settings.clientInitialBufferSize),
+    clientType(type),
     epoll_fd(threadData ? threadData->getEpollFd() : 0),
     threadData(threadData),
     addr(addr)
@@ -84,8 +87,10 @@ Client::Client(int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, bool we
     transportStr = formatString("TCP%s%s%s", haproxy_s.c_str(), websocket_s.c_str(), ssl_s.c_str());
 
     // Avoid giving this log line for dummy clients.
-    if (addr)
-        logger->logf(LOG_NOTICE, "Accepting connection from: %s", repr_endpoint().c_str());
+    if (addr && clientType != ClientType::LocalBridge)
+    {
+        logger->log(LOG_NOTICE) << "Accepting connection from: " << repr_endpoint();
+    }
 }
 
 Client::~Client()

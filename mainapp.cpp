@@ -663,12 +663,12 @@ void MainApp::start()
             std::shared_ptr<ThreadData> threaddata = std::make_shared<ThreadData>(0, settings, pluginLoader);
             ThreadGlobals::assignThreadData(threaddata);
 
-            std::shared_ptr<Client> client = std::make_shared<Client>(fd, threaddata, nullptr, fuzzWebsockets, false, nullptr, settings, true);
-            std::shared_ptr<Client> subscriber = std::make_shared<Client>(fdnull, threaddata, nullptr, fuzzWebsockets, false, nullptr, settings, true);
+            std::shared_ptr<Client> client = std::make_shared<Client>(ClientType::Normal, fd, threaddata, nullptr, fuzzWebsockets, false, nullptr, settings, true);
+            std::shared_ptr<Client> subscriber = std::make_shared<Client>(ClientType::Normal, fdnull, threaddata, nullptr, fuzzWebsockets, false, nullptr, settings, true);
             subscriber->setClientProperties(ProtocolVersion::Mqtt311, "subscriber", "subuser", true, 60);
             subscriber->setAuthenticated(true);
 
-            std::shared_ptr<Client> websocketsubscriber = std::make_shared<Client>(fdnull2, threaddata, nullptr, true, false, nullptr, settings, true);
+            std::shared_ptr<Client> websocketsubscriber = std::make_shared<Client>(ClientType::Normal, fdnull2, threaddata, nullptr, true, false, nullptr, settings, true);
             websocketsubscriber->setClientProperties(ProtocolVersion::Mqtt311, "websocketsubscriber", "websocksubuser", true, 60);
             websocketsubscriber->setAuthenticated(true);
             websocketsubscriber->setFakeUpgraded();
@@ -855,7 +855,8 @@ void MainApp::start()
                     }
 
                     // Don't use std::make_shared to avoid the weak pointers keeping the control block in memory.
-                    std::shared_ptr<Client> client = std::shared_ptr<Client>(new Client(fd, thread_data, clientSSL, listener->websocket, listener->isHaProxy(), addr, settings));
+                    std::shared_ptr<Client> client = std::shared_ptr<Client>(new Client(
+                        ClientType::Normal, fd, thread_data, clientSSL, listener->websocket, listener->isHaProxy(), addr, settings));
 
                     if (listener->getX509ClientVerficationMode() != X509ClientVerification::None)
                     {
