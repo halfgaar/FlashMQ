@@ -255,6 +255,7 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validListenKeys.insert("overload_mode");
     validListenKeys.insert("acme_redirect_url");
     validListenKeys.insert("drop_on_absent_certificate");
+    validListenKeys.insert("max_buffer_size");
 
     validBridgeKeys.insert("local_username");
     validBridgeKeys.insert("remote_username");
@@ -605,6 +606,15 @@ void ConfigFileParser::loadFile(bool test)
                 if (testKeyValidity(key, "drop_on_absent_certificate", validListenKeys))
                 {
                     curListener->dropOnAbsentCertificates = stringTruthiness(value);
+                }
+                if (testKeyValidity(key, "max_buffer_size", validListenKeys))
+                {
+                    size_t val = full_stoul(key, valueTrimmed);
+
+                    if (val > 1073741824)
+                        throw ConfigFileException("Bridge's " + key + " cannot be bigger than 1 GB");
+
+                    curListener->maxBufferSize = val;
                 }
 
                 testCorrectNumberOfValues(key, number_of_expected_values, values);

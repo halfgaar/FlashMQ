@@ -862,6 +862,9 @@ void MainApp::start()
                     client->setAllowAnonymousOverride(listener->allowAnonymous);
                     client->setAcmeRedirect(listener->acmeRedirectURL);
 
+                    if (listener->maxBufferSize)
+                        client->setMaxBufSizeOverride(listener->maxBufferSize.value());
+
                     thread_data->giveClient(std::move(client));
 
                     globals->stats.socketConnects.inc();

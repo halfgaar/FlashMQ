@@ -53,6 +53,7 @@ struct Listener
     TLSVersion minimumTlsVersion = TLSVersion::TLSv1_1;
     std::optional<OverloadMode> overloadMode;
     bool dropOnAbsentCertificates = false;
+    std::optional<uint32_t> maxBufferSize;
 
     void isValid();
     bool isSsl() const;
