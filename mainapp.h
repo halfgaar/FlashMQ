@@ -31,6 +31,7 @@ See LICENSE for license details.
 #include "bridgeinfodb.h"
 #include "backgroundworker.h"
 #include "driftcounter.h"
+#include "globals.h"
 
 class MainApp
 {
@@ -118,8 +119,6 @@ public:
     void queuePurgeSubscriptionTree();
     void queueMemoryTrim();
     void memoryTrim();
-
-    std::shared_ptr<SubscriptionStore> getSubscriptionStore();
 };
 
 #endif // MAINAPP_H

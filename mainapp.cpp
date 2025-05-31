@@ -38,6 +38,9 @@ MainApp *MainApp::instance = nullptr;
 MainApp::MainApp(const std::string &configFilePath) :
     subscriptionStore(std::make_shared<SubscriptionStore>())
 {
+    globals = Globals();
+    globals->subscriptionStore = this->subscriptionStore;
+
     epollFdAccept = check<std::runtime_error>(epoll_create(999));
     taskEventFd = eventfd(0, EFD_NONBLOCK);
 
@@ -77,6 +80,8 @@ MainApp::~MainApp()
 
     if (epollFdAccept >= 0)
         close(epollFdAccept);
+
+    globals = Globals();
 }
 
 void MainApp::doHelp(const char *arg)
@@ -428,7 +433,7 @@ void MainApp::saveState(const Settings &settings, const std::list<BridgeInfoForS
     {
         if (!settings.storageDir.empty())
         {
-            std::shared_ptr<SubscriptionStore> subscriptionStore = MainApp::getMainApp()->getSubscriptionStore();
+            std::shared_ptr<SubscriptionStore> subscriptionStore = globals->subscriptionStore;
 
             const std::string retainedDBPath = settings.getRetainedMessagesDBFile();
             if (settings.retainedMessagesMode == RetainedMessagesMode::Enabled)
@@ -703,8 +708,6 @@ void MainApp::start()
     }
 #endif
 
-    GlobalStats *globalStats = GlobalStats::getInstance();
-
     std::shared_ptr<PluginLoader> pluginLoader = std::make_shared<PluginLoader>();
     pluginLoader->loadPlugin(settings.pluginPath);
 
@@ -863,7 +866,7 @@ void MainApp::start()
 
                     thread_data->giveClient(std::move(client));
 
-                    globalStats->socketConnects.inc();
+                    globals->stats.socketConnects.inc();
                 }
                 else
                 {
@@ -957,7 +960,7 @@ void MainApp::start()
 
     pluginLoader->mainDeinit(settings.getFlashmqpluginOpts());
 
-    Globals::getInstance().quitting = true;
+    globals->quitting = true;
     this->bgWorker.waitForStop();
 
     std::list<BridgeInfoForSerializing> bridgeInfos = BridgeInfoForSerializing::getBridgeInfosForSerializing(this->bridgeConfigs);
@@ -1306,8 +1309,4 @@ void MainApp::memoryTrim()
     logger->log(LOG_NOTICE) << "Operation malloc_trim(0) done. " << sresult << " Duration was " << dur.count() << " µs.";
 }
 
-std::shared_ptr<SubscriptionStore> MainApp::getSubscriptionStore()
-{
-    return this->subscriptionStore;
-}
 

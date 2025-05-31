@@ -79,7 +79,3 @@ void MainAppInThread::waitForStarted()
     }
 }
 
-std::shared_ptr<SubscriptionStore> MainAppInThread::getStore()
-{
-    return appInstance->getSubscriptionStore();
-}

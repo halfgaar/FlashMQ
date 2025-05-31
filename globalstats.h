@@ -20,13 +20,10 @@ See LICENSE for license details.
 
 class GlobalStats
 {
-    static GlobalStats *instance;
-
     MutexOwned<std::unordered_map<std::string, std::string>> extras;
 
-    GlobalStats();
 public:
-    static GlobalStats *getInstance();
+    GlobalStats();
 
     DerivableCounter socketConnects;
 

@@ -10,19 +10,9 @@ See LICENSE for license details.
 
 #include "globalstats.h"
 
-GlobalStats *GlobalStats::instance = nullptr;
-
 GlobalStats::GlobalStats()
 {
 
-}
-
-GlobalStats *GlobalStats::getInstance()
-{
-    if (GlobalStats::instance == nullptr)
-        GlobalStats::instance = new GlobalStats();
-
-    return GlobalStats::instance;
 }
 
 void GlobalStats::setExtra(const std::string &topic, const std::string &payload)

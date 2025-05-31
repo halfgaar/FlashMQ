@@ -1038,7 +1038,7 @@ void MqttPacket::handleConnect(std::shared_ptr<Client> &sender)
     if (sender->hasConnectPacketSeen())
         throw ProtocolError("Client already sent a CONNECT.", ReasonCodes::ProtocolError);
 
-    std::shared_ptr<SubscriptionStore> subscriptionStore = MainApp::getMainApp()->getSubscriptionStore();
+    std::shared_ptr<SubscriptionStore> subscriptionStore = globals->subscriptionStore;
 
     Authentication &authentication = ThreadGlobals::getThreadData()->authentication;
 
@@ -1254,7 +1254,7 @@ void MqttPacket::handleConnAck(std::shared_ptr<Client> &sender)
 
     logger->logf(LOG_NOTICE, "Bridge '%s' connection established. Subscribing to topics.", sender->repr().c_str());
 
-    std::shared_ptr<SubscriptionStore> store = MainApp::getMainApp()->getSubscriptionStore();
+    std::shared_ptr<SubscriptionStore> store = globals->subscriptionStore;
     std::shared_ptr<Session> session = bridgeState->session.lock();
 
     // Should be impossible.
@@ -1703,7 +1703,7 @@ void MqttPacket::handleSubscribe(std::shared_ptr<Client> &sender)
         if (tup.authResult == AuthResult::success_but_drop)
             continue;
 
-        auto store = MainApp::getMainApp()->getSubscriptionStore();
+        auto store = globals->subscriptionStore;
 
         logger->log(LOG_SUBSCRIBE) << "Client '" << sender->repr() << "' subscribed to '" << tup.topic << "' QoS " << static_cast<int>(tup.qos);
         const AddSubscriptionType add_type = store->addSubscription(
@@ -1805,7 +1805,7 @@ void MqttPacket::handleUnsubscribe(std::shared_ptr<Client> &sender)
         std::string topic_without_sharename = topic;
         parseSubscriptionShare(subtopics, shareName, topic_without_sharename);
 
-        MainApp::getMainApp()->getSubscriptionStore()->removeSubscription(session, subtopics, shareName);
+        globals->subscriptionStore->removeSubscription(session, subtopics, shareName);
 
         const Authentication &auth = ThreadGlobals::getThreadData()->authentication;
         auth.onUnsubscribe(session, sender->getClientId(), sender->getUsername(), topic_without_sharename, subtopics, shareName, getUserProperties());
@@ -2081,7 +2081,7 @@ void MqttPacket::handlePublish(std::shared_ptr<Client> &sender)
                 if (authResult == AuthResult::success && settings->retainedMessagesMode <= RetainedMessagesMode::EnabledWithoutPersistence)
                 {
                     publishData.payload = getPayloadCopy();
-                    MainApp::getMainApp()->getSubscriptionStore()->trySetRetainedMessages(publishData, publishData.getSubtopics());
+                    globals->subscriptionStore->trySetRetainedMessages(publishData, publishData.getSubtopics());
                 }
                 else if (settings->retainedMessagesMode == RetainedMessagesMode::Downgrade)
                 {
@@ -2099,7 +2099,7 @@ void MqttPacket::handlePublish(std::shared_ptr<Client> &sender)
 
                 PublishCopyFactory factory(this);
                 ackSender.sendNow();
-                MainApp::getMainApp()->getSubscriptionStore()->queuePacketAtSubscribers(factory, sender->getClientId());
+                globals->subscriptionStore->queuePacketAtSubscribers(factory, sender->getClientId());
             }
         }
         else if (authResult == AuthResult::success_but_drop_publish)

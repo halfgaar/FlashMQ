@@ -540,7 +540,7 @@ void MainTests::test_retained_per_message_expire()
 
 void MainTests::test_retained_tree_purging()
 {
-    std::shared_ptr<SubscriptionStore> store = mainApp->getStore();
+    std::shared_ptr<SubscriptionStore> store = globals->subscriptionStore;
 
     int toDeleteCount = 0;
 

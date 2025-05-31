@@ -21,8 +21,10 @@ See LICENSE for license details.
 #include "utils.h"
 #include "threadglobals.h"
 #include "subscriptionstore.h"
-#include "mainapp.h"
 #include "exceptions.h"
+#include "settings.h"
+#include "threaddata.h"
+#include "globals.h"
 
 StowedClientRegistrationData::StowedClientRegistrationData(bool clean_start, uint16_t clientReceiveMax, uint32_t sessionExpiryInterval) :
     clean_start(clean_start),
@@ -601,7 +603,7 @@ void Client::sendOrQueueWill()
     if (!this->willPublish)
         return;
 
-    std::shared_ptr<SubscriptionStore> store = MainApp::getMainApp()->getSubscriptionStore();
+    std::shared_ptr<SubscriptionStore> store = globals->subscriptionStore;
     store->queueOrSendWillMessage(willPublish, session);
     this->willPublish.reset();
 }

@@ -119,7 +119,7 @@ void ThreadData::queueRemoveExpiredSessions()
 
 void ThreadData::queuePurgeSubscriptionTree()
 {
-    std::shared_ptr<SubscriptionStore> subscriptionStore = MainApp::getMainApp()->getSubscriptionStore();
+    std::shared_ptr<SubscriptionStore> subscriptionStore = globals->subscriptionStore;
     if (subscriptionStore->hasDeferredSubscriptionTreeNodesForPurging())
         return;
 
@@ -133,7 +133,7 @@ void ThreadData::queuePurgeSubscriptionTree()
 
 void ThreadData::queueRemoveExpiredRetainedMessages()
 {
-    std::shared_ptr<SubscriptionStore> subscriptionStore = MainApp::getMainApp()->getSubscriptionStore();
+    std::shared_ptr<SubscriptionStore> subscriptionStore = globals->subscriptionStore;
     if (subscriptionStore->hasDeferredRetainedMessageNodesForPurging())
         return;
 
@@ -180,7 +180,7 @@ void ThreadData::continuationOfAuthentication(std::shared_ptr<Client> &client, A
 {
     assert(pthread_self() == thread_id);
 
-    std::shared_ptr<SubscriptionStore> subscriptionStore = MainApp::getMainApp()->getSubscriptionStore();
+    std::shared_ptr<SubscriptionStore> subscriptionStore = globals->subscriptionStore;
 
     if (authResult == AuthResult::auth_continue)
     {
@@ -348,7 +348,7 @@ void ThreadData::bridgeReconnect()
             }
             else
             {
-                std::shared_ptr<SubscriptionStore> subscriptionStore = MainApp::getMainApp()->getSubscriptionStore();
+                std::shared_ptr<SubscriptionStore> subscriptionStore = globals->subscriptionStore;
                 session = subscriptionStore->getBridgeSession(c);
                 bridge->session = session;
             }
@@ -398,7 +398,7 @@ void ThreadData::clientDisconnectActions(
         bool authenticated, const std::string &clientid, std::shared_ptr<WillPublish> &willPublish, std::shared_ptr<Session> &session,
         std::weak_ptr<BridgeState> &bridgeState, const std::string &disconnect_reason)
 {
-    std::shared_ptr<SubscriptionStore> store = MainApp::getMainApp()->getSubscriptionStore();
+    std::shared_ptr<SubscriptionStore> store = globals->subscriptionStore;
 
     assert(store);
 
@@ -512,10 +512,8 @@ void ThreadData::publishStatsOnDollarTopic(std::vector<std::shared_ptr<ThreadDat
         publishStat("$SYS/broker/threads/" + std::to_string(thread->threadnr) + "/retained_deferrals/timeout/persecond", thread->deferredRetainedMessagesSetTimeout.getPerSecond());
     }
 
-    GlobalStats *globalStats = GlobalStats::getInstance();
-
-    publishStat("$SYS/broker/network/socketconnects/total", globalStats->socketConnects.get());
-    publishStat("$SYS/broker/network/socketconnects/persecond", globalStats->socketConnects.getPerSecond());
+    publishStat("$SYS/broker/network/socketconnects/total", globals->stats.socketConnects.get());
+    publishStat("$SYS/broker/network/socketconnects/persecond", globals->stats.socketConnects.getPerSecond());
 
     publishStat("$SYS/broker/clients/mqttconnects/total", mqttConnectCount);
     publishStat("$SYS/broker/clients/mqttconnects/persecond", mqttConnectCountPerSecond);
@@ -543,7 +541,7 @@ void ThreadData::publishStatsOnDollarTopic(std::vector<std::shared_ptr<ThreadDat
     publishStat("$SYS/broker/load/aclchecks/registerwill/total", aclRegisterWillCheckCount);
     publishStat("$SYS/broker/load/aclchecks/registerwill/persecond", aclRegisterWillChecksPerSecond);
 
-    std::shared_ptr<SubscriptionStore> subscriptionStore = MainApp::getMainApp()->getSubscriptionStore();
+    std::shared_ptr<SubscriptionStore> subscriptionStore = globals->subscriptionStore;
 
     publishStat("$SYS/broker/retained messages/count", subscriptionStore->getRetainedMessageCount());
 
@@ -551,7 +549,7 @@ void ThreadData::publishStatsOnDollarTopic(std::vector<std::shared_ptr<ThreadDat
 
     publishStat("$SYS/broker/subscriptions/count", subscriptionStore->getSubscriptionCount());
 
-    for (auto &pair : globalStats->getExtras())
+    for (auto &pair : globals->stats.getExtras())
     {
         Publish p(pair.first, pair.second, 0);
         publishWithAcl(p);
@@ -570,8 +568,6 @@ void ThreadData::publishBridgeState(std::shared_ptr<BridgeState> bridge, bool co
     if (!bridge)
         return;
 
-    GlobalStats *globalStats = GlobalStats::getInstance();
-
     {
         const std::string payload = connected ? "1" : "0";
 
@@ -579,7 +575,7 @@ void ThreadData::publishBridgeState(std::shared_ptr<BridgeState> bridge, bool co
         ss << "$SYS/broker/bridge/" << bridge->c.clientidPrefix << "/connected";
         const std::string topic = ss.str();
 
-        globalStats->setExtra(topic, payload);
+        globals->stats.setExtra(topic, payload);
 
         Publish p(topic, payload, 0);
         publishWithAcl(p, true);
@@ -590,7 +586,7 @@ void ThreadData::publishBridgeState(std::shared_ptr<BridgeState> bridge, bool co
         const std::string message = error.value_or(message_on_no_error);
         const std::string topic = "$SYS/broker/bridge/" + bridge->c.clientidPrefix + "/connection_status";
 
-        globalStats->setExtra(topic, message);
+        globals->stats.setExtra(topic, message);
         Publish p(topic, message, 0);
         publishWithAcl(p, true);
     }
@@ -612,7 +608,7 @@ void ThreadData::publishWithAcl(Publish &pub, bool setRetain)
     authentication.aclCheck(pub, pub.payload, AclAccess::write);
 
     PublishCopyFactory factory(&pub);
-    std::shared_ptr<SubscriptionStore> subscriptionStore = MainApp::getMainApp()->getSubscriptionStore();
+    std::shared_ptr<SubscriptionStore> subscriptionStore = globals->subscriptionStore;
     subscriptionStore->queuePacketAtSubscribers(factory, "", true);
 
     if (setRetain)
@@ -625,8 +621,7 @@ void ThreadData::publishWithAcl(Publish &pub, bool setRetain)
  */
 void ThreadData::sendQueuedWills()
 {
-    std::shared_ptr<SubscriptionStore> subscriptionStore = MainApp::getMainApp()->getSubscriptionStore();
-    subscriptionStore->sendQueuedWillMessages();
+    globals->subscriptionStore->sendQueuedWillMessages();
 }
 
 /**
@@ -635,14 +630,12 @@ void ThreadData::sendQueuedWills()
  */
 void ThreadData::removeExpiredSessions()
 {
-    std::shared_ptr<SubscriptionStore> subscriptionStore = MainApp::getMainApp()->getSubscriptionStore();
-    subscriptionStore->removeExpiredSessionsClients();
+    globals->subscriptionStore->removeExpiredSessionsClients();
 }
 
 void ThreadData::purgeSubscriptionTree()
 {
-    std::shared_ptr<SubscriptionStore> subscriptionStore = MainApp::getMainApp()->getSubscriptionStore();
-    bool done = subscriptionStore->purgeSubscriptionTree();
+    bool done = globals->subscriptionStore->purgeSubscriptionTree();
 
     if (!done)
     {
@@ -657,8 +650,7 @@ void ThreadData::purgeSubscriptionTree()
  */
 void ThreadData::removeExpiredRetainedMessages()
 {
-    std::shared_ptr<SubscriptionStore> subscriptionStore = MainApp::getMainApp()->getSubscriptionStore();
-    bool done = subscriptionStore->expireRetainedMessages();
+    bool done = globals->subscriptionStore->expireRetainedMessages();
 
     if (!done)
     {
@@ -847,7 +839,7 @@ void ThreadData::setQueuedRetainedMessages()
     if (this->queuedRetainedMessages.empty())
         return;
 
-    std::shared_ptr<SubscriptionStore> store = MainApp::getMainApp()->getSubscriptionStore();
+    std::shared_ptr<SubscriptionStore> store = globals->subscriptionStore;
 
     if (!store)
         return;

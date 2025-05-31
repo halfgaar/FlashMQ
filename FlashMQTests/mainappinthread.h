@@ -17,7 +17,6 @@ public:
     void start();
     void stopApp();
     void waitForStarted();
-    std::shared_ptr<SubscriptionStore> getStore();
 };
 
 #endif // MAINAPPINTHREAD_H

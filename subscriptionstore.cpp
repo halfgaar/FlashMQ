@@ -1477,7 +1477,7 @@ std::unordered_map<std::string, std::list<SubscriptionForSerializing>> Subscript
     {
         std::shared_lock locker(subscriptions_lock, std::defer_lock);
 
-        if (Globals::getInstance().quitting)
+        if (globals->quitting)
             locker.lock();
         else
         {
@@ -1576,7 +1576,7 @@ void SubscriptionStore::saveRetainedMessages(const std::string &filePath, bool i
             getRetainedMessages(node.get(), result, limit, 10000, deferred);
         }
 
-        if (Globals::getInstance().quitting && in_background)
+        if (globals->quitting && in_background)
         {
             logger->log(LOG_NOTICE) << "Aborted background saving of retained messages because we're quitting. It will be reinitiated.";
             db.dontSaveTmpFile();
