@@ -113,7 +113,7 @@ void MainTests::test_circbuf_unwrapped_doubling()
     MYCASTCOMPARE(buf.head, 63);
     MYCASTCOMPARE(buf.freeSpace(), 0);
 
-    buf.doubleSize();
+    buf.doubleCapacity();
     tail = buf.tailPtr();
 
     for (int i = 0; i < w; i++)
@@ -178,7 +178,7 @@ void MainTests::test_circbuf_wrapped_doubling()
     buf.advanceHead(10);
     MYCASTCOMPARE(buf.head, 10);
 
-    buf.doubleSize();
+    buf.doubleCapacity();
 
     // The 88's that were appended at the start, should now appear at the end;
     for (int i = 64; i < 74; i++)
@@ -216,7 +216,7 @@ void MainTests::test_circbuf_full_wrapped_buffer_doubling()
 
     QVERIFY(true);
 
-    buf.doubleSize();
+    buf.doubleCapacity();
 
     // The places where value was 1 are the same
     for (int i = 10; i < 64; i++)
@@ -258,7 +258,7 @@ void MainTests::test_cirbuf_vector_methods()
         FMQ_COMPARE(target.freeSpace(), static_cast<uint32_t>(63));
 
         if (i % 64 == 0)
-            target.resetSize(8);
+            target.resetCapacity(8);
     }
 }
 

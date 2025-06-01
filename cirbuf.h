@@ -52,11 +52,11 @@ public:
     void advanceTail(uint32_t n);
     char peakAhead(uint32_t offset) const;
     void ensureFreeSpace(const size_t n, const size_t max = UINT_MAX);
-    void doubleSize(uint factor = 2);
-    uint32_t getSize() const;
+    void doubleCapacity(uint factor = 2);
+    uint32_t getCapacity() const;
 
-    void resetSizeIfEligable(size_t size);
-    void resetSize(size_t size);
+    void resetCapacityIfEligable(size_t size);
+    void resetCapacity(size_t size);
     void reset();
 
     void write(uint8_t b);

@@ -623,17 +623,17 @@ ssize_t IoWrapper::readWebsocketAndOrSsl(int fd, void *buf, size_t nbytes, IoWra
         {
             if (websocketState == WebsocketState::NotUpgraded)
             {
-                if (websocketPendingBytes.getSize() * 2 <= 8192)
-                    websocketPendingBytes.doubleSize();
+                if (websocketPendingBytes.getCapacity() * 2 <= 8192)
+                    websocketPendingBytes.doubleCapacity();
                 else
                     throw BadClientException("Trying to exceed websocket buffer. Probably not valid websocket traffic.");
             }
             else
             {
                 const Settings *settings = ThreadGlobals::getSettings();
-                if (websocketPendingBytes.getSize() * 2 <= settings->clientMaxWriteBufferSize)
+                if (websocketPendingBytes.getCapacity() * 2 <= settings->clientMaxWriteBufferSize)
                 {
-                    websocketPendingBytes.doubleSize();
+                    websocketPendingBytes.doubleCapacity();
                 }
                 else
                 {
@@ -688,7 +688,7 @@ ssize_t IoWrapper::readWebsocketAndOrSsl(int fd, void *buf, size_t nbytes, IoWra
             parentClient->writeText(answer);
             websocketState = WebsocketState::Upgrading;
             websocketPendingBytes.reset();
-            websocketPendingBytes.resetSize(initialBufferSize);
+            websocketPendingBytes.resetCapacity(initialBufferSize);
             *error = IoWrapResult::Success;
 
             if (req_data.xRealIp)
@@ -1050,6 +1050,6 @@ void IoWrapper::resetBuffersIfEligible()
     const size_t initialBufferSize = settings->clientInitialBufferSize;
 
     const size_t sz = connectionProtocol == ConnectionProtocol::WebsocketMqtt ? initialBufferSize : 0;
-    websocketPendingBytes.resetSizeIfEligable(sz),
-    websocketWriteRemainder.resetSizeIfEligable(sz);
+    websocketPendingBytes.resetCapacityIfEligable(sz);
+    websocketWriteRemainder.resetCapacityIfEligable(sz);
 }

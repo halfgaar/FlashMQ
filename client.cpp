@@ -253,9 +253,9 @@ DisconnectStage Client::readFdIntoBuffer()
             const uint32_t maxBufferSize = std::max<uint32_t>(this->maxIncomingPacketSize, settings->clientMaxWriteBufferSize);
 
             // We always grow for another iteration when there are still decoded websocket/SSL bytes, because epoll doesn't tell us that buffer has data.
-            if (readbuf.getSize() * 2 <= maxBufferSize || error == IoWrapResult::WantRead || ioWrapper.hasProcessedBufferedBytesToRead())
+            if (readbuf.getCapacity() * 2 <= maxBufferSize || error == IoWrapResult::WantRead || ioWrapper.hasProcessedBufferedBytesToRead())
             {
-                readbuf.doubleSize();
+                readbuf.doubleCapacity();
             }
             else
             {
@@ -549,11 +549,11 @@ void Client::resetBuffersIfEligible()
     const Settings *settings = ThreadGlobals::getSettings();
     const size_t initialBufferSize = settings->clientInitialBufferSize;
 
-    readbuf.resetSizeIfEligable(initialBufferSize);
+    readbuf.resetCapacityIfEligable(initialBufferSize);
     ioWrapper.resetBuffersIfEligible();
 
     auto write_buf_locked = writebuf.lock();
-    write_buf_locked->buf.resetSizeIfEligable(initialBufferSize);
+    write_buf_locked->buf.resetCapacityIfEligable(initialBufferSize);
 }
 
 void Client::setTopicAlias(const uint16_t alias_id, const std::string &topic)

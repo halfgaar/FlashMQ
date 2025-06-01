@@ -127,10 +127,10 @@ void CirBuf::ensureFreeSpace(const size_t n, const size_t max)
         mul = mul << 1;
     }
 
-    doubleSize(mul);
+    doubleCapacity(mul);
 }
 
-void CirBuf::doubleSize(uint factor)
+void CirBuf::doubleCapacity(uint factor)
 {
     if (factor == 1)
         return;
@@ -174,12 +174,12 @@ void CirBuf::doubleSize(uint factor)
     primedForSizeReset = false;
 }
 
-uint32_t CirBuf::getSize() const
+uint32_t CirBuf::getCapacity() const
 {
     return size;
 }
 
-void CirBuf::resetSizeIfEligable(size_t size)
+void CirBuf::resetCapacityIfEligable(size_t size)
 {
     // Ensuring the reset will only happen the second time the timer event hits.
     if (!primedForSizeReset)
@@ -191,10 +191,10 @@ void CirBuf::resetSizeIfEligable(size_t size)
     if (usedBytes() > 0)
         return;
 
-    resetSize(size);
+    resetCapacity(size);
 }
 
-void CirBuf::resetSize(size_t newSize)
+void CirBuf::resetCapacity(size_t newSize)
 {
     assert(usedBytes() == 0);
     primedForSizeReset = false;
