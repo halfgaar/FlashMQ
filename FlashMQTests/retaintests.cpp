@@ -86,11 +86,13 @@ void MainTests::test_retained_double_set()
     {
         Publish pub("one", "dummy node creator", 0);
         pub.retain = true;
+        pub.qos = 1;
         sender.publish(pub);
     }
 
     Publish pub1(topic, "nobody sees this", 0);
     pub1.retain = true;
+    pub1.qos = 1;
     sender.publish(pub1);
 
     pub1.payload = "We are setting twice";
@@ -336,6 +338,7 @@ void MainTests::test_retained_changed()
 
     Publish p(topic, "We are testing", 0);
     p.retain = true;
+    p.qos = 1;
     sender.publish(p);
 
     p.payload = "Changed payload";
