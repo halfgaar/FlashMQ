@@ -14,9 +14,11 @@ See LICENSE for license details.
 #include <string>
 #include <memory>
 #include <optional>
+#include <vector>
 
 #include "sslctxmanager.h"
 #include "enums.h"
+#include "network.h"
 
 enum class ListenerProtocol
 {
@@ -54,6 +56,8 @@ struct Listener
     std::optional<OverloadMode> overloadMode;
     bool dropOnAbsentCertificates = false;
     std::optional<uint32_t> maxBufferSize;
+    std::vector<Network> exclusiveAllowList;
+    std::vector<Network> denyList;
 
     void isValid();
     bool isSsl() const;
@@ -65,5 +69,6 @@ struct Listener
     bool dropListener() const;
 
     std::string getBindAddress(ListenerProtocol p);
+    bool isAllowed(const sockaddr *addr) const;
 };
 #endif // LISTENER_H

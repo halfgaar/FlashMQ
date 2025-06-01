@@ -230,6 +230,17 @@ std::string Listener::getBindAddress(ListenerProtocol p)
     return "";
 }
 
+bool Listener::isAllowed(const sockaddr *addr) const
+{
+    if (!denyList.empty() && std::any_of(denyList.begin(), denyList.end(), [=](const Network &n) { return n.match(addr);}))
+        return false;
+
+    if (exclusiveAllowList.empty())
+        return true;
+
+    return std::any_of(exclusiveAllowList.begin(), exclusiveAllowList.end(), [=](const Network &n) { return n.match(addr);});
+}
+
 
 
 

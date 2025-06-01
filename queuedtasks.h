@@ -46,6 +46,7 @@ public:
     uint32_t getTimeTillNext() const;
     void performAll();
     void clear();
+    size_t getTaskCount() const { return tasks.size(); }
 };
 
 #endif // QUEUEDTASKS_H

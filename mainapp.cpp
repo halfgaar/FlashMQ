@@ -732,6 +732,9 @@ void MainApp::start()
     sendBridgesToThreads();
     queueBridgeReconnectAllThreads(true);
 
+    std::minstd_rand randomish;
+    randomish.seed(get_random_int<unsigned long>());
+
     this->bgWorker.start();
 
     struct epoll_event events[MAX_EVENTS];
@@ -775,6 +778,34 @@ void MainApp::start()
                     struct sockaddr *addr = reinterpret_cast<sockaddr*>(&addr_mem);
                     socklen_t len = sizeof(addr_mem);
                     int fd = check<std::runtime_error>(accept(cur_fd, addr, &len));
+
+                    if (!listener->isAllowed(addr))
+                    {
+                        std::ostringstream oss;
+                        oss << "Connection from " << sockaddrToString(addr) << " not allowed on " << listener->getProtocolName();
+
+                        if (timed_tasks.getTaskCount() < 1000)
+                        {
+                            const uint32_t delay = (randomish() & 0x0FFF) + 1000;
+                            oss << ". Closing after " << delay << " ms.";
+
+                            auto close_f = [fd]()
+                            {
+                                close(fd);
+                            };
+
+                            timed_tasks.addTask(close_f, delay);
+                        }
+                        else
+                        {
+                            oss << ". Closing now.";
+                            close(fd);
+                        }
+
+                        logger->log(LOG_NOTICE) << oss.str();
+
+                        continue;
+                    }
 
                     /*
                      * I decided to not use a delayed close mechanism. It has been observed that under overload and clients in a reconnect loop,
