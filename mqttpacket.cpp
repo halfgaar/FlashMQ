@@ -1640,6 +1640,10 @@ void MqttPacket::handleSubscribe(std::shared_ptr<Client> &sender)
         const bool retainedAsPublished = mqtt3bridge || options.getRetainAsPublished();
         const RetainHandling retainHandling = options.getRetainHandling();
 
+        logger->log(LOG_SUBSCRIBE)
+            << "Client '" << sender->repr() << "' subscribing to '" << topic
+            << "' with QoS " << static_cast<int>(qos) << ", no_local=" << noLocal << ", retain_as_published=" << retainedAsPublished << ".";
+
         std::vector<std::string> subtopics = splitTopic(topic);
 
         if (authentication.alterSubscribe(sender->getClientId(), topic, subtopics, qos, getUserProperties()))
@@ -1732,7 +1736,6 @@ void MqttPacket::handleSubscribe(std::shared_ptr<Client> &sender)
 
         auto store = globals->subscriptionStore;
 
-        logger->log(LOG_SUBSCRIBE) << "Client '" << sender->repr() << "' subscribed to '" << tup.topic << "' QoS " << static_cast<int>(tup.qos);
         const AddSubscriptionType add_type = store->addSubscription(
             session, tup.subtopics, tup.qos, tup.noLocal, tup.retainAsPublished, tup.shareName, tup.subscriptionIdentifier);
 
