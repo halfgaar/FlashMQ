@@ -35,11 +35,10 @@ See LICENSE for license details.
 
 MainApp *MainApp::instance = nullptr;
 
-MainApp::MainApp(const std::string &configFilePath) :
-    subscriptionStore(std::make_shared<SubscriptionStore>())
+MainApp::MainApp(const std::string &configFilePath)
 {
     globals = Globals();
-    globals->subscriptionStore = this->subscriptionStore;
+    subscriptionStore = globals->subscriptionStore;
 
     epollFdAccept = check<std::runtime_error>(epoll_create(999));
     taskEventFd = eventfd(0, EFD_NONBLOCK);

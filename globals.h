@@ -17,7 +17,7 @@ class Globals
     struct GlobalsData
     {
         bool quitting = false;
-        std::shared_ptr<SubscriptionStore> subscriptionStore;
+        std::shared_ptr<SubscriptionStore> subscriptionStore = std::make_shared<SubscriptionStore>();
         GlobalStats stats;
     };
 
