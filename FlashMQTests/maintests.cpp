@@ -1,3 +1,5 @@
+#include <unistd.h>
+
 #include "maintests.h"
 #include "testhelpers.h"
 #include "testinitializer.h"
@@ -383,6 +385,9 @@ bool MainTests::test(bool skip_tests_with_internet, bool skip_server_tests, cons
         {
             std::cout << CYAN << "INIT" << COLOR_END << ": " << pair.first << std::endl;
 
+            if (!isatty(2))
+                std::cerr << "INIT: " << pair.first << std::endl;
+
             TestInitializer testInitializer(this);
             testInitializer.init(tf.requiresServer);
 
@@ -390,6 +395,10 @@ bool MainTests::test(bool skip_tests_with_internet, bool skip_server_tests, cons
             const int assertCountBefore = assert_count;
 
             std::cout << CYAN << "RUN" << COLOR_END << ": " << pair.first << std::endl;
+
+            if (!isatty(2))
+                std::cerr << "RUN: " << pair.first << std::endl;
+
             tf.f();
 
             const int failCountAfter = assert_fail_count;
