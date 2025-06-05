@@ -25,7 +25,7 @@ jobs:
     defaults:
       run:
         working-directory: FlashMQTests
-    name: "${{ matrix.friendly }}"
+    name: "Normal test - ${{ matrix.os }}: ${{ matrix.friendly }}"
     steps:
       - name: Checkout
         uses: actions/checkout@v3
