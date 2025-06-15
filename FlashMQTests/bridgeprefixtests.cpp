@@ -116,7 +116,6 @@ void MainTests::forkingTestBridgePrefixesOtherClientsUnaffected()
         const std::string config = R"(
 allow_anonymous true
 log_debug false
-log_file /tmp/ppp.log
 
 bridge {
     address ::1
