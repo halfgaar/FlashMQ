@@ -370,8 +370,8 @@ void PersistenceFile::openRead(const std::string &expected_version_string)
 
         try
         {
-            const size_t file_size = getFileSize(filePath);
-            const size_t free_space = getFreeSpace(filePath);
+            const uint64_t file_size = getFileSize(filePath);
+            const uint64_t free_space = getFreeSpace(filePath);
 
             if (free_space > file_size * 3)
             {

@@ -415,7 +415,7 @@ size_t getFileSize(const std::string &path)
     return statbuf.st_size;
 }
 
-size_t getFreeSpace(const std::string &path)
+uint64_t getFreeSpace(const std::string &path)
 {
     struct statvfs statbuf;
     memset(&statbuf, 0, sizeof(struct statvfs));
@@ -423,7 +423,7 @@ size_t getFreeSpace(const std::string &path)
     if (statvfs(path.c_str(), &statbuf) < 0)
         throw std::runtime_error("Can't get free space of " + path);
 
-    const size_t result {statbuf.f_bsize * statbuf.f_bfree};
+    const uint64_t result {statbuf.f_bsize * statbuf.f_bfree};
     return result;
 }
 

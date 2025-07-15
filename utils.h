@@ -186,7 +186,7 @@ std::string formatString(const std::string str, ...);
 std::string_view dirnameOf(std::string_view fname);
 
 size_t getFileSize(const std::string &path);
-size_t getFreeSpace(const std::string &path);
+uint64_t getFreeSpace(const std::string &path);
 
 sa_family_t getFamilyFromSockAddr(const struct sockaddr *addr);
 std::string sockaddrToString(const struct sockaddr *addr);
