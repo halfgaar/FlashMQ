@@ -32,6 +32,7 @@ See LICENSE for license details.
 #include "enums.h"
 #include "fdmanaged.h"
 #include "mutexowned.h"
+#include "fmqssl.h"
 
 #include "publishcopyfactory.h"
 
@@ -161,7 +162,7 @@ public:
     uint8_t preAuthPacketCounter = 0;
 
     Client(
-        ClientType type, int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, ConnectionProtocol connectionProtocol, bool haproxy,
+        ClientType type, int fd, std::shared_ptr<ThreadData> threadData, FmqSsl &&ssl, ConnectionProtocol connectionProtocol, bool haproxy,
         const struct sockaddr *addr, const Settings &settings, bool fuzzMode=false);
     Client(const Client &other) = delete;
     Client(Client &&other) = delete;

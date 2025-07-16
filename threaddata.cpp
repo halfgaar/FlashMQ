@@ -311,22 +311,22 @@ void ThreadData::bridgeReconnect()
             int flags = fcntl(sockfd, F_GETFL);
             fcntl(sockfd, F_SETFL, flags | O_NONBLOCK);
 
-            SSL *clientSSL = nullptr;
+            FmqSsl clientSSL;
             if (bridge->c.tlsMode > BridgeTLSMode::None)
             {
-                clientSSL = SSL_new(bridge->sslctx->get());
+                clientSSL = FmqSsl(*bridge->sslctx);
 
-                if (clientSSL == NULL)
+                if (!clientSSL)
                 {
                     logger->logf(LOG_ERR, "Problem creating SSL object for bridge. Closing client.");
                     close(sockfd);
                     continue;
                 }
 
-                SSL_set_fd(clientSSL, sockfd);
+                clientSSL.set_fd(sockfd);
             }
 
-            std::shared_ptr<Client> c(new Client(ClientType::LocalBridge, sockfd, _threadData, clientSSL, ConnectionProtocol::Mqtt, false, addr.getSockaddr(), settingsLocalCopy));
+            std::shared_ptr<Client> c(new Client(ClientType::LocalBridge, sockfd, _threadData, std::move(clientSSL), ConnectionProtocol::Mqtt, false, addr.getSockaddr(), settingsLocalCopy));
             c->setBridgeState(bridge);
             if (bridge->c.maxBufferSize)
                 c->setMaxBufSizeOverride(bridge->c.maxBufferSize.value());

@@ -179,7 +179,7 @@ std::list<RetainedMessage> RetainedMessagesDB::readDataV3V4(size_t max)
 
     const Settings &settings = *ThreadGlobals::getSettings();
     std::shared_ptr<ThreadData> dummyThreadData;
-    std::shared_ptr<Client> dummyClient(std::make_shared<Client>(ClientType::Normal, 0, dummyThreadData, nullptr, ConnectionProtocol::Mqtt, false, nullptr, settings, false));
+    std::shared_ptr<Client> dummyClient(std::make_shared<Client>(ClientType::Normal, 0, dummyThreadData, FmqSsl(), ConnectionProtocol::Mqtt, false, nullptr, settings, false));
     dummyClient->setClientProperties(ProtocolVersion::Mqtt5, "Dummyforloadingretained", {}, "nobody", true, 60);
 
     bool eofFound = false;

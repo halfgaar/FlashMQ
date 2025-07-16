@@ -32,6 +32,7 @@ See LICENSE for license details.
 #include "bridgeconfig.h"
 #include "bridgeinfodb.h"
 #include "globals.h"
+#include "fmqssl.h"
 
 MainApp *MainApp::instance = nullptr;
 
@@ -659,12 +660,12 @@ void MainApp::start()
             std::shared_ptr<ThreadData> threaddata = std::make_shared<ThreadData>(0, settings, pluginLoader);
             ThreadGlobals::assignThreadData(threaddata);
 
-            std::shared_ptr<Client> client = std::make_shared<Client>(ClientType::Normal, fd, threaddata, nullptr, connectionProtocol, false, nullptr, settings, true);
-            std::shared_ptr<Client> subscriber = std::make_shared<Client>(ClientType::Normal, fdnull, threaddata, nullptr, connectionProtocol, false, nullptr, settings, true);
+            std::shared_ptr<Client> client = std::make_shared<Client>(ClientType::Normal, fd, threaddata, FmqSsl(), connectionProtocol, false, nullptr, settings, true);
+            std::shared_ptr<Client> subscriber = std::make_shared<Client>(ClientType::Normal, fdnull, threaddata, FmqSsl(), connectionProtocol, false, nullptr, settings, true);
             subscriber->setClientProperties(ProtocolVersion::Mqtt311, "subscriber", {}, "subuser", true, 60);
             subscriber->setAuthenticated(true);
 
-            std::shared_ptr<Client> websocketsubscriber = std::make_shared<Client>(ClientType::Normal, fdnull2, threaddata, nullptr, ConnectionProtocol::WebsocketMqtt, false, nullptr, settings, true);
+            std::shared_ptr<Client> websocketsubscriber = std::make_shared<Client>(ClientType::Normal, fdnull2, threaddata, FmqSsl(), ConnectionProtocol::WebsocketMqtt, false, nullptr, settings, true);
             websocketsubscriber->setClientProperties(ProtocolVersion::Mqtt311, "websocketsubscriber", {}, "websocksubuser", true, 60);
             websocketsubscriber->setAuthenticated(true);
             websocketsubscriber->setFakeUpgraded();
@@ -859,7 +860,7 @@ void MainApp::start()
                         overloadLogCounter = 0;
                     }
 
-                    SSL *clientSSL = nullptr;
+                    FmqSsl clientSSL;
                     if (listener->isSsl())
                     {
                         if (!listener->sslctx)
@@ -869,21 +870,21 @@ void MainApp::start()
                             continue;
                         }
 
-                        clientSSL = SSL_new(listener->sslctx->get());
+                        clientSSL = FmqSsl(*listener->sslctx);
 
-                        if (clientSSL == NULL)
+                        if (!clientSSL)
                         {
                             logger->logf(LOG_ERR, "Problem creating SSL object. Closing client.");
                             close(fd);
                             continue;
                         }
 
-                        SSL_set_fd(clientSSL, fd);
+                        clientSSL.set_fd(fd);
                     }
 
                     // Don't use std::make_shared to avoid the weak pointers keeping the control block in memory.
                     std::shared_ptr<Client> client = std::shared_ptr<Client>(new Client(
-                        ClientType::Normal, fd, thread_data, clientSSL, listener->connectionProtocol, listener->isHaProxy(), addr, settings));
+                        ClientType::Normal, fd, thread_data, std::move(clientSSL), listener->connectionProtocol, listener->isHaProxy(), addr, settings));
 
                     if (listener->getX509ClientVerficationMode() != X509ClientVerification::None)
                     {

@@ -137,7 +137,7 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV3V4V5V6V7()
         CirBuf cirbuf(1024);
 
         std::shared_ptr<ThreadData> dummyThreadData; // which thread am I going get/use here?
-        std::shared_ptr<Client> dummyClient(std::make_shared<Client>(ClientType::Normal, 0, dummyThreadData, nullptr, ConnectionProtocol::Mqtt, false, nullptr, settings, false));
+        std::shared_ptr<Client> dummyClient(std::make_shared<Client>(ClientType::Normal, 0, dummyThreadData, FmqSsl(), ConnectionProtocol::Mqtt, false, nullptr, settings, false));
         dummyClient->setClientProperties(ProtocolVersion::Mqtt5, "Dummyforloadingqueuedqos", {}, "nobody", true, 60);
 
         for (uint32_t i = 0; i < nrOfSessions; i++)

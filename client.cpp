@@ -61,14 +61,14 @@ Client::WriteBuf::WriteBuf(size_t size) :
  * @param fuzzMode
  */
 Client::Client(
-        ClientType type, int fd, std::shared_ptr<ThreadData> threadData, SSL *ssl, ConnectionProtocol connectionProtocol,
+        ClientType type, int fd, std::shared_ptr<ThreadData> threadData, FmqSsl &&ssl, ConnectionProtocol connectionProtocol,
         bool haproxy, const struct sockaddr *addr, const Settings &settings, bool fuzzMode) :
     fd(fd),
     fuzzMode(fuzzMode),
     maxOutgoingPacketSize(settings.maxPacketSize),
     maxIncomingPacketSize(settings.maxPacketSize),
     maxIncomingTopicAliasValue(settings.maxIncomingTopicAliasValue), // Retaining snapshot of current setting, to not confuse clients when the setting changes.
-    ioWrapper(ssl, connectionProtocol, settings.clientInitialBufferSize, this),
+    ioWrapper(std::move(ssl), connectionProtocol, settings.clientInitialBufferSize, this),
     readbuf(settings.clientInitialBufferSize),
     writebuf(settings.clientInitialBufferSize),
     clientType(type),

@@ -24,6 +24,7 @@ See LICENSE for license details.
 #include "x509manager.h"
 #include "fmqsockaddr.h"
 #include "enums.h"
+#include "fmqssl.h"
 
 #define WEBSOCKET_MIN_HEADER_BYTES_NEEDED 2
 #define WEBSOCKET_MAX_SENDING_HEADER_SIZE 10
@@ -101,7 +102,7 @@ class IoWrapper
 {
     Client *parentClient;
 
-    SSL *ssl = nullptr;
+    FmqSsl ssl;
     bool sslAccepted = false;
     IncompleteSslWrite incompleteSslWrite;
     bool sslReadWantsWrite = false;
@@ -126,8 +127,8 @@ class IoWrapper
     void startOrContinueSslAccept();
 
 public:
-    IoWrapper(SSL *ssl, ConnectionProtocol connectionProtocol, const size_t initialBufferSize, Client *parent);
-    ~IoWrapper();
+    IoWrapper(FmqSsl &&ssl, ConnectionProtocol connectionProtocol, const size_t initialBufferSize, Client *parent);
+    ~IoWrapper() = default;
 
     void startOrContinueSslHandshake();
     bool getSslReadWantsWrite() const;

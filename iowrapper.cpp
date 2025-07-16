@@ -65,32 +65,14 @@ IncompleteWebsocketRead::IncompleteWebsocketRead()
     reset();
 }
 
-IoWrapper::IoWrapper(SSL *ssl, ConnectionProtocol connectionProtocol, const size_t initialBufferSize, Client *parent) :
+IoWrapper::IoWrapper(FmqSsl &&ssl, ConnectionProtocol connectionProtocol, const size_t initialBufferSize, Client *parent) :
     parentClient(parent),
-    ssl(ssl),
+    ssl(std::move(ssl)),
     connectionProtocol(connectionProtocol),
     websocketPendingBytes(connectionProtocol == ConnectionProtocol::WebsocketMqtt ? initialBufferSize : 0),
     websocketWriteRemainder(connectionProtocol == ConnectionProtocol::WebsocketMqtt ? initialBufferSize : 0)
 {
 
-}
-
-IoWrapper::~IoWrapper()
-{
-    if (ssl)
-    {
-        /*
-         * We write the shutdown when we can, but don't take error conditions into account. If socket buffers are full, because
-         * clients disappear for instance, the socket is just closed. We don't care.
-         *
-         * Truncation attacks seem irrelevant. MQTT is frame based, so either end knows if the transmission is done or not. The
-         * close_notify is not used in determining whether to use or discard the received data.
-         */
-        SSL_shutdown(ssl);
-
-        SSL_free(ssl);
-        ssl = nullptr;
-    }
 }
 
 void IoWrapper::startOrContinueSslHandshake()
@@ -105,10 +87,10 @@ void IoWrapper::startOrContinueSslConnect()
 {
     assert(ssl);
     ERR_clear_error();
-    int connected = SSL_connect(ssl);
+    int connected = SSL_connect(ssl.get());
     if (connected <= 0)
     {
-        int err = SSL_get_error(ssl, connected);
+        int err = SSL_get_error(ssl.get(), connected);
 
         if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE)
         {
@@ -134,10 +116,10 @@ void IoWrapper::startOrContinueSslConnect()
 void IoWrapper::startOrContinueSslAccept()
 {
     ERR_clear_error();
-    int accepted = SSL_accept(ssl);
+    int accepted = SSL_accept(ssl.get());
     if (accepted <= 0)
     {
-        int err = SSL_get_error(ssl, accepted);
+        int err = SSL_get_error(ssl.get(), accepted);
 
         if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE)
         {
@@ -176,7 +158,7 @@ bool IoWrapper::isSslAccepted() const
 
 bool IoWrapper::isSsl() const
 {
-    return this->ssl != nullptr;
+    return this->ssl;
 }
 
 static int verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
@@ -227,18 +209,18 @@ void IoWrapper::setSslVerify(int mode, const std::string &hostname)
     if (!ssl)
         return;
 
-    SSL_set_hostflags(ssl, X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS);
+    SSL_set_hostflags(ssl.get(), X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS);
 
     if (!hostname.empty())
     {
-        if (!SSL_set1_host(ssl, hostname.c_str()))
+        if (!SSL_set1_host(ssl.get(), hostname.c_str()))
             throw std::runtime_error("Failed setting hostname of SSL context.");
 
-        if (SSL_set_tlsext_host_name(ssl, hostname.c_str()) != 1)
+        if (SSL_set_tlsext_host_name(ssl.get(), hostname.c_str()) != 1)
             throw std::runtime_error("Failed setting SNI hostname of SSL context.");
     }
 
-    SSL_set_verify(ssl, mode, verify_callback);
+    SSL_set_verify(ssl.get(), mode, verify_callback);
 }
 
 bool IoWrapper::hasPendingWrite() const
@@ -259,7 +241,7 @@ bool IoWrapper::hasProcessedBufferedBytesToRead() const
     bool result = false;
 
     if (ssl)
-        result |= SSL_pending(ssl) > 0;
+        result |= SSL_pending(ssl.get()) > 0;
 
     /*
      * Note that this is tecnhically not 100% correct. If the only bytes are part of a header, doing a read will actually
@@ -278,13 +260,13 @@ WebsocketState IoWrapper::getWebsocketState() const
 
 X509Manager IoWrapper::getPeerCertificate() const
 {
-    X509Manager result(this->ssl);
+    X509Manager result(this->ssl.get());
     return result;
 }
 
 const char *IoWrapper::getSslVersion() const
 {
-    return SSL_get_version(ssl);
+    return SSL_get_version(ssl.get());
 }
 
 bool IoWrapper::needsHaProxyParsing() const
@@ -428,12 +410,12 @@ ssize_t IoWrapper::readOrSslRead(int fd, void *buf, size_t nbytes, IoWrapResult 
     {
         this->sslReadWantsWrite = false;
         ERR_clear_error();
-        ssize_t n = SSL_read(ssl, buf, nbytes);
+        ssize_t n = SSL_read(ssl.get(), buf, nbytes);
 
         if (n > 0)
             return n;
 
-        int err = SSL_get_error(ssl, n);
+        int err = SSL_get_error(ssl.get(), n);
         unsigned long error_code = ERR_get_error();
 
         if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE)
@@ -539,11 +521,11 @@ ssize_t IoWrapper::writeOrSslWrite(int fd, const void *buf, size_t nbytes, IoWra
         this->incompleteSslWrite.reset();
 
         ERR_clear_error();
-        n = SSL_write(ssl, buf, nbytes_);
+        n = SSL_write(ssl.get(), buf, nbytes_);
 
         if (n <= 0)
         {
-            int err = SSL_get_error(ssl, n);
+            int err = SSL_get_error(ssl.get(), n);
             unsigned long error_code = ERR_get_error();
             if (err == SSL_ERROR_WANT_READ || err == SSL_ERROR_WANT_WRITE)
             {

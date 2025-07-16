@@ -149,4 +149,5 @@ set(FLASHMQ_IMPLS
     ${RELPATH}fdmanaged.cpp
     ${RELPATH}http.cpp
     ${RELPATH}fmqsockaddr.cpp
+    ${RELPATH}fmqssl.cpp
     )
