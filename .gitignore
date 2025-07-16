@@ -4,3 +4,4 @@ FlashMQBuild*
 *.swp
 compile_commands.json
 .clangd/
+.cache/
