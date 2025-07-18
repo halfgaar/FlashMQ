@@ -106,7 +106,6 @@ void IoWrapper::startOrContinueSslConnect()
 {
     assert(ssl);
     ERR_clear_error();
-    char sslErrorBuf[OPENSSL_ERROR_STRING_SIZE];
     int connected = SSL_connect(ssl);
     if (connected <= 0)
     {
@@ -119,9 +118,9 @@ void IoWrapper::startOrContinueSslConnect()
         }
 
         unsigned long error_code = ERR_get_error();
-
-        ERR_error_string(error_code, sslErrorBuf);
-        std::string errorMsg(sslErrorBuf, OPENSSL_ERROR_STRING_SIZE);
+        std::array<char, OPENSSL_ERROR_STRING_SIZE> error_buf;
+        ERR_error_string_n(error_code, error_buf.data(), error_buf.size());
+        std::string errorMsg(error_buf.data());
 
         if (error_code == 0)
             errorMsg = "Error code was 0. Are you really connecting to a TLS socket?";
@@ -137,7 +136,6 @@ void IoWrapper::startOrContinueSslAccept()
 {
     ERR_clear_error();
     int accepted = SSL_accept(ssl);
-    char sslErrorBuf[OPENSSL_ERROR_STRING_SIZE];
     if (accepted <= 0)
     {
         int err = SSL_get_error(ssl, accepted);
@@ -149,14 +147,13 @@ void IoWrapper::startOrContinueSslAccept()
         }
 
         unsigned long error_code = ERR_get_error();
-
-        ERR_error_string(error_code, sslErrorBuf);
-        std::string errorMsg(sslErrorBuf, OPENSSL_ERROR_STRING_SIZE);
+        std::array<char, OPENSSL_ERROR_STRING_SIZE> error_buf;
+        ERR_error_string_n(error_code, error_buf.data(), error_buf.size());
+        std::string errorMsg(error_buf.data());
 
         if (error_code == OPENSSL_WRONG_VERSION_NUMBER)
             errorMsg = "Wrong protocol version number. Probably a non-SSL connection on SSL socket.";
 
-        //ERR_print_errors_cb(logSslError, NULL);
         throw std::runtime_error("Problem accepting SSL socket: " + errorMsg);
     }
     parentClient->setReadyForWriting(false); // Undo write readiness that may have have happened during SSL handshake
@@ -493,9 +490,9 @@ ssize_t IoWrapper::readOrSslRead(int fd, void *buf, size_t nbytes, IoWrapResult 
             throw std::runtime_error("SSL read syscall error: " + msg);
         }
 
-        char sslErrorBuf[OPENSSL_ERROR_STRING_SIZE];
-        ERR_error_string(error_code, sslErrorBuf);
-        std::string errorString(sslErrorBuf, OPENSSL_ERROR_STRING_SIZE);
+        std::array<char, OPENSSL_ERROR_STRING_SIZE> error_buf;
+        ERR_error_string_n(error_code, error_buf.data(), error_buf.size());
+        const std::string errorString(error_buf.data());
         ERR_print_errors_cb(logSslError, NULL);
         throw std::runtime_error("SSL socket error reading: " + errorString);
     }
@@ -543,7 +540,6 @@ ssize_t IoWrapper::writeOrSslWrite(int fd, const void *buf, size_t nbytes, IoWra
         this->incompleteSslWrite.reset();
 
         ERR_clear_error();
-        char sslErrorBuf[OPENSSL_ERROR_STRING_SIZE];
         n = SSL_write(ssl, buf, nbytes_);
 
         if (n <= 0)
@@ -576,8 +572,10 @@ ssize_t IoWrapper::writeOrSslWrite(int fd, const void *buf, size_t nbytes, IoWra
                         throw std::runtime_error(msg);
                     }
                 }
-                ERR_error_string(error_code, sslErrorBuf);
-                std::string errorString(sslErrorBuf, OPENSSL_ERROR_STRING_SIZE);
+
+                std::array<char, OPENSSL_ERROR_STRING_SIZE> error_buf;
+                ERR_error_string_n(error_code, error_buf.data(), error_buf.size());
+                const std::string errorString(error_buf.data());
                 ERR_print_errors_cb(logSslError, NULL);
                 throw std::runtime_error("SSL socket error writing: " + errorString);
             }
