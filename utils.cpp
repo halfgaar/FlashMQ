@@ -22,6 +22,8 @@ See LICENSE for license details.
 #include <time.h>
 #include <sys/un.h>
 #include <unistd.h>
+#include <iostream>
+#include <signal.h>
 
 #include <openssl/ssl.h>
 #include <openssl/err.h>
@@ -966,4 +968,10 @@ void unlink_if_my_sock(const std::string &path)
     {
         unlink(path.c_str());
     }
+}
+
+void fmq_ensure_fail(const char *file, int line)
+{
+    std::cerr << "Assertion failure: " << file << ", line " << line << "." << std::endl;
+    raise(SIGABRT);
 }

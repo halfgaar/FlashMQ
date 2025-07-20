@@ -35,6 +35,14 @@ See LICENSE for license details.
 
 #define UNUSED(expr) do { (void)(expr); } while (0)
 
+void fmq_ensure_fail(const char *file, int line);
+
+#define FMQ_ENSURE(val) \
+if (!static_cast<bool>(val)) \
+{ \
+    fmq_ensure_fail(__FILE__, __LINE__); \
+}
+
 template<typename T> int check(int rc)
 {
     if (rc < 0)
