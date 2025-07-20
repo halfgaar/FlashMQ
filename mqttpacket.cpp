@@ -14,10 +14,11 @@ See LICENSE for license details.
 #include <list>
 #include <cassert>
 
-#include "utils.h"
+#include "globals.h"
+#include "threaddata.h"
 #include "threadglobals.h"
+#include "utils.h"
 #include "subscriptionstore.h"
-#include "mainapp.h"
 #include "exceptions.h"
 #include "acksender.h"
 
@@ -26,12 +27,11 @@ MqttPacket::MqttPacket(std::vector<char> &&packet_bytes, size_t fixed_header_len
     bites(std::move(packet_bytes)),
     fixed_header_length(fixed_header_length)
 {
-    assert(bites.size() > 0);
+    if (bites.size() < MQTT_HEADER_LENGH) // All calling contexts prevent this, but just making sure.
+        throw ProtocolError("Packet is smaller than minimum length.", ReasonCodes::MalformedPacket);
 
     if (bites.size() > sender->getMaxIncomingPacketSize())
-    {
         throw ProtocolError("Incoming packet size exceeded.", ReasonCodes::PacketTooLarge);
-    }
 
     protocolVersion = sender->getProtocolVersion();
     first_byte = bites[0];
@@ -2377,7 +2377,8 @@ std::string MqttPacket::getPayloadCopy() const
 {
     assert(payloadStart > 0);
     assert(pos <= bites.size());
-    std::string payload(&bites[payloadStart], payloadLen);
+    FMQ_ENSURE(payloadStart + payloadLen <= bites.size());
+    std::string payload(std::addressof(bites[payloadStart]), payloadLen);
     return payload;
 }
 
@@ -2385,7 +2386,8 @@ std::string_view MqttPacket::getPayloadView() const
 {
     assert(payloadStart > 0);
     assert(pos <= bites.size());
-    std::string_view payload(&bites[payloadStart], payloadLen);
+    FMQ_ENSURE(payloadStart + payloadLen <= bites.size());
+    std::string_view payload(std::addressof(bites[payloadStart]), payloadLen);
     return payload;
 }
 

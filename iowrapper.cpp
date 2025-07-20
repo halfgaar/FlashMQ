@@ -14,7 +14,6 @@ See LICENSE for license details.
 #include <string.h>
 #include <openssl/x509v3.h>
 #include <openssl/sslerr.h>
-#include <signal.h>
 #include <array>
 
 #include "logger.h"
@@ -823,9 +822,7 @@ ssize_t IoWrapper::websocketBytesToReadBuffer(void *buf, const size_t nbytes, Io
             const size_t frame_bytes_left = std::min<size_t>(websocketPendingBytes.usedBytes(), incompleteWebsocketRead.frame_bytes_left);
             const size_t max_read_size = std::min<size_t>(frame_bytes_left, nbytes - nbytesRead);
 
-            assert(max_read_size + nbytesRead <= nbytes);
-            if (max_read_size + nbytesRead > nbytes)
-                raise(SIGABRT);
+            FMQ_ENSURE(max_read_size + nbytesRead <= nbytes);
 
             char *offset_in_buf = &static_cast<char*>(buf)[nbytesRead];
             for (size_t x = 0; x < max_read_size; x++)
