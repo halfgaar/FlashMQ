@@ -2447,14 +2447,6 @@ bool MqttPacket::containsFixedHeader() const
     return fixed_header_length > 0;
 }
 
-void MqttPacket::advancePos(size_t len)
-{
-    if (pos + len > bites.size())
-        throw ProtocolError("Exceeding packet size", ReasonCodes::MalformedPacket);
-
-    pos += len;
-}
-
 char *MqttPacket::readBytes(size_t length)
 {
     if (pos + length > bites.size())
