@@ -3,6 +3,7 @@
 #include <openssl/ssl.h>
 
 #include "fmqssl.h"
+#include "utils.h"
 
 FmqSsl::~FmqSsl()
 {
@@ -34,6 +35,8 @@ FmqSsl::FmqSsl(FmqSsl &&other) :
 
 FmqSsl &FmqSsl::operator=(FmqSsl &&other)
 {
+    FMQ_ENSURE(this->d == nullptr)
+
     d = other.d;
     other.d = nullptr;
     return *this;
