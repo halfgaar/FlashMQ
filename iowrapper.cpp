@@ -15,6 +15,7 @@ See LICENSE for license details.
 #include <openssl/x509v3.h>
 #include <openssl/sslerr.h>
 #include <array>
+#include <optional>
 
 #include "logger.h"
 #include "client.h"
@@ -170,14 +171,8 @@ static int verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
     if (mode == SSL_VERIFY_NONE)
         return 1;
 
-    std::vector<char> buf(512);
-
-    X509 *err_cert = X509_STORE_CTX_get_current_cert(ctx);
-    int err = X509_STORE_CTX_get_error(ctx);
-    int depth = X509_STORE_CTX_get_error_depth(ctx);
-
-    X509_NAME_oneline(X509_get_subject_name(err_cert), buf.data(), 256);
-    const std::string subject_name(buf.data());
+    std::optional<int> err;
+    const int depth = X509_STORE_CTX_get_error_depth(ctx);
 
     /*
      * Explicity catch long chains, to avoid other random chain errors.
@@ -186,17 +181,24 @@ static int verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
     {
         preverify_ok = 0;
         err = X509_V_ERR_CERT_CHAIN_TOO_LONG;
-        X509_STORE_CTX_set_error(ctx, err);
+        X509_STORE_CTX_set_error(ctx, err.value());
     }
-
-    Logger *logger = Logger::getInstance();
 
     if (!preverify_ok)
     {
-        X509_NAME_oneline(X509_get_issuer_name(err_cert), buf.data(), 256);
+        if (!err)
+            err = X509_STORE_CTX_get_error(ctx);
+
+        std::array<char, 256> buf;
+        const X509 *err_cert = X509_STORE_CTX_get_current_cert(ctx);
+        X509_NAME_oneline(X509_get_subject_name(err_cert), buf.data(), buf.size());
+        const std::string subject_name(buf.data());
+
+        Logger *logger = Logger::getInstance();
+        X509_NAME_oneline(X509_get_issuer_name(err_cert), buf.data(), buf.size());
         const std::string issuer(buf.data());
-        logger->logf(LOG_ERR, "X509 verify error. Num=%d. Error: %s. Depth=%d. Subject = %s. Issuer = %s",
-                     err, X509_verify_cert_error_string(err), depth, subject_name.c_str(), issuer.c_str());
+        logger->log(LOG_ERROR) << "X509 verify error. Num=" << err.value() << ". Error: " << X509_verify_cert_error_string(err.value())
+                               << ". Depth=" << depth << ". Subject = " << subject_name << ". Issuer = " << issuer;
     }
 
     return preverify_ok;
