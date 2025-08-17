@@ -5,7 +5,7 @@
 \\$2 \(la\\$1\(ra\\$3
 ..
 .if \n(.g .mso www.tmac
-.TH flashmq.conf 5 "jun 07 2025" "" ""
+.TH flashmq.conf 5 "Aug 18 2025" "" ""
 .SH NAME
 flashmq.conf \- FlashMQ configuration file format
 .SH SYNOPSIS
@@ -385,7 +385,20 @@ Default: ::0
 \*(T<\fB\m[green]unix_socket_path\m[] \fI\m[cyan]path\m[]\fR\fR\*(T>
 When using \fIunix\fR for \fB\m[green]inet_protocol\fR\m[], the file path of the socket.
 
-FlashMQ will remove pre-existing socket files if the owner matches.
+FlashMQ will remove pre-existing socket files if they already exist.
+.TP
+\*(T<\fB\m[green]unix_socket_user\m[] \fI\m[cyan]user\m[]\fR\fR\*(T>
+Use this to set the owner of the socket. It will always be attempted to set it, but a warning may be logged if not successful. Users may be specified as numeric or names.
+
+A config test will not verify the existence of users, for portability.
+.TP
+\*(T<\fB\m[green]unix_socket_group\m[] \fI\m[cyan]group\m[]\fR\fR\*(T>
+Use this to set the group of the socket. It will always be attempted to set it, but a warning may be logged if not successful. Groups may be specified as numeric or names.
+
+A config test will not verify the existence of groups, for portability.
+.TP
+\*(T<\fB\m[green]unix_socket_mode\m[] \fI\m[cyan]mode\m[]\fR\fR\*(T>
+Use this to specify the permission mode of the unix socket, like \fI600\fR.
 .TP
 \*(T<\fB\m[green]fullchain\m[] \fI\m[cyan]/foobar/server.crt\m[]\fR\fR\*(T>
 Specifying a chain makes the listener SSL, and also requires the \fB\m[green]privkey\fR\m[] to be set.
