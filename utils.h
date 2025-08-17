@@ -26,6 +26,7 @@ See LICENSE for license details.
 #include <sys/random.h>
 #include <stdexcept>
 #include <cassert>
+#include <cstring>
 
 #include "cirbuf.h"
 #include "bindaddr.h"
@@ -392,7 +393,25 @@ std::optional<T> &non_optional(std::optional<T> &o)
     return o;
 }
 
-void unlink_if_my_sock(const std::string &path);
+void unlink_if_sock(const std::string &path);
 
+struct SysUserFields
+{
+    std::string name;
+    uid_t uid = 0;
+    gid_t gid = 0;
+};
+
+std::optional<SysUserFields> get_pw_name(const std::string &user);
+
+struct SysGroupFields
+{
+    std::string name;
+    gid_t gid = 0;
+};
+
+std::optional<SysGroupFields> get_gr_name(const std::string &group);
+
+std::optional<unsigned long> try_stoul(const std::string &s) noexcept;
 
 #endif // UTILS_H

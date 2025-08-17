@@ -180,13 +180,13 @@ std::list<ScopedSocket> MainApp::createListenSocket(const std::shared_ptr<Listen
 
             logger->log(LOG_NOTICE) << logtext.str();
 
-            BindAddr bindAddr(family, listener->getBindAddress(p), listener->port);
+            BindAddr bindAddr(family, listener->getBindAddress(p), listener->port, listener->unixSocketUser, listener->unixSocketGroup, listener->unixSocketMode);
 
             ScopedSocket uniqueListenFd(check<std::runtime_error>(socket(family, SOCK_STREAM, 0)), listener->unixSocketPath, listener);
 
             if (p == ListenerProtocol::Unix)
             {
-                unlink_if_my_sock(listener->unixSocketPath);
+                unlink_if_sock(listener->unixSocketPath);
             }
             else
             {
@@ -204,7 +204,7 @@ std::list<ScopedSocket> MainApp::createListenSocket(const std::shared_ptr<Listen
             int flags = fcntl(uniqueListenFd.get(), F_GETFL);
             check<std::runtime_error>(fcntl(uniqueListenFd.get(), F_SETFL, flags | O_NONBLOCK ));
 
-            check<std::runtime_error>(bind(uniqueListenFd.get(), bindAddr.get(), bindAddr.getLen()));
+            bindAddr.bind_socket(uniqueListenFd.get());
             check<std::runtime_error>(listen(uniqueListenFd.get(), 32768));
 
             struct epoll_event ev;

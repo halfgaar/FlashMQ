@@ -24,6 +24,8 @@ See LICENSE for license details.
 #include <unistd.h>
 #include <iostream>
 #include <signal.h>
+#include <pwd.h>
+#include <grp.h>
 
 #include <openssl/ssl.h>
 #include <openssl/err.h>
@@ -954,7 +956,7 @@ std::string propertyToString(Mqtt5Properties p)
     return oss.str();
 }
 
-void unlink_if_my_sock(const std::string &path)
+void unlink_if_sock(const std::string &path)
 {
     if (path.empty())
         return;
@@ -964,7 +966,7 @@ void unlink_if_my_sock(const std::string &path)
     if (lstat(path.c_str(), &statbuf) < 0)
         return;
 
-    if ((statbuf.st_mode & S_IFMT) == S_IFSOCK && statbuf.st_uid == getuid())
+    if ((statbuf.st_mode & S_IFMT) == S_IFSOCK)
     {
         unlink(path.c_str());
     }
@@ -974,4 +976,71 @@ void fmq_ensure_fail(const char *file, int line)
 {
     std::cerr << "Assertion failure: " << file << ", line " << line << "." << std::endl;
     raise(SIGABRT);
+}
+
+std::optional<SysUserFields> get_pw_name(const std::string &user)
+{
+    struct passwd pwd;
+    struct passwd *result = nullptr;
+    std::memset(&pwd, 0, sizeof(pwd));
+    std::vector<char> buf(16384);
+
+    if (getpwnam_r(user.c_str(), &pwd, buf.data(), buf.size(), &result) != 0)
+    {
+        throw std::runtime_error("getpwnam_r error");
+    }
+
+    if (result == nullptr)
+    {
+        return {};
+    }
+
+    SysUserFields answer;
+    answer.name = pwd.pw_name;
+    answer.uid = pwd.pw_uid;
+    answer.gid = pwd.pw_gid;
+    return answer;
+}
+
+std::optional<SysGroupFields> get_gr_name(const std::string &group)
+{
+    struct group grp;
+    struct group *result = nullptr;
+    std::memset(&grp, 0, sizeof(grp));
+    std::vector<char> buf(16384);
+
+    if (getgrnam_r(group.c_str(), &grp, buf.data(), buf.size(), &result) != 0)
+    {
+        throw std::runtime_error("getgrnam_r error");
+    }
+
+    if (result == nullptr)
+    {
+        return {};
+    }
+
+    SysGroupFields answer;
+    answer.name = group;
+    answer.gid = grp.gr_gid;
+    return answer;
+}
+
+std::optional<unsigned long> try_stoul(const std::string &s) noexcept
+{
+    try
+    {
+        size_t len = 0;
+        unsigned long answer = std::stoul(s, &len);
+
+        if (len != s.length())
+            return {};
+
+        return answer;
+    }
+    catch (std::exception &ex)
+    {
+        return {};
+    }
+
+    return {};
 }

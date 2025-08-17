@@ -14,10 +14,19 @@ See LICENSE for license details.
 #include <new>
 #include <sys/un.h>
 #include <stdexcept>
+#include <sys/socket.h>
+#include <sys/stat.h>
+#include "utils.h"
+#include "logger.h"
 
 
-
-BindAddr::BindAddr(int family, const std::string &bindAddress, int port)
+BindAddr::BindAddr(
+        int family, const std::string &bindAddress, int port,
+        const std::optional<std::string> &user, const std::optional<std::string> &group, const std::optional<mode_t> &mode
+    ) :
+    unixsock_user(user),
+    unixsock_group(group),
+    unixsock_mode(mode)
 {
     if (!(family == AF_INET || family == AF_INET6 || family == AF_UNIX))
         throw std::exception();
@@ -83,6 +92,71 @@ BindAddr::BindAddr(int family, const std::string &bindAddress, int port)
 
         std::memcpy(path.sun_path, bindAddress.data(), bindAddress.size());
         std::memcpy(dat.data(), &path, sizeof(path));
+
+        this->unixsock_path = bindAddress;
+    }
+}
+
+void BindAddr::bind_socket(int socket_fd)
+{
+    check<std::runtime_error>(bind(socket_fd, get(), len));
+
+    if (family == AF_UNIX)
+    {
+        FMQ_ENSURE(this->unixsock_path);
+
+        std::optional<uid_t> uid;
+        std::optional<gid_t> gid;
+
+        if (unixsock_user)
+        {
+            std::optional<unsigned long> parsed_uid = try_stoul(unixsock_user.value());
+
+            if (parsed_uid)
+                uid = parsed_uid.value();
+            else
+            {
+                std::optional<SysUserFields> data = get_pw_name(unixsock_user.value());
+                if (data)
+                    uid = data->uid;
+            }
+
+            if (!uid)
+                Logger::getInstance()->log(LOG_WARNING) << "Could not owner as name or uid '" << unixsock_user.value() << "' on " << unixsock_path.value() << ".";
+        }
+
+        if (unixsock_group)
+        {
+            std::optional<unsigned long> parsed_gid = try_stoul(unixsock_group.value());
+
+            if (parsed_gid)
+                gid = parsed_gid.value();
+            else
+            {
+                std::optional<SysGroupFields> data = get_gr_name(unixsock_group.value());
+                if (data)
+                    gid = data->gid;
+            }
+
+            if (!gid)
+                Logger::getInstance()->log(LOG_WARNING) << "Could not group as name or gid '" << unixsock_group.value() << "' on " << unixsock_path.value() << ".";
+        }
+
+        if (uid || gid)
+        {
+            if (chown(unixsock_path.value().c_str(), uid.value_or(-1), gid.value_or(-1)) < 0)
+            {
+                Logger::getInstance()->log(LOG_WARNING) << "Can't change owner/group of '" << unixsock_path.value() << "'. Reason: " << strerror(errno) << ".";
+            }
+        }
+
+        if (unixsock_mode)
+        {
+            if (chmod(unixsock_path.value().c_str(), this->unixsock_mode.value()) < 0)
+            {
+                Logger::getInstance()->log(LOG_WARNING) << "Can't change mode of '" << unixsock_path.value() << "'. Reason: " << strerror(errno) << ".";
+            }
+        }
     }
 }
 

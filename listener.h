@@ -40,6 +40,9 @@ struct Listener
     std::string inet4BindAddress;
     std::string inet6BindAddress;
     std::string unixSocketPath;
+    std::optional<std::string> unixSocketUser;
+    std::optional<std::string> unixSocketGroup;
+    std::optional<mode_t> unixSocketMode;
     int port = 0;
     ConnectionProtocol connectionProtocol = ConnectionProtocol::Mqtt;
     bool tcpNoDelay = false;

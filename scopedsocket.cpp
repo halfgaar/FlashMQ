@@ -35,7 +35,7 @@ ScopedSocket::~ScopedSocket()
     socket = -1;
     listener.reset();
 
-    unlink_if_my_sock(unixSocketPath);
+    unlink_if_sock(unixSocketPath);
 }
 
 int ScopedSocket::get() const

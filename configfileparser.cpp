@@ -50,10 +50,10 @@ int full_stoi(const std::string &key, const std::string &value)
  * @param value the string to parse
  * @return the parsed unsigned long
  **/
-unsigned long full_stoul(const std::string &key, const std::string &value)
+unsigned long full_stoul(const std::string &key, const std::string &value, int base=10)
 {
     size_t ptr;
-    unsigned long newVal = std::stoul(value, &ptr);
+    unsigned long newVal = std::stoul(value, &ptr, base);
     if (ptr != value.length())
     {
         throw ConfigFileException(formatString("%s's value of '%s' can't be parsed to a number", key.c_str(), value.c_str()));
@@ -245,6 +245,9 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validListenKeys.insert("inet4_bind_address");
     validListenKeys.insert("inet6_bind_address");
     validListenKeys.insert("unix_socket_path");
+    validListenKeys.insert("unix_socket_user");
+    validListenKeys.insert("unix_socket_group");
+    validListenKeys.insert("unix_socket_mode");
     validListenKeys.insert("haproxy");
     validListenKeys.insert("client_verification_ca_file");
     validListenKeys.insert("client_verification_ca_dir");
@@ -548,6 +551,24 @@ void ConfigFileParser::loadFile(bool test)
                 if (testKeyValidity(key, "unix_socket_path", validListenKeys))
                 {
                     curListener->unixSocketPath = value;
+                }
+                if (testKeyValidity(key, "unix_socket_user", validListenKeys))
+                {
+                    /*
+                     * We're not verifying the existence of the user. This would make it non-deterministic between
+                     * environments, and perhaps users want to already have the config ready before the users are
+                     * present on the system.
+                     */
+                    curListener->unixSocketUser = valueTrimmed;
+                }
+                if (testKeyValidity(key, "unix_socket_group", validListenKeys))
+                {
+                    // See comment above about not checking the the presence of the group.
+                    curListener->unixSocketGroup = valueTrimmed;
+                }
+                if (testKeyValidity(key, "unix_socket_mode", validListenKeys))
+                {
+                    curListener->unixSocketMode = full_stoul(key, value, 8);
                 }
                 if (testKeyValidity(key, "haproxy", validListenKeys))
                 {
