@@ -61,6 +61,8 @@ struct Listener
     std::optional<uint32_t> maxBufferSize;
     std::vector<Network> exclusiveAllowList;
     std::vector<Network> denyList;
+    std::optional<uint8_t> maxQos;
+    std::optional<Mqtt3QoSExceedAction> mqtt3QoSExceedAction;
 
     void isValid();
     bool isSsl() const;

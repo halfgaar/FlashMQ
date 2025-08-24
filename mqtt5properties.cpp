@@ -74,6 +74,11 @@ void Mqtt5PropertyBuilder::writeMaxTopicAliases(uint16_t val)
     writeUint16(Mqtt5Properties::TopicAliasMaximum, val);
 }
 
+void Mqtt5PropertyBuilder::writeMaxQoS(uint8_t qos)
+{
+    writeUint8(Mqtt5Properties::MaximumQoS, qos);
+}
+
 void Mqtt5PropertyBuilder::writeWildcardSubscriptionAvailable(uint8_t val)
 {
     writeUint8(Mqtt5Properties::WildcardSubscriptionAvailable, val);

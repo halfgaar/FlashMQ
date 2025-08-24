@@ -43,6 +43,7 @@ public:
     void writeMaxPacketSize(uint32_t val);
     void writeAssignedClientId(const std::string &clientid);
     void writeMaxTopicAliases(uint16_t val);
+    void writeMaxQoS(uint8_t qos);
     void writeWildcardSubscriptionAvailable(uint8_t val);
     void writeSubscriptionIdentifier(uint32_t val);
     void writeSubscriptionIdentifiersAvailable(uint8_t val);

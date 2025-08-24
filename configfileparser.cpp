@@ -200,6 +200,8 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validKeys.insert("allow_unsafe_username_chars");
     validKeys.insert("client_initial_buffer_size");
     validKeys.insert("max_packet_size");
+    validKeys.insert("max_qos");
+    validKeys.insert("mqtt3_qos_exceed_action");
     validKeys.insert("log_debug");
     validKeys.insert("log_subscriptions");
     validKeys.insert("log_level");
@@ -259,6 +261,8 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validListenKeys.insert("acme_redirect_url");
     validListenKeys.insert("drop_on_absent_certificate");
     validListenKeys.insert("max_buffer_size");
+    validListenKeys.insert("max_qos");
+    validListenKeys.insert("mqtt3_qos_exceed_action");
     validListenKeys.insert("only_allow_from");
     validListenKeys.insert("deny_from");
 
@@ -639,6 +643,30 @@ void ConfigFileParser::loadFile(bool test)
 
                     curListener->maxBufferSize = val;
                 }
+                if (testKeyValidity(key, "max_qos", validListenKeys))
+                {
+                    const int qos = full_stoi(key, value);
+                    if (qos < 0 || qos > 2)
+                    {
+                        std::ostringstream oss;
+                        oss << "Value " << qos << " for " << key << " is invalid.";
+                        throw ConfigFileException(oss.str());
+                    }
+                    curListener->maxQos = qos;
+                }
+                if (testKeyValidity(key, "mqtt3_qos_exceed_action", validListenKeys))
+                {
+                    if (valueTrimmed == "disconnect")
+                        curListener->mqtt3QoSExceedAction = Mqtt3QoSExceedAction::Disconnect;
+                    else if (valueTrimmed == "drop")
+                        curListener->mqtt3QoSExceedAction = Mqtt3QoSExceedAction::Drop;
+                    else
+                    {
+                        std::ostringstream oss;
+                        oss << "Value '" << valueTrimmed << "' for " << key << " is invalid.";
+                        throw ConfigFileException(oss.str());
+                    }
+                }
                 if (testKeyValidity(key, "only_allow_from", validListenKeys))
                 {
                     Network net(valueTrimmed);
@@ -993,6 +1021,32 @@ void ConfigFileParser::loadFile(bool test)
                         throw ConfigFileException(oss.str());
                     }
                     tmpSettings.maxPacketSize = newVal;
+                }
+
+                if (testKeyValidity(key, "max_qos", validKeys))
+                {
+                    const int qos = full_stoi(key, value);
+                    if (qos < 0 || qos > 2)
+                    {
+                        std::ostringstream oss;
+                        oss << "Value " << qos << " for " << key << " is invalid.";
+                        throw ConfigFileException(oss.str());
+                    }
+                    tmpSettings.maxQos = qos;
+                }
+
+                if (testKeyValidity(key, "mqtt3_qos_exceed_action", validKeys))
+                {
+                    if (valueTrimmed == "disconnect")
+                        tmpSettings.mqtt3QoSExceedAction = Mqtt3QoSExceedAction::Disconnect;
+                    else if (valueTrimmed == "drop")
+                        tmpSettings.mqtt3QoSExceedAction = Mqtt3QoSExceedAction::Drop;
+                    else
+                    {
+                        std::ostringstream oss;
+                        oss << "Value '" << valueTrimmed << "' for " << key << " is invalid.";
+                        throw ConfigFileException(oss.str());
+                    }
                 }
 
                 if (testKeyValidity(key, "log_debug", validKeys))

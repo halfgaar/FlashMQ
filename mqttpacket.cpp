@@ -1155,7 +1155,17 @@ void MqttPacket::handleConnect(std::shared_ptr<Client> &sender)
 
     if (settings.willsEnabled && connectData.will_flag)
     {
-        sender->stageWill(std::move(connectData.willpublish));
+        if (connectData.will_qos > sender->getMaxQos())
+        {
+            if (sender->getProtocolVersion() >= ProtocolVersion::Mqtt5 || sender->getMqtt3QoSExceedAction() == Mqtt3QoSExceedAction::Disconnect)
+            {
+                throw ProtocolError("QoS exceeds configured maximum", ReasonCodes::QosNotSupported);
+            }
+        }
+        else
+        {
+            sender->stageWill(std::move(connectData.willpublish));
+        }
     }
 
     // Stage connack, for immediate or delayed use when auth succeeds.
@@ -1177,6 +1187,7 @@ void MqttPacket::handleConnect(std::shared_ptr<Client> &sender)
             connAck->propertyBuilder = std::make_shared<Mqtt5PropertyBuilder>();
             connAck->propertyBuilder->writeSessionExpiry(connectData.session_expire);
             connAck->propertyBuilder->writeReceiveMax(settings.maxQosMsgPendingPerClient);
+            connAck->propertyBuilder->writeMaxQoS(sender->getMaxQos());
             connAck->propertyBuilder->writeRetainAvailable(settings.retainedMessagesMode <= RetainedMessagesMode::EnabledWithoutPersistence);
             connAck->propertyBuilder->writeMaxPacketSize(sender->getMaxIncomingPacketSize());
             if (clientIdGenerated)
@@ -1658,6 +1669,8 @@ void MqttPacket::handleSubscribe(std::shared_ptr<Client> &sender)
         if (qos > 2)
             throw ProtocolError("QoS is greater than 2, and/or reserved bytes in QoS field are not 0.", ReasonCodes::MalformedPacket);
 
+        qos = std::min<uint8_t>(qos, sender->getMaxQos());
+
         std::string shareName;
         parseSubscriptionShare(subtopics, shareName, topic);
 
@@ -2076,7 +2089,18 @@ void MqttPacket::handlePublish(std::shared_ptr<Client> &sender)
         throw ProtocolError("Retained messages not supported and 'retained_messages_mode' set to 'disconnect_with_error'.", ReasonCodes::RetainNotSupported);
     }
 
-    if (publishData.qos == 2 && sender->getSession()->incomingQoS2MessageIdInTransit(_packet_id))
+    if (publishData.qos > sender->getMaxQos())
+    {
+        if (sender->getProtocolVersion() >= ProtocolVersion::Mqtt5 || sender->getMqtt3QoSExceedAction() == Mqtt3QoSExceedAction::Disconnect)
+        {
+            throw ProtocolError("QoS exceeds configured maximum", ReasonCodes::QosNotSupported);
+        }
+        else if (sender->getMqtt3QoSExceedAction() == Mqtt3QoSExceedAction::Drop)
+        {
+            ackSender.sendNow();
+        }
+    }
+    else if (publishData.qos == 2 && sender->getSession()->incomingQoS2MessageIdInTransit(_packet_id))
     {
         ackSender.setAckCode(ReasonCodes::PacketIdentifierInUse);
     }

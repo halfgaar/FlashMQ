@@ -94,6 +94,8 @@ class Client
     uint32_t maxOutgoingPacketSize;
     const uint32_t maxIncomingPacketSize;
     std::optional<uint32_t> maxBufSizeOverride;
+    uint8_t maxQos = 2;
+    Mqtt3QoSExceedAction mqtt3QoSExceedAction = Mqtt3QoSExceedAction::Disconnect;
 
     uint16_t maxOutgoingTopicAliasValue = 0;
     uint16_t maxIncomingTopicAliasValue = 0;
@@ -288,6 +290,11 @@ public:
     bool hasAsyncAuthResult() const { return this->asyncAuthResult.operator bool() ; }
     std::unique_ptr<AsyncAuthResult> stealAsyncAuthResult();
     bool getCleanStart() const { return clean_start;}
+    Mqtt3QoSExceedAction getMqtt3QoSExceedAction() const { return this->mqtt3QoSExceedAction;}
+    void setMqtt3QoSExceedAction(Mqtt3QoSExceedAction action) { this->mqtt3QoSExceedAction = action;}
+    uint8_t getMaxQos() const { return this->maxQos; }
+    void setMaxQos(uint8_t qos) { this->maxQos = qos; }
+
 
 };
 

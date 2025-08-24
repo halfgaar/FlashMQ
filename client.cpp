@@ -67,6 +67,8 @@ Client::Client(
     fuzzMode(fuzzMode),
     maxOutgoingPacketSize(settings.maxPacketSize),
     maxIncomingPacketSize(settings.maxPacketSize),
+    maxQos(settings.maxQos),
+    mqtt3QoSExceedAction(settings.mqtt3QoSExceedAction),
     maxIncomingTopicAliasValue(settings.maxIncomingTopicAliasValue), // Retaining snapshot of current setting, to not confuse clients when the setting changes.
     ioWrapper(std::move(ssl), connectionProtocol, settings.clientInitialBufferSize, this),
     readbuf(settings.clientInitialBufferSize),

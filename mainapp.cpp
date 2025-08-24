@@ -897,6 +897,12 @@ void MainApp::start()
                     if (listener->maxBufferSize)
                         client->setMaxBufSizeOverride(listener->maxBufferSize.value());
 
+                    if (listener->maxQos)
+                        client->setMaxQos(listener->maxQos.value());
+
+                    if (listener->mqtt3QoSExceedAction)
+                        client->setMqtt3QoSExceedAction(listener->mqtt3QoSExceedAction.value());
+
                     thread_data->giveClient(std::move(client));
 
                     globals->stats.socketConnects.inc();

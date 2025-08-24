@@ -76,6 +76,8 @@ public:
     uint32_t clientMaxWriteBufferSize = 1048576;
     uint16_t maxIncomingTopicAliasValue = 65535;
     uint16_t maxOutgoingTopicAliasValue = 65535;
+    uint8_t maxQos = 2;
+    Mqtt3QoSExceedAction mqtt3QoSExceedAction = Mqtt3QoSExceedAction::Disconnect;
 #ifdef TESTING
     std::optional<bool> logDebug;
     LogLevel logLevel = LogLevel::Debug;

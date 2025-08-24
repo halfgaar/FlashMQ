@@ -46,4 +46,10 @@ enum class ConnectionProtocol
     WebsocketMqtt
 };
 
+enum class Mqtt3QoSExceedAction
+{
+    Disconnect,
+    Drop
+};
+
 #endif // ENUMS_H
