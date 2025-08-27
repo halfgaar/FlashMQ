@@ -197,6 +197,24 @@ max_qos_msg_pending_per_client 512
 max_qos_bytes_pending_per_client 65536
 .RE
 .TP
+\*(T<\fB\m[green]max_qos\m[] \fI\m[cyan]qos_value\m[]\fR\fR\*(T>
+The maximum QoS value FlashMQ will allow clients to use for subscriptions, publishes and wills. Subscriptions will be downgraded to this value. Publishes and wills will cause a disconnect for MQTT5 clients, and the action configured with \fB\fB\m[green]mqtt3_qos_exceed_action\fR\m[]\fR for MQTT3 clients.
+
+The value is updated on config reload, but only for new clients. The reason is that the max QoS is part of the handshake in MQTT5, and clients will be surprised (and cause disconnects) if that changes during the lifetime of a connection. For consistency, the MQTT3 clients behave the same.
+
+This setting is also available per listener.
+
+Default value: \fI2\fR
+.TP
+\*(T<\fB\m[green]mqtt3_qos_exceed_action\m[] \fI\m[cyan]drop|disconnect\m[]\fR\fR\*(T>
+Unlike MQTT5, MQTT3 doesn't have defined behavior for exceeding a configured maximum QoS (see \fB\fB\m[green]max_qos\fR\m[]\fR ). This allows the behavior to be controlled.
+
+In case of \fIdrop\fR the client gets an acknowledgement as if the publish has succeeded, to avoid stale in-flight packets.
+
+This setting is also available per listener.
+
+Default value: \fIdisconnect\fR
+.TP
 \*(T<\fB\m[green]max_incoming_topic_alias_value\m[] \fI\m[cyan]number\m[]\fR\fR\*(T>
 Is communicated towards MQTT5 clients. It is then up to them to decide to set them or not.
 
@@ -472,6 +490,12 @@ Default: \fI\m[cyan]false\m[]\fR
 .TP
 \*(T<\fB\m[green]max_buffer_size\m[] \fI\m[cyan]number\m[]\fR\fR\*(T>
 Override the \fB\m[green]client_max_write_buffer_size\fR\m[] for this listener. This is especially useful when this listener is the receiving side of a bridge, because these clients will likely see more traffic.
+.TP
+\*(T<\fB\m[green]max_qos\m[] \fI\m[cyan]qos_value\m[]\fR\fR\*(T>
+Per-listener counterpart of \fB\fB\m[green]max_qos\fR\m[]\fR.
+.TP
+\*(T<\fB\m[green]mqtt3_qos_exceed_action\m[] \fI\m[cyan]drop|disconnect\m[]\fR\fR\*(T>
+Per-listener counterpart of \fB\fB\m[green]mqtt3_qos_exceed_action\fR\m[]\fR.
 .SH EXAMPLE LISTENERS
 .PP
 .nf

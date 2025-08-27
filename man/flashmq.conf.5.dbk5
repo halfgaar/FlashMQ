@@ -386,6 +386,40 @@ multi-value-param one 'two' "three" "with ' char"
           </itemizedlist>
         </listitem>
       </varlistentry>
+      <varlistentry xml:id="max_qos" condition="flashmq ≥ 1.23.0">
+        <term><option>max_qos</option> <replaceable>qos_value</replaceable></term>
+        <listitem>
+          <para>
+            The maximum QoS value FlashMQ will allow clients to use for subscriptions, publishes and wills. Subscriptions will be downgraded to this value. Publishes and wills will cause a disconnect for MQTT5 clients, and the action configured with <link xlink:href="#mqtt3_qos_exceed_action"><option>mqtt3_qos_exceed_action</option></link> for MQTT3 clients.
+          </para>
+          <para>
+            The value is updated on config reload, but only for new clients. The reason is that the max QoS is part of the handshake in MQTT5, and clients will be surprised (and cause disconnects) if that changes during the lifetime of a connection. For consistency, the MQTT3 clients behave the same.
+          </para>
+          <para>
+            This setting is also available per listener.
+          </para>
+          <para>
+            Default value: <literal>2</literal>
+          </para>
+        </listitem>
+      </varlistentry>
+      <varlistentry xml:id="mqtt3_qos_exceed_action" condition="flashmq ≥ 1.23.0">
+        <term><option>mqtt3_qos_exceed_action</option> <replaceable>drop|disconnect</replaceable></term>
+        <listitem>
+          <para>
+            Unlike MQTT5, MQTT3 doesn't have defined behavior for exceeding a configured maximum QoS (see <link xlink:href="#max_qos"><option>max_qos</option></link> ). This allows the behavior to be controlled.
+          </para>
+          <para>
+            In case of <literal>drop</literal> the client gets an acknowledgement as if the publish has succeeded, to avoid stale in-flight packets.
+          </para>
+          <para>
+            This setting is also available per listener.
+          </para>
+          <para>
+            Default value: <literal>disconnect</literal>
+          </para>
+        </listitem>
+      </varlistentry>
       <varlistentry xml:id="max_incoming_topic_alias_value" condition="flashmq ≥ 1.4.2">
         <term><option>max_incoming_topic_alias_value</option> <replaceable>number</replaceable></term>
         <listitem>
@@ -991,6 +1025,24 @@ multi-value-param one 'two' "three" "with ' char"
         <listitem>
           <para>
             Override the <option>client_max_write_buffer_size</option> for this listener. This is especially useful when this listener is the receiving side of a bridge, because these clients will likely see more traffic.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry xml:id="listen__max_qos" condition="flashmq ≥ 1.23.0">
+        <term><option>max_qos</option> <replaceable>qos_value</replaceable></term>
+        <listitem>
+          <para>
+              Per-listener counterpart of <link xlink:href="#max_qos"><option>max_qos</option></link>.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry xml:id="listen__mqtt3_qos_exceed_action" condition="flashmq ≥ 1.23.0">
+        <term><option>mqtt3_qos_exceed_action</option> <replaceable>drop|disconnect</replaceable></term>
+        <listitem>
+          <para>
+              Per-listener counterpart of <link xlink:href="#mqtt3_qos_exceed_action"><option>mqtt3_qos_exceed_action</option></link>.
           </para>
         </listitem>
       </varlistentry>
