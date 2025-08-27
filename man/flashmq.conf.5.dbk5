@@ -789,7 +789,7 @@ multi-value-param one 'two' "three" "with ' char"
           </para>
         </listitem>
       </varlistentry>
-      <varlistentry xml:id="unix_socket_user" condition="flashmq ≥ 1.22.1">
+      <varlistentry xml:id="unix_socket_user" condition="flashmq ≥ 1.23.0">
         <term><option>unix_socket_user</option> <replaceable>user</replaceable></term>
         <listitem>
           <para>
@@ -800,7 +800,7 @@ multi-value-param one 'two' "three" "with ' char"
           </para>
         </listitem>
       </varlistentry>
-      <varlistentry xml:id="unix_socket_group" condition="flashmq ≥ 1.22.1">
+      <varlistentry xml:id="unix_socket_group" condition="flashmq ≥ 1.23.0">
         <term><option>unix_socket_group</option> <replaceable>group</replaceable></term>
         <listitem>
           <para>
@@ -811,7 +811,7 @@ multi-value-param one 'two' "three" "with ' char"
           </para>
         </listitem>
       </varlistentry>
-      <varlistentry xml:id="unix_socket_mode" condition="flashmq ≥ 1.22.1">
+      <varlistentry xml:id="unix_socket_mode" condition="flashmq ≥ 1.23.0">
         <term><option>unix_socket_mode</option> <replaceable>mode</replaceable></term>
         <listitem>
           <para>
