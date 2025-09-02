@@ -85,6 +85,7 @@ set(FLASHMQ_HEADERS
     ${RELPATH}mutexowned.h
     ${RELPATH}http.h
     ${RELPATH}fmqsockaddr.h
+    ${RELPATH}flags.h
 )
 
 set(FLASHMQ_IMPLS

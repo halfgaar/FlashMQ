@@ -2,6 +2,7 @@
 #include "testhelpers.h"
 #include "conffiletemp.h"
 #include "exceptions.h"
+#include "settings.h"
 
 void MainTests::test_loading_second_value()
 {
@@ -171,4 +172,55 @@ void MainTests::testConfigSuggestion()
             FMQ_COMPARE(ex.what(), "Config key 'foobarbaz' is not valid (here).");
         }
     }
+}
+
+void MainTests::testFlags()
+{
+    Flags<PersistenceDataToSave> flags;
+
+    FMQ_VERIFY(flags.hasNone());
+
+    flags.setAll();
+
+    FMQ_VERIFY(flags.hasAll());
+
+    flags.clearFlag(PersistenceDataToSave::BridgeInfo);
+
+    FMQ_VERIFY(flags.hasFlagSet(PersistenceDataToSave::SessionsAndSubscriptions));
+    FMQ_VERIFY(flags.hasFlagSet(PersistenceDataToSave::RetainedMessages));
+    FMQ_VERIFY(!flags.hasFlagSet(PersistenceDataToSave::BridgeInfo));
+
+    flags.clearFlag(PersistenceDataToSave::RetainedMessages);
+
+    FMQ_VERIFY(flags.hasFlagSet(PersistenceDataToSave::SessionsAndSubscriptions));
+    FMQ_VERIFY(!flags.hasFlagSet(PersistenceDataToSave::RetainedMessages));
+    FMQ_VERIFY(!flags.hasFlagSet(PersistenceDataToSave::BridgeInfo));
+
+    flags.clearFlag(PersistenceDataToSave::SessionsAndSubscriptions);
+
+    FMQ_VERIFY(!flags.hasFlagSet(PersistenceDataToSave::SessionsAndSubscriptions));
+    FMQ_VERIFY(!flags.hasFlagSet(PersistenceDataToSave::RetainedMessages));
+    FMQ_VERIFY(!flags.hasFlagSet(PersistenceDataToSave::BridgeInfo));
+
+    flags.setFlag(PersistenceDataToSave::SessionsAndSubscriptions);
+
+    FMQ_VERIFY(flags.hasFlagSet(PersistenceDataToSave::SessionsAndSubscriptions));
+    FMQ_VERIFY(!flags.hasFlagSet(PersistenceDataToSave::RetainedMessages));
+    FMQ_VERIFY(!flags.hasFlagSet(PersistenceDataToSave::BridgeInfo));
+
+    flags.setFlag(PersistenceDataToSave::RetainedMessages);
+
+    FMQ_VERIFY(flags.hasFlagSet(PersistenceDataToSave::SessionsAndSubscriptions));
+    FMQ_VERIFY(flags.hasFlagSet(PersistenceDataToSave::RetainedMessages));
+    FMQ_VERIFY(!flags.hasFlagSet(PersistenceDataToSave::BridgeInfo));
+
+    flags.setFlag(PersistenceDataToSave::BridgeInfo);
+
+    FMQ_VERIFY(flags.hasFlagSet(PersistenceDataToSave::SessionsAndSubscriptions));
+    FMQ_VERIFY(flags.hasFlagSet(PersistenceDataToSave::RetainedMessages));
+    FMQ_VERIFY(flags.hasFlagSet(PersistenceDataToSave::BridgeInfo));
+
+    flags.clearAll();
+
+    FMQ_VERIFY(flags.hasNone());
 }

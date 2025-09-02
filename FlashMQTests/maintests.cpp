@@ -256,6 +256,7 @@ MainTests::MainTests()
     REGISTER_FUNCTION(testMqtt5DelayedWillsDisabled);
     REGISTER_FUNCTION3(testStringDistances);
     REGISTER_FUNCTION3(testConfigSuggestion);
+    REGISTER_FUNCTION3(testFlags);
     REGISTER_FUNCTION(testIncomingTopicAlias);
     REGISTER_FUNCTION(testOutgoingTopicAlias);
     REGISTER_FUNCTION(testOutgoingTopicAliasBeyondMax);
