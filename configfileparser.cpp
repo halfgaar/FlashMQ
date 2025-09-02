@@ -238,6 +238,7 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validKeys.insert("save_state_interval");
     validKeys.insert("subscription_node_lifetime");
     validKeys.insert("subscription_identifiers_enabled");
+    validKeys.insert("persistence_data_to_save");
 
     validListenKeys.insert("port");
     validListenKeys.insert("protocol");
@@ -1384,6 +1385,58 @@ void ConfigFileParser::loadFile(bool test)
                 {
                     bool tmp = stringTruthiness(value);
                     tmpSettings.subscriptionIdentifierEnabled = tmp;
+                }
+
+                if (testKeyValidity(key, "persistence_data_to_save", validKeys))
+                {
+                    tmpSettings.persistenceDataToSave.clearAll();
+
+                    int new_correct_number_of_args = 0;
+
+                    for(std::string arg : values)
+                    {
+                        new_correct_number_of_args++;
+                        bool set = true;
+
+                        if (arg.length() > 0 && arg.at(0) == '!')
+                        {
+                            set = false;
+                            arg.erase(0, 1);
+                        }
+
+                        if (arg == "all")
+                        {
+                            if (set)
+                                tmpSettings.persistenceDataToSave.setAll();
+                            else
+                                tmpSettings.persistenceDataToSave.clearAll();
+                        }
+                        else if (arg == "sessions_and_subscriptions")
+                        {
+                            if (set)
+                                tmpSettings.persistenceDataToSave.setFlag(PersistenceDataToSave::SessionsAndSubscriptions);
+                            else
+                                tmpSettings.persistenceDataToSave.clearFlag(PersistenceDataToSave::SessionsAndSubscriptions);
+                        }
+                        else if (arg == "retained_messages")
+                        {
+                            if (set)
+                                tmpSettings.persistenceDataToSave.setFlag(PersistenceDataToSave::RetainedMessages);
+                            else
+                                tmpSettings.persistenceDataToSave.clearFlag(PersistenceDataToSave::RetainedMessages);
+                        }
+                        else if (arg == "bridge_info")
+                        {
+                            if (set)
+                                tmpSettings.persistenceDataToSave.setFlag(PersistenceDataToSave::BridgeInfo);
+                            else
+                                tmpSettings.persistenceDataToSave.clearFlag(PersistenceDataToSave::BridgeInfo);
+                        }
+                        else
+                            throw ConfigFileException("Value '" + arg + "' is not a valid mode for " + key);
+                    }
+
+                    number_of_expected_values = new_correct_number_of_args;
                 }
             }
         }

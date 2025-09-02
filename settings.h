@@ -21,6 +21,7 @@ See LICENSE for license details.
 #include "listener.h"
 #include "network.h"
 #include "bridgeconfig.h"
+#include "flags.h"
 
 #define ABSOLUTE_MAX_PACKET_SIZE 268435455
 #define HEARTBEAT_INTERVAL 1000
@@ -47,6 +48,13 @@ enum class WildcardSubscriptionDenyMode
 {
     DenyAll,
     DenyRetainedOnly
+};
+
+enum class PersistenceDataToSave
+{
+    SessionsAndSubscriptions = 1,
+    RetainedMessages = 2,
+    BridgeInfo = 3
 };
 
 void checkUniqueBridgeNames(const std::list<BridgeConfig> &bridges);
@@ -111,6 +119,7 @@ public:
     std::chrono::milliseconds setRetainedMessageDeferTimeout = std::chrono::milliseconds(0);
     std::chrono::milliseconds setRetainedMessageDeferTimeoutSpread = std::chrono::milliseconds(1000);
     std::chrono::seconds saveStateInterval = std::chrono::seconds(3623);
+    Flags<PersistenceDataToSave> persistenceDataToSave;
     std::list<std::shared_ptr<Listener>> listeners; // Default one is created later, when none are defined.
 
     std::list<Network> setRealIpFrom;
@@ -130,6 +139,8 @@ public:
     bool matchAddrWithSetRealIpFrom(const struct sockaddr_in *addr) const;
 
     std::list<BridgeConfig> stealBridges();
+
+    Settings();
 };
 
 #endif // SETTINGS_H

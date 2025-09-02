@@ -32,6 +32,11 @@ void checkUniqueBridgeNames(const std::list<BridgeConfig> &bridges)
     }
 }
 
+Settings::Settings()
+{
+    persistenceDataToSave.setAll();
+}
+
 AuthOptCompatWrap &Settings::getAuthOptsCompat()
 {
     return authOptCompatWrap;

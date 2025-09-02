@@ -428,23 +428,38 @@ void MainApp::saveState(const Settings &settings, const std::list<BridgeInfoForS
 
     try
     {
-        if (!settings.storageDir.empty())
+        if (settings.storageDir.empty())
+            return;
+
+        if (settings.persistenceDataToSave.hasNone())
+            return;
+
+        std::shared_ptr<SubscriptionStore> subscriptionStore = globals->subscriptionStore;
+
         {
-            std::shared_ptr<SubscriptionStore> subscriptionStore = globals->subscriptionStore;
+            const bool saveRetained =
+                settings.persistenceDataToSave.hasFlagSet(PersistenceDataToSave::RetainedMessages) &&
+                settings.retainedMessagesMode == RetainedMessagesMode::Enabled;
 
             const std::string retainedDBPath = settings.getRetainedMessagesDBFile();
-            if (settings.retainedMessagesMode == RetainedMessagesMode::Enabled)
+            if (saveRetained)
                 subscriptionStore->saveRetainedMessages(retainedDBPath, in_background);
             else
                 logger->logf(LOG_INFO, "Not saving '%s', because 'retained_messages_mode' is not 'enabled'.", retainedDBPath.c_str());
+        }
 
+        if (settings.persistenceDataToSave.hasFlagSet(PersistenceDataToSave::SessionsAndSubscriptions))
+        {
             const std::string sessionsDBPath = settings.getSessionsDBFile();
             subscriptionStore->saveSessionsAndSubscriptions(sessionsDBPath);
-
-            MainApp::saveBridgeInfo(settings.getBridgeNamesDBFile(), bridgeInfos);
-
-            logger->logf(LOG_NOTICE, "Saving states done");
         }
+
+        if (settings.persistenceDataToSave.hasFlagSet(PersistenceDataToSave::BridgeInfo))
+        {
+            MainApp::saveBridgeInfo(settings.getBridgeNamesDBFile(), bridgeInfos);
+        }
+
+        logger->logf(LOG_NOTICE, "Saving states done");
     }
     catch(std::exception &ex)
     {
