@@ -363,6 +363,17 @@ multi-value-param one 'two' "three" "with ' char"
           </para>
         </listitem>
       </varlistentry>
+      <varlistentry xml:id="persistence_data_to_save" condition="flashmq ≥ 1.24.0">
+        <term><option>persistence_data_to_save</option> <replaceable>all|sessions_and_subscriptions|retained_messages|bridge_info</replaceable></term>
+        <listitem>
+          <para>
+              When a <option>storage_dir</option> is defined, specify which information should be saved. The arguments are a list of one or more of the specified options, and can be negated with a !. Meaning like: <literal>all !retained_messages</literal>. The order is relevant. If you end with <literal>all</literal>, it overrides the previous.
+          </para>
+          <para>
+            The default is <literal>all</literal>, but as soon as this option is defined, it's cleared, and the desired list has to be composed.
+          </para>
+        </listitem>
+      </varlistentry>
       <varlistentry>
         <term xml:id="max_qos_msg_pending_per_client"><option>max_qos_msg_pending_per_client</option> <replaceable>number</replaceable></term>
         <term xml:id="max_qos_bytes_pending_per_client"><option>max_qos_bytes_pending_per_client</option> <replaceable>bytes</replaceable></term>

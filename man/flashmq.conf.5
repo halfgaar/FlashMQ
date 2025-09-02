@@ -5,7 +5,7 @@
 \\$2 \(la\\$1\(ra\\$3
 ..
 .if \n(.g .mso www.tmac
-.TH flashmq.conf 5 "Aug 27 2025" "" ""
+.TH flashmq.conf 5 "Sep 02 2025" "" ""
 .SH NAME
 flashmq.conf \- FlashMQ configuration file format
 .SH SYNOPSIS
@@ -179,6 +179,11 @@ The interval at which the state is saved, if enabled with \fB\m[green]storage_di
 This setting is also applied on reload.
 
 Default: 3623
+.TP
+\*(T<\fB\m[green]persistence_data_to_save\m[] \fI\m[cyan]all|sessions_and_subscriptions|retained_messages|bridge_info\m[]\fR\fR\*(T>
+When a \fB\m[green]storage_dir\fR\m[] is defined, specify which information should be saved. The arguments are a list of one or more of the specified options, and can be negated with a !. Meaning like: \fIall !retained_messages\fR. The order is relevant. If you end with \fIall\fR, it overrides the previous.
+
+The default is \fIall\fR, but as soon as this option is defined, it's cleared, and the desired list has to be composed.
 .TP
 \*(T<\fB\m[green]max_qos_msg_pending_per_client\m[] \fI\m[cyan]number\m[]\fR\fR\*(T>
 .TQ
