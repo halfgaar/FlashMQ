@@ -33,6 +33,7 @@ See LICENSE for license details.
 #include "bridgeinfodb.h"
 #include "globals.h"
 #include "fmqssl.h"
+#include "persistencefunctions.h"
 
 MainApp *MainApp::instance = nullptr;
 
@@ -289,7 +290,7 @@ void MainApp::saveStateInThread()
 {
     std::list<BridgeInfoForSerializing> bridgeInfos = BridgeInfoForSerializing::getBridgeInfosForSerializing(this->bridgeConfigs);
 
-    auto f = std::bind(&MainApp::saveState, this->settings, bridgeInfos, true);
+    auto f = std::bind(&saveState, this->settings, bridgeInfos, true);
     this->bgWorker.addTask(f, true);
 }
 
@@ -414,108 +415,6 @@ void MainApp::queueInternalHeartbeat()
     {
         thread->queueInternalHeartbeat();
     }
-}
-
-/**
- * @brief MainApp::saveState saves sessions and such to files. It's run in the main thread, but also dedicated threads. For that,
- * reason, it's a static method to reduce the risk of accidental use of data without locks.
- * @param settings A local settings, copied from a std::bind copy when running in a thread, because of thread safety.
- * @param bridgeInfos is a list of objects already prepared from the original bridge configs, to avoid concurrent access.
- */
-void MainApp::saveState(const Settings &settings, const std::list<BridgeInfoForSerializing> &bridgeInfos, bool in_background)
-{
-    Logger *logger = Logger::getInstance();
-
-    try
-    {
-        if (settings.storageDir.empty())
-            return;
-
-        if (settings.persistenceDataToSave.hasNone())
-            return;
-
-        std::shared_ptr<SubscriptionStore> subscriptionStore = globals->subscriptionStore;
-
-        {
-            const bool saveRetained =
-                settings.persistenceDataToSave.hasFlagSet(PersistenceDataToSave::RetainedMessages) &&
-                settings.retainedMessagesMode == RetainedMessagesMode::Enabled;
-
-            const std::string retainedDBPath = settings.getRetainedMessagesDBFile();
-            if (saveRetained)
-                subscriptionStore->saveRetainedMessages(retainedDBPath, in_background);
-            else
-                logger->logf(LOG_INFO, "Not saving '%s', because 'retained_messages_mode' is not 'enabled'.", retainedDBPath.c_str());
-        }
-
-        if (settings.persistenceDataToSave.hasFlagSet(PersistenceDataToSave::SessionsAndSubscriptions))
-        {
-            const std::string sessionsDBPath = settings.getSessionsDBFile();
-            subscriptionStore->saveSessionsAndSubscriptions(sessionsDBPath);
-        }
-
-        if (settings.persistenceDataToSave.hasFlagSet(PersistenceDataToSave::BridgeInfo))
-        {
-            MainApp::saveBridgeInfo(settings.getBridgeNamesDBFile(), bridgeInfos);
-        }
-
-        logger->logf(LOG_NOTICE, "Saving states done");
-    }
-    catch(std::exception &ex)
-    {
-        logger->logf(LOG_ERR, "Error saving state: %s", ex.what());
-    }
-}
-
-void MainApp::saveBridgeInfo(const std::string &filePath, const std::list<BridgeInfoForSerializing> &bridgeInfos)
-{
-    Logger *logger = Logger::getInstance();
-    logger->logf(LOG_NOTICE, "Saving bridge info in '%s'", filePath.c_str());
-    BridgeInfoDb bridgeInfoDb(filePath);
-    bridgeInfoDb.openWrite();
-    bridgeInfoDb.saveInfo(bridgeInfos);
-}
-
-std::list<BridgeConfig> MainApp::loadBridgeInfo(Settings &settings)
-{
-    Logger *logger = Logger::getInstance();
-    std::list<BridgeConfig> bridges = settings.stealBridges();
-
-    if (settings.storageDir.empty())
-        return bridges;
-
-    const std::string filePath = settings.getBridgeNamesDBFile();
-
-    try
-    {
-        logger->logf(LOG_NOTICE, "Loading '%s'", filePath.c_str());
-
-        BridgeInfoDb dbfile(filePath);
-        dbfile.openRead();
-        std::list<BridgeInfoForSerializing> bridgeInfos = dbfile.readInfo();
-
-        for(const BridgeInfoForSerializing &info : bridgeInfos)
-        {
-            for(BridgeConfig &bridgeConfig : bridges)
-            {
-                if (!bridgeConfig.useSavedClientId)
-                    continue;
-
-                if (bridgeConfig.clientidPrefix == info.prefix)
-                {
-                    logger->log(LOG_INFO) << "Assigning stored bridge clientid '" << info.clientId << "' to bridge '" << info.prefix << "'.";
-                    bridgeConfig.setClientId(info.prefix, info.clientId);
-                    break;
-                }
-            }
-        }
-    }
-    catch (PersistenceFileCantBeOpened &ex)
-    {
-        logger->logf(LOG_WARNING, "File '%s' is not there (yet)", filePath.c_str());
-    }
-
-    return bridges;
 }
 
 void MainApp::initMainApp(int argc, char *argv[])

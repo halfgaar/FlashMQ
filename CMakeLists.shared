@@ -86,6 +86,7 @@ set(FLASHMQ_HEADERS
     ${RELPATH}http.h
     ${RELPATH}fmqsockaddr.h
     ${RELPATH}flags.h
+    ${RELPATH}persistencefunctions.h
 )
 
 set(FLASHMQ_IMPLS
@@ -151,4 +152,5 @@ set(FLASHMQ_IMPLS
     ${RELPATH}http.cpp
     ${RELPATH}fmqsockaddr.cpp
     ${RELPATH}fmqssl.cpp
+    ${RELPATH}persistencefunctions.cpp
     )
