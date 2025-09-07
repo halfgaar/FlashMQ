@@ -147,6 +147,7 @@ public:
     void handleSubscribe(std::shared_ptr<Client> &sender);
     void handleSubAck(std::shared_ptr<Client> &sender);
     void handleUnsubscribe(std::shared_ptr<Client> &sender);
+    void handleUnsubAck(std::shared_ptr<Client> &sender);
     void handlePing(std::shared_ptr<Client> &sender);
     void parsePublishData(std::shared_ptr<Client> &sender);
     void handlePublish(std::shared_ptr<Client> &sender);

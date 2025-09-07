@@ -321,6 +321,14 @@ void MainApp::queueRetainedMessageExpiration()
     }
 }
 
+void MainApp::queuePurgeStaleTrackedLazySubscriptions()
+{
+    for (auto &t : threads)
+    {
+        t->queuePurgeStaleTrackedLazySubscriptionsAll(PurgeTrackedSubscriptionModifier::Start);
+    }
+}
+
 void MainApp::sendBridgesToThreads()
 {
     if (threads.empty())
@@ -360,6 +368,7 @@ void MainApp::sendBridgesToThreads()
         {
             std::shared_ptr<BridgeState> bridgeState = std::make_shared<BridgeState>(bridge);
             bridgeState->threadData = owner;
+            registerLazySubscriptions(bridgeState);
             owner->giveBridge(bridgeState);
         }
     }
@@ -1209,6 +1218,15 @@ void MainApp::reloadTimers(bool reload, const Settings &old_settings)
         interval = 500;
 #endif
         auto f = std::bind(&MainApp::queueRetainedMessageExpiration, this);
+        timed_tasks.addTask(f, interval, true);
+    }
+
+    {
+        uint32_t interval = 5002939; // prime
+#ifdef TESTING
+        interval = 500;
+#endif
+        auto f = std::bind(&MainApp::queuePurgeStaleTrackedLazySubscriptions, this);
         timed_tasks.addTask(f, interval, true);
     }
 

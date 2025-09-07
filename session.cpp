@@ -414,9 +414,19 @@ void Session::increaseFlowControlQuotaLocked()
     qos_locked->increaseFlowControlQuota();
 }
 
-uint16_t Session::getNextPacketIdLocked()
+void Session::increaseFlowControlQuotaLocked(int n)
 {
     MutexLocked<QoSData> qos_locked = qos.lock();
+    qos_locked->increaseFlowControlQuota(n);
+}
+
+std::optional<uint16_t> Session::getNextPacketIdLocked()
+{
+    MutexLocked<QoSData> qos_locked = qos.lock();
+
+    if (qos_locked->flowControlQuota == 0)
+        return {};
+
     return qos_locked->getNextPacketId();
 }
 

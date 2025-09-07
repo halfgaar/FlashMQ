@@ -429,10 +429,6 @@ MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, const uint16_t pac
     protocolVersion(protocolVersion),
     packetType(PacketType::UNSUBSCRIBE)
 {
-#ifndef TESTING
-    throw NotImplementedException("Code is only for testing.");
-#endif
-
     first_byte = static_cast<char>(packetType) << 4;
     first_byte |= 2; // required reserved bit
 
@@ -594,6 +590,8 @@ HandleResult MqttPacket::handle(std::shared_ptr<Client> &sender)
         handleUnsubscribe(sender);
     else if (packetType == PacketType::SUBACK)
         handleSubAck(sender);
+    else if (packetType == PacketType::UNSUBACK)
+        handleUnsubAck(sender);
     else if (packetType == PacketType::CONNECT)
         handleConnect(sender);
     else if (packetType == PacketType::DISCONNECT)
@@ -1380,7 +1378,12 @@ void MqttPacket::handleConnAck(std::shared_ptr<Client> &sender)
 
         if (!subscriptions.empty())
         {
-            MqttPacket subPacket(this->getProtocolVersion(), session->getNextPacketIdLocked(), 0, subscriptions);
+            auto pack_id = session->getNextPacketIdLocked();
+
+            if (!pack_id)
+                throw std::runtime_error("No quota of packet IDs left to send bridge subscriptions after CONNACK? Should not be possible at this point.");
+
+            MqttPacket subPacket(this->getProtocolVersion(), pack_id.value(), 0, subscriptions);
             sender->writeMqttPacketAndBlameThisClient(subPacket);
         }
     }
@@ -1403,6 +1406,7 @@ void MqttPacket::handleConnAck(std::shared_ptr<Client> &sender)
 
     ThreadGlobals::getThreadData()->publishBridgeState(bridgeState, true, {});
 
+    ThreadGlobals::getThreadData()->queueProcessTrackedSubscriptionMutations(bridgeState, ProcessTrackedSubscriptionMutationsModifier::StartResending);
     session->sendAllPendingQosData();
 }
 
@@ -1851,6 +1855,18 @@ void MqttPacket::handleSubAck(std::shared_ptr<Client> &sender)
         return;
 
     session->increaseFlowControlQuotaLocked();
+
+    auto &tracked_subs = bridgeState->getTrackedSubscriptions();
+
+    if (tracked_subs)
+    {
+        tracked_subs->removeMatchingInFlightTrackedSubscriptions(data.packet_id);
+
+        if (tracked_subs->requiresProcessingTrackedSubscriptions())
+        {
+            ThreadGlobals::getThreadData()->queueProcessTrackedSubscriptionMutations(bridgeState, ProcessTrackedSubscriptionMutationsModifier::Continue);
+        }
+    }
 }
 
 void MqttPacket::handleUnsubscribe(std::shared_ptr<Client> &sender)
@@ -1932,6 +1948,41 @@ void MqttPacket::handleUnsubscribe(std::shared_ptr<Client> &sender)
     UnsubAck unsubAck(sender->getProtocolVersion(), packet_id, numberOfUnsubs);
     MqttPacket response(unsubAck);
     sender->writeMqttPacket(response);
+}
+
+void MqttPacket::handleUnsubAck(std::shared_ptr<Client> &sender)
+{
+    if (!sender->isOutgoingConnection())
+        return;
+
+    // We can reuse the suback parser.
+    const SubAckData data = parseSubAckData();
+
+    std::shared_ptr<BridgeState> bridgeState = sender->getBridgeState();
+
+    // Should be impossible.
+    if (!bridgeState)
+        return;
+
+    std::shared_ptr<Session> session = bridgeState->session.lock();
+
+    // Should be impossible.
+    if (!session)
+        return;
+
+    session->increaseFlowControlQuotaLocked(1);
+
+    auto &tracked_subs = bridgeState->getTrackedSubscriptions();
+
+    if (tracked_subs)
+    {
+        tracked_subs->removeMatchingInFlightTrackedUnsubscriptions(data.packet_id);
+
+        if (tracked_subs->requiresContinuationOfPurging())
+        {
+            ThreadGlobals::getThreadData()->queuePurgeStaleTrackedLazySubscriptions(bridgeState, PurgeTrackedSubscriptionModifier::Continue);
+        }
+    }
 }
 
 void MqttPacket::parsePublishData(std::shared_ptr<Client> &sender)
@@ -2359,8 +2410,8 @@ void MqttPacket::handlePubComp(std::shared_ptr<Client> &sender)
 
 SubAckData MqttPacket::parseSubAckData()
 {
-    if (this->packetType != PacketType::SUBACK)
-        throw std::runtime_error("Packet must be suback packet.");
+    if (this->packetType != PacketType::SUBACK && this->packetType != PacketType::UNSUBACK)
+        throw std::runtime_error("Packet must be suback/unsuback packet.");
 
     setPosToDataStart();
 

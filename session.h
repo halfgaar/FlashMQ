@@ -119,7 +119,8 @@ public:
     void addOutgoingQoS2MessageId(uint16_t packet_id);
     void removeOutgoingQoS2MessageId(u_int16_t packet_id);
     void increaseFlowControlQuotaLocked();
-    uint16_t getNextPacketIdLocked();
+    void increaseFlowControlQuotaLocked(int n);
+    std::optional<uint16_t> getNextPacketIdLocked();
     void resetQoSData();
 
     bool getDestroyOnDisconnect() const;

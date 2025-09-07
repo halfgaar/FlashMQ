@@ -87,7 +87,6 @@ bool BridgeTopicPath::operator==(const BridgeTopicPath &other) const
     return this->topic == other.topic && this->qos == other.qos;
 }
 
-
 BridgeState::BridgeState(const BridgeConfig &config) :
     c(config)
 {
@@ -210,6 +209,39 @@ void BridgeState::resetReconnectCounter()
     intervalLogged = 0;
 }
 
+void BridgeState::constructTrackedSubscriptions()
+{
+    if (mTrackedSubscriptions)
+        return;
+    mTrackedSubscriptions = std::make_unique<TrackedSubscriptionState>();
+}
+
+CheckedUniquePtr<TrackedSubscriptionState> &BridgeState::getTrackedSubscriptions()
+{
+    return mTrackedSubscriptions;
+}
+
+/**
+ * @brief BridgeState::stealTrackedSubscriptions
+ * @param source
+ *
+ * We only move the tracked subscriptions, not the mutations. The idea is that when a new BridgeState is being created (because
+ * of a config reload), that will already have registered itself as lazy subscriber and begun to receive subscription mutations.
+ * Those mutations will be processed as soon as the MQTT connection is approved. Before that, this stealing should take
+ * place. Processing those mutations on the tracked subscriptions we take, should be consistent enough.
+ */
+void BridgeState::stealTrackedSubscriptions(BridgeState &source)
+{
+    if (!mTrackedSubscriptions || !source.mTrackedSubscriptions)
+        return;
+
+    Logger::getInstance()->log(LOG_WARNING)
+            << "Migrating 'tracked subscriptions' from the old connection of " << source.c.clientidPrefix << "' is somewhat experimental. "
+            << "There is a chance (un)subscriptions received during the connection transition aren't correctly processed.";
+
+    this->mTrackedSubscriptions->replaceTrackedSubscriptions(source.mTrackedSubscriptions->stealTrackedSubscriptions());
+}
+
 /**
  * @brief BridgeConfig::setClientId is for setting the client ID on start to the one from a saved state. That's why it only works when the prefix matches.
  * @param prefix
@@ -254,6 +286,11 @@ void BridgeConfig::setSharedSubscriptionName(const std::string &share_name)
 {
     setSharedSubscriptionName(publishes, share_name);
     setSharedSubscriptionName(subscribes, share_name);
+
+    for (auto &l : lazySubscriptions)
+    {
+        l.share_name = share_name;
+    }
 }
 
 void BridgeConfig::setSharedSubscriptionName(std::vector<BridgeTopicPath> &topics, const std::string &share_name)
@@ -317,8 +354,8 @@ void BridgeConfig::isValid()
     if (address.empty())
         throw ConfigFileException("No address specified in bridge");
 
-    if (publishes.empty() && subscribes.empty())
-        throw ConfigFileException("No subscribe or publish paths defined in bridge.");
+    if (publishes.empty() && subscribes.empty() && lazySubscriptions.empty())
+        throw ConfigFileException("No (lazy) subscribe or publish paths defined in bridge.");
 
     if (!caDir.empty() && !caFile.empty())
         throw ConfigFileException("Specify only one 'ca_file' or 'ca_dir'");
@@ -351,6 +388,11 @@ void BridgeConfig::isValid()
         std::for_each(publishes.begin(), publishes.end(), check);
         std::for_each(subscribes.begin(), subscribes.end(), check);
     }
+
+    if (!lazySubscriptions.empty() && protocolVersion < ProtocolVersion::Mqtt5)
+    {
+        throw ConfigFileException("Using lazy subscriptions needs at least MQTT5");
+    }
 }
 
 std::vector<BridgeConfig> BridgeConfig::multiply() const
@@ -365,7 +407,11 @@ std::vector<BridgeConfig> BridgeConfig::multiply() const
     {
         result.push_back(*this);
 
-        if (this->connection_count > 1)
+        /*
+         * Always give lazy subscriptions a share name as to avoid problems when you change connection_count
+         * from 1 to > 1 and reload FlashMQ.
+         */
+        if (this->connection_count > 1 || !this->lazySubscriptions.empty())
         {
             result.back().setSharedSubscriptionName(share_name);
 
@@ -399,13 +445,36 @@ bool BridgeConfig::operator ==(const BridgeConfig &other) const
            && this->useSavedClientId == other.useSavedClientId && this->maxOutgoingTopicAliases == other.maxOutgoingTopicAliases
            && this->maxIncomingTopicAliases == other.maxIncomingTopicAliases && this->tcpNoDelay == other.tcpNoDelay
            && this->local_prefix == other.local_prefix && this->remote_prefix == other.remote_prefix && this->connection_count == other.connection_count
-           && this->maxBufferSize == other.maxBufferSize;
+           && this->maxBufferSize == other.maxBufferSize && this->lazySubscriptions == other.lazySubscriptions;
 }
 
 bool BridgeConfig::operator !=(const BridgeConfig &other) const
 {
     bool r = *this == other;
     return !r;
+}
+
+
+
+BridgeLazySubscription::BridgeLazySubscription(const std::string &pattern, uint8_t qos) :
+    pattern(pattern),
+    qos(qos)
+{
+
+}
+
+bool BridgeLazySubscription::operator==(const BridgeLazySubscription &other) const
+{
+    return this->pattern == other.pattern && this->qos == other.qos && this->share_name == other.share_name;
+}
+
+void BridgeLazySubscription::isValid() const
+{
+    if (pattern.empty() || !(isValidSubscribePath(pattern) && pattern.back() == '#'))
+        throw ConfigFileException("The pattern '" + pattern + "' is not a valid lazy subscription pattern. It must end with a multi-level wildcard.");
+
+    if (qos > 2)
+        throw ConfigFileException("QoS " + std::to_string(qos) + " is not a valid QoS for a lazy subscription");
 }
 
 
