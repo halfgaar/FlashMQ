@@ -114,6 +114,7 @@ class ThreadData
     void removeQueuedClients();
     void publishWithAcl(Publish &pub, bool setRetain=false);
     void removeBridge(const BridgeConfig &bridgeConfig, const std::string &reason);
+    void retrySendingInFlightTrackedSubscriptions();
 
 public:
     Settings settingsLocalCopy; // Is updated on reload, within the thread loop.
@@ -188,6 +189,7 @@ public:
     void clearQueuedRetainedMessages();
     void acceptPendingClients();
     void acceptPendingBridges();
+    void queueProcessTrackedSubscriptionMutations(const std::shared_ptr<BridgeState> &bridgeState);
 
     size_t getNrOfClients();
     void updateNrOfClients();
