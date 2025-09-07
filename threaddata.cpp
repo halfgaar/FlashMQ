@@ -826,7 +826,12 @@ void ThreadData::acceptPendingBridges()
             {
                 if (existingState->c != bridgeState->c)
                 {
+                    // TODO: this doesn't immediately cause a disconnect and replacement of the client, so there is probably
+                    // a race condition in moving the tracked subscriptions. Perhaps the moving needs to be done where
+                    // the client is actually replaced.
+
                     logger->log(LOG_NOTICE) << "Bridge '" << existingState->c.clientidPrefix << "' has changed. Reconnecting.";
+                    bridgeState->stealConfigChangeOverarchingData(*existingState);
                     existingState = bridgeState;
                 }
             }
@@ -835,6 +840,33 @@ void ThreadData::acceptPendingBridges()
         {
             clients.bridges[bridgeState->c.clientidPrefix] = bridgeState;
         }
+    }
+}
+
+/**
+ * If remote servers behave properly this should mostly not have an effect, but we do need to do it.
+ *
+ * The called function will determine whether we have to do something or not.
+ */
+void ThreadData::retrySendingInFlightTrackedSubscriptions()
+{
+    logger->log(LOG_DEBUG) << "Doing retrySendingInFlightTrackedSubscriptions in thread " << threadnr;
+
+    try
+    {
+        for (auto &pair : clients.bridges)
+        {
+            std::shared_ptr<BridgeState> &bridge = pair.second;
+
+            if (!bridge->hasOutdatedInFlightTrackedSubscriptions())
+                continue;
+
+            bridge->processTrackedSubscriptionMutations(true);
+        }
+    }
+    catch (std::exception &ex)
+    {
+        logger->log(LOG_ERROR) << "Error in retrySendingInFlightTrackedSubscriptions: " << ex.what();
     }
 }
 
@@ -882,6 +914,14 @@ bool ThreadData::queuedRetainedMessagesEmpty() const
 void ThreadData::clearQueuedRetainedMessages()
 {
     queuedRetainedMessages.clear();
+}
+
+void ThreadData::queueProcessTrackedSubscriptionMutations(const std::shared_ptr<BridgeState> &bridgeState)
+{
+    auto f = [bridgeState]() {
+        bridgeState->processTrackedSubscriptionMutations(false);
+    };
+    addImmediateTask(f);
 }
 
 void ThreadData::queueInternalHeartbeat()
@@ -1203,6 +1243,8 @@ void ThreadData::doKeepAliveCheck()
 {
     assert(pthread_self() == thread_id);
 
+    retrySendingInFlightTrackedSubscriptions();
+
     logger->logf(LOG_DEBUG, "doKeepAliveCheck in thread %d", threadnr);
 
     const std::chrono::seconds now = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now().time_since_epoch());
@@ -1384,3 +1426,4 @@ std::shared_ptr<ThreadData> ThreadDataOwner::getThreadData() const
 {
     return td;
 }
+

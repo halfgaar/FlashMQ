@@ -368,6 +368,7 @@ void MainApp::sendBridgesToThreads()
         {
             std::shared_ptr<BridgeState> bridgeState = std::make_shared<BridgeState>(bridge);
             bridgeState->threadData = owner;
+            BridgeState::registerLazySubscriptions(bridgeState);
             owner->giveBridge(bridgeState);
         }
     }

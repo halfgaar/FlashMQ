@@ -1338,7 +1338,12 @@ void MqttPacket::handleConnAck(std::shared_ptr<Client> &sender)
 
         if (!subscriptions.empty())
         {
-            MqttPacket subPacket(this->getProtocolVersion(), session->getNextPacketIdLocked(), 0, subscriptions);
+            auto pack_id = session->getNextPacketIdLocked();
+
+            if (!pack_id)
+                throw std::runtime_error("TODO fix better: no quota of packet IDs left to send bridge subscription.");
+
+            MqttPacket subPacket(this->getProtocolVersion(), pack_id.value(), 0, subscriptions);
             sender->writeMqttPacketAndBlameThisClient(subPacket);
         }
     }
@@ -1361,6 +1366,8 @@ void MqttPacket::handleConnAck(std::shared_ptr<Client> &sender)
 
     ThreadGlobals::getThreadData()->publishBridgeState(bridgeState, true, {});
 
+    bridgeState->setTrackedSubscriptionResendingToStart();
+    ThreadGlobals::getThreadData()->queueProcessTrackedSubscriptionMutations(bridgeState);
     session->sendAllPendingQosData();
 }
 
@@ -1802,10 +1809,13 @@ void MqttPacket::handleSubAck(std::shared_ptr<Client> &sender)
     if (!session)
         return;
 
-    for(uint16_t id : data.subAckCodes)
+    session->increaseFlowControlQuotaLocked(data.subAckCodes.size());
+
+    bridgeState->removeMatchingInFlightTrackedSubscriptions(data.packet_id);
+
+    if (bridgeState->requiresProcessingTrackedSubscriptions())
     {
-        (void)id;
-        session->increaseFlowControlQuotaLocked();
+        ThreadGlobals::getThreadData()->queueProcessTrackedSubscriptionMutations(bridgeState);
     }
 }
 

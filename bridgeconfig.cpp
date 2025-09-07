@@ -9,6 +9,8 @@
 #include "exceptions.h"
 #include "bridgeinfodb.h"
 #include "globals.h"
+#include "threadglobals.h"
+#include "threaddata.h"
 
 std::string BridgeClientGroupIds::getClientGroupShareName(const std::string &client_id_prefix)
 {
@@ -85,6 +87,11 @@ bool BridgeTopicPath::isValidQos() const
 bool BridgeTopicPath::operator==(const BridgeTopicPath &other) const
 {
     return this->topic == other.topic && this->qos == other.qos;
+}
+
+bool InFlightTrackedSubscription::outdated() const
+{
+    return this->createdAt + std::chrono::seconds(7) < std::chrono::steady_clock::now();
 }
 
 
@@ -210,6 +217,293 @@ void BridgeState::resetReconnectCounter()
     intervalLogged = 0;
 }
 
+bool BridgeState::addTrackedSubscriptionMutation(TrackedSubscriptionMutation &&mut)
+{
+    auto locked = trackedSubscriptionMutations.lock();
+    bool wakeupRequired = locked->empty();
+    locked->emplace_back(std::move(mut));
+    return wakeupRequired;
+}
+
+void BridgeState::stageInFlightTrackedSubscriptions(std::vector<Subscribe> &&subscribes, uint16_t pack_id)
+{
+    this->inFlightTrackedSubscriptions = std::make_optional<InFlightTrackedSubscription>();
+    this->inFlightTrackedSubscriptions->subscribes = std::move(subscribes);
+    this->inFlightTrackedSubscriptions->id = pack_id;
+    this->inFlightTrackedSubscriptions->tryCount = 0;
+}
+
+void BridgeState::sendInFlightTrackedSubscriptions(Client *network_client)
+{
+    if (!network_client)
+        return;
+
+    if (!this->inFlightTrackedSubscriptions)
+        return;
+
+    MqttPacket sub_pack(network_client->getProtocolVersion(), this->inFlightTrackedSubscriptions->id, 0, this->inFlightTrackedSubscriptions->subscribes);
+    network_client->writeMqttPacketAndBlameThisClient(sub_pack);
+
+    this->inFlightTrackedSubscriptions->tryCount++;
+}
+
+void BridgeState::processTrackedSubscriptionMutations(bool delayed_retry)
+{
+    assert(ThreadGlobals::getThreadData()->thread_id == pthread_self());
+
+    constexpr size_t batch_size = 10;
+
+    std::shared_ptr<Session> session = this->session.lock();
+
+    if (!session)
+        return;
+
+    std::shared_ptr<Client> network_client = session->makeSharedClient();
+
+    if (!network_client || !network_client->getAuthenticated())
+        return;
+
+    auto pack_id = session->getNextPacketIdLocked();
+
+    if (!pack_id)
+        return;
+
+    if (inFlightTrackedSubscriptions)
+    {
+        // That means a stray SUBACK caused the requeue of this function, because a matching SUBACK would have
+        // cleared the inFlightTrackedSubscriptions.
+        if (!delayed_retry)
+            return;
+
+        if (inFlightTrackedSubscriptions->tryCount > 3)
+        {
+            Logger::getInstance()->log(LOG_ERROR)
+                    << "Tracked lazy subscription with id " << inFlightTrackedSubscriptions->id << " to server '"
+                    << network_client->getClientId() << "' went unacknolwleged after " << inFlightTrackedSubscriptions->tryCount
+                    << " times. Disconnecting";
+
+            inFlightTrackedSubscriptions.reset();
+            network_client->setDisconnectReason("Missing SUBACKs when sending tracked lazy subscriptions");
+            ThreadGlobals::getThreadData()->removeClientQueued(network_client);
+            return;
+        }
+
+        Logger::getInstance()->log(LOG_WARNING)
+                << "Missing SUBACK when sending tracked lazy subscription to server '"
+                << network_client->getClientId() << "'. Trying again. Try count: " << inFlightTrackedSubscriptions->tryCount;
+
+        sendInFlightTrackedSubscriptions(network_client.get());
+        return;
+    }
+
+    if (curPosResending != trackedSubscriptions->end())
+    {
+        std::vector<Subscribe> subscribes;
+
+        size_t cur = 0;
+        while (curPosResending != trackedSubscriptions->end() && ++cur <= batch_size)
+        {
+            auto cur = curPosResending.lock();
+
+            if (cur)
+            {
+                TrackedSubscription &t = cur->val;
+                Subscribe &sub = subscribes.emplace_back(t.pattern, t.qos);
+                sub.retainAsPublished = true;
+
+                /*
+                 * At this point, we are resending our subscriptions because the connection got lost. We don't want
+                 * to cause stray publishes. If the remote end restarted, 'new subscribe only' should take
+                 * care of the remote server getting new subscriptions as clients reconnect.
+                 */
+                sub.retainHandling = RetainHandling::SendRetainedMessagesAtNewSubscribeOnly;
+
+                if (Logger::getInstance()->wouldLog(LOG_SUBSCRIBE))
+                {
+                    Logger::getInstance()->log(LOG_SUBSCRIBE)
+                            << "Resending tracked lazy subscription after connection loss to pattern '"
+                            << sub.topic << "', to server '" << network_client->getClientId()
+                            << ", effective QoS = " << static_cast<int>(sub.qos) << ". Packet ID = " << pack_id.value();
+                }
+            }
+
+            ++curPosResending;
+            resendCount++;
+        }
+
+        Logger::getInstance()->log(LOG_INFO)
+                << "Resending tracked lazy subscriptions after connection loss: "
+                << resendCount << " of " << resendTotal << ". Packet ID = " << pack_id.value();
+
+        if (!subscribes.empty())
+        {
+            stageInFlightTrackedSubscriptions(std::move(subscribes), pack_id.value());
+            sendInFlightTrackedSubscriptions(network_client.get());
+        }
+
+        return;
+    }
+
+    std::vector<TrackedSubscriptionMutation> muts;
+    muts.reserve(batch_size);
+
+    {
+        auto locked = trackedSubscriptionMutations.lock();
+
+        size_t cur = 0;
+        while (!locked->empty() && ++cur <= batch_size)
+        {
+            muts.emplace_back(std::move(locked->front()));
+            locked->pop_front();
+        }
+    }
+
+    std::vector<Subscribe> subscribes;
+
+    for (TrackedSubscriptionMutation &mut : muts)
+    {
+        if (mut.task == TrackedSubscriptionMutationTask::Subscribe)
+        {
+            bool send_subscription = false;
+            const auto emplacement_result = this->trackedSubscriptions->try_emplace(mut.pattern, mut.pattern, mut.qos);
+            auto emplacementResultPos = emplacement_result.first.lock();
+
+            if (!emplacementResultPos)
+                continue;
+
+            TrackedSubscription &subscription = emplacementResultPos->val;
+            subscription.sessions.insert(mut.originatingSession);
+
+            if (emplacement_result.second)
+                send_subscription = true;
+            else
+                send_subscription = mut.qos > subscription.qos;
+
+            if (!send_subscription)
+            {
+                if (Logger::getInstance()->wouldLog(LOG_SUBSCRIBE))
+                {
+                    Logger::getInstance()->log(LOG_SUBSCRIBE)
+                        << "Subscription already relayed: not relaying subscription by client '"
+                        << mut.originatingClientId << "' to pattern '"
+                        << mut.pattern << "' to server '" << network_client->getClientId() << ", effective QoS = " << static_cast<int>(mut.qos) << ".";
+                }
+                continue;
+            }
+
+            if (Logger::getInstance()->wouldLog(LOG_SUBSCRIBE))
+            {
+                Logger::getInstance()->log(LOG_SUBSCRIBE)
+                    << "Relaying subscription by client '" << mut.originatingClientId << "' to pattern '"
+                    << mut.pattern << "' to server '" << network_client->getClientId()
+                    << ", effective QoS = " << static_cast<int>(mut.qos) << ". Packet ID = " << pack_id.value();
+            }
+
+            Subscribe &sub = subscribes.emplace_back(mut.pattern, mut.qos);
+            sub.retainAsPublished = true;
+
+            /*
+             * Because of the nature of the feature, multiple clients subscribing to one pattern at different QoS levels
+             * use the same subscription at the other end. We have to request the retained message because it may now
+             * be with a different QoS. This will have the side effect of others getting an unexpected publish with the
+             * 'retain' flag on, but that's seemingly unavoidable.
+             */
+            sub.retainHandling = RetainHandling::SendRetainedMessagesAtSubscribe;
+        }
+        else if (mut.task == TrackedSubscriptionMutationTask::Unsubscribe)
+        {
+            auto pos = this->trackedSubscriptions->find(mut.pattern);
+
+            if (pos == this->trackedSubscriptions->end())
+                continue;
+
+            auto cur = pos.lock();
+
+            if (!cur)
+                continue;
+
+            cur->val.sessions.erase(mut.originatingSession);
+
+            /*
+             * We're not removing the entry or unsubscribing here. When incoming subscriptions and unsubscriptions
+             * are coming and going, the periodic cleanup will ultimately send the unsubscribe.
+             */
+        }
+    }
+
+    if (!subscribes.empty())
+    {
+        stageInFlightTrackedSubscriptions(std::move(subscribes), pack_id.value());
+        sendInFlightTrackedSubscriptions(network_client.get());
+    }
+}
+
+void BridgeState::stealConfigChangeOverarchingData(BridgeState &other)
+{
+    // TODO: this leaves the other at null. Will we still access it because of race conditions?
+    this->trackedSubscriptions = std::move(other.trackedSubscriptions);
+
+    std::deque<TrackedSubscriptionMutation> tmp;
+
+    {
+        auto locked_this = trackedSubscriptionMutations.lock();
+        tmp = std::move(*locked_this);
+        locked_this->clear();
+    }
+
+    {
+        auto locked_other = other.trackedSubscriptionMutations.lock();
+        *locked_other = std::move(tmp);
+    }
+}
+
+void BridgeState::registerLazySubscriptions(std::shared_ptr<BridgeState> &bridgeState)
+{
+    if (!bridgeState)
+        return;
+
+    if (!globals->lazySubscriptions)
+        globals->lazySubscriptions.emplace();
+
+    for (const BridgeLazySubscription &lazy_sub : bridgeState->c.lazySubscriptions)
+    {
+        globals->lazySubscriptions.value().addSubscription(bridgeState, lazy_sub.pattern, lazy_sub.qos, lazy_sub.share_name);
+    }
+}
+
+void BridgeState::setTrackedSubscriptionResendingToStart()
+{
+    curPosResending = trackedSubscriptions->begin();
+    resendCount = 0;
+    resendTotal = trackedSubscriptions->size();
+}
+
+bool BridgeState::requiresProcessingTrackedSubscriptions()
+{
+    if (trackedSubscriptions && curPosResending != trackedSubscriptions->end())
+        return true;
+
+    const bool empty = trackedSubscriptionMutations.lock()->empty();
+    return !empty;
+}
+
+void BridgeState::removeMatchingInFlightTrackedSubscriptions(uint16_t id)
+{
+    if (!this->inFlightTrackedSubscriptions)
+        return;
+
+    if (this->inFlightTrackedSubscriptions.value().id != id)
+        return;
+
+    this->inFlightTrackedSubscriptions.reset();
+    return;
+}
+
+bool BridgeState::hasOutdatedInFlightTrackedSubscriptions() const
+{
+    return this->inFlightTrackedSubscriptions && this->inFlightTrackedSubscriptions->outdated();
+}
+
 /**
  * @brief BridgeConfig::setClientId is for setting the client ID on start to the one from a saved state. That's why it only works when the prefix matches.
  * @param prefix
@@ -254,6 +548,11 @@ void BridgeConfig::setSharedSubscriptionName(const std::string &share_name)
 {
     setSharedSubscriptionName(publishes, share_name);
     setSharedSubscriptionName(subscribes, share_name);
+
+    for (auto &l : lazySubscriptions)
+    {
+        l.share_name = share_name;
+    }
 }
 
 void BridgeConfig::setSharedSubscriptionName(std::vector<BridgeTopicPath> &topics, const std::string &share_name)
@@ -317,8 +616,8 @@ void BridgeConfig::isValid()
     if (address.empty())
         throw ConfigFileException("No address specified in bridge");
 
-    if (publishes.empty() && subscribes.empty())
-        throw ConfigFileException("No subscribe or publish paths defined in bridge.");
+    if (publishes.empty() && subscribes.empty() && lazySubscriptions.empty())
+        throw ConfigFileException("No (lazy) subscribe or publish paths defined in bridge.");
 
     if (!caDir.empty() && !caFile.empty())
         throw ConfigFileException("Specify only one 'ca_file' or 'ca_dir'");
@@ -351,6 +650,11 @@ void BridgeConfig::isValid()
         std::for_each(publishes.begin(), publishes.end(), check);
         std::for_each(subscribes.begin(), subscribes.end(), check);
     }
+
+    if (!lazySubscriptions.empty() && protocolVersion < ProtocolVersion::Mqtt5)
+    {
+        throw ConfigFileException("Using lazy subscriptions needs at least MQTT5");
+    }
 }
 
 std::vector<BridgeConfig> BridgeConfig::multiply() const
@@ -365,7 +669,11 @@ std::vector<BridgeConfig> BridgeConfig::multiply() const
     {
         result.push_back(*this);
 
-        if (this->connection_count > 1)
+        /*
+         * Always give lazy subscriptions a share name as to avoid problems when you change connection_count
+         * from 1 to > 1 and reload FlashMQ.
+         */
+        if (this->connection_count > 1 || !this->lazySubscriptions.empty())
         {
             result.back().setSharedSubscriptionName(share_name);
 
@@ -387,6 +695,7 @@ std::vector<BridgeConfig> BridgeConfig::multiply() const
     return result;
 }
 
+// TODO: include the lazy subscriptions in this.
 bool BridgeConfig::operator ==(const BridgeConfig &other) const
 {
     return this->address == other.address && this->port == other.port && this->inet_protocol == other.inet_protocol && this->tlsMode == other.tlsMode
@@ -409,3 +718,52 @@ bool BridgeConfig::operator !=(const BridgeConfig &other) const
 }
 
 
+
+BridgeLazySubscription::BridgeLazySubscription(const std::string &pattern, uint8_t qos) :
+    pattern(pattern),
+    qos(qos)
+{
+
+}
+
+void BridgeLazySubscription::isValid() const
+{
+    if (pattern.empty() || !(isValidSubscribePath(pattern) && pattern.back() == '#'))
+        throw ConfigFileException("The pattern '" + pattern + "' is not a valid lazy subscription pattern. It must end with a multi-level wildcard.");
+
+    if (qos > 2)
+        throw ConfigFileException("QoS " + std::to_string(qos) + " is not a valid QoS for a lazy subscription");
+}
+
+TrackedSubscriptionMutation::TrackedSubscriptionMutation(
+        const std::string &pattern, const uint8_t qos, const std::string &originatingClientId,
+        const std::shared_ptr<Session> &originatingSession, TrackedSubscriptionMutationTask task) :
+    pattern(pattern),
+    qos(qos),
+    originatingClientId(originatingClientId),
+    originatingSession(originatingSession),
+    task(task)
+{
+
+}
+
+TrackedSubscription::TrackedSubscription(const std::string &pattern, const uint8_t qos) :
+    pattern(pattern),
+    qos(qos)
+{
+
+}
+
+bool TrackedSubscription::empty() const
+{
+    if (sessions.empty())
+        return true;
+
+    for (auto &s : sessions)
+    {
+        if (!s.expired())
+            return false;
+    }
+
+    return true;
+}
