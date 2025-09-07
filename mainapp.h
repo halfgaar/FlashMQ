@@ -100,6 +100,7 @@ class MainApp
     void queueSendQueuedWills();
     void waitForWillsQueued();
     void queueRetainedMessageExpiration();
+    void queuePurgeStaleTrackedLazySubscriptions();
     void sendBridgesToThreads();
     void queueBridgeReconnectAllThreads();
     void queueInternalHeartbeat();

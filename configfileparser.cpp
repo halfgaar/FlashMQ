@@ -302,6 +302,9 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validBridgeKeys.insert("minimum_tls_version");
     validBridgeKeys.insert("connection_count");
     validBridgeKeys.insert("max_buffer_size");
+
+    validBridgeLazySubscriptionKeys.insert("subscribe");
+    validBridgeLazySubscriptionKeys.insert("qos");
 }
 
 std::list<std::string> ConfigFileParser::readFileRecursively(const std::string &path) const
@@ -421,11 +424,12 @@ void ConfigFileParser::loadFile(bool test)
     std::stack<ConfigParseLevel> curParseLevel;
     std::shared_ptr<Listener> curListener;
     std::optional<BridgeConfig> curBridge;
+    std::optional<BridgeLazySubscription> curLazySubscription;
     std::list<BridgeConfig> preMultipliedBridges;
     Settings tmpSettings;
 
     curParseLevel.push(ConfigParseLevel::Root);
-    const std::set<std::string> blockNames {"listen", "bridge"};
+    const std::set<std::string> blockNames {"listen", "bridge", "lazy_subscription"};
 
     // Then once we know the config file is valid, process it.
     for (std::string &line : lines)
@@ -450,6 +454,14 @@ void ConfigFileParser::loadFile(bool test)
 
                 curParseLevel.push(ConfigParseLevel::Bridge);
                 curBridge = std::make_optional<BridgeConfig>();
+            }
+            else if (testKeyValidity(key, "lazy_subscription", blockNames))
+            {
+                if (curParseLevel.top() != ConfigParseLevel::Bridge)
+                    throw ConfigFileException("Block '" + key + "' can only be defined in a bridge");
+
+                curParseLevel.push(ConfigParseLevel::BridgeLazySubscriptions);
+                curLazySubscription = std::make_optional<BridgeLazySubscription>();
             }
             else
             {
@@ -493,6 +505,12 @@ void ConfigFileParser::loadFile(bool test)
             {
                 curBridge->isValid();
                 preMultipliedBridges.push_back(std::move(curBridge.value()));
+            }
+            else if (curParseLevel.top() == ConfigParseLevel::BridgeLazySubscriptions)
+            {
+                curLazySubscription.value().isValid();
+                curBridge.value().lazySubscriptions.emplace_back(std::move(curLazySubscription.value()));
+                curLazySubscription.reset();
             }
 
             curParseLevel.pop();
@@ -929,6 +947,26 @@ void ConfigFileParser::loadFile(bool test)
                         throw ConfigFileException("Bridge's " + key + " cannot be bigger than 1 GB");
 
                     curBridge->maxBufferSize = val;
+                }
+
+                testCorrectNumberOfValues(key, number_of_expected_values, values);
+                continue;
+            }
+            else if (curParseLevel.top() == ConfigParseLevel::BridgeLazySubscriptions)
+            {
+                if (testKeyValidity(key, "subscribe", validBridgeLazySubscriptionKeys))
+                {
+                    if (!isValidUtf8(valueTrimmed) || !isValidSubscribePath(valueTrimmed))
+                        throw ConfigFileException("Path '" + valueTrimmed + "' is not a valid subscribe pattern");
+
+                    if (!curLazySubscription.value().pattern.empty())
+                        throw ConfigFileException("Multiple 'subscribe' lines for lazy subscriptions is not valid. Use multiple 'lazy_subscription' blocks.");
+
+                    curLazySubscription.value().pattern = valueTrimmed;
+                }
+                else if (testKeyValidity(key, "qos", validBridgeLazySubscriptionKeys))
+                {
+                    curLazySubscription.value().qos = value_to_int_ranged<uint8_t>(key, valueTrimmed, 0, 2);
                 }
 
                 testCorrectNumberOfValues(key, number_of_expected_values, values);

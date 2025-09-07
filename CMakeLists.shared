@@ -95,6 +95,9 @@ set(FLASHMQ_HEADERS
     ${RELPATH}sharedmutexowned.h
     ${RELPATH}reentrantmap.h
     ${RELPATH}checkeduniqueptr.h
+    ${RELPATH}lazysubscriptions.h
+    ${RELPATH}trackedsubscriptions.h
+    ${RELPATH}trackedsubscriptionstate.h
 )
 
 set(FLASHMQ_IMPLS
@@ -163,4 +166,7 @@ set(FLASHMQ_IMPLS
     ${RELPATH}persistencefunctions.cpp
     ${RELPATH}clientacceptqueue.cpp
     ${RELPATH}sdnotify.cpp
+    ${RELPATH}lazysubscriptions.cpp
+    ${RELPATH}trackedsubscriptions.cpp
+    ${RELPATH}trackedsubscriptionstate.cpp
     )

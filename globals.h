@@ -3,8 +3,10 @@
 
 #include <memory>
 #include <pthread.h>
+#include <optional>
 
 #include "subscriptionstore.h"
+#include "lazysubscriptions.h"
 #include "globalstats.h"
 #include "bridgeconfig.h"
 #include "checkedsharedptr.h"
@@ -26,6 +28,7 @@ class Globals
         GlobalStats stats;
         BridgeClientGroupIds bridgeClientGroupIds;
         MutexOwned<std::vector<std::shared_ptr<ThreadData>>> threadDatas;
+        std::optional<LazySubscriptions> lazySubscriptions;
 
         CheckedSharedPtr<ThreadData> getDeterministicThreadData();
     };
