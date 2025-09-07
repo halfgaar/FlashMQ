@@ -166,6 +166,48 @@ void ThreadData::queueRemoveExpiredRetainedMessages()
     wakeUpThread();
 }
 
+void ThreadData::queuePurgeStaleTrackedLazySubscriptionsAll(const PurgeTrackedSubscriptionModifier modifier)
+{
+    auto f = [this, modifier](){
+        for (auto &pair : priv->clients.bridges)
+        {
+            if (!pair.second)
+                continue;
+
+            auto &tracked_subs = pair.second->getTrackedSubscriptions();
+
+            if (!tracked_subs)
+                continue;
+
+            if (modifier == PurgeTrackedSubscriptionModifier::Retry && !tracked_subs->hasOutdatedInFlightTrackedUnsubscriptions())
+                continue;
+
+            Logger::getInstance()->log(LOG_NOTICE) << "Initiating purging of stale lazy subscriptions with modifier " << static_cast<int>(modifier);
+            tracked_subs->cleanupExpiredTrackedSubscriptions(pair.second, modifier);
+        }
+    };
+
+    this->addImmediateTask(f);
+}
+
+void ThreadData::queuePurgeStaleTrackedLazySubscriptions(const std::shared_ptr<BridgeState> &bridgeState, const PurgeTrackedSubscriptionModifier modifier)
+{
+    if (!bridgeState)
+        return;
+
+    auto &tracked_subs = bridgeState->getTrackedSubscriptions();
+
+    if (!tracked_subs)
+        return;
+
+    auto f = [bridgeState, modifier]() {
+        auto &tracked_subs = bridgeState->getTrackedSubscriptions();
+        tracked_subs->cleanupExpiredTrackedSubscriptions(bridgeState, modifier);
+    };
+
+    this->addImmediateTask(f);
+}
+
 void ThreadData::queueClientNextKeepAliveCheck(std::shared_ptr<Client> &client, bool keepRechecking)
 {
     assert(pthread_self() == thread_id);
@@ -855,6 +897,7 @@ void ThreadData::acceptPendingBridges()
                 if (existingState->c != bridgeState->c)
                 {
                     logger->log(LOG_NOTICE) << "Bridge '" << existingState->c.clientidPrefix << "' has changed. Reconnecting.";
+                    bridgeState->stealTrackedSubscriptions(*existingState);
                     existingState = bridgeState;
                 }
             }
@@ -870,6 +913,36 @@ void ThreadData::clear()
 {
     pub.emplace();
     priv.emplace();
+}
+
+void ThreadData::retryProcessingTrackedSubscriptionMutationsAll(ProcessTrackedSubscriptionMutationsModifier modifier)
+{
+    logger->log(LOG_DEBUG) << "Doing retryProcessingTrackedSubscriptionMutationsAll in thread " << threadnr;
+
+    try
+    {
+        for (auto &pair : priv->clients.bridges)
+        {
+            std::shared_ptr<BridgeState> &bridge = pair.second;
+
+            if (!bridge)
+                continue;
+
+            auto &tracked_subs = bridge->getTrackedSubscriptions();
+
+            if (!tracked_subs)
+                continue;
+
+            if (modifier == ProcessTrackedSubscriptionMutationsModifier::Retry && !tracked_subs->hasOutdatedInFlightTrackedSubscriptions())
+                continue;
+
+            tracked_subs->processTrackedSubscriptionMutations(bridge, modifier);
+        }
+    }
+    catch (std::exception &ex)
+    {
+        logger->log(LOG_ERROR) << "Error in queueProcessTrackedSubscriptionMutationsAll: " << ex.what();
+    }
 }
 
 void ThreadData::setQueuedRetainedMessages()
@@ -916,6 +989,23 @@ bool ThreadData::queuedRetainedMessagesEmpty() const
 void ThreadData::clearQueuedRetainedMessages()
 {
     priv->queuedRetainedMessages.clear();
+}
+
+void ThreadData::queueProcessTrackedSubscriptionMutations(const std::shared_ptr<BridgeState> &bridgeState, const ProcessTrackedSubscriptionMutationsModifier modifier)
+{
+    if (!bridgeState)
+        return;
+
+    auto &tracked_subs = bridgeState->getTrackedSubscriptions();
+
+    if (!tracked_subs)
+        return;
+
+    auto f = [bridgeState, modifier]() {
+        auto &tracked_subs = bridgeState->getTrackedSubscriptions();
+        tracked_subs->processTrackedSubscriptionMutations(bridgeState, modifier);
+    };
+    addImmediateTask(f);
 }
 
 void ThreadData::queueInternalHeartbeat()
@@ -1242,6 +1332,9 @@ void ThreadData::doKeepAliveCheck()
 
     logger->logf(LOG_DEBUG, "doKeepAliveCheck in thread %d", threadnr);
 
+    retryProcessingTrackedSubscriptionMutationsAll(ProcessTrackedSubscriptionMutationsModifier::Retry);
+    queuePurgeStaleTrackedLazySubscriptionsAll(PurgeTrackedSubscriptionModifier::Retry);
+
     const std::chrono::seconds now = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now().time_since_epoch());
 
     try
@@ -1453,10 +1546,6 @@ void ThreadDataOwner::setThreadPrefix(const std::string prefix)
 
     t->setThreadPrefix(prefix);
 }
-
-
-
-
 
 
 

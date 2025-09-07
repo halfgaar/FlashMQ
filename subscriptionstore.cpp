@@ -264,6 +264,8 @@ AddSubscriptionType SubscriptionStore::addSubscription(
     if (!deepestNode)
         return AddSubscriptionType::Invalid;
 
+    if (globals->lazySubscriptions)
+        globals->lazySubscriptions->expandLazySubscriptions(TrackedSubscriptionMutationTask::Subscribe, session, subtopics, qos);
     return deepestNode->addSubscriber(session, qos, noLocal, retainAsPublished, shareName, subscriptionIdentifier);
 }
 
@@ -278,6 +280,8 @@ void SubscriptionStore::removeSubscription(
     if (!node)
         return;
 
+    if (globals->lazySubscriptions)
+        globals->lazySubscriptions->expandLazySubscriptions(TrackedSubscriptionMutationTask::Unsubscribe, session, subtopics, 0);
     node->removeSubscriber(session, shareName);
 }
 

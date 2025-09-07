@@ -44,6 +44,16 @@ if (!static_cast<bool>(val)) \
     fmq_ensure_fail(__FILE__, __LINE__); \
 }
 
+#define FMQ_DISABLE_COPY(T) \
+    T(const T &) = delete;\
+    T &operator=(const T &) = delete;
+
+#define FMQ_DISABLE_COPY_AND_MOVE(T) \
+    T(const T &) = delete;\
+    T(T &&) = delete; \
+    T &operator=(const T &) = delete; \
+    T &operator=(T &&) = delete;
+
 template<typename T> int check(ssize_t rc)
 {
     if (rc < 0)
