@@ -10,6 +10,8 @@
 #include "sslctxmanager.h"
 #include "utils.h"
 #include "threadlocked.h"
+#include "trackedsubscriptionstate.h"
+#include "checkeduniqueptr.h"
 
 enum class BridgeTLSMode
 {
@@ -26,6 +28,22 @@ struct BridgeTopicPath
     bool isValidQos() const;
     bool operator==(const BridgeTopicPath &other) const;
 };
+
+struct BridgeLazySubscription
+{
+    std::string pattern;
+    uint8_t qos = 0;
+    std::string share_name;
+
+    BridgeLazySubscription() = default;
+    BridgeLazySubscription(const std::string &pattern, uint8_t qos);
+
+    bool operator==(const BridgeLazySubscription &other) const;
+
+    void isValid() const;
+
+};
+
 
 /**
  * @brief The BridgeClientGroupIds class manages the random IDs used in fmq_client_group_id and shared
@@ -52,6 +70,7 @@ public:
     void loadShareNames(const std::string &path, bool real);
     void saveShareNames(const std::string &path) const;
 };
+
 
 class BridgeConfig
 {
@@ -99,6 +118,8 @@ public:
     std::optional<std::string> local_prefix;
     std::optional<std::string> remote_prefix;
 
+    std::list<BridgeLazySubscription> lazySubscriptions;
+
     void setClientId(const std::string &prefix, const std::string &id);
     const std::string &getClientid() const;
     const std::optional<std::string> &getFmqClientGroupId() const;
@@ -110,6 +131,13 @@ public:
     bool operator !=(const BridgeConfig &other) const;
 };
 
+/**
+ * Lifetime rules:
+ *
+ * - Outlives bridge connects/disconnects/reconnects. It's meant to be one level above Client in that respect.
+ * - Gets recreated when the bridge config changes and you issue a config reload (SIGHUP). Some data may be
+ *   taken from the existin one for the same client id prefix.
+ */
 class BridgeState
 {
     bool sslInitialized = false;
@@ -117,6 +145,8 @@ class BridgeState
     int reconnectCounter = 0;
     const int baseReconnectInterval = (get_random_int<int>() % 30) + 30;
     int intervalLogged = 0;
+    CheckedUniquePtr<TrackedSubscriptionState> mTrackedSubscriptions;
+
 public:
     const BridgeConfig c;
     ThreadLocked<std::weak_ptr<Session>> session;
@@ -134,6 +164,9 @@ public:
     void registerReconnect();
     void resetReconnectCounter();
     void resetThreadOwners();
+    void constructTrackedSubscriptions();
+    CheckedUniquePtr<TrackedSubscriptionState> &getTrackedSubscriptions();
+    void stealTrackedSubscriptions(BridgeState &other);
 };
 
 #endif // BRIDGECONFIG_H

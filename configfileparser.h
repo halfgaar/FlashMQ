@@ -26,7 +26,8 @@ enum class ConfigParseLevel
 {
     Root,
     Listen,
-    Bridge
+    Bridge,
+    BridgeLazySubscriptions
 };
 
 template<typename T>
@@ -101,6 +102,7 @@ class ConfigFileParser
     std::set<std::string> validKeys;
     std::set<std::string> validListenKeys;
     std::set<std::string> validBridgeKeys;
+    std::set<std::string> validBridgeLazySubscriptionKeys;
 
     const std::regex key_value_regex = std::regex("^([\\w\\-]+)\\s+(.+)$");
     const std::regex block_regex_start = std::regex("^([a-zA-Z0-9_\\-]+) *\\{$");
