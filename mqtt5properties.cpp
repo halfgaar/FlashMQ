@@ -76,6 +76,7 @@ void Mqtt5PropertyBuilder::writeMaxTopicAliases(uint16_t val)
 
 void Mqtt5PropertyBuilder::writeMaxQoS(uint8_t qos)
 {
+    assert(qos < 2);
     writeUint8(Mqtt5Properties::MaximumQoS, qos);
 }
 

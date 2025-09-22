@@ -1184,10 +1184,13 @@ void MqttPacket::handleConnect(std::shared_ptr<Client> &sender)
 
         if (protocolVersion >= ProtocolVersion::Mqtt5)
         {
+            const uint8_t sender_max_qos = sender->getMaxQos();
+
             connAck->propertyBuilder = std::make_shared<Mqtt5PropertyBuilder>();
             connAck->propertyBuilder->writeSessionExpiry(connectData.session_expire);
             connAck->propertyBuilder->writeReceiveMax(settings.maxQosMsgPendingPerClient);
-            connAck->propertyBuilder->writeMaxQoS(sender->getMaxQos());
+            if (sender_max_qos < 2)
+                connAck->propertyBuilder->writeMaxQoS(sender_max_qos);
             connAck->propertyBuilder->writeRetainAvailable(settings.retainedMessagesMode <= RetainedMessagesMode::EnabledWithoutPersistence);
             connAck->propertyBuilder->writeMaxPacketSize(sender->getMaxIncomingPacketSize());
             if (clientIdGenerated)
