@@ -1654,9 +1654,12 @@ void MqttPacket::handleSubscribe(std::shared_ptr<Client> &sender)
         const bool retainedAsPublished = mqtt3bridge || options.getRetainAsPublished();
         const RetainHandling retainHandling = options.getRetainHandling();
 
-        logger->log(LOG_SUBSCRIBE)
-            << "Client '" << sender->repr() << "' subscribing to '" << topic
-            << "' with QoS " << static_cast<int>(qos) << ", no_local=" << noLocal << ", retain_as_published=" << retainedAsPublished << ".";
+        if (logger->wouldLog(LOG_SUBSCRIBE))
+        {
+            logger->log(LOG_SUBSCRIBE)
+                << "Client '" << sender->repr() << "' subscribing to '" << topic
+                << "' with QoS " << static_cast<int>(qos) << ", no_local=" << noLocal << ", retain_as_published=" << retainedAsPublished << ".";
+        }
 
         std::vector<std::string> subtopics = splitTopic(topic);
 
@@ -1724,7 +1727,8 @@ void MqttPacket::handleSubscribe(std::shared_ptr<Client> &sender)
         }
         else
         {
-            logger->logf(LOG_SUBSCRIBE, "Client '%s' subscribe to '%s' denied or failed.", sender->repr().c_str(), topic.c_str());
+            if (logger->wouldLog(LOG_SUBSCRIBE))
+                logger->logf(LOG_SUBSCRIBE, "Client '%s' subscribe to '%s' denied or failed.", sender->repr().c_str(), topic.c_str());
 
             // We can't not send an ack, because if there are multiple subscribes, you'd send fewer acks back, losing sync.
             ReasonCodes return_code = sender->getProtocolVersion() >= ProtocolVersion::Mqtt311 ? ReasonCodes::NotAuthorized : static_cast<ReasonCodes>(qos);
@@ -1856,7 +1860,8 @@ void MqttPacket::handleUnsubscribe(std::shared_ptr<Client> &sender)
         const Authentication &auth = ThreadGlobals::getThreadData()->authentication;
         auth.onUnsubscribe(session, sender->getClientId(), sender->getUsername(), topic_without_sharename, subtopics, shareName, getUserProperties());
 
-        logger->logf(LOG_UNSUBSCRIBE, "Client '%s' unsubscribed from '%s'", sender->repr().c_str(), topic.c_str());
+        if (logger->wouldLog(LOG_UNSUBSCRIBE))
+            logger->logf(LOG_UNSUBSCRIBE, "Client '%s' unsubscribed from '%s'", sender->repr().c_str(), topic.c_str());
     }
 
     // MQTT-3.10.3-2

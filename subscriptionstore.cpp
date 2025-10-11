@@ -491,7 +491,8 @@ void SubscriptionStore::queueWillMessage(const std::shared_ptr<WillPublish> &wil
     if (!willMessage)
         return;
 
-    logger->log(LOG_DEBUG) << "Queueing will on topic '" << willMessage->topic << "', with delay of " << willMessage->will_delay << " seconds.";
+    if (logger->wouldLog(LOG_DEBUG))
+        logger->log(LOG_DEBUG) << "Queueing will on topic '" << willMessage->topic << "', with delay of " << willMessage->will_delay << " seconds.";
 
     willMessage->setQueuedAt();
 
@@ -1091,7 +1092,8 @@ int SubscriptionNode::cleanSubscriptions(std::deque<std::weak_ptr<SubscriptionNo
 
         if (n == 0)
         {
-            Logger::getInstance()->logf(LOG_DEBUG, "Resetting wildcard children");
+            if (Logger::getInstance()->wouldLog(LOG_DEBUG))
+                Logger::getInstance()->logf(LOG_DEBUG, "Resetting wildcard children");
             node_.reset();
         }
     }
@@ -1106,7 +1108,8 @@ int SubscriptionNode::cleanSubscriptions(std::deque<std::weak_ptr<SubscriptionNo
 
             if (cur_it->second.session.expired())
             {
-                Logger::getInstance()->logf(LOG_DEBUG, "Removing empty spot in subscribers map");
+                if (Logger::getInstance()->wouldLog(LOG_DEBUG))
+                    Logger::getInstance()->logf(LOG_DEBUG, "Removing empty spot in subscribers map");
                 subscribers.erase(cur_it);
             }
         }
@@ -1146,7 +1149,8 @@ void SubscriptionStore::removeSession(const std::shared_ptr<Session> &session)
         return;
 
     const std::string &clientid = session->getClientId();
-    logger->log(LOG_DEBUG) << "Removing session of client '" << clientid << "', if it matches the object.";
+    if (logger->wouldLog(LOG_DEBUG))
+        logger->log(LOG_DEBUG) << "Removing session of client '" << clientid << "', if it matches the object.";
 
     std::list<std::shared_ptr<Session>> sessionsToRemove;
 

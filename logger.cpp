@@ -129,6 +129,11 @@ StreamToLog Logger::log(int level)
     return StreamToLog(level);
 }
 
+bool Logger::wouldLog(int level) const
+{
+    return static_cast<bool>(level & curLogLevel);
+}
+
 void Logger::queueReOpen()
 {
     reload = true;

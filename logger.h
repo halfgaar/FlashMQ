@@ -89,6 +89,7 @@ public:
     void logf(int level, const char *str, va_list args);
     void logf(int level, const char *str, ...);
     StreamToLog log(int level);
+    bool wouldLog(int level) const;
 
     void queueReOpen();
     void noLongerLogToStd();

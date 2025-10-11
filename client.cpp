@@ -960,8 +960,11 @@ void Client::setClientProperties(
 
 void Client::setClientProperties(bool connectPacketSeen, uint16_t keepalive, uint32_t maxOutgoingPacketSize, uint16_t maxOutgoingTopicAliasValue, bool supportsRetained)
 {
-    logger->log(LOG_DEBUG) << "Client '" << repr() << "' properties set: keep_alive=" << keepalive << ", max_outgoing_packet_size=" << maxOutgoingPacketSize
-                           << ", max_outgoing_topic_aliases=" << maxOutgoingTopicAliasValue << ".";
+    if (logger->wouldLog(LOG_DEBUG))
+    {
+        logger->log(LOG_DEBUG) << "Client '" << repr() << "' properties set: keep_alive=" << keepalive << ", max_outgoing_packet_size=" << maxOutgoingPacketSize
+                               << ", max_outgoing_topic_aliases=" << maxOutgoingTopicAliasValue << ".";
+    }
 
     this->connectPacketSeen = connectPacketSeen;
     this->keepalive = keepalive;

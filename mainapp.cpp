@@ -686,7 +686,8 @@ void MainApp::start()
 
                     std::shared_ptr<ThreadData> thread_data = threads[listener->next_thread_index++ % num_threads].getThreadData();
 
-                    logger->logf(LOG_DEBUG, "Accepting connection on thread %d on %s", thread_data->threadnr, listener->getProtocolName().c_str());
+                    if (logger->wouldLog(LOG_DEBUG))
+                        logger->log(LOG_DEBUG) << "Accepting connection on thread " << thread_data->threadnr << " on " << listener->getProtocolName();
 
                     struct sockaddr_storage addr_mem;
                     std::memset(&addr_mem, 0, sizeof(addr_mem));

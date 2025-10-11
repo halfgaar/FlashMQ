@@ -192,7 +192,8 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV3V4V5V6V7()
                     if (pub.expireInfo)
                         pub.expireInfo->createdAt = timepointFromAge(newPubAge);
 
-                    logger->logf(LOG_DEBUG, "Loaded QoS %d message for topic '%s' for session '%s'.", pub.qos, pub.topic.c_str(), ses->getClientId().c_str());
+                    if (logger->wouldLog(LOG_DEBUG))
+                        logger->logf(LOG_DEBUG, "Loaded QoS %d message for topic '%s' for session '%s'.", pub.qos, pub.topic.c_str(), ses->getClientId().c_str());
                     qos_locked->qosPacketQueue.queuePublish(std::move(pub), id, topic_override);
                 }
 
@@ -201,7 +202,8 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV3V4V5V6V7()
                 {
                     uint16_t id = readUint16(eofFound);
                     assert(id > 0);
-                    logger->logf(LOG_DEBUG, "Loaded incomming QoS2 message id %d.", id);
+                    if (logger->wouldLog(LOG_DEBUG))
+                        logger->logf(LOG_DEBUG, "Loaded incomming QoS2 message id %d.", id);
                     qos_locked->incomingQoS2MessageIds.insert(id);
                 }
 
@@ -210,12 +212,14 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV3V4V5V6V7()
                 {
                     uint16_t id = readUint16(eofFound);
                     assert(id > 0);
-                    logger->logf(LOG_DEBUG, "Loaded outgoing QoS2 message id %d.", id);
+                    if (logger->wouldLog(LOG_DEBUG))
+                        logger->logf(LOG_DEBUG, "Loaded outgoing QoS2 message id %d.", id);
                     qos_locked->outgoingQoS2MessageIds.insert(id);
                 }
 
                 const uint16_t nextPacketId = readUint16(eofFound);
-                logger->logf(LOG_DEBUG, "Loaded next packetid %d.", qos_locked->nextPacketId);
+                if (logger->wouldLog(LOG_DEBUG))
+                    logger->logf(LOG_DEBUG, "Loaded next packetid %d.", qos_locked->nextPacketId);
                 qos_locked->nextPacketId = nextPacketId;
             }
 
@@ -266,7 +270,8 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV3V4V5V6V7()
         {
             const std::string topic = readString(eofFound);
 
-            logger->logf(LOG_DEBUG, "Loading subscriptions to topic '%s'.", topic.c_str());
+            if (logger->wouldLog(LOG_DEBUG))
+                logger->logf(LOG_DEBUG, "Loading subscriptions to topic '%s'.", topic.c_str());
 
             const uint32_t nrOfClientIds = readUint32(eofFound);
 
@@ -283,7 +288,8 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV3V4V5V6V7()
                 if (readVersion >= ReadVersion::v6)
                     subscription_identifier = readUint32(eofFound);
 
-                logger->logf(LOG_DEBUG, "Loading session '%s' subscription to '%s' QoS %d.", clientId.c_str(), topic.c_str(), subscriptionOptions.getQos());
+                if (logger->wouldLog(LOG_DEBUG))
+                    logger->logf(LOG_DEBUG, "Loading session '%s' subscription to '%s' QoS %d.", clientId.c_str(), topic.c_str(), subscriptionOptions.getQos());
 
                 SubscriptionForSerializing sub(std::move(clientId), subscriptionOptions, subscription_identifier, sharename);
                 result.subscriptions[topic].push_back(std::move(sub));
@@ -327,7 +333,8 @@ void SessionsAndSubscriptionsDB::saveData(const std::vector<std::shared_ptr<Sess
         {
             MutexLocked<Session::QoSData> qos_locked = ses->qos.lock();
 
-            logger->logf(LOG_DEBUG, "Saving session '%s'.", ses->getClientId().c_str());
+            if (logger->wouldLog(LOG_DEBUG))
+                logger->logf(LOG_DEBUG, "Saving session '%s'.", ses->getClientId().c_str());
 
             writeRowHeader();
 
@@ -351,7 +358,8 @@ void SessionsAndSubscriptionsDB::saveData(const std::vector<std::shared_ptr<Sess
                 assert(!pub.skipTopic);
                 assert(pub.topicAlias == 0);
 
-                logger->logf(LOG_DEBUG, "Saving QoS %d message for topic '%s'.", pub.qos, pub.topic.c_str());
+                if (logger->wouldLog(LOG_DEBUG))
+                    logger->logf(LOG_DEBUG, "Saving QoS %d message for topic '%s'.", pub.qos, pub.topic.c_str());
 
                 MqttPacket pack(ProtocolVersion::Mqtt5, pub);
                 pack.setPacketId(qp->getPacketId());
@@ -380,18 +388,21 @@ void SessionsAndSubscriptionsDB::saveData(const std::vector<std::shared_ptr<Sess
             writeUint32(qos_locked->incomingQoS2MessageIds.size());
             for (uint16_t id : qos_locked->incomingQoS2MessageIds)
             {
-                logger->logf(LOG_DEBUG, "Writing incomming QoS2 message id %d.", id);
+                if (logger->wouldLog(LOG_DEBUG))
+                    logger->logf(LOG_DEBUG, "Writing incomming QoS2 message id %d.", id);
                 writeUint16(id);
             }
 
             writeUint32(qos_locked->outgoingQoS2MessageIds.size());
             for (uint16_t id : qos_locked->outgoingQoS2MessageIds)
             {
-                logger->logf(LOG_DEBUG, "Writing outgoing QoS2 message id %d.", id);
+                if (logger->wouldLog(LOG_DEBUG))
+                    logger->logf(LOG_DEBUG, "Writing outgoing QoS2 message id %d.", id);
                 writeUint16(id);
             }
 
-            logger->logf(LOG_DEBUG, "Writing next packetid %d.", qos_locked->nextPacketId);
+            if (logger->wouldLog(LOG_DEBUG))
+                logger->logf(LOG_DEBUG, "Writing next packetid %d.", qos_locked->nextPacketId);
             writeUint16(qos_locked->nextPacketId);
 
             writeUint32(ses->getCurrentSessionExpiryInterval());
@@ -434,7 +445,8 @@ void SessionsAndSubscriptionsDB::saveData(const std::vector<std::shared_ptr<Sess
         const std::string &topic = pair.first;
         const std::list<SubscriptionForSerializing> &subscriptions = pair.second;
 
-        logger->logf(LOG_DEBUG, "Writing subscriptions to topic '%s'.", topic.c_str());
+        if (logger->wouldLog(LOG_DEBUG))
+            logger->logf(LOG_DEBUG, "Writing subscriptions to topic '%s'.", topic.c_str());
 
         writeString(topic);
 
@@ -444,12 +456,16 @@ void SessionsAndSubscriptionsDB::saveData(const std::vector<std::shared_ptr<Sess
         {
             if (!subscription.shareName.empty())
             {
-                logger->logf(LOG_DEBUG, "Saving session '%s' subscription with sharename '%s' to '%s' QoS %d.", subscription.clientId.c_str(),
-                             subscription.shareName.c_str(), topic.c_str(), subscription.qos);
+                if (logger->wouldLog(LOG_DEBUG))
+                {
+                    logger->logf(LOG_DEBUG, "Saving session '%s' subscription with sharename '%s' to '%s' QoS %d.", subscription.clientId.c_str(),
+                                 subscription.shareName.c_str(), topic.c_str(), subscription.qos);
+                }
             }
             else
             {
-                logger->logf(LOG_DEBUG, "Saving session '%s' subscription to '%s' QoS %d.", subscription.clientId.c_str(), topic.c_str(), subscription.qos);
+                if (logger->wouldLog(LOG_DEBUG))
+                    logger->logf(LOG_DEBUG, "Saving session '%s' subscription to '%s' QoS %d.", subscription.clientId.c_str(), topic.c_str(), subscription.qos);
             }
 
             writeString(subscription.shareName);
