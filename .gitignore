@@ -5,3 +5,5 @@ FlashMQBuild*
 compile_commands.json
 .clangd/
 .cache/
+build
+FlashMQTests/build
