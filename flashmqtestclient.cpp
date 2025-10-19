@@ -205,12 +205,12 @@ void FlashMQTestClient::subscribe(const std::string topic, uint8_t qos, bool noL
 
     const uint16_t packet_id = 66;
 
-    Subscribe sub(client->getProtocolVersion(), packet_id, topic, qos);
-    sub.noLocal = noLocal;
-    sub.retainAsPublished = retainAsPublished;
-    sub.subscriptionIdentifier = subscriptionIdentifier;
-    sub.retainHandling = retainHandling;
-    MqttPacket subPack(sub);
+    std::vector<Subscribe> subs;
+    subs.emplace_back(topic, qos);
+    subs.back().noLocal = noLocal;
+    subs.back().retainAsPublished = retainAsPublished;
+    subs.back().retainHandling = retainHandling;
+    MqttPacket subPack(client->getProtocolVersion(), packet_id, subscriptionIdentifier, subs);
     client->writeMqttPacketAndBlameThisClient(subPack);
 
     waitForCondition([&]() {

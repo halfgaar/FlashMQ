@@ -353,16 +353,13 @@ struct Connect
  */
 struct Subscribe
 {
-    const ProtocolVersion protocolVersion;
-    uint16_t packetId;
     std::string topic;
     uint8_t qos;
     bool noLocal = false;
     bool retainAsPublished = false;
-    uint32_t subscriptionIdentifier = 0;
     RetainHandling retainHandling = RetainHandling::SendRetainedMessagesAtSubscribe;
 
-    Subscribe(const ProtocolVersion protocolVersion, uint16_t packetId, const std::string &topic, uint8_t qos);
+    Subscribe(const std::string &topic, uint8_t qos);
 };
 
 /**

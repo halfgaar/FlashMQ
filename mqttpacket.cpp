@@ -366,8 +366,9 @@ MqttPacket::MqttPacket(const Connect &connect) :
     assert(pos == bites.size());
 }
 
-MqttPacket::MqttPacket(const Subscribe &subscribe) :
-    protocolVersion(subscribe.protocolVersion),
+MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, const uint8_t packetId, const uint32_t subscriptionIdentifier, const std::vector<Subscribe> &subscriptions) :
+    packet_id(packetId),
+    protocolVersion(protocolVersion),
     packetType(PacketType::SUBSCRIBE)
 {
     first_byte = static_cast<char>(packetType) << 4;
@@ -375,43 +376,48 @@ MqttPacket::MqttPacket(const Subscribe &subscribe) :
 
     std::optional<Mqtt5PropertyBuilder> properties;
 
-    if (subscribe.protocolVersion >= ProtocolVersion::Mqtt5)
+    if (protocolVersion >= ProtocolVersion::Mqtt5)
     {
-        if (subscribe.subscriptionIdentifier > 0)
-            non_optional(properties)->writeSubscriptionIdentifier(subscribe.subscriptionIdentifier);
+        if (subscriptionIdentifier > 0)
+            non_optional(properties)->writeSubscriptionIdentifier(subscriptionIdentifier);
     }
 
     size_t len = 0;
 
-    // Calculate length
+    for (const Subscribe &sub : subscriptions)
     {
-        len += subscribe.topic.size() + 2;
-        len += 2; // packet id
+        // Calculate length
+        len += sub.topic.size() + 2;
         len += 1; // requested QoS
-
-        if (subscribe.protocolVersion >= ProtocolVersion::Mqtt5)
-            len += properties ? properties->getLength() : 1;
     }
+
+    len += 2; // packet id
+
+    if (protocolVersion >= ProtocolVersion::Mqtt5)
+        len += properties ? properties->getLength() : 1;
 
     bites.resize(len);
 
-    writeUint16(subscribe.packetId);
+    writeUint16(packetId);
 
-    if (subscribe.protocolVersion >= ProtocolVersion::Mqtt5)
+    if (protocolVersion >= ProtocolVersion::Mqtt5)
     {
         writeProperties(properties);
     }
 
-    writeString(subscribe.topic);
+    for (const Subscribe &subscribe : subscriptions)
+    {
+        writeString(subscribe.topic);
 
-    if (subscribe.protocolVersion < ProtocolVersion::Mqtt5)
-    {
-        writeByte(subscribe.qos);
-    }
-    else
-    {
-        SubscriptionOptionsByte options(subscribe.qos, subscribe.noLocal, subscribe.retainAsPublished, subscribe.retainHandling);
-        writeByte(options.b);
+        if (protocolVersion < ProtocolVersion::Mqtt5)
+        {
+            writeByte(subscribe.qos);
+        }
+        else
+        {
+            SubscriptionOptionsByte options(subscribe.qos, subscribe.noLocal, subscribe.retainAsPublished, subscribe.retainHandling);
+            writeByte(options.b);
+        }
     }
 
     calculateRemainingLength();
@@ -1306,27 +1312,32 @@ void MqttPacket::handleConnAck(std::shared_ptr<Client> &sender)
     sender->setClientProperties(true, keepalive, data.max_outgoing_packet_size, effectiveMaxOutgoingTopicAliases, realRetainedAvailable);
     session->setSessionProperties(data.client_receive_max, bridgeState->c.localSessionExpiryInterval, bridgeState->c.localCleanStart, bridgeState->c.protocolVersion);
 
-    // This resubscribes also when there is already a session with subscriptions remotely, but that is required when you change QoS levels, for instance. It
-    // will not unsubscribe, so it will add to the existing subscriptions.
-    // Note that this will also get you retained messages again.
-    for(const BridgeTopicPath &sub : bridgeState->c.subscribes)
     {
-        const uint8_t real_qos = std::min<uint8_t>(data.max_qos, sub.qos);
+        std::vector<Subscribe> subscriptions;
 
-        logger->log(LOG_DEBUG) << "Bridge '" << sender->repr() << "' subscribing remotely to '" << sub.topic << "', QoS="
-                               << static_cast<int>(real_qos) << ".";
+        // This resubscribes also when there is already a session with subscriptions remotely, but that is required when you change QoS levels, for instance. It
+        // will not unsubscribe, so it will add to the existing subscriptions.
+        // Note that this will also get you retained messages again.
+        for(const BridgeTopicPath &sub : bridgeState->c.subscribes)
+        {
+            const uint8_t real_qos = std::min<uint8_t>(data.max_qos, sub.qos);
 
-        Subscribe s(this->getProtocolVersion(), session->getNextPacketIdLocked(), sub.topic, real_qos);
+            logger->log(LOG_DEBUG) << "Bridge '" << sender->repr() << "' subscribing remotely to '" << sub.topic << "', QoS="
+                                   << static_cast<int>(real_qos) << ".";
 
-        /*
-         * 'No local' is not allowed for shared subscriptions in MQTT5. However, when the other side is also FlashMQ,
-         * that behavor can be achieved with the 'fmq_client_group_id' user property.
-         */
-        if (!startsWith(sub.topic, "$share/"))
-            s.noLocal = true;
+            subscriptions.emplace_back(sub.topic, real_qos);
 
-        s.retainAsPublished = true;
-        MqttPacket subPacket(s);
+            /*
+             * 'No local' is not allowed for shared subscriptions in MQTT5. However, when the other side is also FlashMQ,
+             * that behavor can be achieved with the 'fmq_client_group_id' user property.
+             */
+            if (!startsWith(sub.topic, "$share/"))
+                subscriptions.back().noLocal = true;
+
+            subscriptions.back().retainAsPublished = true;
+        }
+
+        MqttPacket subPacket(this->getProtocolVersion(), session->getNextPacketIdLocked(), 0, subscriptions);
         sender->writeMqttPacketAndBlameThisClient(subPacket);
     }
 

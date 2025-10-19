@@ -428,9 +428,7 @@ std::string_view Connect::getMagicString() const
         return "MQTT";
 }
 
-Subscribe::Subscribe(const ProtocolVersion protocolVersion, uint16_t packetId, const std::string &topic, uint8_t qos) :
-    protocolVersion(protocolVersion),
-    packetId(packetId),
+Subscribe::Subscribe(const std::string &topic, uint8_t qos) :
     topic(topic),
     qos(qos)
 {

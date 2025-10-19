@@ -629,8 +629,9 @@ void MainTests::testAsyncWithImmediateFollowUpPackets()
     {
         const uint16_t packet_id = 66;
 
-        Subscribe sub(client.getClient()->getProtocolVersion(), packet_id, "our/random/topic", 0);
-        MqttPacket subPack(sub);
+        std::vector<Subscribe> subs;
+        subs.emplace_back("our/random/topic", 0);
+        MqttPacket subPack(client.getProtocolVersion(), packet_id, 0, subs);
         client.getClient()->writeMqttPacketAndBlameThisClient(subPack);
     }
 
