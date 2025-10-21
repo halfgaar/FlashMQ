@@ -380,7 +380,7 @@ void SessionsAndSubscriptionsDB::saveData(const std::vector<std::shared_ptr<Sess
 
                 writeCheck(cirbuf.tailPtr(), 1, cirbuf.usedBytes(), f);
 
-                qp = qp->next;
+                qp = qp->next.lock();
             }
 
             assert(qosPacketsExpected == qosPacketsCounted);
