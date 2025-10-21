@@ -87,17 +87,21 @@ void QoSPublishQueue::eraseFromMapAndRelinkList(std::unordered_map<uint16_t, std
 {
     std::shared_ptr<QueuedPublish> &qp = pos->second;
 
-    if (qp->prev)
-        qp->prev->next = qp->next;
+    auto _prev = qp->prev.lock();
+
+    if (_prev)
+        _prev->next = qp->next;
 
     if (this->head == qp)
-        this->head = qp->prev;
+        this->head = qp->prev.lock();
 
-    if (qp->next)
-        qp->next->prev = qp->prev;
+    auto _next = qp->next.lock();
+
+    if (_next)
+        _next->prev = qp->prev;
 
     if (this->tail == qp)
-        this->tail = qp->next;
+        this->tail = qp->next.lock();
 
     this->queue.erase(pos);
 }

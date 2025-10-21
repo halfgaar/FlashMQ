@@ -32,9 +32,13 @@ class QueuedPublish
 public:
     QueuedPublish(Publish &&publish, uint16_t packet_id, const std::optional<std::string> &topic_override);
     QueuedPublish(const QueuedPublish &other) = delete;
+    QueuedPublish(QueuedPublish &&other) = delete;
 
-    std::shared_ptr<QueuedPublish> prev;
-    std::shared_ptr<QueuedPublish> next;
+    QueuedPublish &operator=(const QueuedPublish&) = delete;
+    QueuedPublish &operator=(QueuedPublish&&) = delete;
+
+    std::weak_ptr<QueuedPublish> prev;
+    std::weak_ptr<QueuedPublish> next;
 
     size_t getApproximateMemoryFootprint() const;
     uint16_t getPacketId() const;

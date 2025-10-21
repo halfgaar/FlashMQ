@@ -271,11 +271,11 @@ void Session::sendAllPendingQosData()
         {
             MutexLocked<QoSData> qos_locked = qos.lock();
 
-            std::shared_ptr<QueuedPublish> qp_ = qos_locked->qosPacketQueue.getTail();;
+            std::shared_ptr<QueuedPublish> qp_ = qos_locked->qosPacketQueue.getTail();
             while (qp_)
             {
                 std::shared_ptr<QueuedPublish> qp = qp_;
-                qp_ = qp_->next;
+                qp_ = qp_->next.lock();
 
                 Publish &pub = qp->getPublish();
 
