@@ -159,6 +159,7 @@ class MainTests
 
     void testExpiredQueuedMessages();
     void testQoSPublishQueue();
+    void testQoSPublishQueueMemoryLeak();
 
     void testTimePointToAge();
 

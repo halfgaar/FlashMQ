@@ -2413,6 +2413,24 @@ void MainTests::testQoSPublishQueue()
     }
 }
 
+/**
+ * relies on the leak sanitizer as part of ASAN.
+ */
+void MainTests::testQoSPublishQueueMemoryLeak()
+{
+    QoSPublishQueue q;
+
+    uint16_t id = 1;
+
+    Publish p1("one", "onepayload", 1);
+    q.queuePublish(std::move(p1), id++, std::optional<std::string>());
+
+    Publish p2("one", "onepayload", 1);
+    q.queuePublish(std::move(p2), id++, std::optional<std::string>());
+
+    FMQ_VERIFY(q.size() == 2);
+}
+
 void MainTests::testTimePointToAge()
 {
     std::chrono::time_point<std::chrono::steady_clock> now = std::chrono::steady_clock::now();

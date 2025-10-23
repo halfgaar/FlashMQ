@@ -268,6 +268,7 @@ MainTests::MainTests()
     REGISTER_FUNCTION(testMessageExpiry);
     REGISTER_FUNCTION(testExpiredQueuedMessages);
     REGISTER_FUNCTION(testQoSPublishQueue);
+    REGISTER_FUNCTION3(testQoSPublishQueueMemoryLeak);
     REGISTER_FUNCTION3(testTimePointToAge);
     REGISTER_FUNCTION(testMosquittoPasswordFile);
     REGISTER_FUNCTION(testOverrideAllowAnonymousToTrue);
