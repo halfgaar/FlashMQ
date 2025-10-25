@@ -1007,12 +1007,27 @@ void ThreadData::serverInitiatedDisconnect(const std::shared_ptr<Client> &client
     auto f = [client, reason, reason_text, this]() {
         if (!reason_text.empty())
             client->setDisconnectReason(reason_text);
-        client->setDisconnectReason("Server initiating disconnect with reason: " + reasonCodeToString(reason));
+
+        ReasonCodes new_reason = reason;
+        std::string code_to_text;
+
+        if (client->getClientType() == ClientType::LocalBridge && reason == ReasonCodes::ServerShuttingDown)
+        {
+            code_to_text = "sending disconnect to server";
+            new_reason = ReasonCodes::Success;
+        }
+
+        if (code_to_text.empty())
+        {
+            code_to_text = reasonCodeToString(reason);
+        }
+
+        client->setDisconnectReason(code_to_text);
 
         if (client->getProtocolVersion() >= ProtocolVersion::Mqtt5)
         {
             client->setDisconnectStage(DisconnectStage::SendPendingAppData);
-            Disconnect d(ProtocolVersion::Mqtt5, reason);
+            Disconnect d(ProtocolVersion::Mqtt5, new_reason);
             client->writeMqttPacket(d);
         }
         else
