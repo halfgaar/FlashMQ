@@ -64,6 +64,12 @@ MainApp::MainApp(const std::string &configFilePath)
 
     if (!settings.storageDir.empty())
     {
+        try
+        {
+            correctBackupDbPermissions(settings.storageDir);
+        }
+        catch (std::exception &ex) {}
+
         const std::string retainedDbPath = settings.getRetainedMessagesDBFile();
         if (settings.retainedMessagesMode == RetainedMessagesMode::Enabled)
             subscriptionStore->loadRetainedMessages(settings.getRetainedMessagesDBFile());

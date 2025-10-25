@@ -11,6 +11,7 @@ See LICENSE for license details.
 #include "persistencefunctions.h"
 #include "logger.h"
 #include "globals.h"
+#include "globber.h"
 
 /**
  * @brief saveState saves sessions and such to files. It's run in the main thread, but also dedicated threads. For that,
@@ -107,4 +108,16 @@ std::list<BridgeConfig> loadBridgeInfo(Settings &settings)
     }
 
     return bridges;
+}
+
+void correctBackupDbPermissions(const std::string &dir)
+{
+    Globber glob;
+    const std::string backups_glob = dir + "/*.db.*";
+    auto matches = glob.getGlob(backups_glob);
+
+    for (const auto &s : matches)
+    {
+        chmod(s.c_str(), S_IRUSR | S_IWUSR);
+    }
 }

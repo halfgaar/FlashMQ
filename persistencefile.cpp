@@ -327,14 +327,17 @@ void PersistenceFile::openWrite(const std::string &versionString)
     if (openMode != FileMode::unknown)
         throw std::runtime_error("File is already open.");
 
+    int fd = creat(filePathTemp.c_str(), S_IRUSR | S_IWUSR);
+    if (fd < 0)
+        throw std::runtime_error("Creating " + filePathTemp + " failed");
+    close(fd);
+
     f = fopen(filePathTemp.c_str(), "w+b");
 
     if (f == nullptr)
     {
         throw std::runtime_error(formatString("Can't open '%s': %s", filePathTemp.c_str(), strerror(errno)));
     }
-
-    chmod(filePathTemp.c_str(), S_IRUSR | S_IWUSR);
 
     openMode = FileMode::write;
 
@@ -377,6 +380,12 @@ void PersistenceFile::openRead(const std::string &expected_version_string)
             {
                 logger->log(LOG_NOTICE) << "File version change detected. Copying '" << filePath << "' to '"
                                         << copy_file_path << "' to support downgrading FlashMQ.";
+
+                int fd = creat(copy_file_path.c_str(), S_IRUSR | S_IWUSR);
+                if (fd < 0)
+                    throw std::runtime_error("Creating " + copy_file_path + " failed");
+                close(fd);
+
                 std::ifstream  src(filePath, std::ios::binary);
                 std::ofstream  dst(copy_file_path, std::ios::binary);
                 src.exceptions(std::ifstream::failbit | std::ifstream::badbit);
@@ -446,8 +455,11 @@ void PersistenceFile::closeFile()
                 throw std::runtime_error(formatString("Saving '%s' failed: rename of temp file to target failed with: %s", filePath.c_str(), strerror(errno)));
 
             int dir_fd = open(this->dirPath.c_str(), O_RDONLY);
-            fsync(dir_fd);
-            close(dir_fd);
+            if (dir_fd > 0)
+            {
+                fsync(dir_fd);
+                close(dir_fd);
+            }
         }
     }
 }

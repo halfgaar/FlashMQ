@@ -16,5 +16,6 @@ See LICENSE for license details.
 void saveState(const Settings &settings, const std::list<BridgeInfoForSerializing> &bridgeInfos, bool in_background);
 void saveBridgeInfo(const std::string &filePath, const std::list<BridgeInfoForSerializing> &bridgeInfos);
 std::list<BridgeConfig> loadBridgeInfo(Settings &settings);
+void correctBackupDbPermissions(const std::string &dir);
 
 #endif // PERSISTENCEFUNCTIONS_H
