@@ -371,6 +371,8 @@ MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, const uint8_t pack
     protocolVersion(protocolVersion),
     packetType(PacketType::SUBSCRIBE)
 {
+    assert(!subscriptions.empty());
+
     first_byte = static_cast<char>(packetType) << 4;
     first_byte |= 2; // required reserved bit
 
