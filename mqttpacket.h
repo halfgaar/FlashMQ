@@ -121,7 +121,7 @@ public:
     MqttPacket(const Disconnect &disconnect);
     MqttPacket(const Auth &auth);
     MqttPacket(const Connect &connect);
-    MqttPacket(const ProtocolVersion protocolVersion, const uint8_t packetId, const uint32_t subscriptionIdentifier, const std::vector<Subscribe> &subscriptions);
+    MqttPacket(const ProtocolVersion protocolVersion, const uint16_t packetId, const uint32_t subscriptionIdentifier, const std::vector<Subscribe> &subscriptions);
     MqttPacket(const Unsubscribe &unsubscribe);
 
     static void bufferToMqttPackets(CirBuf &buf, std::vector<MqttPacket> &packetQueueIn, std::shared_ptr<Client> &sender);

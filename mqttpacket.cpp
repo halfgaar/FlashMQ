@@ -366,7 +366,7 @@ MqttPacket::MqttPacket(const Connect &connect) :
     assert(pos == bites.size());
 }
 
-MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, const uint8_t packetId, const uint32_t subscriptionIdentifier, const std::vector<Subscribe> &subscriptions) :
+MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, const uint16_t packetId, const uint32_t subscriptionIdentifier, const std::vector<Subscribe> &subscriptions) :
     packet_id(packetId),
     protocolVersion(protocolVersion),
     packetType(PacketType::SUBSCRIBE)
