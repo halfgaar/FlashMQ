@@ -1710,15 +1710,12 @@ void SubscriptionStore::loadSessionsAndSubscriptions(const std::string &filePath
 
             for (const SubscriptionForSerializing &sub : subs)
             {
-                std::shared_ptr<SubscriptionNode> subscriptionNode = getDeepestNode(splitTopic(topic));
-
                 auto session_it = sessionsByIdConst.find(sub.clientId);
-                if (session_it != sessionsByIdConst.end())
-                {
-                    const std::shared_ptr<Session> &ses = session_it->second;
-                    subscriptionNode->addSubscriber(ses, sub.qos, sub.noLocal, sub.retainAsPublished, sub.shareName, sub.subscriptionidentifier);
-                }
 
+                if (session_it == sessionsByIdConst.end())
+                    continue;
+
+                addSubscription(session_it->second, splitTopic(topic), sub.qos, sub.noLocal, sub.retainAsPublished, sub.shareName, sub.subscriptionidentifier);
             }
         }
     }
