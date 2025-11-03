@@ -698,7 +698,7 @@ void MainApp::start()
                     if (!listener)
                         continue;
 
-                    std::shared_ptr<ThreadData> thread_data = threads[listener->next_thread_index++ % num_threads].getThreadData();
+                    std::shared_ptr<ThreadData> thread_data = threads[listener->next_thread_index % num_threads].getThreadData();
 
                     if (logger->wouldLog(LOG_DEBUG))
                         logger->log(LOG_DEBUG) << "Accepting connection on thread " << thread_data->threadnr << " on " << listener->getProtocolName();
@@ -736,6 +736,8 @@ void MainApp::start()
 
                         continue;
                     }
+
+                    listener->next_thread_index++;
 
                     /*
                      * I decided to not use a delayed close mechanism. It has been observed that under overload and clients in a reconnect loop,
