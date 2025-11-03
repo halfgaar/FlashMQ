@@ -335,7 +335,8 @@ void MainApp::sendBridgesToThreads()
     if (threads.empty())
         return;
 
-    int i = 0;
+    size_t i1 = 0;
+    size_t i2 = 0;
     auto bridge_pos = this->bridgeConfigs.begin();
     while (bridge_pos != this->bridgeConfigs.end())
     {
@@ -348,7 +349,14 @@ void MainApp::sendBridgesToThreads()
 
         if (!owner)
         {
-            owner = threads.at(i++ % threads.size()).getThreadData();
+            size_t index = 0;
+
+            if (bridge.getFmqClientGroupId())
+                index = i1++;
+            else
+                index = i2++;
+
+            owner = threads.at(index % threads.size()).getThreadData();
             bridge.owner = owner;
         }
 
