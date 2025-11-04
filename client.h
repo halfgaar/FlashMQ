@@ -131,7 +131,7 @@ class Client
     std::shared_ptr<WillPublish> stagedWillPublish;
     std::shared_ptr<WillPublish> willPublish;
 
-    const int epoll_fd;
+    int epoll_fd = -1;
     std::weak_ptr<ThreadData> threadData; // The thread (data) that this client 'lives' in.
 
     std::shared_ptr<Session> session;
@@ -170,6 +170,7 @@ public:
     Client(Client &&other) = delete;
     ~Client();
 
+    void addToEpoll(uint32_t events);
     int getFd() { return fd.get();}
     bool isSslAccepted() const;
     bool isSsl() const;

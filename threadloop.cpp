@@ -61,6 +61,8 @@ void do_thread_work(std::shared_ptr<ThreadData> threadData)
             threadData->delayedTasks.performAll();
         }
 
+        threadData->updateNrOfClients();
+
         if (fdcount < 0)
         {
             if (errno == EINTR)
@@ -134,6 +136,11 @@ void do_thread_work(std::shared_ptr<ThreadData> threadData)
 
                 threadData->disconnectingClients.clear();
                 threadData->queueQuit();
+            }
+            else if (fd == threadData->acceptQueue.event_fd.get())
+            {
+                threadData->acceptQueue.readFd();
+                threadData->acceptPendingClients();
             }
             else
             {

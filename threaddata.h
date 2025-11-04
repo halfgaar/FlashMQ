@@ -23,6 +23,7 @@ See LICENSE for license details.
 #include <chrono>
 #include <forward_list>
 #include <random>
+#include <atomic>
 
 #include "client.h"
 #include "plugin.h"
@@ -34,6 +35,7 @@ See LICENSE for license details.
 #include "driftcounter.h"
 #include "fdmanaged.h"
 #include "mutexowned.h"
+#include "clientacceptqueue.h"
 
 struct KeepAliveCheck
 {
@@ -81,11 +83,11 @@ struct ThreadDataOwner
 class ThreadData
 {
     FdManaged epollfd;
-    MutexOwned<Clients> clients;
+    Clients clients;
     Logger *logger;
 
-    MutexOwned<std::forward_list<std::weak_ptr<Client>>> clientsQueuedForRemoving;
-    MutexOwned<std::map<std::chrono::seconds, std::vector<KeepAliveCheck>>> queuedKeepAliveChecks;
+    std::forward_list<std::weak_ptr<Client>> clientsQueuedForRemoving;
+    std::map<std::chrono::seconds, std::vector<KeepAliveCheck>> queuedKeepAliveChecks;
 
     std::list<QueuedRetainedMessage> queuedRetainedMessages;
 
@@ -103,8 +105,6 @@ class ThreadData
     void removeExpiredRetainedMessages();
     void sendAllWills();
     void sendAllDisconnects();
-    void queueClientNextKeepAliveCheck(
-        std::shared_ptr<Client> &client, bool keepRechecking, MutexLocked<std::map<std::chrono::seconds, std::vector<KeepAliveCheck>>> &queued_checks_locked);
     void clientDisconnectEvent(const std::string &clientid);
     void clientDisconnectActions(
             bool authenticated, const std::string &clientid, std::shared_ptr<WillPublish> &willPublish, std::shared_ptr<Session> &session,
@@ -121,15 +121,17 @@ public:
     bool running = true;
     bool finished = false;
     bool allWillsQueued = false;
-    pthread_t thread_id = 0;
+    pthread_t thread_id = pthread_self(); // Gets set later, but this helps asserts dummy use in fuzzing and tests.
     int threadnr = 0;
     int taskEventFd = -1;
     int disconnectingAllEventFd = -1;
+    std::atomic<size_t> clientCount{0};
     MutexOwned<std::list<std::function<void()>>> taskQueue;
     QueuedTasks delayedTasks;
     DriftCounter driftCounter;
     std::unordered_map<int, std::weak_ptr<void>> externalFds;
     std::vector<std::weak_ptr<Client>> disconnectingClients;
+    ClientAcceptQueue acceptQueue;
 
     DerivableCounter receivedMessageCounter;
     DerivableCounter sentMessageCounter;
@@ -184,8 +186,11 @@ public:
     void setQueuedRetainedMessages();
     bool queuedRetainedMessagesEmpty() const;
     void clearQueuedRetainedMessages();
+    void acceptPendingClients();
+    void acceptPendingBridges();
 
-    int getNrOfClients();
+    size_t getNrOfClients();
+    void updateNrOfClients();
 
     void queuepluginPeriodicEvent();
     void pluginPeriodicEvent();

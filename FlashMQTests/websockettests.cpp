@@ -76,6 +76,7 @@ void MainTests::testWebsocketPing()
         check<std::runtime_error>(fcntl(client_socket, F_SETFL, flags | O_NONBLOCK ));
 
         std::shared_ptr<Client> c1(new Client(ClientType::Normal, client_socket, t, FmqSsl(), ConnectionProtocol::WebsocketMqtt, false, nullptr, settings, false));
+        c1->addToEpoll(EPOLLIN);
         std::shared_ptr<Client> client = c1;
         t->giveClient(std::move(c1));
 
@@ -254,6 +255,7 @@ void MainTests::testWebsocketCorruptLengthFrame()
         check<std::runtime_error>(fcntl(client_socket, F_SETFL, flags | O_NONBLOCK ));
 
         std::shared_ptr<Client> c1(new Client(ClientType::Normal, client_socket, t, FmqSsl(), ConnectionProtocol::WebsocketMqtt, false, nullptr, settings, false));
+        c1->addToEpoll(EPOLLIN);
         std::shared_ptr<Client> client = c1;
         t->giveClient(std::move(c1));
 
@@ -381,6 +383,7 @@ void MainTests::testWebsocketHugePing()
         check<std::runtime_error>(fcntl(client_socket, F_SETFL, flags | O_NONBLOCK ));
 
         std::shared_ptr<Client> c1(new Client(ClientType::Normal, client_socket, t, FmqSsl(), ConnectionProtocol::WebsocketMqtt, false, nullptr, settings, false));
+        c1->addToEpoll(EPOLLIN);
         std::shared_ptr<Client> client = c1;
         t->giveClient(std::move(c1));
 
@@ -501,6 +504,7 @@ void MainTests::testWebsocketManyBigPingFrames()
         check<std::runtime_error>(fcntl(client_socket, F_SETFL, flags | O_NONBLOCK ));
 
         std::shared_ptr<Client> c1(new Client(ClientType::Normal, client_socket, t, FmqSsl(), ConnectionProtocol::WebsocketMqtt, false, nullptr, settings, false));
+        c1->addToEpoll(EPOLLIN);
         std::shared_ptr<Client> client = c1;
         t->giveClient(std::move(c1));
 
@@ -647,6 +651,7 @@ void MainTests::testWebsocketClose()
         check<std::runtime_error>(fcntl(client_socket, F_SETFL, flags | O_NONBLOCK ));
 
         std::shared_ptr<Client> c1(new Client(ClientType::Normal, client_socket, t, FmqSsl(), ConnectionProtocol::WebsocketMqtt, false, nullptr, settings, false));
+        c1->addToEpoll(EPOLLIN);
         std::shared_ptr<Client> client = c1;
         t->giveClient(std::move(c1));
 

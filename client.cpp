@@ -74,7 +74,6 @@ Client::Client(
     readbuf(settings.clientInitialBufferSize),
     writebuf(settings.clientInitialBufferSize),
     clientType(type),
-    epoll_fd(threadData ? threadData->getEpollFd() : 0),
     threadData(threadData),
     addr(addr)
 {
@@ -99,7 +98,7 @@ Client::Client(
 Client::~Client()
 {
     // Dummy clients, that I sometimes need just because the interface demands it but there's not actually a client, have no thread.
-    if (this->epoll_fd == 0)
+    if (this->epoll_fd < 0)
         return;
 
     if (disconnectReason.empty())
@@ -123,7 +122,26 @@ Client::~Client()
     {
         if (epoll_ctl(this->epoll_fd, EPOLL_CTL_DEL, fd.get(), NULL) != 0)
             logger->logf(LOG_ERR, "Removing fd %d of client '%s' from epoll produced error: %s", fd.get(), repr().c_str(), strerror(errno));
+        this->epoll_fd = -1;
     }
+}
+
+void Client::addToEpoll(uint32_t events)
+{
+    if (this->epoll_fd > -1)
+        return;
+
+    auto owner_thread = threadData.lock();
+
+    if (!owner_thread)
+        return;
+
+    struct epoll_event ev{};
+    ev.data.fd = fd.get();
+    ev.events = events;
+    check<std::runtime_error>(epoll_ctl(owner_thread->getEpollFd(), EPOLL_CTL_ADD, fd.get(), &ev));
+
+    this->epoll_fd = owner_thread->getEpollFd();
 }
 
 bool Client::isSslAccepted() const
