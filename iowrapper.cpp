@@ -773,7 +773,7 @@ ssize_t IoWrapper::websocketBytesToReadBuffer(void *buf, const size_t nbytes, Io
             while (shift > 0)
             {
                 shift -= 8;
-                uint8_t byte = websocketPendingBytes.peakAhead(i++);
+                uint64_t byte {static_cast<uint8_t>(websocketPendingBytes.peakAhead(i++))};
                 extendedPayloadLength += (byte << shift);
             }
 
