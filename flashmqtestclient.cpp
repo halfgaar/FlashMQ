@@ -105,8 +105,7 @@ void FlashMQTestClient::connectClient(ProtocolVersion protocolVersion, bool clea
 {
     int sockfd = check<std::runtime_error>(socket(AF_INET, SOCK_STREAM, 0));
 
-    struct sockaddr_in servaddr;
-    bzero(&servaddr, sizeof(servaddr));
+    struct sockaddr_in servaddr{};
 
     const std::string hostname = "127.0.0.1";
 
