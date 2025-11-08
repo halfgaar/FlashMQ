@@ -285,6 +285,9 @@ void MainTests::testSharedSubscribersSurviveRestart()
 
     QCOMPARE(rain, 1);
     QCOMPARE(sun, 1);
+
+    // This makes sure the server is shutdown before FlashMQTempDir can remove our temp dir.
+    cleanup();
 }
 
 void MainTests::testSharedSubscriberDoesntGetRetainedMessages()
