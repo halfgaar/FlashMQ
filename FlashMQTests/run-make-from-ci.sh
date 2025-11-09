@@ -35,7 +35,7 @@ for item in "${extra_configs[@]}"; do
   extra_configs_expanded=("${extra_configs_expanded[@]}" "-D" "$item")
 done
 
-CXX="$compiler" cmake -S . -B buildtests "${extra_configs_expanded[@]}"
+CXX="$compiler" cmake -DCMAKE_BUILD_TYPE=Debug -S . -B buildtests "${extra_configs_expanded[@]}"
 
 nprocs=4
 if _nprocs=$(nproc); then
