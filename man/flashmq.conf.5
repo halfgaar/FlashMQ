@@ -5,7 +5,7 @@
 \\$2 \(la\\$1\(ra\\$3
 ..
 .if \n(.g .mso www.tmac
-.TH flashmq.conf 5 "Sep 02 2025" "" ""
+.TH flashmq.conf 5 "Nov 09 2025" "" ""
 .SH NAME
 flashmq.conf \- FlashMQ configuration file format
 .SH SYNOPSIS
@@ -182,6 +182,8 @@ Default: 3623
 .TP
 \*(T<\fB\m[green]persistence_data_to_save\m[] \fI\m[cyan]all|sessions_and_subscriptions|retained_messages|bridge_info\m[]\fR\fR\*(T>
 When a \fB\m[green]storage_dir\fR\m[] is defined, specify which information should be saved. The arguments are a list of one or more of the specified options, and can be negated with a !. Meaning like: \fIall !retained_messages\fR. The order is relevant. If you end with \fIall\fR, it overrides the previous.
+
+The option \fIbridge_info\fR causes a small bit of meta data of the bridges to be saved. See the bridge option \fB\fB\m[green]use_saved_clientid\fR\m[]\fR.
 
 The default is \fIall\fR, but as soon as this option is defined, it's cleared, and the desired list has to be composed.
 .TP
@@ -660,7 +662,7 @@ Messages will not be relayed with 'retained as published' and the retained messa
 Default value: \fItrue\fR
 .TP
 \*(T<\fB\m[green]use_saved_clientid\m[] \fI\m[cyan]true\m[]\fR|\fI\m[cyan]false\m[]\fR\fR\*(T>
-When you want your bridges to resume local and remote sessions after restart, set this to true and set \fB\m[green]remote_clean_start\fR\m[], \fB\m[green]local_clean_start\fR\m[], \fB\m[green]remote_session_expiry_interval\fR\m[] and \fB\m[green]local_session_expiry_interval\fR\m[] accordingly. It only has effect when you have set a \fB\m[green]storage_dir\fR\m[].
+When you want your bridges to resume local and remote sessions after restart, set this to true and set \fB\m[green]remote_clean_start\fR\m[], \fB\m[green]local_clean_start\fR\m[], \fB\m[green]remote_session_expiry_interval\fR\m[] and \fB\m[green]local_session_expiry_interval\fR\m[] accordingly. It only has effect when you have set a \fB\m[green]storage_dir\fR\m[] and include \fIbridge_info\fR in \fB\m[green]persistence_data_to_save\fR\m[].
 
 It is important to fully understand the clean session / clean start behavior and the role the client ID plays in that. The primary goal of sessions is to survive link disconnects. Configuring a fixed client ID and use that each time an MQTT client starts, is often an anti-pattern, because most clients like actual IoT devices start fresh upon restart and don't store their sessions (with in-flight packets, etc) to disk. FlashMQ does store it on disk however, so it can be used legitamately. However, you can run into unexpected situations. For instance, you will get your existing subscriptions from the session too. So, if you remove a \fB\m[green]subscribe\fR\m[] line from your bridge configuration and restart, it will actually have no effect, because the server on the other side still has that subscription in the session.
 
