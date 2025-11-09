@@ -14,7 +14,6 @@ See LICENSE for license details.
 #include <unistd.h>
 #include <exception>
 #include <stdexcept>
-#include <stdio.h>
 #include <cstring>
 #include <inttypes.h>
 

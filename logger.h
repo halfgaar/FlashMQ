@@ -11,13 +11,13 @@ See LICENSE for license details.
 #ifndef LOGGER_H
 #define LOGGER_H
 
-#include <stdio.h>
 #include <stdarg.h>
 #include <mutex>
 #include <queue>
 #include <thread>
 #include <sstream>
 #include <optional>
+#include <fstream>
 #include "semaphore.h"
 
 #include "flashmq_plugin.h"
@@ -58,8 +58,8 @@ public:
     LogLine(LogLine &&other) = default;
     LogLine &operator=(LogLine &&other) = default;
 
-    const char *c_str() const;
     bool alsoLogToStdOut() const;
+    const std::string &getLine() const { return line;} ;
 };
 
 class Logger
@@ -72,7 +72,7 @@ class Logger
     sem_t linesPending;
     std::thread writerThread;
     bool running = true;
-    FILE *file = nullptr;
+    std::fstream ofile;
     bool alsoLogToStd = true;
     bool reload = false;
 

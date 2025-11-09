@@ -13,7 +13,6 @@ See LICENSE for license details.
 #include "exceptions.h"
 #include <getopt.h>
 #include <unistd.h>
-#include <stdio.h>
 #include <sys/sysinfo.h>
 #include <arpa/inet.h>
 #include <memory>

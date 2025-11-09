@@ -10,7 +10,6 @@ See LICENSE for license details.
 
 #include "logger.h"
 #include <sstream>
-#include <iomanip>
 #include <string.h>
 #include <functional>
 #include <mutex>
@@ -39,11 +38,6 @@ LogLine::LogLine() :
 
 }
 
-const char *LogLine::c_str() const
-{
-    return line.c_str();
-}
-
 bool LogLine::alsoLogToStdOut() const
 {
     return alsoToStdOut;
@@ -62,10 +56,9 @@ Logger::~Logger()
     if (running)
         quit();
 
-    if (file)
+    if (ofile.is_open())
     {
-        fclose(file);
-        file = nullptr;
+        ofile.close();
     }
 
     sem_close(&linesPending);
@@ -144,24 +137,19 @@ void Logger::reOpen()
 {
     reload = false;
 
-    if (file)
+    if (ofile.is_open())
     {
-        // Any further use of 'file' is undefined behavior, including closing again, so we just have to abandon it.
-        const int rc = fclose(file);
-        file = nullptr;
-
-        if (rc != 0)
-        {
-            const std::string err(strerror(errno));
-            log(LOG_ERR) << "Closing the log file failed with: " << err << ". Depending on whether it can be reopened again, logging may continue on stdout.";
-        }
+        ofile.close();
     }
 
     if (logPath.empty())
         return;
 
-    if ((file = fopen(logPath.c_str(), "a")) == nullptr)
+    ofile.open(logPath, std::ios::app | std::ios::out);
+
+    if (!ofile.good())
     {
+        ofile.close();
         logf(LOG_ERR, "(Re)opening log file '%s' error: %s. Logging to stdout.", logPath.c_str(), strerror(errno));
     }
 }
@@ -286,26 +274,24 @@ void Logger::writeLog()
             lines.pop();
         }
 
-        if (this->file)
+        if (ofile.is_open())
         {
-            if (fputs(line.c_str(), this->file) < 0 ||
-                fputs("\n", this->file) < 0 ||
-                fflush(this->file) != 0)
+            ofile << line.getLine() << std::endl;
+
+            if (!ofile.good())
             {
-                alsoLogToStd = true;
-                fputs("Writing to log failed. Enabling stdout logger.", stderr);
+                std::cerr << "Writing to log failed. Closing file and enabling stdout logger" << std::endl;
+                ofile.close();
             }
         }
 
-        if (!this->file || line.alsoLogToStdOut())
+        if (!(ofile.is_open() && ofile.good()) || line.alsoLogToStdOut())
         {
-            FILE *output = stdout;
 #ifdef TESTING
-            output = stderr; // the stdout interfers with Qt test XML output, so using stderr.
+            std::cerr << line.getLine() << std::endl; // the stdout interfers with Qt test XML output, so using stderr.
+#else
+            std::cout << line.getLine() << std::endl;
 #endif
-            fputs(line.c_str(), output);
-            fputs("\n", output);
-            fflush(output);
         }
     }
 }

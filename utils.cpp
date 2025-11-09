@@ -15,7 +15,6 @@ See LICENSE for license details.
 #include <sys/time.h>
 #include <sys/statvfs.h>
 #include <algorithm>
-#include <cstdio>
 #include <cstring>
 #include <signal.h>
 #include <iomanip>
