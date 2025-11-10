@@ -1339,8 +1339,11 @@ void MqttPacket::handleConnAck(std::shared_ptr<Client> &sender)
             subscriptions.back().retainAsPublished = true;
         }
 
-        MqttPacket subPacket(this->getProtocolVersion(), session->getNextPacketIdLocked(), 0, subscriptions);
-        sender->writeMqttPacketAndBlameThisClient(subPacket);
+        if (!subscriptions.empty())
+        {
+            MqttPacket subPacket(this->getProtocolVersion(), session->getNextPacketIdLocked(), 0, subscriptions);
+            sender->writeMqttPacketAndBlameThisClient(subPacket);
+        }
     }
 
     // It doesn't matter if we do this every time on connack; a client can only be subscribed once per pattern.
