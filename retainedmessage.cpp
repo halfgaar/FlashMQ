@@ -15,14 +15,26 @@ See LICENSE for license details.
 RetainedMessage::RetainedMessage(const Publish &publish) :
     publish(publish)
 {
-    this->publish.retain = true;
-    const Settings *settings = ThreadGlobals::getSettings();
-    this->publish.setExpireAfterToCeiling(settings->expireRetainedMessagesAfterSeconds);
+    setRetainData();
 }
 
 bool RetainedMessage::operator==(const RetainedMessage &rhs) const
 {
     return this->publish.topic == rhs.publish.topic;
+}
+
+void RetainedMessage::setRetainData()
+{
+    this->publish.retain = true;
+    const Settings *settings = ThreadGlobals::getSettings();
+    this->publish.setExpireAfterToCeiling(settings->expireRetainedMessagesAfterSeconds);
+}
+
+RetainedMessage &RetainedMessage::operator=(const Publish &pub)
+{
+    this->publish = pub;
+    setRetainData();
+    return *this;
 }
 
 bool RetainedMessage::empty() const

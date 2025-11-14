@@ -19,8 +19,13 @@ struct RetainedMessage
     Publish publish;
 
     RetainedMessage(const Publish &publish);
+    RetainedMessage(const RetainedMessage&) = default;
+    RetainedMessage &operator=(const RetainedMessage&) = delete;
+    RetainedMessage &operator=(RetainedMessage&&) = delete;
 
     bool operator==(const RetainedMessage &rhs) const;
+    RetainedMessage &operator=(const Publish &pub);
+    void setRetainData();
     bool empty() const;
     uint32_t getSize() const;
     bool hasExpired() const;
