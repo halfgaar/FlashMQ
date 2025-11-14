@@ -1391,7 +1391,7 @@ void SubscriptionStore::getRetainedMessages(
     {
         std::lock_guard<std::mutex> locker(this_node->messageSetMutex);
         if (this_node->message)
-            outputList.push_back(*this_node->message);
+            outputList.emplace_back(*this_node->message);
     }
 
     for(auto &pair : this_node->children)
@@ -1742,8 +1742,15 @@ ssize_t RetainedMessageNode::addPayload(const Publish &publish)
         return result;
     }
 
-    RetainedMessage rm(publish);
-    message = std::make_unique<RetainedMessage>(std::move(rm));
+    if (message)
+    {
+        (*message) = publish;
+    }
+    else
+    {
+        message = std::make_unique<RetainedMessage>(publish);
+    }
+
     result++;
     messageSetAt = std::chrono::steady_clock::now();
     return result;
