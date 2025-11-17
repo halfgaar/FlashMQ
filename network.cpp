@@ -15,12 +15,9 @@ See LICENSE for license details.
 
 Network::Network(const std::string &network)
 {
-    std::fill(this->data.begin(), this->data.end(), 0);
-
     if (strContains(network, "."))
     {
-        struct sockaddr_in tmpaddr;
-        std::memset(&tmpaddr, 0, sizeof(tmpaddr));
+        struct sockaddr_in tmpaddr{};
 
         tmpaddr.sin_family = AF_INET;
 
@@ -40,8 +37,7 @@ Network::Network(const std::string &network)
     {
         // Why does inet_net_pton not support AF_INET6...?
 
-        struct sockaddr_in6 tmpaddr;
-        std::memset(&tmpaddr, 0, sizeof(tmpaddr));
+        struct sockaddr_in6 tmpaddr{};
 
         tmpaddr.sin6_family = AF_INET6;
 
@@ -73,21 +69,20 @@ Network::Network(const std::string &network)
         }
 
         int m = maskbits;
-        memset(in6_mask, 0, 16);
         int i = 0;
-        const uint64_t x = 0xFFFFFFFF00000000;
+        const uint64_t x{0xFFFFFFFF00000000};
 
-        while (m >= 0)
+        while (m > 0)
         {
             int shift_remainder = std::min<int>(m, 32);
             uint32_t b = x >> shift_remainder;
-            in6_mask[i++] = htonl(b);
+            in6_mask.at(i++) = htonl(b);
             m -= 32;
         }
 
         for (int i = 0; i < 4; i++)
         {
-            network_addr_relevant_bits.__in6_u.__u6_addr32[i] = tmpaddr.sin6_addr.__in6_u.__u6_addr32[i] & in6_mask[i];
+            network_addr_relevant_bits.__in6_u.__u6_addr32[i] = tmpaddr.sin6_addr.__in6_u.__u6_addr32[i] & in6_mask.at(i);
         }
 
         this->family = AF_INET6;
@@ -123,7 +118,7 @@ bool Network::match(const sockaddr *addr) const
         struct in6_addr arg_addr_relevant_bits;
         for (int i = 0; i < 4; i++)
         {
-            arg_addr_relevant_bits.__in6_u.__u6_addr32[i] = tmp_arg.sin6_addr.__in6_u.__u6_addr32[i] & in6_mask[i];
+            arg_addr_relevant_bits.__in6_u.__u6_addr32[i] = tmp_arg.sin6_addr.__in6_u.__u6_addr32[i] & in6_mask.at(i);
         }
 
         uint8_t matches[4];
