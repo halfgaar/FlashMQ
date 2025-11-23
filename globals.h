@@ -2,6 +2,7 @@
 #define GLOBALS_H
 
 #include <memory>
+#include <pthread.h>
 
 #include "subscriptionstore.h"
 #include "globalstats.h"
@@ -18,6 +19,7 @@ class Globals
     struct GlobalsData
     {
         bool quitting = false;
+        pthread_t createdByThread = pthread_self();
         std::shared_ptr<SubscriptionStore> subscriptionStore = std::make_shared<SubscriptionStore>();
         GlobalStats stats;
         BridgeClientGroupIds bridgeClientGroupIds;

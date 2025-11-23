@@ -15,6 +15,7 @@ See LICENSE for license details.
 #include <mutex>
 
 #include "threaddata.h"
+#include "globals.h"
 #include "threadglobals.h"
 #include "utils.h"
 
@@ -298,19 +299,34 @@ void Logger::writeLog()
 
 std::string Logger::getPrefix(int level)
 {
-    int threadnr = -1;
-    const std::shared_ptr<ThreadData> td = ThreadGlobals::getThreadData();
-    if (td)
-        threadnr = td->threadnr;
+    thread_local static auto caller_thread_id = pthread_self();
+    const std::shared_ptr<const ThreadData> td = ThreadGlobals::getThreadData();
 
     std::ostringstream oss;
     const std::string stamp = timestampWithMillis();
     oss << "[" << stamp << "] [" << getLogLevelString(level) << "] ";
 
-    if (threadnr == -1)
+    if (td)
+    {
+        oss << "[T " << td->threadnr << "] ";
+    }
+    else if (pthread_equal(caller_thread_id, globals->createdByThread))
+    {
         oss << "[main] ";
+    }
     else
-        oss << "[T " << threadnr << "] ";
+    {
+        std::array<char, 20> buf{};
+        if (pthread_getname_np(caller_thread_id, buf.data(), buf.size()) == 0)
+        {
+            std::string tname(buf.data());
+            oss << "[T " << tname << "] ";
+        }
+        else
+        {
+            oss << "[T custom] ";
+        }
+    }
 
     std::string result = oss.str();
     return result;
