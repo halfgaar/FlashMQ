@@ -1048,6 +1048,16 @@ void Client::setDisconnectReason(const std::string &reason)
     this->disconnectReason.append(reason);
 }
 
+void Client::setDisconnectReasonFromSocketError()
+{
+    int error = 0;
+    socklen_t errlen = sizeof(error);
+    if (getsockopt(fd.get(), SOL_SOCKET, SO_ERROR, &error, &errlen) == 0)
+    {
+       setDisconnectReason(strerror(error));
+    }
+}
+
 /**
  * @brief Client::getSecondsTillKeepAliveAction gets the amount of seconds from now at which this client should be killed when
  * it was quiet, or in case of outgoing client, when a new ping is required.

@@ -188,13 +188,7 @@ void do_thread_work(std::shared_ptr<ThreadData> threadData)
                 }
                 if (ready_client.events & EPOLLERR)
                 {
-                    int error = 0;
-                    socklen_t errlen = sizeof(error);
-                    if (getsockopt(client->getFd(), SOL_SOCKET, SO_ERROR, &error, &errlen) == 0)
-                    {
-                        client->setDisconnectReason(strerror(error));
-                    }
-
+                    client->setDisconnectReasonFromSocketError();
                     threadData->removeClient(client);
                     continue;
                 }

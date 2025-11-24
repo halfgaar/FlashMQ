@@ -213,6 +213,7 @@ public:
     void assignSession(const std::shared_ptr<Session> &session);
     std::shared_ptr<Session> getSession();
     void setDisconnectReason(const std::string &reason);
+    void setDisconnectReasonFromSocketError();
     std::chrono::seconds getSecondsTillKeepAliveAction() const;
     const std::optional<std::string> &getLocalPrefix() const;
     const std::optional<std::string> &getRemotePrefix() const;
