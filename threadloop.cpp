@@ -76,30 +76,7 @@ void do_thread_work(std::shared_ptr<ThreadData> threadData)
 
             if (fd == threadData->taskEventFd)
             {
-                uint64_t eventfd_value = 0;
-                if (read(fd, &eventfd_value, sizeof(uint64_t)) < 0)
-                    logger->log(LOG_ERROR) << "Error reading taskEventFd: " << strerror(errno);
-
-                std::list<std::function<void()>> copiedTasks;
-
-                {
-                    auto task_queue_locked = threadData->taskQueue.lock();
-                    copiedTasks = std::move(*task_queue_locked);
-                    task_queue_locked->clear();
-                }
-
-                for(auto &f : copiedTasks)
-                {
-                    try
-                    {
-                        f();
-                    }
-                    catch (std::exception &ex)
-                    {
-                        Logger *logger = Logger::getInstance();
-                        logger->logf(LOG_ERR, "Error in queued task: %s", ex.what());
-                    }
-                }
+                threadData->performAllImmediateTasks();
 
                 try
                 {

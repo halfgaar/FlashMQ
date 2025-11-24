@@ -205,6 +205,7 @@ public:
     void removeDelayedTask(uint32_t id);
 
     void addImmediateTask(std::function<void()> f);
+    void performAllImmediateTasks();
 };
 
 
