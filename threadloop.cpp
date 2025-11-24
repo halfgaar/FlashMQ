@@ -179,18 +179,7 @@ void do_thread_work(std::shared_ptr<ThreadData> threadData)
                 }
                 if (client->isOutgoingConnection() && !client->getOutgoingConnectionEstablished())
                 {
-                    int error = 0;
-                    socklen_t optlen = sizeof(int);
-                    int rc = getsockopt(client->getFd(), SOL_SOCKET, SO_ERROR, &error, &optlen);
-
-                    if (rc == 0 && error == 0)
-                    {
-                        client->setBridgeConnected();
-                    }
-
-                    if (error > 0 && error != EINPROGRESS)
-                        throw std::runtime_error(strerror(error));
-
+                    client->detectOutgoingConnectionEstablished();
                     continue;
                 }
                 if (ready_client.events & EPOLLHUP)

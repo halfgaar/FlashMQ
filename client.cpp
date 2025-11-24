@@ -794,6 +794,21 @@ void Client::setBridgeConnected()
         this->writeLoginPacket();
 }
 
+void Client::detectOutgoingConnectionEstablished()
+{
+    int error = 0;
+    socklen_t optlen = sizeof(int);
+    int rc = getsockopt(fd.get(), SOL_SOCKET, SO_ERROR, &error, &optlen);
+
+    if (rc == 0 && error == 0)
+    {
+        setBridgeConnected();
+    }
+
+    if (error > 0 && error != EINPROGRESS)
+        throw std::runtime_error(strerror(error));
+}
+
 bool Client::getOutgoingConnectionEstablished() const
 {
     return this->outgoingConnectionEstablished;

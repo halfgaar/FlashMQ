@@ -262,6 +262,7 @@ public:
     bool isOutgoingConnection() const;
     std::shared_ptr<BridgeState> getBridgeState();
     void setBridgeConnected();
+    void detectOutgoingConnectionEstablished();
     bool getOutgoingConnectionEstablished() const;
     ClientType getClientType() const { return clientType; }
     void setClientType(ClientType val);
