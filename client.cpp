@@ -77,10 +77,15 @@ Client::Client(
     threadData(threadData),
     addr(addr)
 {
+    assert(fd == -1 || fd > 2);
+
     ioWrapper.setHaProxy(haproxy);
 
-    int flags = fcntl(fd, F_GETFL);
-    fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+    if (fd > -1)
+    {
+        int flags = fcntl(fd, F_GETFL);
+        fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+    }
 
     const std::string haproxy_s = haproxy ? "/HAProxy" : "";
     const std::string ssl_s = ssl ? "/SSL" : "/Non-SSL";
