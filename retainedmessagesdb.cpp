@@ -125,7 +125,7 @@ void RetainedMessagesDB::saveData(const std::vector<RetainedMessage> &messages)
         if (logger->wouldLog(LOG_DEBUG))
         {
             logger->log(LOG_DEBUG)
-                << LOG_DEBUG << "Saving retained message for topic '" << rm.publish.topic << "' QoS " << static_cast<int>(rm.publish.qos)
+                << "Saving retained message for topic '" << rm.publish.topic << "' QoS " << static_cast<int>(rm.publish.qos)
                 << ", age " << rm.publish.getAge<std::chrono::seconds>().count() << " seconds.";
         }
 
@@ -228,7 +228,7 @@ std::list<RetainedMessage> RetainedMessagesDB::readDataV3V4(size_t max)
         if (logger->wouldLog(LOG_DEBUG))
         {
             logger->log(LOG_DEBUG)
-                << LOG_DEBUG << "Loading retained message for topic '" << msg.publish.topic << "' QoS " << static_cast<int>(msg.publish.qos)
+                << "Loading retained message for topic '" << msg.publish.topic << "' QoS " << static_cast<int>(msg.publish.qos)
                 << ", age " << msg.publish.getAge<std::chrono::seconds>().count() << " seconds.";
         }
         messages.push_back(std::move(msg));
