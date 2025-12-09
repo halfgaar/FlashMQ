@@ -1,6 +1,6 @@
 #!/bin/bash
 
-extra_configs=()
+extra_configs=("CMAKE_BUILD_TYPE=Debug")
 compiler="g++"
 
 while [ -n "$*" ]; do
