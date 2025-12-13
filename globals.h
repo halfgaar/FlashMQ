@@ -7,6 +7,8 @@
 #include "subscriptionstore.h"
 #include "globalstats.h"
 #include "bridgeconfig.h"
+#include "checkedsharedptr.h"
+#include "mutexowned.h"
 
 /**
  * The idea about it being a shared pointer is having globals that are still tied to a MainApp instance (which
@@ -23,6 +25,9 @@ class Globals
         std::shared_ptr<SubscriptionStore> subscriptionStore = std::make_shared<SubscriptionStore>();
         GlobalStats stats;
         BridgeClientGroupIds bridgeClientGroupIds;
+        MutexOwned<std::vector<std::shared_ptr<ThreadData>>> threadDatas;
+
+        CheckedSharedPtr<ThreadData> getDeterministicThreadData();
     };
 
     std::shared_ptr<GlobalsData> data = std::make_shared<GlobalsData>();

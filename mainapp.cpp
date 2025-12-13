@@ -657,6 +657,15 @@ void MainApp::start()
         threads.front()->queuePublishStatsOnDollarTopic(thread_datas);
     }
 
+    {
+        auto locked_global_threads = globals->threadDatas.lock();
+
+        for (auto &t : threads)
+        {
+            locked_global_threads->push_back(t.getThreadData());
+        }
+    }
+
     sendBridgesToThreads();
     queueBridgeReconnectAllThreads(true);
 
