@@ -859,7 +859,7 @@ void SubscriptionStore::giveClientRetainedMessagesInitiateDeferred(const std::we
 
     if (!deferred->empty() && ++requeue_count < 100 && total_node_count < settings->retainedMessagesNodeLimit)
     {
-        ThreadData *t = ThreadGlobals::getThreadData().get();
+        auto &t = ThreadGlobals::getThreadData();
         auto again = std::bind(&SubscriptionStore::giveClientRetainedMessagesInitiateDeferred, this,
                                ses, subscribeSubtopicsCopy, deferred, requeue_count, total_node_count, max_qos, subscription_identifier);
 
@@ -925,7 +925,7 @@ void SubscriptionStore::trySetRetainedMessages(const Publish &publish, const std
     const Settings *settings = ThreadGlobals::getSettings();
     const bool try_lock_fail = settings->setRetainedMessageDeferTimeout.count() != 0;
 
-    ThreadData *td = ThreadGlobals::getThreadData().get();
+    auto &td = ThreadGlobals::getThreadData();
 
     if (!td)
         return;

@@ -353,8 +353,7 @@ PacketDropReason Client::writeMqttPacket(const MqttPacket &packet)
 
     if (packet.packetType == PacketType::PUBLISH)
     {
-        ThreadData *td = ThreadGlobals::getThreadData().get();
-        td->sentMessageCounter.inc();
+        ThreadGlobals::getThreadData()->sentMessageCounter.inc();
     }
     else if (packet.packetType == PacketType::DISCONNECT)
         setDisconnectStage(DisconnectStage::SendPendingAppData);

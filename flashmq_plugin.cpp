@@ -244,7 +244,7 @@ void flashmq_get_client_address_v4(const std::weak_ptr<Client> &client, std::str
 
 void flashmq_poll_add_fd(int fd, uint32_t events, const std::weak_ptr<void> &p)
 {
-    ThreadData *d = ThreadGlobals::getThreadData().get();
+    auto &d = ThreadGlobals::getThreadData();
 
     if (!d)
         return;
@@ -254,7 +254,7 @@ void flashmq_poll_add_fd(int fd, uint32_t events, const std::weak_ptr<void> &p)
 
 void flashmq_poll_remove_fd(uint32_t fd)
 {
-    ThreadData *d = ThreadGlobals::getThreadData().get();
+    auto &d = ThreadGlobals::getThreadData();
 
     if (!d)
         return;
@@ -274,7 +274,7 @@ constexpr int FlashMQSockAddr::getLen()
 
 uint32_t flashmq_add_task(std::function<void ()> f, uint32_t delay_in_ms)
 {
-    std::shared_ptr<ThreadData> d = ThreadGlobals::getThreadData();
+    auto d = ThreadGlobals::getThreadData();
 
     if (!d)
         throw std::runtime_error("No thread data?");
@@ -284,7 +284,7 @@ uint32_t flashmq_add_task(std::function<void ()> f, uint32_t delay_in_ms)
 
 void flashmq_remove_task(uint32_t id)
 {
-    std::shared_ptr<ThreadData> d = ThreadGlobals::getThreadData();
+    auto d = ThreadGlobals::getThreadData();
 
     if (!d)
         return;

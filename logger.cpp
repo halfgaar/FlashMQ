@@ -300,7 +300,7 @@ void Logger::writeLog()
 std::string Logger::getPrefix(int level)
 {
     thread_local static auto caller_thread_id = pthread_self();
-    const std::shared_ptr<const ThreadData> td = ThreadGlobals::getThreadData();
+    const auto td = ThreadGlobals::getThreadData();
 
     std::ostringstream oss;
     const std::string stamp = timestampWithMillis();

@@ -1067,9 +1067,9 @@ void MqttPacket::handleConnect(std::shared_ptr<Client> &sender)
 
     std::shared_ptr<SubscriptionStore> subscriptionStore = globals->subscriptionStore;
 
-    Authentication &authentication = ThreadGlobals::getThreadData()->authentication;
+    auto &threadData = ThreadGlobals::getThreadData();
+    Authentication &authentication = threadData->authentication;
 
-    ThreadData *threadData = ThreadGlobals::getThreadData().get();
     threadData->mqttConnectCounter.inc();
 
     ConnectData connectData = parseConnectData(sender);

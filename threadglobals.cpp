@@ -11,18 +11,18 @@ See LICENSE for license details.
 #include "threadglobals.h"
 #include <cassert>
 
-thread_local std::shared_ptr<ThreadData> ThreadGlobals::threadData;
+thread_local CheckedSharedPtr<ThreadData> ThreadGlobals::threadData;
 thread_local Settings *ThreadGlobals::settings = nullptr;
 
 void ThreadGlobals::assignThreadData(const std::shared_ptr<ThreadData> &threadData)
 {
 #ifndef TESTING
-    assert(ThreadGlobals::threadData == nullptr);
+    assert(!static_cast<bool>(ThreadGlobals::threadData));
 #endif
     ThreadGlobals::threadData = threadData;
 }
 
-const std::shared_ptr<ThreadData> &ThreadGlobals::getThreadData()
+const CheckedSharedPtr<ThreadData> &ThreadGlobals::getThreadData()
 {
     return threadData;
 }

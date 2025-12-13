@@ -347,7 +347,7 @@ AuthResult Authentication::aclCheck(
     assert(retain || access == AclAccess::subscribe || !payload.empty());
 #endif
 
-    ThreadData *threadData = ThreadGlobals::getThreadData().get();
+    auto &threadData = ThreadGlobals::getThreadData();
 
     switch (access)
     {
