@@ -151,49 +151,36 @@ void flashmq_publish_message(const std::string &topic, const uint8_t qos, const 
                              const std::vector<std::pair<std::string, std::string>> *userProperties,
                              const std::string *responseTopic, const std::string *correlationData, const std::string *contentType)
 {
-    Publish pub(topic, payload, qos);
-    pub.retain = retain;
+    auto do_publish = [](Publish &pub){
+        std::shared_ptr<SubscriptionStore> store = globals->subscriptionStore;
 
-    if (userProperties)
-    {
-        for (const std::pair<std::string, std::string> &pair : *userProperties)
+        if (pub.retain)
         {
-            pub.addUserProperty(pair.first, pair.second);
+            store->setRetainedMessage(pub, pub.getSubtopics());
         }
-    }
 
-    if (expiryInterval)
+        PublishCopyFactory factory(&pub);
+        store->queuePacketAtSubscribers(factory, "", {});
+    };
+
+    auto f2 = [do_publish](std::shared_ptr<Publish> &pub){
+        do_publish(*pub);
+    };
+
+    auto &td_local = ThreadGlobals::getThreadData();
+
+    if (td_local)
     {
-        pub.setExpireAfter(expiryInterval);
+        Publish pub(topic, payload, qos, retain, expiryInterval, userProperties, responseTopic, correlationData, contentType);
+        do_publish(pub);
+        return;
     }
 
-    if (responseTopic)
-    {
-        pub.responseTopic = *responseTopic;
-    }
-
-    if (correlationData)
-    {
-        pub.correlationData = *correlationData;
-    }
-
-    if (contentType)
-    {
-        pub.contentType = *contentType;
-    }
-
-    std::shared_ptr<SubscriptionStore> store = globals->subscriptionStore;
-
-    if (pub.retain)
-    {
-        store->setRetainedMessage(pub, pub.getSubtopics());
-    }
-
-    PublishCopyFactory factory(&pub);
-    store->queuePacketAtSubscribers(factory, "", {});
+    std::shared_ptr<Publish> pub = std::make_shared<Publish>(topic, payload, qos, retain, expiryInterval, userProperties, responseTopic, correlationData, contentType);
+    auto td = globals->getDeterministicThreadData();
+    auto f_bound = std::bind(f2, std::move(pub));
+    td->addImmediateTask(f_bound);
 }
-
-
 
 void flashmq_get_client_address(const std::weak_ptr<Client> &client, std::string *text, FlashMQSockAddr *addr)
 {

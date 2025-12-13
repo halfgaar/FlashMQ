@@ -254,6 +254,9 @@ public:
 
     Publish() = default;
     Publish(const std::string &topic, const std::string &payload, uint8_t qos);
+    Publish(const std::string &topic, const std::string &payload, uint8_t qos, bool retain, uint32_t expiryInterval,
+            const std::vector<std::pair<std::string, std::string>> *userProperties,
+            const std::string *responseTopic, const std::string *correlationData, const std::string *contentType);
     bool hasExpired() const;
 
     template<typename T>

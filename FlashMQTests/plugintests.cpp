@@ -1322,6 +1322,38 @@ void MainTests::testUserPropertiesPresent()
     }));
 }
 
+void MainTests::testPublishInThread()
+{
+    ConfFileTemp confFile;
+    confFile.writeLine("plugin plugins/libtest_plugin.so.0.0.1");
+    confFile.closeFile();
+
+    std::vector<std::string> args {"--config-file", confFile.getFilePath()};
+
+    cleanup();
+    init(args);
+
+    FlashMQTestClient sender;
+    FlashMQTestClient receiver;
+
+    sender.start();
+    receiver.start();
+
+    sender.connectClient(ProtocolVersion::Mqtt5);
+
+    receiver.connectClient(ProtocolVersion::Mqtt5);
+    receiver.subscribe("topic/from/thread", 0);
+
+    Publish pub1("publish_in_thread", "dummy", 0);
+    sender.publish(pub1);
+
+    receiver.waitForMessageCount(1);
+
+    auto ro = receiver.receivedObjects.lock();
+    MYCASTCOMPARE(ro->receivedPublishes.size(), 1);
+    QVERIFY(ro->receivedPublishes.front().getPayloadView() == "payload from thread");
+}
+
 
 
 

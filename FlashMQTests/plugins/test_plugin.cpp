@@ -185,6 +185,11 @@ AuthResult flashmq_plugin_login_check(void *thread_data, const std::string &clie
     return AuthResult::success;
 }
 
+void publish_in_thread()
+{
+    flashmq_publish_message("topic/from/thread", 0, false, "payload from thread");
+}
+
 AuthResult flashmq_plugin_acl_check(void *thread_data, const AclAccess access, const std::string &clientid, const std::string &username,
                                     const std::string &topic, const std::vector<std::string> &subtopics, const std::string &shareName,
                                     std::string_view payload, const uint8_t qos, const bool retain,
@@ -246,6 +251,13 @@ AuthResult flashmq_plugin_acl_check(void *thread_data, const AclAccess access, c
     if ((access == AclAccess::read || access == AclAccess::write) && topic == "test_user_property")
     {
         assert(userProperties);
+    }
+
+    if (topic == "publish_in_thread" && access == AclAccess::write)
+    {
+        std::thread t(publish_in_thread);
+        pthread_setname_np(t.native_handle(), "PubInThread");
+        t.join();
     }
 
     return AuthResult::success;

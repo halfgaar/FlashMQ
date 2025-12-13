@@ -213,6 +213,7 @@ class MainTests
     void testAlsoDontApproveOnErrorInPluginWithWildcardDenyMode();
     void testDenyWildcardSubscription();
     void testUserPropertiesPresent();
+    void testPublishInThread();
 
     void testPublishToItself();
     void testNoLocalPublishToItself();

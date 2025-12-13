@@ -171,6 +171,35 @@ Publish::Publish(const std::string &topic, const std::string &payload, uint8_t q
 
 }
 
+Publish::Publish(
+        const std::string &topic, const std::string &payload, uint8_t qos, bool retain, uint32_t expiryInterval,
+        const std::vector<std::pair<std::string, std::string>> *userProperties, const std::string *responseTopic,
+        const std::string *correlationData, const std::string *contentType) :
+    Publish(topic, payload, qos)
+{
+    this->retain = retain;
+
+    if (userProperties)
+    {
+        for (const std::pair<std::string, std::string> &pair : *userProperties)
+        {
+            this->addUserProperty(pair.first, pair.second);
+        }
+    }
+
+    if (expiryInterval)
+        this->setExpireAfter(expiryInterval);
+
+    if (responseTopic)
+        this->responseTopic = *responseTopic;
+
+    if (correlationData)
+        this->correlationData = *correlationData;
+
+    if (contentType)
+        this->contentType = *contentType;
+}
+
 bool Publish::hasExpired() const
 {
     if (!expireInfo)

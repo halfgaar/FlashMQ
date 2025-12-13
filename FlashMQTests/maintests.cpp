@@ -311,6 +311,7 @@ MainTests::MainTests()
     REGISTER_FUNCTION(testAlsoDontApproveOnErrorInPluginWithWildcardDenyMode);
     REGISTER_FUNCTION(testDenyWildcardSubscription);
     REGISTER_FUNCTION(testUserPropertiesPresent);
+    REGISTER_FUNCTION(testPublishInThread);
     REGISTER_FUNCTION(testPublishToItself);
     REGISTER_FUNCTION(testNoLocalPublishToItself);
     REGISTER_FUNCTION3(testTopicMatchingInSubscriptionTree);
