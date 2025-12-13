@@ -88,6 +88,7 @@ set(FLASHMQ_HEADERS
     ${RELPATH}flags.h
     ${RELPATH}persistencefunctions.h
     ${RELPATH}clientacceptqueue.h
+    ${RELPATH}checkedsharedptr.h
 )
 
 set(FLASHMQ_IMPLS
