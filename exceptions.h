@@ -11,7 +11,7 @@ See LICENSE for license details.
 #ifndef EXCEPTIONS_H
 #define EXCEPTIONS_H
 
-#include <exception>
+#include <optional>
 #include <stdexcept>
 #include <sstream>
 
@@ -37,8 +37,17 @@ public:
 
 class BadClientException : public std::runtime_error
 {
+    std::optional<int> mLogLevel;
+
 public:
-    BadClientException(const std::string &msg) : std::runtime_error(msg) {}
+    BadClientException(const std::string &msg, int logLevel=-1) : std::runtime_error(msg)
+    {
+        if (logLevel >= 0)
+            this->mLogLevel = logLevel;
+    }
+
+    std::optional<int> getLogLevel() const { return this->mLogLevel; }
+
 };
 
 class NotImplementedException : public std::runtime_error

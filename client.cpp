@@ -109,7 +109,7 @@ Client::~Client()
     if (disconnectReason.empty())
         disconnectReason = "not specified";
 
-    logger->logf(LOG_NOTICE, "Removing client '%s'. Reason(s): %s", repr().c_str(), disconnectReason.c_str());
+    logger->logf(disconnectReasonLogLevel, "Removing client '%s'. Reason(s): %s", repr().c_str(), disconnectReason.c_str());
 
     std::shared_ptr<ThreadData> td = this->threadData.lock();
 
@@ -218,7 +218,7 @@ void Client::connectToBridgeTarget(FMQSockaddr addr)
     if (rc < 0)
     {
         if (errno != EINPROGRESS)
-           logger->logf(LOG_ERR, "Client connect error: %s", strerror(errno));
+           logger->logf(LOG_WARNING, "Client connect error: %s", strerror(errno));
         return;
     }
     assert(rc == 0);
@@ -810,7 +810,7 @@ void Client::detectOutgoingConnectionEstablished()
     }
 
     if (error > 0 && error != EINPROGRESS)
-        throw std::runtime_error(strerror(error));
+        throw BadClientException(strerror(error), LOG_WARNING);
 }
 
 bool Client::getOutgoingConnectionEstablished() const
@@ -1035,7 +1035,7 @@ std::shared_ptr<Session> Client::getSession()
     return this->session;
 }
 
-void Client::setDisconnectReason(const std::string &reason)
+void Client::setDisconnectReason(const std::string &reason, const int logLevel)
 {
 #ifndef TESTING // Because of testing trickery, we can't assert this in testing.
 #ifndef NDEBUG
@@ -1050,6 +1050,10 @@ void Client::setDisconnectReason(const std::string &reason)
     if (!this->disconnectReason.empty())
         this->disconnectReason += ", ";
     this->disconnectReason.append(reason);
+
+    // Purposefully disallow downgrading it again.
+    if (logLevel > this->disconnectReasonLogLevel)
+        this->disconnectReasonLogLevel = logLevel;
 }
 
 void Client::setDisconnectReasonFromSocketError()

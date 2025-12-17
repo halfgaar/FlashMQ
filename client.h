@@ -115,6 +115,7 @@ class Client
     ClientType clientType = ClientType::Normal;
     bool supportsRetained = true; // Interestingly, only SERVERS can tell CLIENTS they don't support it (in CONNACK). The CONNECT packet has no field for it.
     std::string disconnectReason;
+    int disconnectReasonLogLevel = LOG_NOTICE;
     std::chrono::time_point<std::chrono::steady_clock> lastActivity = std::chrono::steady_clock::now();
 
     std::string ssl_version;
@@ -212,7 +213,7 @@ public:
     const std::shared_ptr<WillPublish> &getStagedWill() { return this->stagedWillPublish; }
     void assignSession(const std::shared_ptr<Session> &session);
     std::shared_ptr<Session> getSession();
-    void setDisconnectReason(const std::string &reason);
+    void setDisconnectReason(const std::string &reason, const int logLevel=-1);
     void setDisconnectReasonFromSocketError();
     std::chrono::seconds getSecondsTillKeepAliveAction() const;
     const std::optional<std::string> &getLocalPrefix() const;

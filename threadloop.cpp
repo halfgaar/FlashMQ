@@ -220,7 +220,9 @@ void do_thread_work(std::shared_ptr<ThreadData> threadData)
             }
             catch (ProtocolError &ex)
             {
-                client->setDisconnectReason(ex.what());
+                std::string reason("Protocol error: ");
+                reason.append(ex.what());
+                client->setDisconnectReason(reason, LOG_WARNING);
                 bool clientRemoved = true;
 
                 try
@@ -259,24 +261,23 @@ void do_thread_work(std::shared_ptr<ThreadData> threadData)
                 catch (std::exception &inner_ex)
                 {
                     clientRemoved = false;
-                    logger->log(LOG_ERR) << "Exception when notyfing client about ProtocolError: " << inner_ex.what();
+                    logger->log(LOG_ERROR) << "Exception when notyfing client about ProtocolError: " << inner_ex.what();
                 }
 
                 if (!clientRemoved)
                 {
-                    logger->log(LOG_ERR) << "Unspecified or non-MQTT protocol error: " << ex.what() << ". Removing client.";
                     threadData->removeClient(client);
                 }
             }
             catch(BadClientException &ex)
             {
-                client->setDisconnectReason(ex.what());
+                client->setDisconnectReason(ex.what(), ex.getLogLevel().value_or(-1));
                 threadData->removeClient(client);
             }
             catch(std::exception &ex)
             {
                 client->setDisconnectReason(ex.what());
-                logger->log(LOG_ERR) << "Packet read/write error: " << ex.what() << ". Removing client " << client->repr();
+                logger->log(LOG_ERR) << "Error handling client: " << ex.what() << ". Removing client " << client->repr();
                 threadData->removeClient(client);
             }
         }
