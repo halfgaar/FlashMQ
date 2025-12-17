@@ -28,6 +28,10 @@ public:
     VariableByteInt &operator=(uint32_t x);
     uint8_t getLen() const;
     const char *data() const;
+
+    auto begin() const { return bytes.cbegin(); }
+    auto end() const { return bytes.begin() + len; }
+    size_t size() const { return len; }
 };
 
 #endif // VARIABLEBYTEINT_H

@@ -19,7 +19,6 @@ See LICENSE for license details.
 #include "threadglobals.h"
 #include "utils.h"
 #include "subscriptionstore.h"
-#include "exceptions.h"
 #include "acksender.h"
 
 // constructor for parsing incoming packets
@@ -80,7 +79,7 @@ MqttPacket::MqttPacket(const SubAck &subAck) :
         returnList.push_back(static_cast<char>(code));
     }
 
-    writeBytes(&returnList[0], returnList.size());
+    write(returnList);
     calculateRemainingLength();
 }
 
@@ -186,8 +185,8 @@ MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, const Publish &_pu
     {
         // Reserve the space for the packet id, which will be assigned later.
         packet_id_pos = pos;
-        char zero[2] = {0,0};
-        writeBytes(zero, 2);
+        std::array<char, 2> zero{};
+        write(zero);
     }
 
     if (protocolVersion >= ProtocolVersion::Mqtt5)
@@ -196,7 +195,7 @@ MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, const Publish &_pu
     payloadStart = pos;
     payloadLen = _publish.payload.length();
 
-    writeBytes(_publish.payload.c_str(), _publish.payload.length());
+    write(_publish.payload);
     calculateRemainingLength();
     assert(pos == bites.size());
 }
@@ -2540,37 +2539,28 @@ void MqttPacket::writeUint16(uint16_t x)
     bites[pos++] = b;
 }
 
-void MqttPacket::writeBytes(const char *b, size_t len)
-{
-    if (pos + len > bites.size())
-        throw ProtocolError("Exceeding packet size", ReasonCodes::MalformedPacket);
-
-    memcpy(&bites[pos], b, len);
-    pos += len;
-}
-
 void MqttPacket::writeProperties(Mqtt5PropertyBuilder &properties)
 {
     writeVariableByteInt(properties.getVarInt());
     const std::vector<char> &b = properties.getBytes();
-    writeBytes(b.data(), b.size());
+    write(b);
 }
 
 void MqttPacket::writeVariableByteInt(const VariableByteInt &v)
 {
-    writeBytes(v.data(), v.getLen());
+    write(v);
 }
 
 void MqttPacket::writeString(const std::string &s)
 {
     writeUint16(s.length());
-    writeBytes(s.c_str(), s.length());
+    write(s);
 }
 
 void MqttPacket::writeString(std::string_view s)
 {
     writeUint16(s.length());
-    writeBytes(s.data(), s.length());
+    write(s);
 }
 
 uint16_t MqttPacket::readTwoBytesToUInt16()

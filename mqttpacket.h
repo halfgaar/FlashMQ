@@ -14,7 +14,6 @@ See LICENSE for license details.
 #include <unistd.h>
 #include <memory>
 #include <vector>
-#include <exception>
 
 #include "forward_declarations.h"
 
@@ -25,6 +24,7 @@ See LICENSE for license details.
 #include "variablebyteint.h"
 #include "mqtt5properties.h"
 #include "packetdatatypes.h"
+#include "exceptions.h"
 
 enum class HandleResult
 {
@@ -68,7 +68,16 @@ class MqttPacket
     uint8_t readUint8();
     void writeByte(char b);
     void writeUint16(uint16_t x);
-    void writeBytes(const char *b, size_t len);
+
+    template<typename T>
+    void write(T &src)
+    {
+        if (pos + src.size() > bites.size())
+            throw ProtocolError("Exceeding packet size", ReasonCodes::MalformedPacket);
+
+        std::copy(src.begin(), src.end(), bites.begin() + pos);
+        pos += src.size();
+    }
 
     template<typename T>
     void writeProperties(T properties)
