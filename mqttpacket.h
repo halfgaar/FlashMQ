@@ -63,7 +63,7 @@ class MqttPacket
 
     Logger *logger = Logger::getInstance();
 
-    char *readBytes(size_t length);
+    std::string_view readBytes(size_t length);
     char readByte();
     uint8_t readUint8();
     void writeByte(char b);

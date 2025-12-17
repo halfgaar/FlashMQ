@@ -598,9 +598,7 @@ ConnectData MqttPacket::parseConnectData(std::shared_ptr<Client> &sender)
 
     const Settings &settings = *ThreadGlobals::getSettings();
 
-    const char *c = readBytes(variable_header_length);
-    const std::string magic_marker(c, variable_header_length);
-
+    const std::string_view magic_marker = readBytes(variable_header_length);
     const uint8_t protocolVersionByte = readUint8();
     result.protocol_level_byte = protocolVersionByte & 0x7F;
     result.bridge = protocolVersionByte & 0x80; // Unofficial, defacto, way of specifying that. MQTT5 uses subscription options for it.
@@ -864,7 +862,7 @@ ConnectData MqttPacket::parseConnectData(std::shared_ptr<Client> &sender)
         }
 
         uint16_t will_payload_length = readTwoBytesToUInt16();
-        result.willpublish.payload = std::string(readBytes(will_payload_length), will_payload_length);
+        result.willpublish.payload = readBytes(will_payload_length);
 
         if (result.willpublish.payloadUtf8 && !isValidUtf8Generic(result.willpublish.payload))
         {
@@ -2426,10 +2424,7 @@ void MqttPacket::setDuplicate()
  */
 std::string MqttPacket::getPayloadCopy() const
 {
-    assert(payloadStart > 0);
-    assert(pos <= bites.size());
-    FMQ_ENSURE(payloadStart + payloadLen <= bites.size());
-    std::string payload(std::addressof(bites[payloadStart]), payloadLen);
+    std::string payload(getPayloadView());
     return payload;
 }
 
@@ -2438,7 +2433,7 @@ std::string_view MqttPacket::getPayloadView() const
     assert(payloadStart > 0);
     assert(pos <= bites.size());
     FMQ_ENSURE(payloadStart + payloadLen <= bites.size());
-    std::string_view payload(std::addressof(bites[payloadStart]), payloadLen);
+    std::string_view payload(bites.data() + payloadStart, payloadLen);
     return payload;
 }
 
@@ -2500,14 +2495,14 @@ bool MqttPacket::containsFixedHeader() const
     return fixed_header_length > 0;
 }
 
-char *MqttPacket::readBytes(size_t length)
+std::string_view MqttPacket::readBytes(size_t length)
 {
     if (pos + length > bites.size())
         throw ProtocolError("Invalid packet: header specifies invalid length.", ReasonCodes::MalformedPacket);
 
-    char *b = &bites[pos];
+    std::string_view result(bites.data() + pos, length);
     pos += length;
-    return b;
+    return result;
 }
 
 char MqttPacket::readByte()
@@ -2633,7 +2628,7 @@ size_t MqttPacket::decodeVariableByteIntAtPos()
 std::string MqttPacket::readBytesToString(bool validateUtf8, bool alsoCheckInvalidPublishChars)
 {
     const uint16_t len = readTwoBytesToUInt16();
-    std::string result(readBytes(len), len);
+    std::string result(readBytes(len));
 
     if (validateUtf8)
     {
