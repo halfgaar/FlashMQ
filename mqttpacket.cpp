@@ -2058,11 +2058,14 @@ void MqttPacket::handlePublish(std::shared_ptr<Client> &sender)
 {
     parsePublishData(sender);
 
-#ifndef NDEBUG
-    const bool duplicate = !!(first_byte & 0b00001000);
-    logger->log(LOG_DEBUG) << "Publish received. Size: " << bites.size() << ". Topic: '" << publishData.topic << "'. QoS=" << static_cast<int>(publishData.qos)
-                           << ". Retain=" << publishData.retain << ". Dup=" << duplicate << ". Alias=" << publishData.topicAlias << ".";
-#endif
+    if (__builtin_expect(logger->wouldLog(LOG_DEBUG), 0))
+    {
+        const bool duplicate = !!(first_byte & 0b00001000);
+        logger->log(LOG_DEBUG)
+                << "Publish received from '" << sender->repr() << "'. Size: " << bites.size() << ". Topic: '" << publishData.topic
+                << "'. QoS=" << static_cast<int>(publishData.qos) << ". Retain=" << publishData.retain << ". Dup=" << duplicate
+                << ". Alias=" << publishData.topicAlias << ".";
+    }
 
     ThreadGlobals::getThreadData()->receivedMessageCounter.inc();
 
