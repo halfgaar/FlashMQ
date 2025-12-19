@@ -18,16 +18,13 @@ CheckedSharedPtr<ThreadData> Globals::GlobalsData::getDeterministicThreadData()
     if (result)
         return result;
 
-    static thread_local std::optional<size_t> thread_index;
+    static thread_local std::shared_ptr<ThreadData> thread_data_copy;
 
-    if (!thread_index)
-    {
-        static size_t index = 0;
-        static std::mutex m;
-        std::lock_guard locker(m);
-        thread_index = index++;
-    }
+    if (thread_data_copy)
+        return thread_data_copy;
 
+    static std::atomic<size_t> index {0};
     auto locked = threadDatas.lock();
-    return locked->at(thread_index.value() % locked->size());
+    thread_data_copy = locked->at(index++ % locked->size());
+    return thread_data_copy;
 }
