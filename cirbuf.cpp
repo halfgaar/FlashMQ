@@ -32,9 +32,7 @@ CirBuf::CirBuf(size_t size) :
     if (buf == NULL)
         throw std::runtime_error("Malloc error constructing buffer.");
 
-#ifndef NDEBUG
     memset(buf, 0, size);
-#endif
 }
 
 CirBuf::~CirBuf()
@@ -146,6 +144,8 @@ void CirBuf::doubleCapacity(uint factor)
     if (newBuf == NULL)
         throw std::runtime_error("Malloc error doubling buffer size.");
 
+    memset(newBuf + size, 0, newSize - size);
+
 #ifdef TESTING
     // I use this to detect the affected memory locations.
     memset(&newBuf[size], 68, newSize - size);
@@ -208,10 +208,11 @@ void CirBuf::resetCapacity(size_t newSize)
     this->size = newSize;
     head = 0;
     tail = 0;
+    memset(buf, 0, newSize);
+
 #ifndef NDEBUG
     Logger *logger = Logger::getInstance();
     logger->logf(LOG_DEBUG, "Reset buf size: %d", size);
-    memset(buf, 0, newSize);
 #endif
 }
 
