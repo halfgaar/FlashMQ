@@ -200,10 +200,9 @@ void CirBuf::resetCapacity(size_t newSize)
     primedForSizeReset = false;
     if (this->size == newSize)
         return;
-    char *newBuf = (char*)malloc(newSize);
+    char *newBuf = (char*)realloc(buf, newSize);
     if (newBuf == NULL)
         throw std::runtime_error("Malloc error resizing buffer.");
-    free(buf);
     buf = newBuf;
     this->size = newSize;
     head = 0;
