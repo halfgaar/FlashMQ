@@ -1,4 +1,3 @@
-#include <optional>
 #include "globals.h"
 #include "threadglobals.h"
 
@@ -18,13 +17,16 @@ CheckedSharedPtr<ThreadData> Globals::GlobalsData::getDeterministicThreadData()
     if (result)
         return result;
 
-    static thread_local std::shared_ptr<ThreadData> thread_data_copy;
+    static thread_local std::weak_ptr<ThreadData> thread_data_copy_weak;
 
-    if (thread_data_copy)
-        return thread_data_copy;
+    std::shared_ptr<ThreadData> result2 = thread_data_copy_weak.lock();
+
+    if (result2)
+        return result2;
 
     static std::atomic<size_t> index {0};
     auto locked = threadDatas.lock();
-    thread_data_copy = locked->at(index++ % locked->size());
-    return thread_data_copy;
+    result2 = locked->at(index++ % locked->size());
+    thread_data_copy_weak = result2;
+    return result2;
 }
