@@ -911,30 +911,28 @@ std::optional<AuthResult> Authentication::loginCheckFromMosquittoPasswordFile(co
 
         if (entry.type == PasswordHashType::SHA512)
         {
-
-            unsigned char md_value[EVP_MAX_MD_SIZE];
+            std::array<unsigned char, EVP_MAX_MD_SIZE> md_value;
             unsigned int output_len = 0;
 
             EVP_MD_CTX_reset(mosquittoDigestContext);
             EVP_DigestInit_ex(mosquittoDigestContext, sha512, NULL);
             EVP_DigestUpdate(mosquittoDigestContext, password.c_str(), password.length());
             EVP_DigestUpdate(mosquittoDigestContext, entry.salt.data(), entry.salt.size());
-            EVP_DigestFinal_ex(mosquittoDigestContext, md_value, &output_len);
+            EVP_DigestFinal_ex(mosquittoDigestContext, md_value.data(), &output_len);
 
-            std::vector<unsigned char> hashedSalted(output_len);
-            std::memcpy(hashedSalted.data(), md_value, output_len);
+            std::vector<unsigned char> hashedSalted = make_vector<unsigned char>(md_value, 0, output_len);
 
             if (hashedSalted == entry.cryptedPassword)
                 result = AuthResult::success;
         }
         else if (entry.type == PasswordHashType::SHA512_pbkdf2)
         {
-            unsigned char md_value[EVP_MAX_MD_SIZE];
+            const auto len = EVP_MD_size(this->sha512);
+            std::array<unsigned char, EVP_MAX_MD_SIZE> md_value;
 
-            PKCS5_PBKDF2_HMAC(password.c_str(), password.size(), entry.salt.data(), entry.salt.size(), entry.iterations, sha512, EVP_MAX_MD_SIZE, md_value);
+            PKCS5_PBKDF2_HMAC(password.c_str(), password.size(), entry.salt.data(), entry.salt.size(), entry.iterations, sha512, md_value.size(), md_value.data());
 
-            std::vector<unsigned char> derivedKey(EVP_MAX_MD_SIZE);
-            std::memcpy(derivedKey.data(), md_value, EVP_MAX_MD_SIZE);
+            std::vector<unsigned char> derivedKey = make_vector<unsigned char>(md_value, 0, len);
 
             if (derivedKey == entry.cryptedPassword)
                 result = AuthResult::success;
