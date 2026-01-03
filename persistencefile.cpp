@@ -256,7 +256,7 @@ int64_t PersistenceFile::readInt64(bool &eofFound)
     if (readCheck(buf.data(), 1, 8, f) < 0)
         eofFound = true;
 
-    unsigned char *buf_ = reinterpret_cast<unsigned char *>(buf.data());
+    unsigned char *buf_ = buf.data();
     const uint64_t val1 = ((buf_[0]) << 24) | ((buf_[1]) << 16) | ((buf_[2]) << 8) | (buf_[3]);
     const uint64_t val2 = ((buf_[4]) << 24) | ((buf_[5]) << 16) | ((buf_[6]) << 8) | (buf_[7]);
     const int64_t val = (val1 << 32) | val2;
@@ -269,7 +269,7 @@ uint32_t PersistenceFile::readUint32(bool &eofFound)
         eofFound = true;
 
     uint32_t val;
-    unsigned char *buf_ = reinterpret_cast<unsigned char *>(buf.data());
+    unsigned char *buf_ = buf.data();
     val = ((buf_[0]) << 24) | ((buf_[1]) << 16) | ((buf_[2]) << 8) | (buf_[3]);
     return val;
 }
@@ -280,7 +280,7 @@ uint16_t PersistenceFile::readUint16(bool &eofFound)
         eofFound = true;
 
     uint16_t val;
-    unsigned char *buf_ = reinterpret_cast<unsigned char *>(buf.data());
+    unsigned char *buf_ = buf.data();
     val = ((buf_[0]) << 8) | (buf_[1]);
     return val;
 }
@@ -304,7 +304,7 @@ std::string PersistenceFile::readString(bool &eofFound)
 
     makeSureBufSize(size);
     readCheck(buf.data(), 1, size, f);
-    std::string result(buf.data(), size);
+    std::string result = make_string(buf, 0, size);
     return result;
 }
 
@@ -367,7 +367,12 @@ void PersistenceFile::openRead(const std::string &expected_version_string)
     rewind(f);
 
     readCheck(buf.data(), 1, MAGIC_STRING_LENGH, f);
-    detectedVersionString = std::string(buf.data(), strlen(buf.data()));
+    const auto magic_string_0_pos = std::find(buf.begin(), buf.end(), 0);
+
+    if (magic_string_0_pos == buf.end())
+        throw std::runtime_error("Error reading version string.");
+
+    detectedVersionString = std::string(buf.begin(), magic_string_0_pos);
 
     // In case people want to downgrade, the old file is still there.
     if (detectedVersionString != expected_version_string)

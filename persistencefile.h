@@ -58,7 +58,7 @@ protected:
     };
 
     FILE *f = nullptr;
-    std::vector<char> buf;
+    std::vector<unsigned char> buf;
     FileMode openMode = FileMode::unknown;
     std::string detectedVersionString;
 
