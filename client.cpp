@@ -1162,12 +1162,14 @@ std::optional<std::string> Client::getUsernameFromPeerCertificate()
     if (!asn1_string)
         throw std::runtime_error("Cannot obtain asn1 string from x509 certificate.");
 
+    const auto len = ASN1_STRING_length(asn1_string);
     const unsigned char *str = ASN1_STRING_get0_data(asn1_string);
 
     if (!str)
         throw std::runtime_error("ASN1_STRING_get0_data failed. This should be impossible.");
 
-    std::string username(reinterpret_cast<const char*>(str));
+    std::vector<unsigned char> str_data(str, str + len);
+    std::string username = make_string(str_data, 0, len);
 
     if (!isValidUtf8(username))
         throw ProtocolError("Common name from peer certificate is not valid UTF8.", ReasonCodes::MalformedPacket);
