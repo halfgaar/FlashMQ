@@ -183,7 +183,7 @@ std::string str_tolower(std::string s);
 bool stringTruthiness(const std::string &val);
 bool isPowerOfTwo(int val);
 
-std::vector<char> base64Decode(const std::string &s);
+std::vector<unsigned char> base64Decode(const std::string &s);
 std::string base64Encode(const unsigned char *input, const int length);
 
 
@@ -413,5 +413,23 @@ struct SysGroupFields
 std::optional<SysGroupFields> get_gr_name(const std::string &group);
 
 std::optional<unsigned long> try_stoul(const std::string &s) noexcept;
+
+template<typename Tresult, typename Tinput>
+std::vector<Tresult> make_vector(const Tinput &input, const size_t offset, const size_t len)
+{
+    if (len + offset > input.size())
+        throw std::out_of_range("make_vector");
+
+    return std::vector<Tresult>(input.begin() + offset, input.begin() + offset + len);
+}
+
+template<typename T>
+std::string make_string(const T &input, const size_t offset, const size_t len)
+{
+    if (len + offset > input.size())
+        throw std::out_of_range("make_string");
+
+    return std::string(input.begin() + offset, input.begin() + offset + len);
+}
 
 #endif // UTILS_H

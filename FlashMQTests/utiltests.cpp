@@ -253,8 +253,8 @@ void MainTests::testPreviouslyValidConfigFile()
         "ci8rIDIKICBzdWJzY3JpYmUgX19fNDQvd2VyLyMgMQogIGNsaWVudGlkX3ByZWZpeCB6SDUzXy06"
         "Ol8KICB0Y3Bfbm9kZWxheSB0cnVlCn0K");
 
-    const std::vector<char> b64_bytes = base64Decode(b64);
-    const std::string b64_string = std::string(b64_bytes.data(), b64_bytes.size());
+    const std::vector<unsigned char> b64_bytes = base64Decode(b64);
+    const std::string b64_string = std::string(b64_bytes.begin(), b64_bytes.end());
 
     ConfFileTemp config;
     config.writeLine(b64_string);
@@ -298,6 +298,14 @@ void MainTests::testNoCopy()
     }
 }
 
+void MainTests::testBase64()
+{
+    const std::string s = getSecureRandomString(1024);
+    const std::vector<unsigned char> bytes(s.begin(), s.end());
+    const std::string b64 = base64Encode(bytes.data(), bytes.size());
+    const auto decoded = base64Decode(b64);
+    FMQ_COMPARE(decoded, bytes);
+}
 
 
 

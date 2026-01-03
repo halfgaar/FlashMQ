@@ -244,6 +244,7 @@ class MainTests
 
     void forkingTestSaveAndLoadDelayedWill();
 
+    void testBase64();
     void testNoCopy();
     void testSessionTakeoverOtherUsername();
     void testCorrelationData();

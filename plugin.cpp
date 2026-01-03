@@ -39,7 +39,7 @@ void mosquitto_log_printf(int level, const char *fmt, ...)
     va_end(valist);
 }
 
-MosquittoPasswordFileEntry::MosquittoPasswordFileEntry(PasswordHashType type, const std::vector<char> &&salt, const std::vector<char> &&cryptedPassword, int iterations) :
+MosquittoPasswordFileEntry::MosquittoPasswordFileEntry(PasswordHashType type, const std::vector<unsigned char> &&salt, const std::vector<unsigned char> &&cryptedPassword, int iterations) :
     type(type),
     salt(salt),
     cryptedPassword(cryptedPassword),
@@ -772,8 +772,8 @@ void Authentication::loadMosquittoPasswordFile()
                     throw std::runtime_error("Password fields must start with $6$ or $7$");
                 }
 
-                std::vector<char> salt = base64Decode(fields2[saltField]);
-                std::vector<char> cryptedPassword = base64Decode(fields2[hashField]);
+                std::vector<unsigned char> salt = base64Decode(fields2[saltField]);
+                std::vector<unsigned char> cryptedPassword = base64Decode(fields2[hashField]);
                 passwordEntries_tmp->emplace(username, MosquittoPasswordFileEntry(type, std::move(salt), std::move(cryptedPassword), iterations));
             }
             catch (std::exception &ex)
@@ -921,7 +921,7 @@ std::optional<AuthResult> Authentication::loginCheckFromMosquittoPasswordFile(co
             EVP_DigestUpdate(mosquittoDigestContext, entry.salt.data(), entry.salt.size());
             EVP_DigestFinal_ex(mosquittoDigestContext, md_value, &output_len);
 
-            std::vector<char> hashedSalted(output_len);
+            std::vector<unsigned char> hashedSalted(output_len);
             std::memcpy(hashedSalted.data(), md_value, output_len);
 
             if (hashedSalted == entry.cryptedPassword)
@@ -931,11 +931,9 @@ std::optional<AuthResult> Authentication::loginCheckFromMosquittoPasswordFile(co
         {
             unsigned char md_value[EVP_MAX_MD_SIZE];
 
-            const unsigned char *saltData = reinterpret_cast<const unsigned char*>(entry.salt.data());
+            PKCS5_PBKDF2_HMAC(password.c_str(), password.size(), entry.salt.data(), entry.salt.size(), entry.iterations, sha512, EVP_MAX_MD_SIZE, md_value);
 
-            PKCS5_PBKDF2_HMAC(password.c_str(), password.size(), saltData, entry.salt.size(), entry.iterations, sha512, EVP_MAX_MD_SIZE, md_value);
-
-            std::vector<char> derivedKey(EVP_MAX_MD_SIZE);
+            std::vector<unsigned char> derivedKey(EVP_MAX_MD_SIZE);
             std::memcpy(derivedKey.data(), md_value, EVP_MAX_MD_SIZE);
 
             if (derivedKey == entry.cryptedPassword)

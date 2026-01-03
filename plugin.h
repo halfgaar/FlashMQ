@@ -42,11 +42,11 @@ enum class PasswordHashType
 struct MosquittoPasswordFileEntry
 {
     PasswordHashType type;
-    std::vector<char> salt;
-    std::vector<char> cryptedPassword;
+    std::vector<unsigned char> salt;
+    std::vector<unsigned char> cryptedPassword;
     int iterations = 0;
 
-    MosquittoPasswordFileEntry(PasswordHashType type, const std::vector<char> &&salt, const std::vector<char> &&cryptedPassword, int iterations);
+    MosquittoPasswordFileEntry(PasswordHashType type, const std::vector<unsigned char> &&salt, const std::vector<unsigned char> &&cryptedPassword, int iterations);
 
     // The plan was that objects of this type wouldn't be copied, but I can't get emplacing to work without it...?
     //MosquittoPasswordFileEntry(const MosquittoPasswordFileEntry &other) = delete;

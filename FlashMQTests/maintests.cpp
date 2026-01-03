@@ -332,6 +332,7 @@ MainTests::MainTests()
     REGISTER_FUNCTION3(testStringValuesInvalid);
     REGISTER_FUNCTION2(testPreviouslyValidConfigFile, false, false);
     REGISTER_FUNCTION3(testNoCopy);
+    REGISTER_FUNCTION3(testBase64);
     REGISTER_FUNCTION(testSessionTakeoverOtherUsername);
     REGISTER_FUNCTION(testCorrelationData);
     REGISTER_FUNCTION(testSubscriptionIdOnlineClient);
