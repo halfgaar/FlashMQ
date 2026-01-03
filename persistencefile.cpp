@@ -324,6 +324,9 @@ std::optional<std::string> PersistenceFile::readOptionalString(bool &eofFound)
  */
 void PersistenceFile::openWrite(const std::string &versionString)
 {
+    if (versionString.size() - 1 >= MAGIC_STRING_LENGH)
+        throw std::runtime_error("Version string length must be shorter than " + std::to_string(MAGIC_STRING_LENGH));
+
     if (openMode != FileMode::unknown)
         throw std::runtime_error("File is already open.");
 
