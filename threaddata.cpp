@@ -367,7 +367,8 @@ void ThreadData::bridgeReconnect()
     }
 }
 
-void ThreadData::queueContinuationOfAuthentication(const std::shared_ptr<Client> &client, AuthResult authResult, const std::string &authMethod, const std::string &returnData)
+void ThreadData::queueContinuationOfAuthentication(
+        const std::shared_ptr<Client> &client, AuthResult authResult, const std::string &authMethod, const std::string &returnData, const uint32_t delay_in_ms)
 {
     auto f = [client, authResult, authMethod, returnData]
     {
@@ -376,10 +377,22 @@ void ThreadData::queueContinuationOfAuthentication(const std::shared_ptr<Client>
 
     bool wake_up_needed = false;
 
+    if (delay_in_ms == 0)
     {
         auto task_queue_locked = taskQueue.lock();
         wake_up_needed = task_queue_locked->empty();
         task_queue_locked->push_back(std::move(f));
+    }
+    else
+    {
+        auto fdelayed = [this, f, delay_in_ms]
+        {
+            this->addDelayedTask(f, delay_in_ms);
+        };
+
+        auto task_queue_locked = taskQueue.lock();
+        wake_up_needed = task_queue_locked->empty();
+        task_queue_locked->push_back(std::move(fdelayed));
     }
 
     if (wake_up_needed)

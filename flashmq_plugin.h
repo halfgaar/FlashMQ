@@ -190,6 +190,7 @@ bool flashmq_plugin_add_subscription(
  * @brief flashmq_continue_async_authentication is to continue/finish async authentication.
  * @param client
  * @param result
+ * @param delay Introducing a delay on failure can be a benificial security feature.
  *
  * When you've previously returned AuthResult::async in the authentication check, because you need to perform a network call for instance,
  * you can submit the final result back to FlashMQ with this function. The action will be queued in the proper thread.
@@ -198,9 +199,10 @@ bool flashmq_plugin_add_subscription(
  * correct (anymore). The login functions also give this weak pointer so you can store it with the async operation, to be used again later for
  * a call to this function.
  *
- * [Function provided by FlashMQ]
+ * [Function provided by FlashMQ; new version since plugin version 4, FlashMQ version 1.25.0]
  */
-void flashmq_continue_async_authentication(const std::weak_ptr<Client> &client, AuthResult result, const std::string &authMethod, const std::string &returnData);
+void flashmq_continue_async_authentication_v4(
+    const std::weak_ptr<Client> &client, AuthResult result, const std::string &authMethod, const std::string &returnData, const uint32_t delay_in_ms);
 
 /**
  * @brief flashmq_publish_message Publish a message from the plugin.

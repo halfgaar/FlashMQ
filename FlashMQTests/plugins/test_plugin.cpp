@@ -23,7 +23,7 @@ void get_auth_result_delayed(std::weak_ptr<Client> client, AuthResult result)
 {
     usleep(500000);
 
-    flashmq_continue_async_authentication(client, result, "", "");
+    flashmq_continue_async_authentication_v4(client, result, "", "", 0);
 }
 
 

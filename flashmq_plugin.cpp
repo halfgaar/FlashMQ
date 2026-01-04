@@ -134,6 +134,12 @@ bool flashmq_plugin_add_subscription(
 
 void flashmq_continue_async_authentication(const std::weak_ptr<Client> &client, AuthResult result, const std::string &authMethod, const std::string &returnData)
 {
+    flashmq_continue_async_authentication_v4(client, result, authMethod, returnData, 0);
+}
+
+void flashmq_continue_async_authentication_v4(
+    const std::weak_ptr<Client> &client, AuthResult result, const std::string &authMethod, const std::string &returnData, const uint32_t delay_in_ms)
+{
     std::shared_ptr<Client> c = client.lock();
 
     if (!c)
@@ -144,7 +150,8 @@ void flashmq_continue_async_authentication(const std::weak_ptr<Client> &client, 
     if (!td)
         return;
 
-    td->queueContinuationOfAuthentication(c, result, authMethod, returnData);
+    td->queueContinuationOfAuthentication(c, result, authMethod, returnData, delay_in_ms);
+
 }
 
 void flashmq_publish_message(const std::string &topic, const uint8_t qos, const bool retain, const std::string &payload, uint32_t expiryInterval,

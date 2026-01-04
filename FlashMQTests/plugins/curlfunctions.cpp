@@ -57,9 +57,9 @@ void check_all_active_curls(CURLM *curlMulti)
             std::string answer(c->response.data(), std::min<int>(9, c->response.size()));
 
             if (answer == "<!doctype")
-                flashmq_continue_async_authentication(c->client, AuthResult::success, std::string(), std::string());
+                flashmq_continue_async_authentication_v4(c->client, AuthResult::success, std::string(), std::string(), 0);
             else
-                flashmq_continue_async_authentication(c->client, AuthResult::login_denied, std::string(), std::string());
+                flashmq_continue_async_authentication_v4(c->client, AuthResult::login_denied, std::string(), std::string(), 0);
 
             delete c;
         }

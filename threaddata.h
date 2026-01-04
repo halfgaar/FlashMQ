@@ -176,7 +176,8 @@ public:
     void queueRemoveExpiredRetainedMessages();
     void queueClientNextKeepAliveCheck(std::shared_ptr<Client> &client, bool keepRechecking);
     void continuationOfAuthentication(std::shared_ptr<Client> &client, AuthResult authResult, const std::string &authMethod, const std::string &returnData);
-    void queueContinuationOfAuthentication(const std::shared_ptr<Client> &client, AuthResult authResult, const std::string &authMethod, const std::string &returnData);
+    void queueContinuationOfAuthentication(
+            const std::shared_ptr<Client> &client, AuthResult authResult, const std::string &authMethod, const std::string &returnData, const uint32_t delay_in_ms);
     void queueClientDisconnectActions(
             bool authenticated, const std::string &clientid, std::shared_ptr<WillPublish> &&willPublish, std::shared_ptr<Session> &&session,
             std::weak_ptr<BridgeState> &&bridgeState, const std::string &disconnect_reason);
