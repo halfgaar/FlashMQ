@@ -520,19 +520,26 @@ const FMQSockaddr &Client::getAddr() const
 
 std::string Client::repr()
 {
-    std::string bridge;
-
-    if (clientType == ClientType::Mqtt3DefactoBridge)
-        bridge = "Mqtt3Bridge ";
-    else if (clientType == ClientType::LocalBridge)
-        bridge = "LocalBridge ";
-
     std::string transport(this->transportStr);
 
     if (!ssl_version.empty())
     {
         transport = transport + " (" + ssl_version + ")";
     }
+
+    if (this->protocolVersion == ProtocolVersion::None)
+    {
+        std::ostringstream oss;
+        oss << "[fd=" << fd.get() << ", transport='" << transport << "', address='" << this->addr.getText() << "']";
+        return oss.str();
+    }
+
+    std::string bridge;
+
+    if (clientType == ClientType::Mqtt3DefactoBridge)
+        bridge = "Mqtt3Bridge ";
+    else if (clientType == ClientType::LocalBridge)
+        bridge = "LocalBridge ";
 
     std::string fmq_client_group_id_part;
 
