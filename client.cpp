@@ -88,7 +88,7 @@ Client::Client(
     }
 
     const std::string haproxy_s = haproxy ? "/HAProxy" : "";
-    const std::string ssl_s = ssl ? "/SSL" : "/Non-SSL";
+    const std::string ssl_s = this->ioWrapper.isSsl() ? "/SSL" : "/Non-SSL";
     const std::string websocket_s = connectionProtocol == ConnectionProtocol::WebsocketMqtt ? "/Websocket" : "";
 
     transportStr = formatString("TCP%s%s%s", haproxy_s.c_str(), websocket_s.c_str(), ssl_s.c_str());
