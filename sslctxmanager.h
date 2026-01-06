@@ -11,21 +11,18 @@ See LICENSE for license details.
 #ifndef SSLCTXMANAGER_H
 #define SSLCTXMANAGER_H
 
+#include <memory>
 #include <openssl/ssl.h>
 #include "enums.h"
 
 class SslCtxManager
 {
-    SSL_CTX *ssl_ctx = nullptr;
+    std::unique_ptr<SSL_CTX, void(*)(SSL_CTX*)> ssl_ctx;
 public:
     SslCtxManager();
-    SslCtxManager(const SslCtxManager &other) = delete;
-    SslCtxManager(SslCtxManager &&other) = delete;
     SslCtxManager(const SSL_METHOD *method);
-    ~SslCtxManager();
 
     SSL_CTX *get() const;
-    operator bool() const;
 
     static int tlsEnumToInt(TLSVersion v);
     void setMinimumTlsVersion(TLSVersion min_version);

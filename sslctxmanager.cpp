@@ -12,31 +12,20 @@ See LICENSE for license details.
 #include <stdexcept>
 
 SslCtxManager::SslCtxManager() :
-    ssl_ctx(SSL_CTX_new(TLS_server_method()))
+    ssl_ctx(SSL_CTX_new(TLS_server_method()), SSL_CTX_free)
 {
 
 }
 
 SslCtxManager::SslCtxManager(const SSL_METHOD *method) :
-    ssl_ctx(SSL_CTX_new(method))
+    ssl_ctx(SSL_CTX_new(method), SSL_CTX_free)
 {
 
-}
-
-SslCtxManager::~SslCtxManager()
-{
-    SSL_CTX_free(ssl_ctx);
-    ssl_ctx = nullptr;
 }
 
 SSL_CTX *SslCtxManager::get() const
 {
-    return ssl_ctx;
-}
-
-SslCtxManager::operator bool() const
-{
-    return ssl_ctx == nullptr;
+    return ssl_ctx.get();
 }
 
 int SslCtxManager::tlsEnumToInt(TLSVersion v)
@@ -61,5 +50,5 @@ void SslCtxManager::setMinimumTlsVersion(TLSVersion min_version)
     if (!ssl_ctx)
         return;
 
-    SSL_CTX_set_min_proto_version(ssl_ctx, tlsEnumToInt(min_version));
+    SSL_CTX_set_min_proto_version(ssl_ctx.get(), tlsEnumToInt(min_version));
 }

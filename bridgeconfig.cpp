@@ -115,7 +115,7 @@ void BridgeState::initSSL(bool reloadCertificates)
     if (this->sslInitialized)
         return;
 
-    sslctx = std::make_unique<SslCtxManager>(TLS_client_method());
+    sslctx.emplace(TLS_client_method());
     sslctx->setMinimumTlsVersion(c.minimumTlsVersion);
     SSL_CTX_set_mode(sslctx->get(), SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
 

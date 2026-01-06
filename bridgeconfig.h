@@ -120,7 +120,7 @@ public:
     const BridgeConfig c;
     std::weak_ptr<Session> session;
     std::weak_ptr<ThreadData> threadData; // kind of hacky, but I need it later.
-    std::unique_ptr<SslCtxManager> sslctx;
+    std::optional<SslCtxManager> sslctx;
 
     BridgeState(const BridgeConfig &config);
     DnsResolver dns;

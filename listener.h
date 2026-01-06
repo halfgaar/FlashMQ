@@ -12,7 +12,6 @@ See LICENSE for license details.
 #define LISTENER_H
 
 #include <string>
-#include <memory>
 #include <optional>
 #include <vector>
 
@@ -52,7 +51,7 @@ struct Listener
     std::string clientVerificationCaFile;
     std::string clientVerificationCaDir;
     bool clientVerifictionStillDoAuthn = false;
-    std::unique_ptr<SslCtxManager> sslctx;
+    std::optional<SslCtxManager> sslctx;
     AllowListenerAnonymous allowAnonymous = AllowListenerAnonymous::None;
     std::optional<std::string> acmeRedirectURL;
     TLSVersion minimumTlsVersion = TLSVersion::TLSv1_1;

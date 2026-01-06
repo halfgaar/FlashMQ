@@ -153,7 +153,7 @@ void Listener::loadCertAndKeyFromConfig()
 
     if (!sslctx)
     {
-        sslctx = std::make_unique<SslCtxManager>();
+        sslctx.emplace();
         sslctx->setMinimumTlsVersion(minimumTlsVersion);
         SSL_CTX_set_mode(sslctx->get(), SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
 
