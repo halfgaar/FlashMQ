@@ -1,36 +1,31 @@
 #ifndef FMQSSL_H
 #define FMQSSL_H
 
+#include <memory>
 #include <openssl/ssl.h>
 
 #include "sslctxmanager.h"
 
 class FmqSsl
 {
-    SSL* d = nullptr;
+    std::unique_ptr<SSL, void(*)(SSL*)> d;
 
 public:
-    FmqSsl() = default;
-
+    FmqSsl();
     FmqSsl(const SslCtxManager &ssl_ctx);
-
-    FmqSsl(const FmqSsl &other) = delete;
-
-    FmqSsl(FmqSsl &&other);
-
-    FmqSsl &operator=(const FmqSsl &other) = delete;
-
-    FmqSsl &operator=(FmqSsl &&other);
-
+    FmqSsl(FmqSsl &&) = default;
     ~FmqSsl();
+
+    FmqSsl& operator=(FmqSsl&&) = default;
 
     operator bool() const
     {
         return d != nullptr;
     }
+
     SSL* get() const
     {
-        return d;
+        return d.get();
     }
 
     void set_fd(int fd);

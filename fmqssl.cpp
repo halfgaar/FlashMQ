@@ -1,13 +1,9 @@
-#include <stdexcept>
-
 #include <openssl/ssl.h>
-
 #include "fmqssl.h"
-#include "utils.h"
 
 FmqSsl::~FmqSsl()
 {
-    if (d == nullptr) return;
+    if (!d) return;
 
     /*
      * We write the shutdown when we can, but don't take error conditions into account. If socket buffers are full, because
@@ -16,35 +12,23 @@ FmqSsl::~FmqSsl()
      * Truncation attacks seem irrelevant. MQTT is frame based, so either end knows if the transmission is done or not. The
      * close_notify is not used in determining whether to use or discard the received data.
      */
-    SSL_shutdown(d);
+    SSL_shutdown(d.get());
+}
 
-    SSL_free(d);
-    d = nullptr;
+FmqSsl::FmqSsl() :
+    d(nullptr, SSL_free)
+{
+
 }
 
 FmqSsl::FmqSsl(const SslCtxManager &ssl_ctx) :
-    d(SSL_new(ssl_ctx.get()))
+    d(SSL_new(ssl_ctx.get()), SSL_free)
 {
-}
-
-FmqSsl::FmqSsl(FmqSsl &&other) :
-    d(other.d)
-{
-    other.d = nullptr;
-}
-
-FmqSsl &FmqSsl::operator=(FmqSsl &&other)
-{
-    FMQ_ENSURE(this->d == nullptr)
-
-    d = other.d;
-    other.d = nullptr;
-    return *this;
 }
 
 void FmqSsl::set_fd(int fd)
 {
     if (!d) return;
 
-    SSL_set_fd(d, fd);
+    SSL_set_fd(d.get(), fd);
 }
