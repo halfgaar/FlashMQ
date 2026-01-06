@@ -14,15 +14,14 @@ std::string generateWebsocketAcceptString(const std::string &websocketKey)
     unsigned char md_value[EVP_MAX_MD_SIZE];
     unsigned int md_len;
 
-    EVP_MD_CTX *mdctx = EVP_MD_CTX_new();;
+    std::unique_ptr<EVP_MD_CTX, void(*)(EVP_MD_CTX*)> mdctx(EVP_MD_CTX_new(), EVP_MD_CTX_free);
     const EVP_MD *md = EVP_sha1();
-    EVP_DigestInit_ex(mdctx, md, NULL);
+    EVP_DigestInit_ex(mdctx.get(), md, NULL);
 
     const std::string keyPlusMagic = websocketKey + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 
-    EVP_DigestUpdate(mdctx, keyPlusMagic.c_str(), keyPlusMagic.length());
-    EVP_DigestFinal_ex(mdctx, md_value, &md_len);
-    EVP_MD_CTX_free(mdctx);
+    EVP_DigestUpdate(mdctx.get(), keyPlusMagic.c_str(), keyPlusMagic.length());
+    EVP_DigestFinal_ex(mdctx.get(), md_value, &md_len);
 
     std::string base64 = base64Encode(md_value, md_len);
     return base64;
