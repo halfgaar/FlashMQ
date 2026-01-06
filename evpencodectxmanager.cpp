@@ -12,18 +12,11 @@ See LICENSE for license details.
 
 #include "evpencodectxmanager.h"
 
-EvpEncodeCtxManager::EvpEncodeCtxManager()
+EvpEncodeCtxManager::EvpEncodeCtxManager() :
+    ctx(EVP_ENCODE_CTX_new(), EVP_ENCODE_CTX_free)
 {
-    ctx = EVP_ENCODE_CTX_new();
-
     if (!ctx)
         throw std::runtime_error("Error allocating with EVP_ENCODE_CTX_new()");
 
-    EVP_DecodeInit(ctx);
-}
-
-EvpEncodeCtxManager::~EvpEncodeCtxManager()
-{
-    EVP_ENCODE_CTX_free(ctx);
-    ctx = nullptr;
+    EVP_DecodeInit(ctx.get());
 }

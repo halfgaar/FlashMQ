@@ -299,10 +299,10 @@ std::vector<unsigned char> base64Decode(const std::string &s)
     int outl_total = 0;
 
     EvpEncodeCtxManager b64_ctx;
-    if (EVP_DecodeUpdate(b64_ctx.ctx, tmp.data(), &outl, input.data(), input.size()) < 0)
+    if (EVP_DecodeUpdate(b64_ctx.ctx.get(), tmp.data(), &outl, input.data(), input.size()) < 0)
         throw std::runtime_error("Failure in EVP_DecodeUpdate()");
     outl_total += outl;
-    if (EVP_DecodeFinal(b64_ctx.ctx, tmp.data() + outl_total, &outl) < 0)
+    if (EVP_DecodeFinal(b64_ctx.ctx.get(), tmp.data() + outl_total, &outl) < 0)
         throw std::runtime_error("Failure in EVP_DecodeFinal()");
     std::vector<unsigned char> result = make_vector<unsigned char>(tmp, 0, outl_total);
     return result;

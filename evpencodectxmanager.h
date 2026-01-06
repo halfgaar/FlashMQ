@@ -12,12 +12,12 @@ See LICENSE for license details.
 #define EVPENCODECTXMANAGER_H
 
 #include <openssl/evp.h>
+#include <memory>
 
 struct EvpEncodeCtxManager
 {
-    EVP_ENCODE_CTX *ctx = nullptr;
+    std::unique_ptr<EVP_ENCODE_CTX, void(*)(EVP_ENCODE_CTX*)> ctx;
     EvpEncodeCtxManager();
-    ~EvpEncodeCtxManager();
 };
 
 #endif // EVPENCODECTXMANAGER_H
