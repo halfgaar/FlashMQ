@@ -19,6 +19,7 @@ See LICENSE for license details.
 #include <stdexcept>
 #include <cstring>
 #include <optional>
+#include <memory>
 
 #include "logger.h"
 
@@ -43,7 +44,7 @@ class PersistenceFile
     std::string dirPath;
     bool discard = false;
 
-    EVP_MD_CTX *digestContext = nullptr;
+    std::unique_ptr<EVP_MD_CTX, void(*)(EVP_MD_CTX*)> digestContext;
     const EVP_MD *sha512 = EVP_sha512();
 
     void hashFile();

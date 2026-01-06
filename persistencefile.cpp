@@ -25,7 +25,7 @@ See LICENSE for license details.
 #include "logger.h"
 
 PersistenceFile::PersistenceFile(const std::string &filePath) :
-    digestContext(EVP_MD_CTX_new()),
+    digestContext(EVP_MD_CTX_new(), EVP_MD_CTX_free),
     buf(1024*1024)
 {
     if (!filePath.empty() && filePath[filePath.size() - 1] == '/')
@@ -56,9 +56,6 @@ PersistenceFile::~PersistenceFile()
         fclose(f); // fclose was already attempted and error handled if it was possible. In case an early fault happend, we need to still make sure.
         f = nullptr;
     }
-
-    EVP_MD_CTX_free(digestContext);
-    digestContext = nullptr;
 }
 
 /**
@@ -98,16 +95,16 @@ void PersistenceFile::hashFile()
     unsigned char md_value[EVP_MAX_MD_SIZE];
     std::memset(md_value, 0, EVP_MAX_MD_SIZE);
 
-    EVP_MD_CTX_reset(digestContext);
-    EVP_DigestInit_ex(digestContext, sha512, NULL);
+    EVP_MD_CTX_reset(digestContext.get());
+    EVP_DigestInit_ex(digestContext.get(), sha512, NULL);
 
     while (!feof(f))
     {
         size_t n = fread(buf.data(), 1, buf.size(), f);
-        EVP_DigestUpdate(digestContext, buf.data(), n);
+        EVP_DigestUpdate(digestContext.get(), buf.data(), n);
     }
 
-    EVP_DigestFinal_ex(digestContext, md_value, &output_len);
+    EVP_DigestFinal_ex(digestContext.get(), md_value, &output_len);
 
     if (output_len != HASH_SIZE)
         throw std::runtime_error("Impossible: calculated hash size wrong length");
@@ -135,16 +132,16 @@ void PersistenceFile::verifyHash()
     unsigned char md_value[EVP_MAX_MD_SIZE];
     std::memset(md_value, 0, EVP_MAX_MD_SIZE);
 
-    EVP_MD_CTX_reset(digestContext);
-    EVP_DigestInit_ex(digestContext, sha512, NULL);
+    EVP_MD_CTX_reset(digestContext.get());
+    EVP_DigestInit_ex(digestContext.get(), sha512, NULL);
 
     while (!feof(f))
     {
         size_t n = fread(buf.data(), 1, buf.size(), f);
-        EVP_DigestUpdate(digestContext, buf.data(), n);
+        EVP_DigestUpdate(digestContext.get(), buf.data(), n);
     }
 
-    EVP_DigestFinal_ex(digestContext, md_value, &output_len);
+    EVP_DigestFinal_ex(digestContext.get(), md_value, &output_len);
 
     if (output_len != HASH_SIZE)
         throw std::runtime_error("Impossible: calculated hash size wrong length");
