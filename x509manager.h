@@ -1,16 +1,14 @@
 #ifndef X509MANAGER_H
 #define X509MANAGER_H
 
+#include <memory>
 #include <openssl/ssl.h>
 
 class X509Manager
 {
-    X509 *d = nullptr;
+    std::unique_ptr<X509, void(*)(X509*)> d;
 public:
-    X509Manager(const X509Manager &other) = delete;
-    X509Manager(X509Manager &&other);
     X509Manager(const SSL *ssl);
-    ~X509Manager();
     X509 *get();
     operator bool() const;
 
