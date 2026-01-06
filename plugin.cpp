@@ -53,7 +53,7 @@ Authentication::Authentication(Settings &settings) :
     settings(settings),
     mosquittoPasswordFile(settings.mosquittoPasswordFile),
     mosquittoAclFile(settings.mosquittoAclFile),
-    mosquittoDigestContext(EVP_MD_CTX_new())
+    mosquittoDigestContext(EVP_MD_CTX_new(), EVP_MD_CTX_free)
 {
     logger = Logger::getInstance();
 
@@ -62,14 +62,8 @@ Authentication::Authentication(Settings &settings) :
         throw std::runtime_error("Failed to initialize SHA512 for decoding auth entry");
     }
 
-    EVP_DigestInit_ex(mosquittoDigestContext, sha512, NULL);
+    EVP_DigestInit_ex(mosquittoDigestContext.get(), sha512, NULL);
     memset(&mosquittoPasswordFileLastLoad, 0, sizeof(struct timespec));
-}
-
-Authentication::~Authentication()
-{
-    EVP_MD_CTX_free(mosquittoDigestContext);
-    mosquittoDigestContext = nullptr;
 }
 
 void *Authentication::loadSymbol(void *handle, const char *symbol, bool exceptionOnError) const
@@ -914,11 +908,11 @@ std::optional<AuthResult> Authentication::loginCheckFromMosquittoPasswordFile(co
             std::array<unsigned char, EVP_MAX_MD_SIZE> md_value;
             unsigned int output_len = 0;
 
-            EVP_MD_CTX_reset(mosquittoDigestContext);
-            EVP_DigestInit_ex(mosquittoDigestContext, sha512, NULL);
-            EVP_DigestUpdate(mosquittoDigestContext, password.c_str(), password.length());
-            EVP_DigestUpdate(mosquittoDigestContext, entry.salt.data(), entry.salt.size());
-            EVP_DigestFinal_ex(mosquittoDigestContext, md_value.data(), &output_len);
+            EVP_MD_CTX_reset(mosquittoDigestContext.get());
+            EVP_DigestInit_ex(mosquittoDigestContext.get(), sha512, NULL);
+            EVP_DigestUpdate(mosquittoDigestContext.get(), password.c_str(), password.length());
+            EVP_DigestUpdate(mosquittoDigestContext.get(), entry.salt.data(), entry.salt.size());
+            EVP_DigestFinal_ex(mosquittoDigestContext.get(), md_value.data(), &output_len);
 
             std::vector<unsigned char> hashedSalted = make_vector<unsigned char>(md_value, 0, output_len);
 

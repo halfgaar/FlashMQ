@@ -185,7 +185,7 @@ class Authentication
     struct timespec mosquittoAclFileLastChange;
 
     std::unique_ptr<std::unordered_map<std::string, MosquittoPasswordFileEntry>> mosquittoPasswordEntries;
-    EVP_MD_CTX *mosquittoDigestContext = nullptr;
+    std::unique_ptr<EVP_MD_CTX, void(*)(EVP_MD_CTX*)> mosquittoDigestContext;
     const EVP_MD *sha512 = EVP_sha512();
 
     AclTree aclTree;
@@ -195,7 +195,6 @@ public:
     Authentication(Settings &settings);
     Authentication(const Authentication &other) = delete;
     Authentication(Authentication &&other) = delete;
-    ~Authentication();
 
     void loadPlugin(const PluginLoader &l);
     void init();
