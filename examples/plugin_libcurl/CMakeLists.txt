@@ -8,17 +8,20 @@ set(CMAKE_CXX_STANDARD 17)
 add_compile_options(-Wall)
 
 add_library(plugin_libcurl SHARED
-  pluginstate.h
-  curl_functions.h
-  authenticatingclient.h
+  vendor/flashmq_plugin.h
 
-  authenticatingclient.cpp
-  curl_functions.cpp
-  pluginstate.cpp
+  src/pluginstate.h
+  src/curl_functions.h
+  src/authenticatingclient.h
 
-  plugin_libcurl.cpp
+  src/authenticatingclient.cpp
+  src/curl_functions.cpp
+  src/pluginstate.cpp
+
+  src/plugin_libcurl.cpp
 )
 
+target_include_directories(plugin_libcurl PUBLIC . src)
 target_link_libraries(plugin_libcurl curl)
 
 set_target_properties(plugin_libcurl PROPERTIES VERSION ${PROJECT_VERSION})
