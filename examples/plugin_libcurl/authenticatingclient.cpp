@@ -29,13 +29,13 @@ For more information, please refer to <http://unlicense.org/>
 #include <stdexcept>
 #include "authenticatingclient.h"
 
-AuthenticatingClient::AuthenticatingClient() :
+ExampleCurlPlugin::AuthenticatingClient::AuthenticatingClient() :
     easy_handle(curl_easy_init(), curl_easy_cleanup)
 {
 
 }
 
-AuthenticatingClient::~AuthenticatingClient()
+ExampleCurlPlugin::AuthenticatingClient::~AuthenticatingClient()
 {
     auto x = registeredAtMultiHandle.lock();
 
@@ -45,7 +45,7 @@ AuthenticatingClient::~AuthenticatingClient()
     }
 }
 
-void AuthenticatingClient::addToMulti(std::shared_ptr<CURLM> &curlMulti)
+void ExampleCurlPlugin::AuthenticatingClient::addToMulti(std::shared_ptr<CURLM> &curlMulti)
 {
     if (curl_multi_add_handle(curlMulti.get(), easy_handle.get()) != CURLM_OK)
         throw std::runtime_error("curl_multi_add_handle failed");

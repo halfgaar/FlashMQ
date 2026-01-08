@@ -34,6 +34,8 @@ For more information, please refer to <http://unlicense.org/>
 #include "pluginstate.h"
 #include "authenticatingclient.h"
 
+using namespace ExampleCurlPlugin;
+
 /**
  * @brief This is curl telling us what events to watch for.
  * @param easy Is an 'easy handle'. You make one per request.

@@ -32,13 +32,12 @@ For more information, please refer to <http://unlicense.org/>
 #include <curl/curl.h>
 #include <sys/epoll.h>
 #include "pluginstate.h"
-#include "authenticatingclient.h"
+
 
 int socket_event_watch_notification(CURL *easy, curl_socket_t s, int what,  void *clientp, void *socketp);
 int timer_callback(CURLM *multi, long timeout_ms, void *clientp);
 size_t curl_write_cb(char *data, size_t n, size_t l, void *userp);
-void call_timed_curl_multi_socket_action(CURLM *multi, PluginState *s);
-void check_all_active_curls(PluginState *p, CURLM *curlMulti);
-
+void call_timed_curl_multi_socket_action(CURLM *multi, ExampleCurlPlugin::PluginState *s);
+void check_all_active_curls(ExampleCurlPlugin::PluginState *p, CURLM *curlMulti);
 
 #endif // CURL_FUNCTIONS_H

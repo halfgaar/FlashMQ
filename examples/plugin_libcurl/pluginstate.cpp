@@ -32,7 +32,7 @@ For more information, please refer to <http://unlicense.org/>
 
 #include "curl_functions.h"
 
-PluginState::PluginState() :
+ExampleCurlPlugin::PluginState::PluginState() :
     curlMulti(curl_multi_init(), curl_multi_cleanup)
 {
     if (!curlMulti)
@@ -43,12 +43,12 @@ PluginState::PluginState() :
     curl_multi_setopt(curlMulti.get(), CURLMOPT_TIMERDATA, this); // We need our plugin state in the timer_callback function.
 }
 
-PluginState::~PluginState()
+ExampleCurlPlugin::PluginState::~PluginState()
 {
 
 }
 
-void PluginState::processNetworkAuthResult(std::weak_ptr<Client> &client, const std::string &answer)
+void ExampleCurlPlugin::PluginState::processNetworkAuthResult(std::weak_ptr<Client> &client, const std::string &answer)
 {
     auto pos = this->networkAuthRequests.find(client);
 
@@ -65,7 +65,7 @@ void PluginState::processNetworkAuthResult(std::weak_ptr<Client> &client, const 
     this->networkAuthRequests.erase(pos);
 }
 
-void PluginState::clearAllNetworkRequests()
+void ExampleCurlPlugin::PluginState::clearAllNetworkRequests()
 {
     this->networkAuthRequests.clear();
 }

@@ -35,6 +35,10 @@ For more information, please refer to <http://unlicense.org/>
 #include "vendor/flashmq_plugin.h"
 #include <curl/curl.h>
 
+// Use a name space to avoid obscure bugs when using type names FlashMQ uses too.
+namespace ExampleCurlPlugin
+{
+
 struct AuthenticatingClient
 {
     std::weak_ptr<Client> client;
@@ -47,5 +51,7 @@ struct AuthenticatingClient
 
     void addToMulti(std::shared_ptr<CURLM> &curlMulti);
 };
+
+}
 
 #endif // AUTHENTICATINGCLIENT_H

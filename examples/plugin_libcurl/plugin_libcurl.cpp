@@ -36,6 +36,7 @@ For more information, please refer to <http://unlicense.org/>
 #include "curl_functions.h"
 #include "authenticatingclient.h"
 
+using namespace ExampleCurlPlugin;
 
 int flashmq_plugin_version()
 {
