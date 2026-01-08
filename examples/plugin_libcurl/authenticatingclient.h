@@ -33,22 +33,19 @@ For more information, please refer to <http://unlicense.org/>
 #include <vector>
 
 #include "vendor/flashmq_plugin.h"
-#include "pluginstate.h"
+#include <curl/curl.h>
 
 struct AuthenticatingClient
 {
-    PluginState *globalData;
     std::weak_ptr<Client> client;
     std::vector<char> response;
-    CURL *eh = nullptr; // Handle for our request.
-    CURLM *curlMulti = nullptr; // The multi handle we will be assigned to.
-
-    void cleanup();
+    std::unique_ptr<CURL, void(*)(CURL*)> easy_handle;
+    std::weak_ptr<CURLM> registeredAtMultiHandle;
 
     AuthenticatingClient();
     ~AuthenticatingClient();
 
-    bool addToMulti(CURLM *curlMulti);
+    void addToMulti(std::shared_ptr<CURLM> &curlMulti);
 };
 
 #endif // AUTHENTICATINGCLIENT_H

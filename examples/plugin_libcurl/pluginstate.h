@@ -31,15 +31,22 @@ For more information, please refer to <http://unlicense.org/>
 
 #include <curl/curl.h>
 #include <stdint.h>
-
+#include <memory>
+#include <map>
+#include "vendor/flashmq_plugin.h"
+#include "authenticatingclient.h"
 
 struct PluginState
 {
-    CURLM *curlMulti = nullptr;
+    std::shared_ptr<CURLM> curlMulti;
     uint32_t current_timer = 0;
+    std::map<std::weak_ptr<Client>, std::unique_ptr<AuthenticatingClient>, std::owner_less<std::weak_ptr<Client>>> networkAuthRequests;
 
     PluginState();
     ~PluginState();
+
+    void processNetworkAuthResult(std::weak_ptr<Client> &client, const std::string &answer);
+    void clearAllNetworkRequests();
 
 };
 

@@ -102,30 +102,17 @@ void call_timed_curl_multi_socket_action(CURLM *multi, PluginState *s)
     /* Curl says: "When this function returns error, the state of all transfers are uncertain and they cannot be
      * continued. curl_multi_socket_action should not be called again on the same multi handle after an error has
      * been returned, unless first removing all the handles and adding new ones."
-     *
-     * It's not clear to me how to remove them all. Is this right? Or will this not give in-progress ones? The
-     * API doesn't seem to have a function to get all handles. Do I have to do external book-keeping?
      */
     if (rc != CURLM_OK)
     {
-        CURLMsg *msg;
-        int msgs_left;
-        while((msg = curl_multi_info_read(multi, &msgs_left)))
-        {
-            if (msg->msg == CURLMSG_DONE)
-            {
-                CURL *easy = msg->easy_handle;
-                AuthenticatingClient *c = nullptr;
-                curl_easy_getinfo(easy, CURLINFO_PRIVATE, &c);
-                delete c;
-            }
-        }
+        s->clearAllNetworkRequests();
+        return;
     }
 
-    check_all_active_curls(multi);
+    check_all_active_curls(s, multi);
 }
 
-void check_all_active_curls(CURLM *curlMulti)
+void check_all_active_curls(PluginState *p, CURLM *curlMulti)
 {
     CURLMsg *msg;
     int msgs_left;
@@ -140,15 +127,7 @@ void check_all_active_curls(CURLM *curlMulti)
             flashmq_logf(LOG_INFO, "Libcurl said: %s", curl_easy_strerror(msg->data.result));
 
             std::string answer(c->response.data(), std::min<int>(9, c->response.size()));
-
-            // This just checks we get an HTML page back, but you will of course need to do something more useful, like parse JSON,
-            // look at the HTTP status code, etc.
-            if (answer == "<!doctype")
-                flashmq_continue_async_authentication(c->client, AuthResult::success, std::string(), std::string());
-            else
-                flashmq_continue_async_authentication(c->client, AuthResult::login_denied, std::string(), std::string());
-
-            delete c;
+            p->processNetworkAuthResult(c->client, answer);
         }
     }
 }

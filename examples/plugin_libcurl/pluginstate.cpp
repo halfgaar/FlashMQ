@@ -32,23 +32,40 @@ For more information, please refer to <http://unlicense.org/>
 
 #include "curl_functions.h"
 
-PluginState::PluginState()
+PluginState::PluginState() :
+    curlMulti(curl_multi_init(), curl_multi_cleanup)
 {
-    curlMulti = curl_multi_init();
-
     if (!curlMulti)
         throw std::runtime_error("Curl failed to init");
 
-    curl_multi_setopt(curlMulti, CURLMOPT_SOCKETFUNCTION, socket_event_watch_notification);
-    curl_multi_setopt(curlMulti, CURLMOPT_TIMERFUNCTION, timer_callback);
-    curl_multi_setopt(curlMulti, CURLMOPT_TIMERDATA, this); // We need our plugin state in the timer_callback function.
+    curl_multi_setopt(curlMulti.get(), CURLMOPT_SOCKETFUNCTION, socket_event_watch_notification);
+    curl_multi_setopt(curlMulti.get(), CURLMOPT_TIMERFUNCTION, timer_callback);
+    curl_multi_setopt(curlMulti.get(), CURLMOPT_TIMERDATA, this); // We need our plugin state in the timer_callback function.
 }
 
 PluginState::~PluginState()
 {
-    if (curlMulti)
-    {
-        curl_multi_cleanup(curlMulti);
-        curlMulti = nullptr;
-    }
+
+}
+
+void PluginState::processNetworkAuthResult(std::weak_ptr<Client> &client, const std::string &answer)
+{
+    auto pos = this->networkAuthRequests.find(client);
+
+    if (pos == this->networkAuthRequests.end())
+        return;
+
+    // This just checks we get an HTML page back, but you will of course need to do something more useful, like parse JSON,
+    // look at the HTTP status code, etc.
+    if (answer == "<!doctype")
+        flashmq_continue_async_authentication(client, AuthResult::success, std::string(), std::string());
+    else
+        flashmq_continue_async_authentication(client, AuthResult::login_denied, std::string(), std::string());
+
+    this->networkAuthRequests.erase(pos);
+}
+
+void PluginState::clearAllNetworkRequests()
+{
+    this->networkAuthRequests.clear();
 }

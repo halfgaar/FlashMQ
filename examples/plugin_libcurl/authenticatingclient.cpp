@@ -26,37 +26,29 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 */
 
+#include <stdexcept>
 #include "authenticatingclient.h"
 
-AuthenticatingClient::AuthenticatingClient()
+AuthenticatingClient::AuthenticatingClient() :
+    easy_handle(curl_easy_init(), curl_easy_cleanup)
 {
-    eh = curl_easy_init();
+
 }
 
 AuthenticatingClient::~AuthenticatingClient()
 {
-    cleanup();
+    auto x = registeredAtMultiHandle.lock();
+
+    if (x)
+    {
+        curl_multi_remove_handle(x.get(), easy_handle.get());
+    }
 }
 
-void AuthenticatingClient::cleanup()
+void AuthenticatingClient::addToMulti(std::shared_ptr<CURLM> &curlMulti)
 {
-    if (curlMulti)
-    {
-        curl_multi_remove_handle(curlMulti, eh);
-        curlMulti = nullptr;
-    }
+    if (curl_multi_add_handle(curlMulti.get(), easy_handle.get()) != CURLM_OK)
+        throw std::runtime_error("curl_multi_add_handle failed");
 
-    curl_easy_cleanup(eh);
-    eh = nullptr;
-}
-
-bool AuthenticatingClient::addToMulti(CURLM *curlMulti)
-{
-    if (curl_multi_add_handle(curlMulti, eh) != CURLM_OK)
-    {
-        cleanup();
-        return false;
-    }
-    this->curlMulti = curlMulti;
-    return true;
+    registeredAtMultiHandle = curlMulti;
 }
