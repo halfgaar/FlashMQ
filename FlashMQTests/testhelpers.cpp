@@ -7,12 +7,20 @@ int assert_count;
 int assert_fail_count;
 bool asserts_print;
 
+void trigger_gdb_if_attached()
+{
+    // separate function to make it easier to hook into from gdb.
+    // if you don't have gdb attached this is a noop.
+}
+
 bool fmq_assert(bool b, const char *failmsg, const char *actual, const char *expected, const char *file, int line)
 {
     assert_count++;
 
     if (!b)
     {
+        trigger_gdb_if_attached();
+
         assert_fail_count++;
 
         if (asserts_print)

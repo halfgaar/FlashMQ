@@ -34,4 +34,7 @@ jobs:
       - run: sudo apt install -y cmake libssl-dev libcurl4-openssl-dev ${{ matrix.aptpkg }}
       # Building
       - run: ./run-make-from-ci.sh --compiler "${{ matrix.compiler }}" --extra-config "FMQ_NO_SSE=1"
+      # Test prerequisites
+      - run: sudo apt install -y gdb
+      # Testing
       - run: ./run-tests-from-ci.sh
