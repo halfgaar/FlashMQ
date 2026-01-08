@@ -58,9 +58,9 @@ void ExampleCurlPlugin::PluginState::processNetworkAuthResult(std::weak_ptr<Clie
     // This just checks we get an HTML page back, but you will of course need to do something more useful, like parse JSON,
     // look at the HTTP status code, etc.
     if (answer == "<!doctype")
-        flashmq_continue_async_authentication(client, AuthResult::success, std::string(), std::string());
+        flashmq_continue_async_authentication_v4(client, AuthResult::success, std::string(), std::string(), 0);
     else
-        flashmq_continue_async_authentication(client, AuthResult::login_denied, std::string(), std::string());
+        flashmq_continue_async_authentication_v4(client, AuthResult::login_denied, std::string(), std::string(), 1000);
 
     this->networkAuthRequests.erase(pos);
 }
