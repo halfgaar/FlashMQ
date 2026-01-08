@@ -40,7 +40,7 @@ int socket_event_watch_notification(CURL *easy, curl_socket_t s, int what,  void
     return 0;
 }
 
-void check_all_active_curls(CURLM *curlMulti)
+void check_all_active_curls(TestPluginData *p, CURLM *curlMulti)
 {
     CURLMsg *msg;
     int msgs_left;
@@ -61,7 +61,8 @@ void check_all_active_curls(CURLM *curlMulti)
             else
                 flashmq_continue_async_authentication_v4(c->client, AuthResult::login_denied, std::string(), std::string(), 0);
 
-            delete c;
+            // Normally we have to have something in the AuthenticatingClient to look up which request to delete, but we only have one here.
+            p->curlTestClient.reset();
         }
     }
 }
@@ -76,27 +77,15 @@ void call_timed_curl_multi_socket_action(CURLM *multi, TestPluginData *p)
     /* Curl says: "When this function returns error, the state of all transfers are uncertain and they cannot be
      * continued. curl_multi_socket_action should not be called again on the same multi handle after an error has
      * been returned, unless first removing all the handles and adding new ones."
-     *
-     * It's not clear to me how to remove them all. Is this right? Or will this not give in-progress ones? The
-     * API doesn't seem to have a function to get all handles. Do I have to do external book-keeping?
      */
     if (rc != CURLM_OK)
     {
-        CURLMsg *msg;
-        int msgs_left;
-        while((msg = curl_multi_info_read(multi, &msgs_left)))
-        {
-            if (msg->msg == CURLMSG_DONE)
-            {
-                CURL *easy = msg->easy_handle;
-                AuthenticatingClient *c = nullptr;
-                curl_easy_getinfo(easy, CURLINFO_PRIVATE, &c);
-                delete c;
-            }
-        }
+        // This would normally be removing all our pending requests, but we only have one here.
+        p->curlTestClient.reset();
+        return;
     }
 
-    check_all_active_curls(multi);
+    check_all_active_curls(p, multi);
 }
 
 int timer_callback(CURLM *multi, long timeout_ms, void *clientp)

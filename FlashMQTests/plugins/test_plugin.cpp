@@ -13,6 +13,17 @@
 #include "curlfunctions.h"
 
 
+TestPluginData::TestPluginData() :
+    curlMulti(curl_multi_init(), curl_multi_cleanup)
+{
+    if (!curlMulti)
+        throw std::runtime_error("Curl failed to init");
+
+    curl_multi_setopt(curlMulti.get(), CURLMOPT_SOCKETFUNCTION, socket_event_watch_notification);
+    curl_multi_setopt(curlMulti.get(), CURLMOPT_TIMERFUNCTION, timer_callback);
+    curl_multi_setopt(curlMulti.get(), CURLMOPT_TIMERDATA, this);
+}
+
 TestPluginData::~TestPluginData()
 {
     if (this->t.joinable())
@@ -37,16 +48,6 @@ void flashmq_plugin_allocate_thread_memory(void **thread_data, std::unordered_ma
     TestPluginData *p = new TestPluginData();
     *thread_data = p;
     (void)plugin_opts;
-
-    p->curlMulti = curl_multi_init();
-
-    if (p->curlMulti == nullptr)
-        throw std::runtime_error("Curl failed to init");
-
-    curl_multi_setopt(p->curlMulti, CURLMOPT_SOCKETFUNCTION, socket_event_watch_notification);
-    curl_multi_setopt(p->curlMulti, CURLMOPT_TIMERFUNCTION, timer_callback);
-    curl_multi_setopt(p->curlMulti, CURLMOPT_TIMERDATA, p);
-
 }
 
 void flashmq_plugin_deallocate_thread_memory(void *thread_data, std::unordered_map<std::string, std::string> &plugin_opts)
@@ -54,9 +55,6 @@ void flashmq_plugin_deallocate_thread_memory(void *thread_data, std::unordered_m
     (void)plugin_opts;
 
     TestPluginData *p = static_cast<TestPluginData*>(thread_data);
-
-    curl_multi_cleanup(p->curlMulti);
-
     delete p;
 }
 
@@ -80,9 +78,13 @@ void flashmq_plugin_poll_event_received(void *thread_data, int fd, uint32_t even
     }
 
     int n = -1;
-    curl_multi_socket_action(p->curlMulti, fd, new_events, &n);
+    if (curl_multi_socket_action(p->curlMulti.get(), fd, new_events, &n) != CURLM_OK)
+    {
+        p->curlTestClient.reset();
+        return;
+    }
 
-    check_all_active_curls(p->curlMulti);
+    check_all_active_curls(p, p->curlMulti.get());
 }
 
 void flashmq_plugin_init(void *thread_data, std::unordered_map<std::string, std::string> &plugin_opts, bool reloading)
@@ -163,21 +165,17 @@ AuthResult flashmq_plugin_login_check(void *thread_data, const std::string &clie
     {
         TestPluginData *p = static_cast<TestPluginData*>(thread_data);
 
-        // Libcurl is C, so we unfortunately have to use naked new and hope we'll delete it in all the right places.
-        AuthenticatingClient *c = new AuthenticatingClient;
-        c->client = client;
-        c->globalData = p;
+        p->curlTestClient = std::make_unique<AuthenticatingClient>();
+        p->curlTestClient->client = client;
 
-        curl_easy_setopt(c->eh, CURLOPT_WRITEFUNCTION, curl_write_cb);
-        curl_easy_setopt(c->eh, CURLOPT_WRITEDATA, c);
-        curl_easy_setopt(c->eh, CURLOPT_PRIVATE, c);
+        curl_easy_setopt(p->curlTestClient->easy_handle.get(), CURLOPT_WRITEFUNCTION, curl_write_cb);
+        curl_easy_setopt(p->curlTestClient->easy_handle.get(), CURLOPT_WRITEDATA, p->curlTestClient.get());
+        curl_easy_setopt(p->curlTestClient->easy_handle.get(), CURLOPT_PRIVATE, p->curlTestClient.get());
 
         // Keep in mind that DNS resovling may be blocking too. You could perhaps resolve the DNS once and use the result.
-        curl_easy_setopt(c->eh, CURLOPT_URL, "http://www.google.com/");
+        curl_easy_setopt(p->curlTestClient->easy_handle.get(), CURLOPT_URL, "http://www.google.com/");
 
-        // TODO: I don't like this error handling.
-        if (!c->addToMulti(p->curlMulti))
-            delete c;
+        p->curlTestClient->addToMulti(p->curlMulti);
 
         return AuthResult::async;
     }
@@ -369,35 +367,26 @@ void flashmq_plugin_main_deinit(std::unordered_map<std::string, std::string> &pl
     curl_global_cleanup();
 }
 
-void AuthenticatingClient::cleanup()
+AuthenticatingClient::AuthenticatingClient() :
+    easy_handle(curl_easy_init(), curl_easy_cleanup)
 {
-    if (curlMulti)
-    {
-        curl_multi_remove_handle(curlMulti, eh);
-        curlMulti = nullptr;
-    }
 
-    curl_easy_cleanup(eh);
-    eh = nullptr;
-}
-
-AuthenticatingClient::AuthenticatingClient()
-{
-    eh = curl_easy_init();
 }
 
 AuthenticatingClient::~AuthenticatingClient()
 {
-    cleanup();
+    auto x = registeredAtMultiHandle.lock();
+
+    if (x)
+    {
+        curl_multi_remove_handle(x.get(), easy_handle.get());
+    }
 }
 
-bool AuthenticatingClient::addToMulti(CURLM *curlMulti)
+void AuthenticatingClient::addToMulti(std::shared_ptr<CURLM> &curlMulti)
 {
-    if (curl_multi_add_handle(curlMulti, eh) != CURLM_OK)
-    {
-        cleanup();
-        return false;
-    }
-    this->curlMulti = curlMulti;
-    return true;
+    if (curl_multi_add_handle(curlMulti.get(), easy_handle.get()) != CURLM_OK)
+        throw std::runtime_error("curl_multi_add_handle failed");
+
+    registeredAtMultiHandle = curlMulti;
 }
