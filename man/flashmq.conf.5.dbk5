@@ -998,18 +998,43 @@ multi-value-param one 'two' "three" "with ' char"
         </listitem>
       </varlistentry>
 
-      <varlistentry xml:id="haproxy" condition="flashmq ≥ 1.1.0">
-        <term><option>haproxy</option> <replaceable>true</replaceable>|<replaceable>false</replaceable></term>
+      <varlistentry xml:id="haproxy" condition="flashmq ≥ 1.25.0">
+        <term><option>haproxy</option> <replaceable>off</replaceable>|<replaceable>on</replaceable>|<replaceable>client_verification</replaceable>|<replaceable>client_verification_with_authn</replaceable></term>
         <listitem>
           <para>
-            Setting the listener to haproxy makes it expect the PROXY protocol and set client source address to the original client. Make sure this listener is private / firewalled, otherwise anybody can set a different source address.
+              The nature of running something behind a proxy is that you would lose certain information or abilities. For that, HAProxy allows sending information in a header frame. With the <option>haproxy</option> option, you can configure the following:
           </para>
+          <para>
+            <literal>off</literal> and <literal>on</literal> configure basic functionality: reading the client's source address from the haproxy frame. This address will be shown in the logs and plugin functions.
+          </para>
+          <para>
+            <literal>client_verification</literal> and <literal>client_verification_with_authn</literal> will require haproxy to send the <literal>PP2_SUBTYPE_SSL_CN</literal> field when using mTLS (mutual TLS), i.e. client authentication. When using the <literal>client_verification_with_authn</literal> option, FlashMQ's internal authentication will still happen (with the username from the certificate). This can be convenient when you have a plugin, so that you can still take action in the login hook.
+          </para>
+
+          <para>
+            Make sure this listener is private, firewalled or use <option>only_allow_from</option>, otherwise anybody can set a different source address.
+          </para>
+
           <para>
             Note that HAProxy's server health checks only started using the 'local' specifier as of version 2.4. This means earlier version will pretend to be a client and break the connection, causing log spam.
           </para>
+
           <para>
             As a side note about using a proxy on your listener; you can only have an absolute max of 65535 connections to an IP+port combination (and the practical limit is lower). If you need more, you have to set up multiple listeners. This can be multiple IP addresses, or simply multiple ports.
           </para>
+
+          <para>
+            The following is an example HAProxy backend config for the features described:
+          </para>
+
+          <literallayout language="flashmq.conf" class="monospaced"><![CDATA[
+backend backend_server
+        mode tcp
+        timeout client  2m
+        timeout connect 10s
+        timeout server  2m
+        server server1 ::1:1885 send-proxy-v2 send-proxy-v2-ssl-cn ]]></literallayout>
+
           <para>
             See <link xlink:href="http://www.haproxy.org/">haproxy.org</link>.
           </para>

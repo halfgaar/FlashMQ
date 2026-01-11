@@ -5,7 +5,7 @@
 \\$2 \(la\\$1\(ra\\$3
 ..
 .if \n(.g .mso www.tmac
-.TH flashmq.conf 5 "Nov 09 2025" "" ""
+.TH flashmq.conf 5 "Jan 17 2026" "" ""
 .SH NAME
 flashmq.conf \- FlashMQ configuration file format
 .SH SYNOPSIS
@@ -477,12 +477,32 @@ This allows you to override the \fBglobal \fB\m[green]allow_anonymous\fR\m[]\fR 
 \*(T<\fB\m[green]overload_mode\m[] \fI\m[cyan]log\m[]\fR|\fI\m[cyan]close_new_clients\m[]\fR\fR\*(T>
 This allows you to override the \fBglobal \fB\m[green]overload_mode\fR\m[]\fR setting on the listener level.
 .TP
-\*(T<\fB\m[green]haproxy\m[] \fI\m[cyan]true\m[]\fR|\fI\m[cyan]false\m[]\fR\fR\*(T>
-Setting the listener to haproxy makes it expect the PROXY protocol and set client source address to the original client. Make sure this listener is private / firewalled, otherwise anybody can set a different source address.
+\*(T<\fB\m[green]haproxy\m[] \fI\m[cyan]off\m[]\fR|\fI\m[cyan]on\m[]\fR|\fI\m[cyan]client_verification\m[]\fR|\fI\m[cyan]client_verification_with_authn\m[]\fR\fR\*(T>
+The nature of running something behind a proxy is that you would lose certain information or abilities. For that, HAProxy allows sending information in a header frame. With the \fB\m[green]haproxy\fR\m[] option, you can configure the following:
+
+\fIoff\fR and \fIon\fR configure basic functionality: reading the client's source address from the haproxy frame. This address will be shown in the logs and plugin functions.
+
+\fIclient_verification\fR and \fIclient_verification_with_authn\fR will require haproxy to send the \fIPP2_SUBTYPE_SSL_CN\fR field when using mTLS (mutual TLS), i.e. client authentication. When using the \fIclient_verification_with_authn\fR option, FlashMQ's internal authentication will still happen (with the username from the certificate). This can be convenient when you have a plugin, so that you can still take action in the login hook.
+
+Make sure this listener is private, firewalled or use \fB\m[green]only_allow_from\fR\m[], otherwise anybody can set a different source address.
 
 Note that HAProxy's server health checks only started using the 'local' specifier as of version 2.4. This means earlier version will pretend to be a client and break the connection, causing log spam.
 
 As a side note about using a proxy on your listener; you can only have an absolute max of 65535 connections to an IP+port combination (and the practical limit is lower). If you need more, you have to set up multiple listeners. This can be multiple IP addresses, or simply multiple ports.
+
+The following is an example HAProxy backend config for the features described:
+.PP
+.nf
+.in +7
+\m[green]backend \m[]\m[cyan]backend_server\m[]
+\m[green]        mode \m[]\m[cyan]tcp\m[]
+\m[green]        timeout \m[]\m[cyan]client\m[]  \m[cyan]2m\m[]
+\m[green]        timeout \m[]\m[cyan]connect\m[] \m[cyan]10s\m[]
+\m[green]        timeout \m[]\m[cyan]server\m[]  \m[cyan]2m\m[]
+\m[green]        server \m[]\m[cyan]server1\m[] \m[cyan]::1:1885\m[] \m[cyan]send-proxy-v2\m[] \m[cyan]send-proxy-v2-ssl-cn\m[] 
+
+.in
+.fi
 
 See \m[blue]haproxy.org\m[] \(lB\fI\m[blue]http://www.haproxy.org/\m[]\fR\(rB.
 .TP
