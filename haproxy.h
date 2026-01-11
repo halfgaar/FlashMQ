@@ -14,6 +14,24 @@ See LICENSE for license details.
 #include <sys/socket.h>
 #include <stdint.h>
 #include <unistd.h>
+#include <string>
+#include <vector>
+#include <unordered_map>
+#include <variant>
+#include <optional>
+
+#define PP2_TYPE_ALPN           0x01
+#define PP2_TYPE_AUTHORITY      0x02
+#define PP2_TYPE_CRC32C         0x03
+#define PP2_TYPE_NOOP           0x04
+#define PP2_TYPE_UNIQUE_ID      0x05
+#define PP2_TYPE_SSL            0x20
+#define PP2_SUBTYPE_SSL_VERSION 0x21
+#define PP2_SUBTYPE_SSL_CN      0x22
+#define PP2_SUBTYPE_SSL_CIPHER  0x23
+#define PP2_SUBTYPE_SSL_SIG_ALG 0x24
+#define PP2_SUBTYPE_SSL_KEY_ALG 0x25
+#define PP2_TYPE_NETNS          0x30
 
 struct proxy_hdr_v2
 {
@@ -55,10 +73,23 @@ union proxy_addr
     struct proxy_unix_addr proxy_unix_addr;
 };
 
+struct HaProxySslData
+{
+    uint8_t client = 0;
+    uint32_t verify = 0;
+    std::optional<std::string> ssl_version;
+    std::optional<std::string> ssl_cn;
+    std::optional<std::string> ssl_cipher;
+    std::optional<std::string> ssl_sig_alg;
+    std::optional<std::string> ssl_key_alg;
+};
+
 size_t read_ha_proxy_helper(int fd, void *buf, size_t nbytes);
+std::unordered_map<int, std::variant<std::string, HaProxySslData>> read_ha_proxy_pp2_tlv(const std::vector<unsigned char> &data, int &recurse_counter);
 
 enum class HaProxyConnectionType
 {
+    None,
     Remote,
     Local
 };

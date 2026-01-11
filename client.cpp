@@ -62,7 +62,7 @@ Client::WriteBuf::WriteBuf(size_t size) :
  */
 Client::Client(
         ClientType type, int fd, std::shared_ptr<ThreadData> threadData, FmqSsl &&ssl, ConnectionProtocol connectionProtocol,
-        bool haproxy, const struct sockaddr *addr, const Settings &settings, bool fuzzMode) :
+        HaProxyMode haProxyMode, const struct sockaddr *addr, const Settings &settings, bool fuzzMode) :
     fd(fd),
     fuzzMode(fuzzMode),
     maxOutgoingPacketSize(settings.maxPacketSize),
@@ -74,12 +74,14 @@ Client::Client(
     readbuf(settings.clientInitialBufferSize),
     writebuf(settings.clientInitialBufferSize),
     clientType(type),
+    mHaProxyMode(haProxyMode),
     threadData(threadData),
     addr(addr)
 {
     assert(fd == -1 || fd > 2);
 
-    ioWrapper.setHaProxy(haproxy);
+    if (haProxyMode > HaProxyMode::Off)
+        ioWrapper.setHaProxy();
 
     if (fd > -1)
     {
@@ -87,7 +89,13 @@ Client::Client(
         fcntl(fd, F_SETFL, flags | O_NONBLOCK);
     }
 
-    const std::string haproxy_s = haproxy ? "/HAProxy" : "";
+    std::string haproxy_s;
+
+    if (haProxyMode == HaProxyMode::On)
+        haproxy_s = "/HAProxy";
+    else if (haProxyMode >= HaProxyMode::HaProxyClientVerification)
+        haproxy_s = "/HAProxySslClientVerification";
+
     const std::string ssl_s = this->ioWrapper.isSsl() ? "/SSL" : "/Non-SSL";
     const std::string websocket_s = connectionProtocol == ConnectionProtocol::WebsocketMqtt ? "/Websocket" : "";
 
@@ -159,20 +167,24 @@ bool Client::isSsl() const
     return ioWrapper.isSsl();
 }
 
-bool Client::needsHaProxyParsing() const
+HaProxyStage Client::readHaProxyData()
 {
-    return ioWrapper.needsHaProxyParsing();
-}
+    assert(this->ioWrapper.getHaProxyStage() != HaProxyStage::DoneOrNotNeeded);
 
-HaProxyConnectionType Client::readHaProxyData()
-{
-    auto result = this->ioWrapper.readHaProxyData(this->fd.get());
-    const std::optional<FMQSockaddr> &new_sock_addr = std::get<std::optional<FMQSockaddr>>(result);
+    if (this->ioWrapper.getHaProxyStage() == HaProxyStage::HeaderPending)
+    {
+        const std::optional<FMQSockaddr> new_sock_addr = this->ioWrapper.readHaProxyHeader(this->fd.get());
 
-    if (new_sock_addr)
-        addr = new_sock_addr.value();
+        if (new_sock_addr)
+            addr = new_sock_addr.value();
+    }
 
-    return std::get<HaProxyConnectionType>(result);
+    if (this->ioWrapper.getHaProxyStage() == HaProxyStage::AdditionalBytesPending)
+    {
+        this->ioWrapper.readHaProxyAdditionalData(this->fd.get());
+    }
+
+    return this->getHaProxyStage();
 }
 
 bool Client::getSslReadWantsWrite() const

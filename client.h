@@ -126,6 +126,7 @@ class Client
     bool clean_start = false;
     X509ClientVerification x509ClientVerification = X509ClientVerification::None;
     AllowListenerAnonymous allowAnonymousOverride = AllowListenerAnonymous::None;
+    HaProxyMode mHaProxyMode = HaProxyMode::Off;
 
     std::unique_ptr<std::string> acmeRedirectUrl;
 
@@ -165,7 +166,7 @@ public:
     uint8_t preAuthPacketCounter = 0;
 
     Client(
-        ClientType type, int fd, std::shared_ptr<ThreadData> threadData, FmqSsl &&ssl, ConnectionProtocol connectionProtocol, bool haproxy,
+        ClientType type, int fd, std::shared_ptr<ThreadData> threadData, FmqSsl &&ssl, ConnectionProtocol connectionProtocol, HaProxyMode haProxyMode,
         const struct sockaddr *addr, const Settings &settings, bool fuzzMode=false);
     Client(const Client &other) = delete;
     Client(Client &&other) = delete;
@@ -175,8 +176,11 @@ public:
     int getFd() { return fd.get();}
     bool isSslAccepted() const;
     bool isSsl() const;
-    bool needsHaProxyParsing() const;
-    HaProxyConnectionType readHaProxyData();
+    const std::optional<std::string> &getHaProxySslCnName() const { return this->ioWrapper.getHaProxySslCnName(); }
+    HaProxyMode getHaProxyMode() const { return this->mHaProxyMode; }
+    HaProxyStage getHaProxyStage() const { return this->ioWrapper.getHaProxyStage();};
+    HaProxyConnectionType getHaProxyConnectionType() const { return this->ioWrapper.getHaProxyConnectionType(); }
+    HaProxyStage readHaProxyData();
     bool getSslReadWantsWrite() const;
     bool getSslWriteWantsRead() const;
     ProtocolVersion getProtocolVersion() const;

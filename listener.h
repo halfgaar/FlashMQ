@@ -45,7 +45,7 @@ struct Listener
     int port = 0;
     ConnectionProtocol connectionProtocol = ConnectionProtocol::Mqtt;
     bool tcpNoDelay = false;
-    bool haproxy = false;
+    HaProxyMode haProxyMode = HaProxyMode::Off;
     std::string sslFullchain;
     std::string sslPrivkey;
     std::string clientVerificationCaFile;
@@ -65,7 +65,6 @@ struct Listener
 
     void isValid();
     bool isSsl() const;
-    bool isHaProxy() const;
     bool isTcpNoDelay() const;
     std::string getProtocolName() const;
     void loadCertAndKeyFromConfig();

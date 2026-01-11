@@ -273,11 +273,6 @@ const char *IoWrapper::getSslVersion() const
     return SSL_get_version(ssl.get());
 }
 
-bool IoWrapper::needsHaProxyParsing() const
-{
-    return _needsHaProxyParsing;
-}
-
 /**
  * @brief IoWrapper::readHaProxyData Reads the PROXY protocol header in one go. It must fit in one TCP segment.
  * @param fd
@@ -285,13 +280,11 @@ bool IoWrapper::needsHaProxyParsing() const
  *
  * https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt
  */
-std::tuple<HaProxyConnectionType, std::optional<FMQSockaddr>> IoWrapper::readHaProxyData(int fd)
+std::optional<FMQSockaddr> IoWrapper::readHaProxyHeader(int fd)
 {
-    _needsHaProxyParsing = false;
+    assert(mHaProxyStage == HaProxyStage::HeaderPending);
 
-    struct proxy_hdr_v2 hdr;
-    memset(&hdr, 0, sizeof(hdr));
-
+    struct proxy_hdr_v2 hdr {};
     const size_t read = read_ha_proxy_helper(fd, &hdr, sizeof(hdr));
 
     if (read != sizeof(hdr))
@@ -306,26 +299,53 @@ std::tuple<HaProxyConnectionType, std::optional<FMQSockaddr>> IoWrapper::readHaP
     const uint8_t ver = (hdr.ver_cmd & 0xF0) >> 4;
     const uint8_t cmd = hdr.ver_cmd & 0x0F;
 
-    const uint16_t len = ntohs(hdr.len);
+    const uint16_t total_len{ntohs(hdr.len)};
 
-    if (len > sizeof(union proxy_addr))
-        throw BadClientException("Hacker be gone.");
+    uint16_t addr_len = 0;
 
-    std::array<char, sizeof(union proxy_addr)> addr_block;
-    std::fill(addr_block.begin(), addr_block.end(), 0);
-    read_ha_proxy_helper(fd, addr_block.data(), len);
+    if (family == 0)
+        addr_len = 0;
+    else if (family == 1)
+        addr_len = sizeof(proxy_ipv4_addr);
+    else if (family == 2)
+        addr_len = sizeof(proxy_ipv6_addr);
+    else if (family == 3)
+        addr_len = sizeof(proxy_unix_addr);
+    else
+        throw BadClientException("Unsupported haproxy address family");
+
+    if (total_len < addr_len)
+        throw BadClientException("Bad HAProxy length: length specified is less than the signaled address length");
+    else if (total_len == addr_len)
+        mHaProxyStage = HaProxyStage::DoneOrNotNeeded;
+    else
+    {
+        mHaProxyStage = HaProxyStage::AdditionalBytesPending;
+        mHaProxyAdditionalBytesLeft = total_len - addr_len;
+    }
+
+    std::array<char, sizeof(union proxy_addr)> addr_block{};
+    read_ha_proxy_helper(fd, addr_block.data(), addr_len);
 
     if (ver != 2)
         throw BadClientException("Only HAProxy protocol version 2 is supported");
 
     if (cmd == 0)
-        return {HaProxyConnectionType::Local, {}};
+    {
+        mHaProxyConnectionType = HaProxyConnectionType::Local;
+        return {};
+    }
 
     if (cmd != 1)
         throw BadClientException("HAProxy command must be 1");
 
     if (prot == 0)
-        return {HaProxyConnectionType::Local, {}};
+    {
+        mHaProxyConnectionType = HaProxyConnectionType::Local;
+        return {};
+    }
+
+    mHaProxyConnectionType = HaProxyConnectionType::Remote;
 
     if (prot > 2)
         throw BadClientException("Invalid protocol in HAProxy.");
@@ -335,36 +355,84 @@ std::tuple<HaProxyConnectionType, std::optional<FMQSockaddr>> IoWrapper::readHaP
         struct proxy_ipv4_addr paddr;
         std::memcpy(&paddr, addr_block.data(), sizeof(paddr));
 
-        struct sockaddr_in addr;
-        std::memset(&addr, 0, sizeof(addr));
+        struct sockaddr_in addr {};
 
         addr.sin_family = AF_INET;
         addr.sin_addr.s_addr = paddr.src_addr;
         addr.sin_port = paddr.src_port;
 
-        return {HaProxyConnectionType::Remote, FMQSockaddr(reinterpret_cast<struct sockaddr*>(&addr))};
+        return FMQSockaddr(reinterpret_cast<struct sockaddr*>(&addr));
     }
     else if (family == 2)
     {
         struct proxy_ipv6_addr paddr;
         std::memcpy(&paddr, addr_block.data(), sizeof(paddr));
 
-        struct sockaddr_in6 addr;
-        std::memset(&addr, 0, sizeof(addr));
+        struct sockaddr_in6 addr {};
 
         addr.sin6_family = AF_INET6;
         memcpy(&addr.sin6_addr, paddr.src_addr, sizeof(struct in6_addr));
         addr.sin6_port = paddr.src_port;
 
-        return {HaProxyConnectionType::Remote, FMQSockaddr(reinterpret_cast<struct sockaddr*>(&addr))};
+        return FMQSockaddr(reinterpret_cast<struct sockaddr*>(&addr));
     }
 
     throw BadClientException("Unsupported haproxy address family");
 }
 
-void IoWrapper::setHaProxy(bool val)
+void IoWrapper::readHaProxyAdditionalData(int fd)
 {
-    this->_needsHaProxyParsing = val;
+    assert(mHaProxyStage == HaProxyStage::AdditionalBytesPending);
+
+    while (mHaProxyAdditionalBytesLeft > 0)
+    {
+        std::array<unsigned char, 256> buf{};
+        const size_t readlen{std::min<size_t>(buf.size(), mHaProxyAdditionalBytesLeft)};
+        const ssize_t n{read(fd, buf.data(), readlen)};
+
+        if (n < 0)
+        {
+            if (errno == EINTR)
+                continue;
+            if (errno == EWOULDBLOCK || errno == EAGAIN)
+                break;
+            check<BadClientException>(n);
+        }
+        else if (n == 0)
+        {
+            throw BadClientException("HaProxy client disconnected before additional data could be read");
+        }
+
+        FMQ_ENSURE(n <= mHaProxyAdditionalBytesLeft && static_cast<size_t>(n) <= buf.size());
+
+        const size_t oldSize{mHaProxyAdditionalData.size()};
+        mHaProxyAdditionalData.resize(oldSize + n);
+        std::copy(buf.begin(), buf.begin() + n, mHaProxyAdditionalData.begin() + oldSize);
+        mHaProxyAdditionalBytesLeft -= n;
+    }
+
+    if (mHaProxyAdditionalBytesLeft == 0)
+    {
+        mHaProxyStage = HaProxyStage::DoneOrNotNeeded;
+
+        int recurse_counter = 0;
+        const auto haproxy_tlvs = read_ha_proxy_pp2_tlv(this->mHaProxyAdditionalData, recurse_counter);
+        std::vector<unsigned char>().swap(this->mHaProxyAdditionalData);
+
+        auto pos = haproxy_tlvs.find(PP2_TYPE_SSL);
+        if (pos != haproxy_tlvs.end())
+        {
+            HaProxySslData data = std::get<HaProxySslData>(pos->second);
+
+            // At this point, we don't use anything but the CN.
+            mHaProxySslCnName = data.ssl_cn;
+        }
+    }
+}
+
+void IoWrapper::setHaProxy()
+{
+    this->mHaProxyStage = HaProxyStage::HeaderPending;
 }
 
 #ifndef NDEBUG

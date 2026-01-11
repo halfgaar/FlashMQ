@@ -95,6 +95,11 @@ void Listener::isValid()
     {
         throw ConfigFileException("An ACME listener needs to have an acme_redirect_url");
     }
+
+    if (getX509ClientVerficationMode() > X509ClientVerification::None && haProxyMode >= HaProxyMode::HaProxyClientVerification)
+    {
+        throw ConfigFileException("Client verification can't be done by both FlashMQ and HAProxy.");
+    }
 }
 
 bool Listener::isSsl() const
@@ -105,11 +110,6 @@ bool Listener::isSsl() const
 bool Listener::isTcpNoDelay() const
 {
     return this->tcpNoDelay;
-}
-
-bool Listener::isHaProxy() const
-{
-    return this->haproxy;
 }
 
 std::string Listener::getProtocolName() const

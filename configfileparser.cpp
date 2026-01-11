@@ -577,8 +577,17 @@ void ConfigFileParser::loadFile(bool test)
                 }
                 if (testKeyValidity(key, "haproxy", validListenKeys))
                 {
-                    bool val = stringTruthiness(value);
-                    curListener->haproxy = val;
+                    if (valueTrimmed == "client_verification")
+                        curListener->haProxyMode = HaProxyMode::HaProxyClientVerification;
+                    else if (valueTrimmed == "client_verification_with_authn")
+                        curListener->haProxyMode = HaProxyMode::HaProxyClientVerficiationWithAuthn;
+                    else
+                    {
+                        const bool val = stringTruthiness(value);
+
+                        if (val)
+                            curListener->haProxyMode = HaProxyMode::On;
+                    }
                 }
                 if (testKeyValidity(key, "client_verification_ca_file", validListenKeys))
                 {

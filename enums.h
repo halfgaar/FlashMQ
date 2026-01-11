@@ -52,4 +52,12 @@ enum class Mqtt3QoSExceedAction
     Drop
 };
 
+enum class HaProxyMode
+{
+    Off,
+    On,
+    HaProxyClientVerification,
+    HaProxyClientVerficiationWithAuthn
+};
+
 #endif // ENUMS_H

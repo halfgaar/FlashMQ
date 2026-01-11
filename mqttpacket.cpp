@@ -1145,6 +1145,11 @@ void MqttPacket::handleConnect(std::shared_ptr<Client> &sender)
 
     std::string username = connectData.username ? connectData.username.value() : "";
 
+    if (sender->getX509ClientVerification() > X509ClientVerification::None && sender->getHaProxyMode() >= HaProxyMode::HaProxyClientVerification)
+    {
+        throw std::runtime_error("Clients can't be verified by both haproxy and our own x509 check.");
+    }
+
     if (sender->getX509ClientVerification() > X509ClientVerification::None)
     {
         std::optional<std::string> certificateUsername = sender->getUsernameFromPeerCertificate();
@@ -1153,6 +1158,16 @@ void MqttPacket::handleConnect(std::shared_ptr<Client> &sender)
             throw ProtocolError("Client certificate did not provider username", ReasonCodes::BadUserNameOrPassword);
 
         username = certificateUsername.value();
+    }
+
+    if (sender->getHaProxyMode() == HaProxyMode::HaProxyClientVerification || sender->getHaProxyMode() == HaProxyMode::HaProxyClientVerficiationWithAuthn)
+    {
+        const std::optional<std::string> &haproxy_username = sender->getHaProxySslCnName();
+
+        if (!haproxy_username || haproxy_username.value().empty())
+            throw BadClientException("Haproxy client configured to provide username as SSL CN, but none provided.");
+
+        username = haproxy_username.value();
     }
 
     sender->setClientProperties(protocolVersion, connectData.client_id, connectData.fmq_client_group_id, username, true, connectData.keep_alive,
@@ -1230,7 +1245,7 @@ void MqttPacket::handleConnect(std::shared_ptr<Client> &sender)
     {
         authResult = AuthResult::success;
     }
-    else if (sender->getX509ClientVerification() == X509ClientVerification::X509IsEnough)
+    else if (sender->getX509ClientVerification() == X509ClientVerification::X509IsEnough || sender->getHaProxyMode() == HaProxyMode::HaProxyClientVerification)
     {
         // The client will have been kicked out already if the certificate is not valid, so we can just approve it.
         authResult = AuthResult::success;

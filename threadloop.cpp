@@ -147,12 +147,18 @@ void do_thread_work(std::shared_ptr<ThreadData> threadData)
 
             try
             {
-                if (__builtin_expect(client->needsHaProxyParsing(), 0))
+                if (client->getHaProxyStage() != HaProxyStage::DoneOrNotNeeded)
                 {
-                    if (client->readHaProxyData() == HaProxyConnectionType::Local)
+                    if (client->readHaProxyData() == HaProxyStage::DoneOrNotNeeded)
                     {
-                        client->setDisconnectReason("HAProxy health check");
+                        if (client->getHaProxyConnectionType() == HaProxyConnectionType::Local)
+                        {
+                            client->setDisconnectReason("HAProxy health check");
+                            threadData->removeClient(client);
+                        }
                     }
+
+                    continue;
                 }
                 if (client->isOutgoingConnection() && !client->getOutgoingConnectionEstablished())
                 {

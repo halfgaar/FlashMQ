@@ -321,7 +321,7 @@ void ThreadData::bridgeReconnect()
                 clientSSL.set_fd(sockfd);
             }
 
-            std::shared_ptr<Client> c(new Client(ClientType::LocalBridge, sockfd, _threadData, std::move(clientSSL), ConnectionProtocol::Mqtt, false, addr.getSockaddr(), settingsLocalCopy));
+            std::shared_ptr<Client> c(new Client(ClientType::LocalBridge, sockfd, _threadData, std::move(clientSSL), ConnectionProtocol::Mqtt, HaProxyMode::Off, addr.getSockaddr(), settingsLocalCopy));
             c->addToEpoll(EPOLLIN | EPOLLOUT);
             c->setBridgeState(bridge);
             if (bridge->c.maxBufferSize)

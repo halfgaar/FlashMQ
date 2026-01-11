@@ -15,13 +15,13 @@ void MainTests::testSharedSubscribersUnit()
 
     ThreadGlobals::assignThreadData(t);
 
-    std::shared_ptr<Client> c1(new Client(ClientType::Normal, -1, t, FmqSsl(), ConnectionProtocol::Mqtt, false, nullptr, settings, false));
+    std::shared_ptr<Client> c1(new Client(ClientType::Normal, -1, t, FmqSsl(), ConnectionProtocol::Mqtt, HaProxyMode::Off, nullptr, settings, false));
     c1->setClientProperties(ProtocolVersion::Mqtt5, "clientid1", {}, "user1", true, 60);
 
-    std::shared_ptr<Client> c2(new Client(ClientType::Normal, -1, t, FmqSsl(), ConnectionProtocol::Mqtt, false, nullptr, settings, false));
+    std::shared_ptr<Client> c2(new Client(ClientType::Normal, -1, t, FmqSsl(), ConnectionProtocol::Mqtt, HaProxyMode::Off, nullptr, settings, false));
     c2->setClientProperties(ProtocolVersion::Mqtt5, "clientid2", {}, "user2", true, 60);
 
-    std::shared_ptr<Client> c3(new Client(ClientType::Normal, -1, t, FmqSsl(), ConnectionProtocol::Mqtt, false, nullptr, settings, false));
+    std::shared_ptr<Client> c3(new Client(ClientType::Normal, -1, t, FmqSsl(), ConnectionProtocol::Mqtt, HaProxyMode::Off, nullptr, settings, false));
     c3->setClientProperties(ProtocolVersion::Mqtt5, "clientid3", {}, "user3", true, 60);
 
     std::shared_ptr<Session> ses1 = std::make_shared<Session>(c1->getClientId(), c1->getUsername(), std::optional<std::string>());

@@ -93,6 +93,13 @@ enum class WebsocketState
     Upgraded
 };
 
+enum class HaProxyStage
+{
+    HeaderPending,
+    AdditionalBytesPending,
+    DoneOrNotNeeded
+};
+
 /**
  * @brief provides a unified wrapper for SSL and websockets to read() and write().
  *
@@ -114,7 +121,11 @@ class IoWrapper
     IncompleteWebsocketRead incompleteWebsocketRead;
     CirBuf websocketWriteRemainder;
 
-    bool _needsHaProxyParsing = false;
+    uint16_t mHaProxyAdditionalBytesLeft = 0;
+    HaProxyStage mHaProxyStage = HaProxyStage::DoneOrNotNeeded;
+    HaProxyConnectionType mHaProxyConnectionType = HaProxyConnectionType::None;
+    std::vector<unsigned char> mHaProxyAdditionalData;
+    std::optional<std::string> mHaProxySslCnName;
 
     Logger *logger = Logger::getInstance();
 
@@ -143,9 +154,12 @@ public:
     X509Manager getPeerCertificate() const;
     const char *getSslVersion() const;
 
-    bool needsHaProxyParsing() const;
-    std::tuple<HaProxyConnectionType, std::optional<FMQSockaddr>> readHaProxyData(int fd);
-    void setHaProxy(bool val);
+    const std::optional<std::string> &getHaProxySslCnName() const { return mHaProxySslCnName; }
+    HaProxyStage getHaProxyStage() const { return mHaProxyStage; }
+    HaProxyConnectionType getHaProxyConnectionType() const { return mHaProxyConnectionType; }
+    std::optional<FMQSockaddr> readHaProxyHeader(int fd);
+    void readHaProxyAdditionalData(int fd);
+    void setHaProxy();
 
 #ifndef NDEBUG
     void setFakeUpgraded();

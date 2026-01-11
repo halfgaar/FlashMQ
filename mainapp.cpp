@@ -178,8 +178,10 @@ std::list<ScopedSocket> MainApp::createListenSocket(const std::shared_ptr<Listen
             {
                 logtext << "Creating " << pname << " " << listener->getProtocolName() << " ";
 
-                if (listener->haproxy)
+                if (listener->haProxyMode == HaProxyMode::On)
                     logtext << "haproxy ";
+                else if (listener->haProxyMode >= HaProxyMode::HaProxyClientVerification)
+                    logtext << "haproxy with client verification";
 
                 logtext << "listener on [" << listener->getBindAddress(p) << "]:" << listener->port;
             }
@@ -587,12 +589,12 @@ void MainApp::start()
             std::shared_ptr<ThreadData> threaddata = std::make_shared<ThreadData>(0, settings, pluginLoader);
             ThreadGlobals::assignThreadData(threaddata);
 
-            std::shared_ptr<Client> client = std::make_shared<Client>(ClientType::Normal, fd, threaddata, FmqSsl(), connectionProtocol, false, nullptr, settings, true);
-            std::shared_ptr<Client> subscriber = std::make_shared<Client>(ClientType::Normal, fdnull, threaddata, FmqSsl(), connectionProtocol, false, nullptr, settings, true);
+            std::shared_ptr<Client> client = std::make_shared<Client>(ClientType::Normal, fd, threaddata, FmqSsl(), connectionProtocol, HaProxyMode::Off, nullptr, settings, true);
+            std::shared_ptr<Client> subscriber = std::make_shared<Client>(ClientType::Normal, fdnull, threaddata, FmqSsl(), connectionProtocol, HaProxyMode::Off, nullptr, settings, true);
             subscriber->setClientProperties(ProtocolVersion::Mqtt311, "subscriber", {}, "subuser", true, 60);
             subscriber->setAuthenticated(true);
 
-            std::shared_ptr<Client> websocketsubscriber = std::make_shared<Client>(ClientType::Normal, fdnull2, threaddata, FmqSsl(), ConnectionProtocol::WebsocketMqtt, false, nullptr, settings, true);
+            std::shared_ptr<Client> websocketsubscriber = std::make_shared<Client>(ClientType::Normal, fdnull2, threaddata, FmqSsl(), ConnectionProtocol::WebsocketMqtt, HaProxyMode::Off, nullptr, settings, true);
             websocketsubscriber->setClientProperties(ProtocolVersion::Mqtt311, "websocketsubscriber", {}, "websocksubuser", true, 60);
             websocketsubscriber->setAuthenticated(true);
             websocketsubscriber->setFakeUpgraded();
@@ -823,7 +825,7 @@ void MainApp::start()
 
                     // Don't use std::make_shared to avoid the weak pointers keeping the control block in memory.
                     std::shared_ptr<Client> client = std::shared_ptr<Client>(new Client(
-                        ClientType::Normal, fd, thread_data, std::move(clientSSL), listener->connectionProtocol, listener->isHaProxy(), addr, settings));
+                        ClientType::Normal, fd, thread_data, std::move(clientSSL), listener->connectionProtocol, listener->haProxyMode, addr, settings));
 
                     if (listener->getX509ClientVerficationMode() != X509ClientVerification::None)
                     {
