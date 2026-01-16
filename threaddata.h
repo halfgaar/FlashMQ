@@ -98,7 +98,7 @@ class ThreadData
     void doKeepAliveCheck();
     void quit();
     void publishStatsOnDollarTopic(std::vector<std::shared_ptr<ThreadData>> &threads);
-    void publishStat(const std::string &topic, uint64_t n);
+    void publishStat(const std::string &topic, int64_t n);
     void sendQueuedWills();
     void removeExpiredSessions();
     void purgeSubscriptionTree();

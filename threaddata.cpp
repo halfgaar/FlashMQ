@@ -458,27 +458,27 @@ void ThreadData::publishStatsOnDollarTopic(std::vector<std::shared_ptr<ThreadDat
 {
     size_t nrOfClients = 0;
     double receivedMessageCountPerSecond = 0;
-    uint64_t receivedMessageCount = 0;
+    int64_t receivedMessageCount = 0;
     double sentMessageCountPerSecond = 0;
-    uint64_t sentMessageCount = 0;
+    int64_t sentMessageCount = 0;
 
     double mqttConnectCountPerSecond = 0;
-    uint64_t mqttConnectCount = 0;
+    int64_t mqttConnectCount = 0;
 
     double aclReadChecksPerSecond = 0;
-    uint64_t aclReadCheckCount = 0;
+    int64_t aclReadCheckCount = 0;
 
     double aclWriteChecksPerSecond = 0;
-    uint64_t aclWriteCheckCount = 0;
+    int64_t aclWriteCheckCount = 0;
 
     double aclSubscribeChecksPerSecond = 0;
-    uint64_t aclSubscribeCheckCount = 0;
+    int64_t aclSubscribeCheckCount = 0;
 
     double aclRegisterWillChecksPerSecond = 0;
-    uint64_t aclRegisterWillCheckCount = 0;
+    int64_t aclRegisterWillCheckCount = 0;
 
     double retainedMessagesSetPerSecond = 0;
-    uint64_t retainedMessagesSetCount = 0;
+    int64_t retainedMessagesSetCount = 0;
 
     for (const std::shared_ptr<ThreadData> &thread : threads)
     {
@@ -512,39 +512,41 @@ void ThreadData::publishStatsOnDollarTopic(std::vector<std::shared_ptr<ThreadDat
         publishStat("$SYS/broker/threads/" + std::to_string(thread->threadnr) + "/drift/moving_avg__ms", thread->driftCounter.getAvgDrift().count());
 
         publishStat("$SYS/broker/threads/" + std::to_string(thread->threadnr) + "/retained_deferrals/count", thread->deferredRetainedMessagesSet.get());
-        publishStat("$SYS/broker/threads/" + std::to_string(thread->threadnr) + "/retained_deferrals/persecond", thread->deferredRetainedMessagesSet.getPerSecond());
+        publishStat("$SYS/broker/threads/" + std::to_string(thread->threadnr) + "/retained_deferrals/persecond",
+            static_cast<int64_t>(thread->deferredRetainedMessagesSet.getPerSecond()));
         publishStat("$SYS/broker/threads/" + std::to_string(thread->threadnr) + "/retained_deferrals/timeout/count", thread->deferredRetainedMessagesSetTimeout.get());
-        publishStat("$SYS/broker/threads/" + std::to_string(thread->threadnr) + "/retained_deferrals/timeout/persecond", thread->deferredRetainedMessagesSetTimeout.getPerSecond());
+        publishStat("$SYS/broker/threads/" + std::to_string(thread->threadnr) + "/retained_deferrals/timeout/persecond",
+            static_cast<int64_t>(thread->deferredRetainedMessagesSetTimeout.getPerSecond()));
     }
 
     publishStat("$SYS/broker/network/socketconnects/total", globals->stats.socketConnects.get());
-    publishStat("$SYS/broker/network/socketconnects/persecond", globals->stats.socketConnects.getPerSecond());
+    publishStat("$SYS/broker/network/socketconnects/persecond", static_cast<int64_t>(globals->stats.socketConnects.getPerSecond()));
 
     publishStat("$SYS/broker/clients/mqttconnects/total", mqttConnectCount);
-    publishStat("$SYS/broker/clients/mqttconnects/persecond", mqttConnectCountPerSecond);
+    publishStat("$SYS/broker/clients/mqttconnects/persecond", static_cast<int64_t>(mqttConnectCountPerSecond));
 
     publishStat("$SYS/broker/clients/total", nrOfClients);
 
     publishStat("$SYS/broker/load/messages/received/total", receivedMessageCount);
-    publishStat("$SYS/broker/load/messages/received/persecond", receivedMessageCountPerSecond);
+    publishStat("$SYS/broker/load/messages/received/persecond", static_cast<int64_t>(receivedMessageCountPerSecond));
 
     publishStat("$SYS/broker/load/messages/sent/total", sentMessageCount);
-    publishStat("$SYS/broker/load/messages/sent/persecond", sentMessageCountPerSecond);
+    publishStat("$SYS/broker/load/messages/sent/persecond", static_cast<int64_t>(sentMessageCountPerSecond));
 
     publishStat("$SYS/broker/load/messages/set_retained/total", retainedMessagesSetCount);
-    publishStat("$SYS/broker/load/messages/set_retained/persecond", retainedMessagesSetPerSecond);
+    publishStat("$SYS/broker/load/messages/set_retained/persecond", static_cast<int64_t>(retainedMessagesSetPerSecond));
 
     publishStat("$SYS/broker/load/aclchecks/read/total", aclReadCheckCount);
-    publishStat("$SYS/broker/load/aclchecks/read/persecond", aclReadChecksPerSecond);
+    publishStat("$SYS/broker/load/aclchecks/read/persecond", static_cast<int64_t>(aclReadChecksPerSecond));
 
     publishStat("$SYS/broker/load/aclchecks/write/total", aclWriteCheckCount);
-    publishStat("$SYS/broker/load/aclchecks/write/persecond", aclWriteChecksPerSecond);
+    publishStat("$SYS/broker/load/aclchecks/write/persecond", static_cast<int64_t>(aclWriteChecksPerSecond));
 
     publishStat("$SYS/broker/load/aclchecks/subscribe/total", aclSubscribeCheckCount);
-    publishStat("$SYS/broker/load/aclchecks/subscribe/persecond", aclSubscribeChecksPerSecond);
+    publishStat("$SYS/broker/load/aclchecks/subscribe/persecond", static_cast<int64_t>(aclSubscribeChecksPerSecond));
 
     publishStat("$SYS/broker/load/aclchecks/registerwill/total", aclRegisterWillCheckCount);
-    publishStat("$SYS/broker/load/aclchecks/registerwill/persecond", aclRegisterWillChecksPerSecond);
+    publishStat("$SYS/broker/load/aclchecks/registerwill/persecond", static_cast<int64_t>(aclRegisterWillChecksPerSecond));
 
     std::shared_ptr<SubscriptionStore> subscriptionStore = globals->subscriptionStore;
 
@@ -561,7 +563,7 @@ void ThreadData::publishStatsOnDollarTopic(std::vector<std::shared_ptr<ThreadDat
     }
 }
 
-void ThreadData::publishStat(const std::string &topic, uint64_t n)
+void ThreadData::publishStat(const std::string &topic, int64_t n)
 {
     const std::string payload = std::to_string(n);
     Publish p(topic, payload, 0);

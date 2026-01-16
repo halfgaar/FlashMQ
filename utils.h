@@ -44,7 +44,7 @@ if (!static_cast<bool>(val)) \
     fmq_ensure_fail(__FILE__, __LINE__); \
 }
 
-template<typename T> int check(int rc)
+template<typename T> int check(ssize_t rc)
 {
     if (rc < 0)
     {
