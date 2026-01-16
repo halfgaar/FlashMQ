@@ -702,12 +702,7 @@ void ConfigFileParser::loadFile(bool test)
                 }
                 if (testKeyValidity(key, "remote_session_expiry_interval", validBridgeKeys))
                 {
-                    int64_t newVal = full_stoi(key, value);
-                    if (newVal <= 0 || newVal > std::numeric_limits<uint32_t>::max())
-                    {
-                        throw ConfigFileException(formatString("Value '%d' doesn't fit in uint32_t.", newVal));
-                    }
-                    curBridge->remoteSessionExpiryInterval = newVal;
+                    curBridge->remoteSessionExpiryInterval = value_to_int_ranged<uint32_t>(key, value);
                 }
                 if (testKeyValidity(key, "local_clean_start", validBridgeKeys))
                 {
@@ -715,12 +710,7 @@ void ConfigFileParser::loadFile(bool test)
                 }
                 if (testKeyValidity(key, "local_session_expiry_interval", validBridgeKeys))
                 {
-                    int64_t newVal = full_stoi(key, value);
-                    if (newVal <= 0 || newVal > std::numeric_limits<uint32_t>::max())
-                    {
-                        throw ConfigFileException(formatString("Value '%d' doesn't fit in uint32_t.", newVal));
-                    }
-                    curBridge->localSessionExpiryInterval = newVal;
+                    curBridge->localSessionExpiryInterval = value_to_int_ranged<uint32_t>(key, value);
                 }
                 if (testKeyValidity(key, "subscribe", validBridgeKeys))
                 {
@@ -736,10 +726,7 @@ void ConfigFileParser::loadFile(bool test)
 
                         if (!qosstr.empty())
                         {
-                            topicPath.qos = full_stoul(key, qosstr);
-
-                            if (!topicPath.isValidQos())
-                                throw ConfigFileException(formatString("Qos '%s' is not a valid qos level", qosstr.c_str()));
+                            topicPath.qos = value_to_int_ranged<uint8_t>(key, qosstr, 0, 2);
                         }
                     }
 
@@ -760,10 +747,7 @@ void ConfigFileParser::loadFile(bool test)
 
                         if (!qosstr.empty())
                         {
-                            topicPath.qos = full_stoul(key, qosstr);
-
-                            if (!topicPath.isValidQos())
-                                throw ConfigFileException(formatString("Qos '%s' is not a valid qos level", qosstr.c_str()));
+                            topicPath.qos = value_to_int_ranged<uint8_t>(key, qosstr, 0, 2);
                         }
                     }
 
@@ -786,12 +770,7 @@ void ConfigFileParser::loadFile(bool test)
                 }
                 if (testKeyValidity(key, "port", validBridgeKeys))
                 {
-                    const int64_t newVal = full_stoi(key, value);
-                    if (newVal <= 0 || newVal > std::numeric_limits<uint16_t>::max())
-                    {
-                        throw ConfigFileException(formatString("Value '%d' doesn't fit in uint16_t.", newVal));
-                    }
-                    curBridge->port = newVal;
+                    curBridge->port = value_to_int_ranged<uint16_t>(key, value);
                 }
                 if (testKeyValidity(key, "protocol_version", validBridgeKeys))
                 {
@@ -814,12 +793,7 @@ void ConfigFileParser::loadFile(bool test)
                 }
                 if (testKeyValidity(key, "keepalive", validBridgeKeys))
                 {
-                    int64_t newVal = full_stoi(key, value);
-                    if (newVal < 10 || newVal > std::numeric_limits<uint16_t>::max())
-                    {
-                        throw ConfigFileException(formatString("Value '%d' doesn't fit in uint16_t and must be at least 10.", newVal));
-                    }
-                    curBridge->keepalive = newVal;
+                    curBridge->keepalive = value_to_int_ranged<uint16_t>(key, value, 10);
                 }
                 if (testKeyValidity(key, "tls", validBridgeKeys))
                 {
@@ -858,21 +832,11 @@ void ConfigFileParser::loadFile(bool test)
                 }
                 if (testKeyValidity(key, "max_incoming_topic_aliases", validBridgeKeys))
                 {
-                    const int64_t newVal = full_stoi(key, value);
-                    if (newVal < 0 || newVal > std::numeric_limits<uint16_t>::max())
-                    {
-                        throw ConfigFileException(formatString("Value '%d' doesn't fit in uint16_t.", newVal));
-                    }
-                    curBridge->maxIncomingTopicAliases = newVal;
+                    curBridge->maxIncomingTopicAliases = value_to_int_ranged<uint16_t>(key, value);
                 }
                 if (testKeyValidity(key, "max_outgoing_topic_aliases", validBridgeKeys))
                 {
-                    const int64_t newVal = full_stoi(key, value);
-                    if (newVal < 0 || newVal > std::numeric_limits<uint16_t>::max())
-                    {
-                        throw ConfigFileException(formatString("Value '%d' doesn't fit in uint16_t.", newVal));
-                    }
-                    curBridge->maxOutgoingTopicAliases = newVal;
+                    curBridge->maxOutgoingTopicAliases = value_to_int_ranged<uint16_t>(key, value);
                 }
                 if (testKeyValidity(key, "inet_protocol", validBridgeKeys))
                 {
@@ -1026,14 +990,7 @@ void ConfigFileParser::loadFile(bool test)
 
                 if (testKeyValidity(key, "max_qos", validKeys))
                 {
-                    const int qos = full_stoi(key, value);
-                    if (qos < 0 || qos > 2)
-                    {
-                        std::ostringstream oss;
-                        oss << "Value " << qos << " for " << key << " is invalid.";
-                        throw ConfigFileException(oss.str());
-                    }
-                    tmpSettings.maxQos = qos;
+                    tmpSettings.maxQos = value_to_int_ranged<uint8_t>(key, value, 0, 2);
                 }
 
                 if (testKeyValidity(key, "mqtt3_qos_exceed_action", validKeys))
@@ -1117,7 +1074,7 @@ void ConfigFileParser::loadFile(bool test)
 
                 if (testKeyValidity(key, "expire_sessions_after_seconds", validKeys))
                 {
-                    uint32_t newVal = full_stoul(key, value);
+                    const uint32_t newVal{value_to_int_ranged<uint32_t>(key, value)};
                     if (newVal > 0 && newVal < 60) // 0 means disable
                     {
                         throw ConfigFileException(formatString("expire_sessions_after_seconds value '%d' is invalid. Valid values are 0, or 60 or higher.", newVal));
@@ -1155,42 +1112,22 @@ void ConfigFileParser::loadFile(bool test)
 
                 if (testKeyValidity(key, "max_qos_msg_pending_per_client", validKeys))
                 {
-                    int newVal = full_stoi(key, value);
-                    if (newVal < 32 || newVal > 65535)
-                    {
-                        throw ConfigFileException(formatString("max_qos_msg_pending_per_client value '%d' is invalid. Valid values between 32 and 65535.", newVal));
-                    }
-                    tmpSettings.maxQosMsgPendingPerClient = newVal;
+                    tmpSettings.maxQosMsgPendingPerClient = value_to_int_ranged<uint16_t>(key, value, 32);
                 }
 
                 if (testKeyValidity(key, "max_qos_bytes_pending_per_client", validKeys))
                 {
-                    int newVal = full_stoi(key, value);
-                    if (newVal < 4096)
-                    {
-                        throw ConfigFileException(formatString("max_qos_bytes_pending_per_client value '%d' is invalid. Valid values are 4096 or higher.", newVal));
-                    }
-                    tmpSettings.maxQosBytesPendingPerClient = newVal;
+                    tmpSettings.maxQosBytesPendingPerClient = value_to_int_ranged<uint>(key, value, 4096);
                 }
 
                 if (testKeyValidity(key, "max_incoming_topic_alias_value", validKeys))
                 {
-                    int newVal = full_stoi(key, value);
-                    if (newVal < 0 || newVal > 0xFFFF)
-                    {
-                        throw ConfigFileException(formatString("max_incoming_topic_alias_value value '%d' is invalid. Valid values are between 0 and 65535.", newVal));
-                    }
-                    tmpSettings.maxIncomingTopicAliasValue = newVal;
+                    tmpSettings.maxIncomingTopicAliasValue = value_to_int_ranged<uint16_t>(key, value);
                 }
 
                 if (testKeyValidity(key, "max_outgoing_topic_alias_value", validKeys))
                 {
-                    int newVal = full_stoi(key, value);
-                    if (newVal < 0 || newVal > 0xFFFF)
-                    {
-                        throw ConfigFileException(formatString("max_outgoing_topic_alias_value value '%d' is invalid. Valid values are between 0 and 65535.", newVal));
-                    }
-                    tmpSettings.maxOutgoingTopicAliasValue = newVal;
+                    tmpSettings.maxOutgoingTopicAliasValue = value_to_int_ranged<uint16_t>(key, value);
                 }
 
                 if (testKeyValidity(key, "wills_enabled", validKeys))
@@ -1266,13 +1203,7 @@ void ConfigFileParser::loadFile(bool test)
 
                 if (testKeyValidity(key, "client_max_write_buffer_size", validKeys))
                 {
-                    const uint32_t minVal = 4096;
-                    uint32_t newVal = full_stoul(key, value);
-
-                    if (newVal < minVal)
-                        throw ConfigFileException(formatString("Value '%s' for '%s' is too low. It must be at least %d.", value.c_str(), key.c_str(), minVal));
-
-                    tmpSettings.clientMaxWriteBufferSize = newVal;
+                    tmpSettings.clientMaxWriteBufferSize = value_to_int_ranged<uint32_t>(key, value, 4096);
                 }
 
                 if (testKeyValidity(key, "retained_messages_delivery_limit", validKeys))
@@ -1282,7 +1213,7 @@ void ConfigFileParser::loadFile(bool test)
 
                 if (testKeyValidity(key, "retained_messages_node_limit", validKeys))
                 {
-                    const uint32_t newVal = full_stoul(key, value);
+                    const uint32_t newVal{value_to_int_ranged<uint32_t>(key, value)};
 
                     if (newVal == 0)
                         throw ConfigFileException("Set '" + key + "' higher than 0, or use 'retained_messages_mode'.");
@@ -1292,12 +1223,7 @@ void ConfigFileParser::loadFile(bool test)
 
                 if (testKeyValidity(key, "minimum_wildcard_subscription_depth", validKeys))
                 {
-                    const unsigned long newVal = full_stoul(key, value);
-
-                    if (newVal > 0xFFFF)
-                        throw ConfigFileException("Option '" + key + "' must be between 0 and 65535.");
-
-                    tmpSettings.minimumWildcardSubscriptionDepth = newVal;
+                    tmpSettings.minimumWildcardSubscriptionDepth = value_to_int_ranged<uint16_t>(key, value);
                 }
 
                 if (testKeyValidity(key, "wildcard_subscription_deny_mode", validKeys))

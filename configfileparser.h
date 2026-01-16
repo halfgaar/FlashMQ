@@ -29,6 +29,72 @@ enum class ConfigParseLevel
     Bridge
 };
 
+template<typename T>
+typename std::enable_if<std::is_signed<T>::value, long long>::type
+value_to_int(const std::string &key, const std::string &value)
+{
+    try
+    {
+        size_t len = 0;
+        long long newVal{std::stoll(value, &len)};
+        if (len != value.length())
+        {
+            throw std::exception();
+        }
+        return newVal;
+    }
+    catch (std::exception &ex)
+    {
+        throw ConfigFileException(formatString("%s's value of '%s' can't be parsed to a number", key.c_str(), value.c_str()));
+    }
+}
+
+template<typename T>
+typename std::enable_if<std::is_unsigned<T>::value, long long unsigned>::type
+value_to_int(const std::string &key, const std::string &value)
+{
+    try
+    {
+        size_t len = 0;
+        long long unsigned newVal{std::stoull(value, &len)};
+        if (len != value.length())
+        {
+            throw std::exception();
+        }
+        return newVal;
+    }
+    catch (std::exception &ex)
+    {
+        throw ConfigFileException(formatString("%s's value of '%s' can't be parsed to a number", key.c_str(), value.c_str()));
+    }
+}
+
+template<typename T>
+T value_to_int_ranged(const std::string &key, const std::string &value, const T min=std::numeric_limits<T>::min(), const T max=std::numeric_limits<T>::max())
+{
+    const auto newVal{value_to_int<T>(key, value)};
+    if (newVal < min || newVal > max)
+    {
+        std::ostringstream oss;
+        oss << "Value '" << value << "' out of range for '" << key << "', which must be between ";
+
+        if (sizeof(T) == 1)
+            oss << static_cast<int>(min);
+        else
+            oss << min;
+
+        oss << " and ";
+
+        if (sizeof(T) == 1)
+            oss << static_cast<int>(max);
+        else
+            oss << max;
+
+        throw ConfigFileException(oss.str());
+    }
+    return static_cast<T>(newVal);
+}
+
 class ConfigFileParser
 {
     const std::string path;
