@@ -28,7 +28,7 @@ if (${COMPILER_SUPPORTS_RDYNAMIC})
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -rdynamic")
 endif()
 
-add_compile_options(-Wall)
+add_compile_options(-Wall -Wextra)
 
 add_executable(flashmq
     ${FLASHMQ_HEADERS}

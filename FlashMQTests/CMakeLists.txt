@@ -22,7 +22,7 @@ endif()
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -rdynamic")
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -rdynamic")
 
-add_compile_options(-Wall -fsanitize=address)
+add_compile_options(-Wall -Wextra -fsanitize=address)
 add_link_options(-fsanitize=address)
 
 add_library(test_plugin SHARED
