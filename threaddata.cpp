@@ -33,12 +33,13 @@ QueuedRetainedMessage::QueuedRetainedMessage(const Publish &p, const std::vector
 
 }
 
-ThreadData::ThreadData(int threadnr, const Settings &settings, const std::shared_ptr<PluginLoader> &pluginLoader) :
+ThreadData::ThreadData(int threadnr, const Settings &settings, const std::shared_ptr<PluginLoader> &pluginLoader, const std::weak_ptr<MainApp> mainApp) :
     epollfd(check<std::runtime_error>(epoll_create(999))),
     pluginLoader(pluginLoader),
     settingsLocalCopy(settings),
     authentication(settingsLocalCopy),
-    threadnr(threadnr)
+    threadnr(threadnr),
+    mMainApp(mainApp)
 {
     logger = Logger::getInstance();
 
@@ -1346,8 +1347,8 @@ void ThreadData::wakeUpThread()
 }
 
 
-ThreadDataOwner::ThreadDataOwner(int threadnr, const Settings &settings, const std::shared_ptr<PluginLoader> &pluginLoader) :
-    td(std::make_shared<ThreadData>(threadnr, settings, pluginLoader))
+ThreadDataOwner::ThreadDataOwner(int threadnr, const Settings &settings, const std::shared_ptr<PluginLoader> &pluginLoader, const std::weak_ptr<MainApp> mainApp) :
+    td(std::make_shared<ThreadData>(threadnr, settings, pluginLoader, mainApp))
 {
 
 }

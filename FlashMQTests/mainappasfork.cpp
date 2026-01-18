@@ -49,11 +49,6 @@ void MainAppAsFork::start()
     // We must not have threads when we fork.
     Logger::getInstance()->quit();
 
-    if (MainApp::instance)
-    {
-        throw std::runtime_error("You can only use the forking test server if the main app is not constructed already. Do cleanup() first.");
-    }
-
     pid_t pid = fork();
 
     if (pid < 0)

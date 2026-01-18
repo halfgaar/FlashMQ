@@ -962,7 +962,7 @@ void MainTests::testSavingSessions()
         Settings settings;
         std::shared_ptr<PluginLoader> pluginLoader = std::make_shared<PluginLoader>();
         std::shared_ptr<SubscriptionStore> store(new SubscriptionStore());
-        std::shared_ptr<ThreadData> t(new ThreadData(0, settings, pluginLoader));
+        std::shared_ptr<ThreadData> t(new ThreadData(0, settings, pluginLoader, std::weak_ptr<MainApp>()));
 
         std::shared_ptr<Client> c1(new Client(ClientType::Normal, -1, t, FmqSsl(), ConnectionProtocol::Mqtt, HaProxyMode::Off, nullptr, settings, false));
         c1->setClientProperties(ProtocolVersion::Mqtt5, "c1", {}, "user1", true, 60);
@@ -1120,7 +1120,7 @@ void MainTests::testParsePacketHelper(const std::string &topic, uint8_t from_qos
     settings.logLevel = LogLevel::Info;
     std::shared_ptr<SubscriptionStore> store(new SubscriptionStore());
     std::shared_ptr<PluginLoader> pluginLoader = std::make_shared<PluginLoader>();
-    std::shared_ptr<ThreadData> t(new ThreadData(0, settings, pluginLoader));
+    std::shared_ptr<ThreadData> t(new ThreadData(0, settings, pluginLoader, std::weak_ptr<MainApp>()));
 
     std::shared_ptr<Client> dummyClient(new Client(ClientType::Normal, -1, t, FmqSsl(), ConnectionProtocol::Mqtt, HaProxyMode::Off, nullptr, settings, false));
     dummyClient->setClientProperties(ProtocolVersion::Mqtt311, "qostestclient", {}, "user1", true, 60);
@@ -1188,7 +1188,7 @@ void MainTests::testbufferToMqttPacketsFuzz()
     settings.logLevel = LogLevel::Info;
     std::shared_ptr<SubscriptionStore> store(new SubscriptionStore());
     std::shared_ptr<PluginLoader> pluginLoader = std::make_shared<PluginLoader>();
-    std::shared_ptr<ThreadData> t(new ThreadData(0, settings, pluginLoader));
+    std::shared_ptr<ThreadData> t(new ThreadData(0, settings, pluginLoader, std::weak_ptr<MainApp>()));
 
     settings.maxPacketSize = 32768;
 

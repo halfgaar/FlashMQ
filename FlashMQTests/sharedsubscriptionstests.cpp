@@ -11,7 +11,7 @@ void MainTests::testSharedSubscribersUnit()
 {
     Settings settings;
     std::shared_ptr<PluginLoader> pluginLoader = std::make_shared<PluginLoader>();
-    std::shared_ptr<ThreadData> t(new ThreadData(0, settings, pluginLoader));
+    std::shared_ptr<ThreadData> t(new ThreadData(0, settings, pluginLoader, std::weak_ptr<MainApp>()));
 
     ThreadGlobals::assignThreadData(t);
 

@@ -122,7 +122,7 @@ void MainTests::initBeforeEachTest(const std::vector<std::string> &args, bool st
 
     // We test functions directly that the server normally only calls from worker threads, in which thread data is available. This is kind of a dummy-fix, until
     // we actually need correct thread data at those points (at this point, it's only to increase message counters).
-    this->dummyThreadData = std::make_shared<ThreadData>(666, settings, pluginLoader);
+    this->dummyThreadData = std::make_shared<ThreadData>(666, settings, pluginLoader, std::weak_ptr<MainApp>());
     ThreadGlobals::assignThreadData(dummyThreadData);
     ThreadGlobals::assignSettings(&this->settings);
 }

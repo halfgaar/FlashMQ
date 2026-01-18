@@ -41,8 +41,13 @@ void do_thread_work(std::shared_ptr<ThreadData> threadData)
     catch(std::exception &ex)
     {
         logger->logf(LOG_ERR, "Error initializing auth back-end: %s", ex.what());
-        MainApp *instance = MainApp::getMainApp();
-        instance->quit();
+
+        auto lockedMainApp = threadData->mMainApp.lock();
+
+        if (lockedMainApp)
+        {
+            lockedMainApp->quit();
+        }
     }
 
     std::vector<ReadyClient> ready_clients;

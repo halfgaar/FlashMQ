@@ -19,29 +19,34 @@ See LICENSE for license details.
 #include "utils.h"
 #include "exceptions.h"
 
-MainApp *mainApp = nullptr;
+std::weak_ptr<MainApp> globalMainApp;
 
 void signal_handler(int signal)
 {
+    std::shared_ptr<MainApp> locked = globalMainApp.lock();
+
+    if (!locked)
+        return;
+
     if (signal == SIGPIPE)
     {
         return;
     }
     if (signal == SIGHUP)
     {
-        mainApp->queueConfigReload();
+        locked->queueConfigReload();
     }
     else if (signal == SIGUSR1)
     {
-        mainApp->queueReopenLogFile();
+        locked->queueReopenLogFile();
     }
     else if (signal == SIGUSR2)
     {
-        mainApp->queueMemoryTrim();
+        locked->queueMemoryTrim();
     }
     else if (signal == SIGTERM || signal == SIGINT)
     {
-        mainApp->queueQuit();
+        locked->queueQuit();
     }
 }
 
@@ -88,8 +93,8 @@ int fmqmain(int argc, char *argv[])
     try
     {
         logger = Logger::getInstance();
-        MainApp::initMainApp(argc, argv);
-        mainApp = MainApp::getMainApp();
+        std::shared_ptr<MainApp> mainapp = MainApp::initMainApp(argc, argv);
+        globalMainApp = mainapp;
         check<std::runtime_error>(register_signal_handers());
 
         std::string sse = "without SSE support";
@@ -101,7 +106,7 @@ int fmqmain(int argc, char *argv[])
 #else
         logger->logf(LOG_NOTICE, "Starting FlashMQ version %s, debug build %s.", FLASHMQ_VERSION, sse.c_str());
 #endif
-        mainApp->start();
+        mainapp->start();
         logger->quit();
     }
     catch (ConfigFileException &ex)

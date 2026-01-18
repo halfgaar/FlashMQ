@@ -37,6 +37,8 @@ See LICENSE for license details.
 #include "mutexowned.h"
 #include "clientacceptqueue.h"
 
+class MainApp;
+
 struct KeepAliveCheck
 {
     std::weak_ptr<Client> client;
@@ -68,7 +70,7 @@ struct ThreadDataOwner
     ThreadDataOwner() = delete;
     ThreadDataOwner(const ThreadDataOwner &other) = delete;
     ThreadDataOwner(ThreadDataOwner &&other) = default;
-    ThreadDataOwner(int threadnr, const Settings &settings, const std::shared_ptr<PluginLoader> &pluginLoader);
+    ThreadDataOwner(int threadnr, const Settings &settings, const std::shared_ptr<PluginLoader> &pluginLoader, const std::weak_ptr<MainApp> mainApp);
     ~ThreadDataOwner();
 
     ThreadDataOwner &operator=(const ThreadDataOwner &other) = delete;
@@ -132,6 +134,7 @@ public:
     std::unordered_map<int, std::weak_ptr<void>> externalFds;
     std::vector<std::weak_ptr<Client>> disconnectingClients;
     ClientAcceptQueue acceptQueue;
+    std::weak_ptr<MainApp> mMainApp;
 
     DerivableCounter receivedMessageCounter;
     DerivableCounter sentMessageCounter;
@@ -146,7 +149,7 @@ public:
 
     std::minstd_rand randomish;
 
-    ThreadData(int threadnr, const Settings &settings, const std::shared_ptr<PluginLoader> &pluginLoader);
+    ThreadData(int threadnr, const Settings &settings, const std::shared_ptr<PluginLoader> &pluginLoader, const std::weak_ptr<MainApp> mainApp);
     ThreadData(const ThreadData &other) = delete;
     ThreadData(ThreadData &&other) = delete;
     ~ThreadData();

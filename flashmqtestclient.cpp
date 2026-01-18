@@ -32,7 +32,7 @@ void FlashMQTestClient::ReceivedObjects::clear()
 }
 
 FlashMQTestClient::FlashMQTestClient() :
-    testServerWorkerThreadData(0, settings, pluginLoader)
+    testServerWorkerThreadData(0, settings, pluginLoader, {})
 {
 }
 

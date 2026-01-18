@@ -40,7 +40,7 @@ class MainApp
     friend class MainAppAsFork;
 #endif
 
-    static MainApp *instance;
+    std::weak_ptr<MainApp> mSelf;
     int num_threads = 0;
 
     bool started = false;
@@ -69,11 +69,13 @@ class MainApp
     std::mutex quitMutex;
     std::string fuzzFilePath;
     OneInstanceLock oneInstanceLock;
+    const pthread_t mInitializedByThread = pthread_self();
 
     Logger *logger = Logger::getInstance();
 
     BackgroundWorker bgWorker;
 
+    void setSelf(const std::shared_ptr<MainApp> &self);
     bool getFuzzMode() const;
     void setlimits();
     void loadConfig(bool reload);
@@ -102,8 +104,7 @@ public:
     MainApp(const MainApp &rhs) = delete;
     MainApp(MainApp &&rhs) = delete;
     ~MainApp();
-    static MainApp *getMainApp();
-    static void initMainApp(int argc, char *argv[]);
+    static std::shared_ptr<MainApp> initMainApp(int argc, char *argv[]);
     void start();
     void queueQuit();
     void quit();

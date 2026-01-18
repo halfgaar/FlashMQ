@@ -4,11 +4,13 @@
 #include <thread>
 
 #include "mainapp.h"
+#include "mutexowned.h"
 
 class MainAppInThread
 {
     std::thread thread;
-    MainApp *appInstance = nullptr;
+    const std::vector<std::string> mArgs;
+    MutexOwned<std::shared_ptr<MainApp>> mMainApp;
 public:
     MainAppInThread();
     MainAppInThread(const std::vector<std::string> &args);

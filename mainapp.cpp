@@ -34,8 +34,6 @@ See LICENSE for license details.
 #include "fmqssl.h"
 #include "persistencefunctions.h"
 
-MainApp *MainApp::instance = nullptr;
-
 MainApp::MainApp(const std::string &configFilePath)
 {
     globals = Globals();
@@ -432,11 +430,8 @@ void MainApp::queueInternalHeartbeat()
     }
 }
 
-void MainApp::initMainApp(int argc, char *argv[])
+std::shared_ptr<MainApp> MainApp::initMainApp(int argc, char *argv[])
 {
-    if (instance != nullptr)
-        throw std::runtime_error("App was already initialized.");
-
     static struct option long_options[] =
     {
         {"help", no_argument, nullptr, 'h'},
@@ -522,20 +517,17 @@ void MainApp::initMainApp(int argc, char *argv[])
         }
     }
 
-    instance = new MainApp(configFile);
-    instance->setFuzzFile(fuzzFile);
+    std::shared_ptr<MainApp> result(new MainApp(configFile));
+    result->setSelf(result);
+    result->setFuzzFile(fuzzFile);
+    return result;
 }
 
-
-MainApp *MainApp::getMainApp()
-{
-    if (!instance)
-        throw std::runtime_error("You haven't initialized the app yet.");
-    return instance;
-}
 
 void MainApp::start()
 {
+    assert(mInitializedByThread == pthread_self());
+
 #ifndef NDEBUG
 #ifndef TESTING
     if (!getFuzzMode())
@@ -586,7 +578,7 @@ void MainApp::start()
 
             std::shared_ptr<PluginLoader> pluginLoader = std::make_shared<PluginLoader>();
 
-            std::shared_ptr<ThreadData> threaddata = std::make_shared<ThreadData>(0, settings, pluginLoader);
+            std::shared_ptr<ThreadData> threaddata = std::make_shared<ThreadData>(0, settings, pluginLoader, mSelf);
             ThreadGlobals::assignThreadData(threaddata);
 
             std::shared_ptr<Client> client = std::make_shared<Client>(ClientType::Normal, fd, threaddata, FmqSsl(), connectionProtocol, HaProxyMode::Off, nullptr, settings, true);
@@ -642,7 +634,7 @@ void MainApp::start()
 
     for (int i = 0; i < num_threads; i++)
     {
-        threads.emplace_back(i, settings, pluginLoader);
+        threads.emplace_back(i, settings, pluginLoader, mSelf);
         threads.back().start();
     }
 
@@ -964,6 +956,12 @@ void MainApp::quit()
     Logger *logger = Logger::getInstance();
     logger->logf(LOG_NOTICE, "Quitting FlashMQ");
     running = false;
+}
+
+void MainApp::setSelf(const std::shared_ptr<MainApp> &self)
+{
+    assert(this == self.get());
+    mSelf = self;
 }
 
 bool MainApp::getFuzzMode() const

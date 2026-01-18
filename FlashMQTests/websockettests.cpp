@@ -58,7 +58,7 @@ void MainTests::testWebsocketPing()
         Settings settings;
         std::shared_ptr<PluginLoader> pluginLoader = std::make_shared<PluginLoader>();
         std::shared_ptr<SubscriptionStore> store(new SubscriptionStore());
-        std::shared_ptr<ThreadData> t(new ThreadData(0, settings, pluginLoader));
+        std::shared_ptr<ThreadData> t(new ThreadData(0, settings, pluginLoader, std::weak_ptr<MainApp>()));
 
         int listen_socket = socket(AF_INET, SOCK_STREAM, 0);
         FileCloser listener_closer(listen_socket);
@@ -237,7 +237,7 @@ void MainTests::testWebsocketCorruptLengthFrame()
         Settings settings;
         std::shared_ptr<PluginLoader> pluginLoader = std::make_shared<PluginLoader>();
         std::shared_ptr<SubscriptionStore> store(new SubscriptionStore());
-        std::shared_ptr<ThreadData> t(new ThreadData(0, settings, pluginLoader));
+        std::shared_ptr<ThreadData> t(new ThreadData(0, settings, pluginLoader, std::weak_ptr<MainApp>()));
 
         int listen_socket = socket(AF_INET, SOCK_STREAM, 0);
         FileCloser listener_closer(listen_socket);
@@ -365,7 +365,7 @@ void MainTests::testWebsocketHugePing()
         Settings settings;
         std::shared_ptr<PluginLoader> pluginLoader = std::make_shared<PluginLoader>();
         std::shared_ptr<SubscriptionStore> store(new SubscriptionStore());
-        std::shared_ptr<ThreadData> t(new ThreadData(0, settings, pluginLoader));
+        std::shared_ptr<ThreadData> t(new ThreadData(0, settings, pluginLoader, std::weak_ptr<MainApp>()));
 
         int listen_socket = socket(AF_INET, SOCK_STREAM, 0);
         FileCloser listener_closer(listen_socket);
@@ -486,7 +486,7 @@ void MainTests::testWebsocketManyBigPingFrames()
 
         std::shared_ptr<PluginLoader> pluginLoader = std::make_shared<PluginLoader>();
         std::shared_ptr<SubscriptionStore> store(new SubscriptionStore());
-        std::shared_ptr<ThreadData> t(new ThreadData(0, settings, pluginLoader));
+        std::shared_ptr<ThreadData> t(new ThreadData(0, settings, pluginLoader, std::weak_ptr<MainApp>()));
 
         int listen_socket = socket(AF_INET, SOCK_STREAM, 0);
         FileCloser listener_closer(listen_socket);
@@ -633,7 +633,7 @@ void MainTests::testWebsocketClose()
         Settings settings;
         std::shared_ptr<PluginLoader> pluginLoader = std::make_shared<PluginLoader>();
         std::shared_ptr<SubscriptionStore> store(new SubscriptionStore());
-        std::shared_ptr<ThreadData> t(new ThreadData(0, settings, pluginLoader));
+        std::shared_ptr<ThreadData> t(new ThreadData(0, settings, pluginLoader, std::weak_ptr<MainApp>()));
 
         int listen_socket = socket(AF_INET, SOCK_STREAM, 0);
         FileCloser listener_closer(listen_socket);
