@@ -92,6 +92,15 @@ void MainApp::doHelp(const char *arg)
 {
     puts("FlashMQ - the scalable light-weight MQTT broker");
     puts("");
+    puts("Documentation:");
+    puts("  'man 5 flashmq.conf' or https://www.flashmq.org/man/flashmq.conf.5");
+    puts("  'man 1 flashmq' or https://www.flashmq.org/man/flashmq.1");
+    puts("");
+    puts("Signals:");
+    puts("  SIGHUP: reload configuration.");
+    puts("  SIGUSR1: reopen log files.");
+    puts("  SIGUSR2: perform malloc_trim(), to try to yield unused heap memory to the OS.");
+    puts("");
     printf("Usage: %s [options]\n", arg);
     puts("");
     puts(" -h, --help                           Print help");
