@@ -424,8 +424,9 @@ MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, const uint16_t pac
     calculateRemainingLength();
 }
 
-MqttPacket::MqttPacket(const Unsubscribe &unsubscribe) :
-    bites(unsubscribe.getLengthWithoutFixedHeader()),
+MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, const uint16_t packetId, const std::vector<Unsubscribe> &unsubs) :
+    packet_id(packetId),
+    protocolVersion(protocolVersion),
     packetType(PacketType::UNSUBSCRIBE)
 {
 #ifndef TESTING
@@ -435,14 +436,40 @@ MqttPacket::MqttPacket(const Unsubscribe &unsubscribe) :
     first_byte = static_cast<char>(packetType) << 4;
     first_byte |= 2; // required reserved bit
 
-    writeUint16(unsubscribe.packetId);
+    std::optional<Mqtt5PropertyBuilder> properties;
 
-    if (unsubscribe.protocolVersion >= ProtocolVersion::Mqtt5)
+    if (protocolVersion >= ProtocolVersion::Mqtt5)
     {
-        writeProperties(unsubscribe.propertyBuilder);
+        // no properties we support (yet?)
     }
 
-    writeString(unsubscribe.topic);
+    size_t len = 0;
+
+    for (const Unsubscribe &unsub : unsubs)
+    {
+        len += unsub.topic.size() + 2;
+    }
+
+    len += 2; // packet id
+
+    if (protocolVersion >= ProtocolVersion::Mqtt5)
+    {
+        len += 1;
+    }
+
+    bites.resize(len);
+
+    writeUint16(packetId);
+
+    if (protocolVersion >= ProtocolVersion::Mqtt5)
+    {
+        writeProperties(properties);
+    }
+
+    for (const Unsubscribe &unsub : unsubs)
+    {
+        writeString(unsub.topic);
+    }
 
     calculateRemainingLength();
 }

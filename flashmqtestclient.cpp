@@ -240,8 +240,9 @@ void FlashMQTestClient::unsubscribe(const std::string &topic)
 
     const uint16_t packet_id = 66;
 
-    Unsubscribe unsub(client->getProtocolVersion(), packet_id, topic);
-    MqttPacket unsubPack(unsub);
+    std::vector<Unsubscribe> unsubs;
+    unsubs.emplace_back(topic);
+    MqttPacket unsubPack(client->getProtocolVersion(), packet_id, unsubs);
     client->writeMqttPacketAndBlameThisClient(unsubPack);
 
     waitForCondition([&]() {
