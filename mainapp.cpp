@@ -58,23 +58,6 @@ MainApp::MainApp(const std::string &configFilePath)
 
     if (num_threads <= 0)
         throw std::runtime_error("Invalid number of CPUs: " + std::to_string(num_threads));
-
-    if (!settings.storageDir.empty())
-    {
-        try
-        {
-            correctBackupDbPermissions(settings.storageDir);
-        }
-        catch (std::exception &ex) {}
-
-        const std::string retainedDbPath = settings.getRetainedMessagesDBFile();
-        if (settings.retainedMessagesMode == RetainedMessagesMode::Enabled)
-            subscriptionStore->loadRetainedMessages(settings.getRetainedMessagesDBFile());
-        else
-            logger->logf(LOG_INFO, "Not loading '%s', because 'retained_messages_mode' is not 'enabled'.", retainedDbPath.c_str());
-
-        subscriptionStore->loadSessionsAndSubscriptions(settings.getSessionsDBFile());
-    }
 }
 
 MainApp::~MainApp()
@@ -638,13 +621,9 @@ void MainApp::start()
     std::shared_ptr<PluginLoader> pluginLoader = std::make_shared<PluginLoader>();
     pluginLoader->loadPlugin(settings.pluginPath);
 
-    std::unordered_map<std::string, std::string> &authOpts = settings.getFlashmqpluginOpts();
-    pluginLoader->mainInit(authOpts);
-
     for (int i = 0; i < num_threads; i++)
     {
         threads.emplace_back(i, settings, pluginLoader, mSelf);
-        threads.back().start();
     }
 
     // Populate the $SYS topics, otherwise you have to wait until the timer expires.
@@ -670,6 +649,18 @@ void MainApp::start()
     }
 
     sendBridgesToThreads();
+
+    // This needs to be after sending the bridges to threads, for lazy subscription expanding.
+    loadPersistance();
+
+    std::unordered_map<std::string, std::string> &authOpts = settings.getFlashmqpluginOpts();
+    pluginLoader->mainInit(authOpts);
+
+    for (auto &t : this->threads)
+    {
+        t.start();
+    }
+
     queueBridgeReconnectAllThreads(true);
 
     std::minstd_rand randomish;
@@ -965,6 +956,26 @@ void MainApp::quit()
     Logger *logger = Logger::getInstance();
     logger->logf(LOG_NOTICE, "Quitting FlashMQ");
     running = false;
+}
+
+void MainApp::loadPersistance()
+{
+    if (settings.storageDir.empty())
+        return;
+
+    try
+    {
+        correctBackupDbPermissions(settings.storageDir);
+    }
+    catch (std::exception &ex) {}
+
+    const std::string retainedDbPath = settings.getRetainedMessagesDBFile();
+    if (settings.retainedMessagesMode == RetainedMessagesMode::Enabled)
+        subscriptionStore->loadRetainedMessages(settings.getRetainedMessagesDBFile());
+    else
+        logger->logf(LOG_INFO, "Not loading '%s', because 'retained_messages_mode' is not 'enabled'.", retainedDbPath.c_str());
+
+    subscriptionStore->loadSessionsAndSubscriptions(settings.getSessionsDBFile());
 }
 
 void MainApp::setSelf(const std::shared_ptr<MainApp> &self)

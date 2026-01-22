@@ -75,6 +75,7 @@ class MainApp
 
     BackgroundWorker bgWorker;
 
+    void loadPersistance();
     void setSelf(const std::shared_ptr<MainApp> &self);
     bool getFuzzMode() const;
     void setlimits();

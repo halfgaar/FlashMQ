@@ -12,6 +12,8 @@
 #include <sys/epoll.h>
 #include "curlfunctions.h"
 
+bool main_init_was_here = false;
+
 
 TestPluginData::TestPluginData() :
     curlMulti(curl_multi_init(), curl_multi_cleanup)
@@ -95,7 +97,7 @@ void flashmq_plugin_init(void *thread_data, std::unordered_map<std::string, std:
 
     TestPluginData *p = static_cast<TestPluginData*>(thread_data);
 
-    if (plugin_opts.find("main_init was here") != plugin_opts.end())
+    if (main_init_was_here)
         p->main_init_ran = true;
 }
 
@@ -353,8 +355,7 @@ void flashmq_plugin_main_init(std::unordered_map<std::string, std::string> &plug
 
     flashmq_logf(LOG_INFO, "The tester was here.");
 
-    // The plugin_opts aren't const. I don't know if that was a mistake or not anymore, but it works in my favor now.
-    plugin_opts["main_init was here"] = "true";
+    main_init_was_here = true;
 
     if (curl_global_init(CURL_GLOBAL_ALL) != 0)
         throw std::runtime_error("Global curl init failed to init");
