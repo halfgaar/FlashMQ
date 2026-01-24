@@ -1106,7 +1106,7 @@ void MainApp::loadConfig(bool reload)
 
     logger->setLogPath(settings.logPath);
     logger->queueReOpen();
-    logger->setFlags(settings.logLevel, settings.logSubscriptions);
+    logger->setFlags(settings.logLevel, settings.logSubscriptions, settings.logPublishes);
     logger->setFlags(settings.logDebug, settings.quiet);
 
     setlimits();

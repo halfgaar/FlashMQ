@@ -2097,10 +2097,10 @@ void MqttPacket::handlePublish(std::shared_ptr<Client> &sender)
 {
     parsePublishData(sender);
 
-    if (__builtin_expect(logger->wouldLog(LOG_DEBUG), 0))
+    if (__builtin_expect(logger->wouldLog(LOG_PUBLISH), 0))
     {
         const bool duplicate = !!(first_byte & 0b00001000);
-        logger->log(LOG_DEBUG)
+        logger->log(LOG_PUBLISH)
                 << "Publish received from '" << sender->repr() << "'. Size: " << bites.size() << ". Topic: '" << publishData.topic
                 << "'. QoS=" << static_cast<int>(publishData.qos) << ". Retain=" << publishData.retain << ". Dup=" << duplicate
                 << ". Alias=" << publishData.topicAlias << ".";

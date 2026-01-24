@@ -85,6 +85,8 @@ std::string_view Logger::getLogLevelString(int level)
         return "SUBSCRIBE";
     case LOG_UNSUBSCRIBE:
         return "UNSUBSCRIBE";
+    case LOG_PUBLISH:
+        return "PUBLISH";
     default:
         return "UNKNOWN LOG LEVEL";
     }
@@ -179,7 +181,7 @@ void Logger::setLogPath(const std::string &path)
  *
  * The subscriptions flag is still set explicitly, because you may want that irrespective of the log level.
  */
-void Logger::setFlags(LogLevel level, bool logSubscriptions)
+void Logger::setFlags(LogLevel level, bool logSubscriptions, bool logPublishes)
 {
     curLogLevel = 0;
 
@@ -198,6 +200,11 @@ void Logger::setFlags(LogLevel level, bool logSubscriptions)
         curLogLevel |= (LOG_UNSUBSCRIBE | LOG_SUBSCRIBE);
     else
         curLogLevel &= ~(LOG_UNSUBSCRIBE | LOG_SUBSCRIBE);
+
+    if (logPublishes)
+        curLogLevel |= LOG_PUBLISH;
+    else
+        curLogLevel &= ~LOG_PUBLISH;
 }
 
 /**

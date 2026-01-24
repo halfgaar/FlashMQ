@@ -225,9 +225,8 @@ bool Session::clearQosMessage(uint16_t packet_id, bool qosHandshakeEnds)
 
     MutexLocked<QoSData> qos_locked = qos.lock();
 
-#ifndef NDEBUG
-    logger->logf(LOG_DEBUG, "Clearing QoS message for '%s', packet id '%d'. Left in queue: %d", client_id.c_str(), packet_id, qos_locked->qosPacketQueue.size());
-#endif
+    if (logger->wouldLog(LOG_PUBLISH))
+        logger->logf(LOG_PUBLISH, "Clearing QoS message for '%s', packet id '%d'. Left in queue: %d", client_id.c_str(), packet_id, qos_locked->qosPacketQueue.size());
 
     if (!destroyOnDisconnect)
         result = qos_locked->qosPacketQueue.erase(packet_id);
@@ -368,10 +367,11 @@ bool Session::removeIncomingQoS2MessageId(u_int16_t packet_id)
 
     MutexLocked<QoSData> qos_locked = qos.lock();
 
-#ifndef NDEBUG
-    logger->logf(LOG_DEBUG, "As QoS 2 receiver: publish released (PUBREL) for '%s', packet id '%d'. Left in queue: %d",
-                 client_id.c_str(), packet_id, qos_locked->incomingQoS2MessageIds.size());
-#endif
+    if (logger->wouldLog(LOG_PUBLISH))
+    {
+        logger->logf(LOG_PUBLISH, "As QoS 2 receiver: publish released (PUBREL) for '%s', packet id '%d'. Left in queue: %d",
+                     client_id.c_str(), packet_id, qos_locked->incomingQoS2MessageIds.size());
+    }
 
     bool result = false;
 
@@ -395,10 +395,11 @@ void Session::removeOutgoingQoS2MessageId(u_int16_t packet_id)
 {
     MutexLocked<QoSData> qos_locked = qos.lock();
 
-#ifndef NDEBUG
-    logger->logf(LOG_DEBUG, "As QoS 2 sender: publish complete (PUBCOMP) for '%s', packet id '%d'. Left in queue: %d",
-                 client_id.c_str(), packet_id, qos_locked->outgoingQoS2MessageIds.size());
-#endif
+    if (logger->wouldLog(LOG_PUBLISH))
+    {
+        logger->logf(LOG_PUBLISH, "As QoS 2 sender: publish complete (PUBCOMP) for '%s', packet id '%d'. Left in queue: %d",
+                     client_id.c_str(), packet_id, qos_locked->outgoingQoS2MessageIds.size());
+    }
 
     const auto it = qos_locked->outgoingQoS2MessageIds.find(packet_id);
     if (it != qos_locked->outgoingQoS2MessageIds.end())

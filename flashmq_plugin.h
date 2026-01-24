@@ -43,6 +43,7 @@
 #define LOG_DEBUG 0x10
 #define LOG_SUBSCRIBE 0x20
 #define LOG_UNSUBSCRIBE 0x40
+#define LOG_PUBLISH 0x80 // Not compatible with Mosquitto
 
 extern "C"
 {

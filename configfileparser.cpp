@@ -204,6 +204,7 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validKeys.insert("mqtt3_qos_exceed_action");
     validKeys.insert("log_debug");
     validKeys.insert("log_subscriptions");
+    validKeys.insert("log_publishes");
     validKeys.insert("log_level");
     validKeys.insert("mosquitto_password_file");
     validKeys.insert("mosquitto_acl_file");
@@ -1051,6 +1052,11 @@ void ConfigFileParser::loadFile(bool test)
                 {
                     bool tmp = stringTruthiness(value);
                     tmpSettings.logSubscriptions = tmp;
+                }
+
+                if (testKeyValidity(key, "log_publishes", validKeys))
+                {
+                    tmpSettings.logPublishes = stringTruthiness(value);
                 }
 
                 if (testKeyValidity(key, "mosquitto_password_file", validKeys))
