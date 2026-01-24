@@ -841,6 +841,14 @@ void ThreadData::acceptPendingBridges()
     }
 }
 
+void ThreadData::deleteClients()
+{
+    clients.by_fd.clear();
+    clients.bridges.clear();
+    acceptQueue.clients.lock()->clear();
+    acceptQueue.bridges.lock()->clear();
+}
+
 void ThreadData::setQueuedRetainedMessages()
 {
     if (this->queuedRetainedMessages.empty())

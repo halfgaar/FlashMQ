@@ -298,6 +298,8 @@ void do_thread_work(std::shared_ptr<ThreadData> threadData)
     {
         logger->logf(LOG_NOTICE, "Thread %d doing auth cleanup.", threadData->threadnr);
         threadData->cleanupplugin();
+
+        threadData->deleteClients();
     }
     catch(std::exception &ex)
     {

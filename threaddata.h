@@ -192,6 +192,7 @@ public:
     void clearQueuedRetainedMessages();
     void acceptPendingClients();
     void acceptPendingBridges();
+    void deleteClients();
 
     size_t getNrOfClients();
     void updateNrOfClients();
