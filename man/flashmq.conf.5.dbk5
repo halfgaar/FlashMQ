@@ -179,6 +179,17 @@ multi-value-param one 'two' "three" "with ' char"
           </para>
         </listitem>
       </varlistentry>
+      <varlistentry xml:id="log_publishes" condition="flashmq ≥ 1.25.0">
+        <term><option>log_publishes</option> <replaceable>true</replaceable>|<replaceable>false</replaceable></term>
+        <listitem>
+          <para>
+            Both publishes and QoS actions related to publishes are logged at this level.
+          </para>
+          <para>
+            Default value: <literal>false</literal>
+          </para>
+        </listitem>
+      </varlistentry>
       <varlistentry xml:id="allow_unsafe_clientid_chars">
         <term><option>allow_unsafe_clientid_chars</option> <replaceable>true</replaceable>|<replaceable>false</replaceable></term>
         <listitem>

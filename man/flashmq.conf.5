@@ -5,7 +5,7 @@
 \\$2 \(la\\$1\(ra\\$3
 ..
 .if \n(.g .mso www.tmac
-.TH flashmq.conf 5 "Jan 17 2026" "" ""
+.TH flashmq.conf 5 "Jan 24 2026" "" ""
 .SH NAME
 flashmq.conf \- FlashMQ configuration file format
 .SH SYNOPSIS
@@ -90,6 +90,11 @@ Deprecated. Use \fB\m[green]log_level\fR\m[] instead.
 Default value: \fIfalse\fR
 .TP
 \*(T<\fB\m[green]log_subscriptions\m[] \fI\m[cyan]true\m[]\fR|\fI\m[cyan]false\m[]\fR\fR\*(T>
+Default value: \fIfalse\fR
+.TP
+\*(T<\fB\m[green]log_publishes\m[] \fI\m[cyan]true\m[]\fR|\fI\m[cyan]false\m[]\fR\fR\*(T>
+Both publishes and QoS actions related to publishes are logged at this level.
+
 Default value: \fIfalse\fR
 .TP
 \*(T<\fB\m[green]allow_unsafe_clientid_chars\m[] \fI\m[cyan]true\m[]\fR|\fI\m[cyan]false\m[]\fR\fR\*(T>
