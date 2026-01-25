@@ -1114,7 +1114,7 @@ void MainTests::testSavingSessions()
 
 void MainTests::testParsePacketHelper(const std::string &topic, uint8_t from_qos, bool retain)
 {
-    Logger::getInstance()->setFlags(LogLevel::None, false);
+    Logger::getInstance()->setFlags(LogLevel::None, false, false);
 
     Settings settings;
     settings.logLevel = LogLevel::Info;
@@ -1182,7 +1182,7 @@ void MainTests::testParsePacket()
  */
 void MainTests::testbufferToMqttPacketsFuzz()
 {
-    Logger::getInstance()->setFlags(LogLevel::None, false);
+    Logger::getInstance()->setFlags(LogLevel::None, false, false);
 
     Settings settings;
     settings.logLevel = LogLevel::Info;
