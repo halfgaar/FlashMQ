@@ -698,7 +698,7 @@ ConnectData MqttPacket::parseConnectData(std::shared_ptr<Client> &sender)
                 if (pcounts[1]++ > 0)
                     throw ProtocolError("Can't specify " + propertyToString(prop) + " more than once", ReasonCodes::ProtocolError);
 
-                result.client_receive_max = std::min<int16_t>(readTwoBytesToUInt16(), result.client_receive_max);
+                result.client_receive_max = std::min<uint16_t>(readTwoBytesToUInt16(), result.client_receive_max);
                 break;
             case Mqtt5Properties::MaximumPacketSize:
                 if (pcounts[2]++ > 0)
@@ -981,7 +981,7 @@ ConnAckData MqttPacket::parseConnAckData()
                 if (pcounts[1]++ > 0)
                     throw ProtocolError("Can't specify " + propertyToString(prop) + " more than once", ReasonCodes::ProtocolError);
 
-                result.client_receive_max = std::min<int16_t>(readTwoBytesToUInt16(), result.client_receive_max);
+                result.client_receive_max = std::min<uint16_t>(readTwoBytesToUInt16(), result.client_receive_max);
                 break;
             case Mqtt5Properties::MaximumQoS:
                 if (pcounts[2]++ > 0)
