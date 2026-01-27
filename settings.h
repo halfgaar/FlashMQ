@@ -86,6 +86,7 @@ public:
     uint16_t maxIncomingTopicAliasValue = 65535;
     uint16_t maxOutgoingTopicAliasValue = 65535;
     uint8_t maxQos = 2;
+    uint16_t maxStringLength = 4096;
     Mqtt3QoSExceedAction mqtt3QoSExceedAction = Mqtt3QoSExceedAction::Disconnect;
 #ifdef TESTING
     std::optional<bool> logDebug;

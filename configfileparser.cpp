@@ -240,6 +240,7 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validKeys.insert("subscription_node_lifetime");
     validKeys.insert("subscription_identifiers_enabled");
     validKeys.insert("persistence_data_to_save");
+    validKeys.insert("max_string_length");
 
     validListenKeys.insert("port");
     validListenKeys.insert("protocol");
@@ -1378,6 +1379,11 @@ void ConfigFileParser::loadFile(bool test)
                     }
 
                     number_of_expected_values = new_correct_number_of_args;
+                }
+
+                if (testKeyValidity(key, "max_string_length", validKeys))
+                {
+                    tmpSettings.maxStringLength = value_to_int_ranged<uint16_t>(key, valueTrimmed);
                 }
             }
         }

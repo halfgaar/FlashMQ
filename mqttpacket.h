@@ -99,7 +99,7 @@ class MqttPacket
     uint32_t readFourBytesToUint32();
     size_t remainingAfterPos();
     size_t decodeVariableByteIntAtPos();
-    std::string readBytesToString(bool validateUtf8 = true, bool alsoCheckInvalidPublishChars = false);
+    std::string readBytesToString(const uint16_t maxLength = std::numeric_limits<uint16_t>::max(), bool validateUtf8 = true, bool alsoCheckInvalidPublishChars = false);
 
     void calculateRemainingLength();
     void setPosToDataStart();

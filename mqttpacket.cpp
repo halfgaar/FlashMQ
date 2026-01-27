@@ -741,8 +741,8 @@ ConnectData MqttPacket::parseConnectData(std::shared_ptr<Client> &sender)
             case Mqtt5Properties::UserProperty:
             {
                 // We (ab)use the publishData for the user properties, because it's there.
-                std::string key = readBytesToString();
-                std::string val = readBytesToString();
+                std::string key = readBytesToString(settings.maxStringLength);
+                std::string val = readBytesToString(settings.maxStringLength);
                 this->publishData.addUserProperty(std::move(key), std::move(val));
                 break;
             }
@@ -751,7 +751,7 @@ ConnectData MqttPacket::parseConnectData(std::shared_ptr<Client> &sender)
                 if (pcounts[6]++ > 0)
                     throw ProtocolError("Can't specify " + propertyToString(prop) + " more than once", ReasonCodes::ProtocolError);
 
-                result.authenticationMethod = readBytesToString();
+                result.authenticationMethod = readBytesToString(settings.maxStringLength);
                 break;
             }
             case Mqtt5Properties::AuthenticationData:
@@ -759,7 +759,7 @@ ConnectData MqttPacket::parseConnectData(std::shared_ptr<Client> &sender)
                 if (pcounts[7]++ > 0)
                     throw ProtocolError("Can't specify " + propertyToString(prop) + " more than once", ReasonCodes::ProtocolError);
 
-                result.authenticationData = readBytesToString(false);
+                result.authenticationData = readBytesToString(std::numeric_limits<uint16_t>::max(), false);
                 break;
             }
             default:
@@ -781,7 +781,7 @@ ConnectData MqttPacket::parseConnectData(std::shared_ptr<Client> &sender)
         throw ProtocolError("Receive max or max outgoing packet size can't be 0.", ReasonCodes::ProtocolError);
     }
 
-    result.client_id = readBytesToString();
+    result.client_id = readBytesToString(settings.maxStringLength);
 
     if (result.will_flag)
     {
@@ -834,7 +834,7 @@ ConnectData MqttPacket::parseConnectData(std::shared_ptr<Client> &sender)
                     if (pcounts[2]++ > 0)
                         throw ProtocolError("Can't specify " + propertyToString(prop) + " more than once", ReasonCodes::ProtocolError);
 
-                    result.willpublish.contentType = readBytesToString();
+                    result.willpublish.contentType = readBytesToString(settings.maxStringLength);
                     break;
                 }
                 case Mqtt5Properties::ResponseTopic:
@@ -842,7 +842,7 @@ ConnectData MqttPacket::parseConnectData(std::shared_ptr<Client> &sender)
                     if (pcounts[3]++ > 0)
                         throw ProtocolError("Can't specify " + propertyToString(prop) + " more than once", ReasonCodes::ProtocolError);
 
-                    result.willpublish.responseTopic = readBytesToString(true, true);
+                    result.willpublish.responseTopic = readBytesToString(settings.maxStringLength, true, true);
 
                     if (result.willpublish.responseTopic->empty())
                         throw ProtocolError("Response topic in will cannot be empty", ReasonCodes::ProtocolError);
@@ -863,13 +863,13 @@ ConnectData MqttPacket::parseConnectData(std::shared_ptr<Client> &sender)
                     if (pcounts[5]++ > 0)
                         throw ProtocolError("Can't specify " + propertyToString(prop) + " more than once", ReasonCodes::ProtocolError);
 
-                    result.willpublish.correlationData = readBytesToString(false);
+                    result.willpublish.correlationData = readBytesToString(settings.maxStringLength, false);
                     break;
                 }
                 case Mqtt5Properties::UserProperty:
                 {
-                    std::string key = readBytesToString();
-                    std::string val = readBytesToString();
+                    std::string key = readBytesToString(settings.maxStringLength);
+                    std::string val = readBytesToString(settings.maxStringLength);
                     result.willpublish.addUserProperty(std::move(key), std::move(val));
                     break;
                 }
@@ -879,7 +879,7 @@ ConnectData MqttPacket::parseConnectData(std::shared_ptr<Client> &sender)
             }
         }
 
-        result.willpublish.topic = readBytesToString(true, true);
+        result.willpublish.topic = readBytesToString(settings.maxStringLength, true, true);
 
         if (result.willpublish.topic.empty())
         {
@@ -907,7 +907,7 @@ ConnectData MqttPacket::parseConnectData(std::shared_ptr<Client> &sender)
     if (user_name_flag)
     {
         // Usernames must be UTF-8, but we defer that check so we can give proper a CONNACK, and continue parsing.
-        result.username = readBytesToString(false);
+        result.username = readBytesToString(settings.maxStringLength, false);
 
         if (result.username.value().empty())
         {
@@ -935,7 +935,7 @@ ConnectData MqttPacket::parseConnectData(std::shared_ptr<Client> &sender)
             throw ProtocolError("MQTT 3.1.1: If the User Name Flag is set to 0, the Password Flag MUST be set to 0.", ReasonCodes::MalformedPacket);
         }
 
-        result.password = readBytesToString(false);
+        result.password = readBytesToString(std::numeric_limits<uint16_t>::max(), false);
     }
 
     return  result;
@@ -1005,7 +1005,7 @@ ConnAckData MqttPacket::parseConnAckData()
                 if (pcounts[5]++ > 0)
                     throw ProtocolError("Can't specify " + propertyToString(prop) + " more than once", ReasonCodes::ProtocolError);
 
-                result.assigned_client_id = readBytesToString();
+                result.assigned_client_id = readBytesToString(settings.maxStringLength);
                 break;
             case Mqtt5Properties::TopicAliasMaximum:
                 if (pcounts[6]++ > 0)
@@ -1017,14 +1017,14 @@ ConnAckData MqttPacket::parseConnAckData()
                 if (pcounts[7]++ > 0)
                     throw ProtocolError("Can't specify " + propertyToString(prop) + " more than once", ReasonCodes::ProtocolError);
 
-                const std::string reason = readBytesToString();
+                const std::string reason = readBytesToString(settings.maxStringLength);
                 logger->logf(LOG_NOTICE, "ConnAck reason string: %s", reason.c_str());
                 break;
             }
             case Mqtt5Properties::UserProperty:
             {
-                std::string key = readBytesToString();
-                std::string value = readBytesToString();
+                std::string key = readBytesToString(settings.maxStringLength);
+                std::string value = readBytesToString(settings.maxStringLength);
                 break;
             }
             case Mqtt5Properties::WildcardSubscriptionAvailable:
@@ -1055,19 +1055,19 @@ ConnAckData MqttPacket::parseConnAckData()
                 if (pcounts[12]++ > 0)
                     throw ProtocolError("Can't specify " + propertyToString(prop) + " more than once", ReasonCodes::ProtocolError);
 
-                result.response_information = readBytesToString();
+                result.response_information = readBytesToString(settings.maxStringLength);
                 break;
             case Mqtt5Properties::ServerReference:
                 if (pcounts[13]++ > 0)
                     throw ProtocolError("Can't specify " + propertyToString(prop) + " more than once", ReasonCodes::ProtocolError);
 
-                result.server_reference = readBytesToString();
+                result.server_reference = readBytesToString(settings.maxStringLength);
                 break;
             case Mqtt5Properties::AuthenticationMethod:
                 if (pcounts[14]++ > 0)
                     throw ProtocolError("Can't specify " + propertyToString(prop) + " more than once", ReasonCodes::ProtocolError);
 
-                result.authMethod = readBytesToString();
+                result.authMethod = readBytesToString(settings.maxStringLength);
                 break;
             case Mqtt5Properties::AuthenticationData:
                 if (pcounts[15]++ > 0)
@@ -1417,6 +1417,8 @@ AuthPacketData MqttPacket::parseAuthData()
     if (this->protocolVersion < ProtocolVersion::Mqtt5)
         throw ProtocolError("AUTH packet needs MQTT5 or higher", ReasonCodes::ProtocolError);
 
+    const Settings *settings = ThreadGlobals::getSettings();
+
     setPosToDataStart();
 
     AuthPacketData result;
@@ -1441,25 +1443,25 @@ AuthPacketData MqttPacket::parseAuthData()
                 if (pcounts[0]++ > 0)
                     throw ProtocolError("Can't specify " + propertyToString(prop) + " more than once", ReasonCodes::ProtocolError);
 
-                result.method = readBytesToString();
+                result.method = readBytesToString(settings->maxStringLength);
                 break;
             case Mqtt5Properties::AuthenticationData:
                 if (pcounts[1]++ > 0)
                     throw ProtocolError("Can't specify " + propertyToString(prop) + " more than once", ReasonCodes::ProtocolError);
 
-                result.data = readBytesToString(false);
+                result.data = readBytesToString(std::numeric_limits<uint16_t>::max(), false);
                 break;
             case Mqtt5Properties::ReasonString:
                 if (pcounts[2]++ > 0)
                     throw ProtocolError("Can't specify " + propertyToString(prop) + " more than once", ReasonCodes::ProtocolError);
 
-                readBytesToString();
+                readBytesToString(settings->maxStringLength);
                 break;
             case Mqtt5Properties::UserProperty:
             {
                 // We (ab)use the publishData for the user properties, because it's there.
-                std::string key = readBytesToString();
-                std::string val = readBytesToString();
+                std::string key = readBytesToString(settings->maxStringLength);
+                std::string val = readBytesToString(settings->maxStringLength);
                 this->publishData.addUserProperty(std::move(key), std::move(val));
                 break;
             }
@@ -1525,6 +1527,8 @@ DisconnectData MqttPacket::parseDisconnectData()
     if (first_byte & 0b1111)
         throw ProtocolError("Disconnect packet first 4 bits should be 0.", ReasonCodes::MalformedPacket);
 
+    const Settings *settings = ThreadGlobals::getSettings();
+
     setPosToDataStart();
 
     DisconnectData result;
@@ -1564,7 +1568,7 @@ DisconnectData MqttPacket::parseDisconnectData()
                     if (pcounts[1]++ > 0)
                         throw ProtocolError("Can't specify " + propertyToString(prop) + " more than once", ReasonCodes::ProtocolError);
 
-                    result.reasonString = readBytesToString();
+                    result.reasonString = readBytesToString(settings->maxStringLength);
                     break;
                 }
                 case Mqtt5Properties::ServerReference:
@@ -1572,14 +1576,14 @@ DisconnectData MqttPacket::parseDisconnectData()
                     if (pcounts[2]++ > 0)
                         throw ProtocolError("Can't specify " + propertyToString(prop) + " more than once", ReasonCodes::ProtocolError);
 
-                    readBytesToString();
+                    readBytesToString(settings->maxStringLength);
                     break;
                 }
                 case Mqtt5Properties::UserProperty:
                 {
                     // We (ab)use the publishData for the user properties, because it's there.
-                    std::string key = readBytesToString();
-                    std::string val = readBytesToString();
+                    std::string key = readBytesToString(settings->maxStringLength);
+                    std::string val = readBytesToString(settings->maxStringLength);
                     this->publishData.addUserProperty(std::move(key), std::move(val));
                     break;
                 }
@@ -1634,6 +1638,8 @@ void MqttPacket::handleSubscribe(std::shared_ptr<Client> &sender)
         throw ProtocolError("Packet ID 0 when subscribing is invalid.", ReasonCodes::MalformedPacket); // [MQTT-2.3.1-1]
     }
 
+    const Settings *settings = ThreadGlobals::getSettings();
+
     uint32_t subscription_identifier = 0;
 
     if (protocolVersion == ProtocolVersion::Mqtt5)
@@ -1673,8 +1679,8 @@ void MqttPacket::handleSubscribe(std::shared_ptr<Client> &sender)
             case Mqtt5Properties::UserProperty:
             {
                 // We (ab)use the publishData for the user properties, because it's there.
-                std::string key = readBytesToString();
-                std::string val = readBytesToString();
+                std::string key = readBytesToString(settings->maxStringLength);
+                std::string val = readBytesToString(settings->maxStringLength);
                 this->publishData.addUserProperty(std::move(key), std::move(val));
                 break;
             }
@@ -1691,7 +1697,7 @@ void MqttPacket::handleSubscribe(std::shared_ptr<Client> &sender)
     std::list<ReasonCodes> subs_reponse_codes;
     while (remainingAfterPos() > 0)
     {
-        std::string topic = readBytesToString(true);
+        std::string topic = readBytesToString(settings->maxStringLength, true);
 
         const uint8_t qos_byte = readUint8();
 
@@ -1858,6 +1864,8 @@ void MqttPacket::handleUnsubscribe(std::shared_ptr<Client> &sender)
     if (firstByteFirstNibble != 2)
         throw ProtocolError("First LSB of first byte is wrong value for subscribe packet.", ReasonCodes::MalformedPacket);
 
+    const Settings *settings = ThreadGlobals::getSettings();
+
     const uint16_t packet_id = readTwoBytesToUInt16();
 
     if (packet_id == 0)
@@ -1879,8 +1887,8 @@ void MqttPacket::handleUnsubscribe(std::shared_ptr<Client> &sender)
             case Mqtt5Properties::UserProperty:
             {
                 // We (ab)use the publishData for the user properties, because it's there.
-                std::string key = readBytesToString();
-                std::string val = readBytesToString();
+                std::string key = readBytesToString(settings->maxStringLength);
+                std::string val = readBytesToString(settings->maxStringLength);
                 this->publishData.addUserProperty(std::move(key), std::move(val));
                 break;
             }
@@ -1897,7 +1905,7 @@ void MqttPacket::handleUnsubscribe(std::shared_ptr<Client> &sender)
     {
         numberOfUnsubs++;
 
-        const std::string topic = readBytesToString();
+        const std::string topic = readBytesToString(settings->maxStringLength);
 
         if (topic.empty())
             throw ProtocolError("Unsubscribe topic is empty.", ReasonCodes::MalformedPacket);
@@ -1949,7 +1957,9 @@ void MqttPacket::parsePublishData(std::shared_ptr<Client> &sender)
     publishData.username = sender->getUsername();
     publishData.client_id = sender->getClientId();
 
-    publishData.topic = readBytesToString(true, true);
+    const Settings *settings = ThreadGlobals::getSettings();
+
+    publishData.topic = readBytesToString(settings->maxStringLength, true, true);
 
     if (publishData.qos)
     {
@@ -2025,7 +2035,7 @@ void MqttPacket::parsePublishData(std::shared_ptr<Client> &sender)
                 if (pcounts[3]++ > 0)
                     throw ProtocolError("Can't specify " + propertyToString(prop) + " more than once", ReasonCodes::ProtocolError);
 
-                publishData.responseTopic = readBytesToString(true, true);
+                publishData.responseTopic = readBytesToString(settings->maxStringLength, true, true);
 
                 if (publishData.responseTopic->empty())
                     throw ProtocolError("Response topic cannot be empty", ReasonCodes::ProtocolError);
@@ -2037,13 +2047,13 @@ void MqttPacket::parsePublishData(std::shared_ptr<Client> &sender)
                 if (pcounts[4]++ > 0)
                     throw ProtocolError("Can't specify " + propertyToString(prop) + " more than once", ReasonCodes::ProtocolError);
 
-                publishData.correlationData = readBytesToString(false);
+                publishData.correlationData = readBytesToString(settings->maxStringLength, false);
                 break;
             }
             case Mqtt5Properties::UserProperty:
             {
-                std::string key = readBytesToString();
-                std::string val = readBytesToString();
+                std::string key = readBytesToString(settings->maxStringLength);
+                std::string val = readBytesToString(settings->maxStringLength);
                 this->publishData.addUserProperty(std::move(key), std::move(val));
                 break;
             }
@@ -2071,7 +2081,7 @@ void MqttPacket::parsePublishData(std::shared_ptr<Client> &sender)
                 if (pcounts[6]++ > 0)
                     throw ProtocolError("Can't specify " + propertyToString(prop) + " more than once", ReasonCodes::ProtocolError);
 
-                publishData.contentType = readBytesToString(true, false);
+                publishData.contentType = readBytesToString(settings->maxStringLength, true, false);
                 break;
             }
             default:
@@ -2358,6 +2368,8 @@ SubAckData MqttPacket::parseSubAckData()
 
     setPosToDataStart();
 
+    const Settings *settings = ThreadGlobals::getSettings();
+
     SubAckData result;
 
     result.packet_id = readTwoBytesToUInt16();
@@ -2381,13 +2393,13 @@ SubAckData MqttPacket::parseSubAckData()
                 if (pcounts[0]++ > 0)
                     throw ProtocolError("Can't specify " + propertyToString(prop) + " more than once", ReasonCodes::ProtocolError);
 
-                result.reasonString = readBytesToString();
+                result.reasonString = readBytesToString(settings->maxStringLength);
                 break;
             case Mqtt5Properties::UserProperty:
             {
                 // We (ab)use the publishData for the user properties, because it's there.
-                std::string key = readBytesToString();
-                std::string val = readBytesToString();
+                std::string key = readBytesToString(settings->maxStringLength);
+                std::string val = readBytesToString(settings->maxStringLength);
                 this->publishData.addUserProperty(std::move(key), std::move(val));
                 break;
             }
@@ -2657,9 +2669,15 @@ size_t MqttPacket::decodeVariableByteIntAtPos()
     return value;
 }
 
-std::string MqttPacket::readBytesToString(bool validateUtf8, bool alsoCheckInvalidPublishChars)
+std::string MqttPacket::readBytesToString(const uint16_t maxLength, bool validateUtf8, bool alsoCheckInvalidPublishChars)
 {
+    assert(maxLength > 0);
+
     const uint16_t len = readTwoBytesToUInt16();
+
+    if (len > maxLength)
+        throw std::runtime_error("Client sent string longer than 'max_string_length'");
+
     std::string result(readBytes(len));
 
     if (validateUtf8)
