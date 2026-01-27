@@ -212,6 +212,23 @@ multi-value-param one 'two' "three" "with ' char"
           </para>
         </listitem>
       </varlistentry>
+      <varlistentry xml:id="max_string_length" condition="flashmq ≥ 1.26.0">
+        <term><option>max_string_length</option> <replaceable>bytes</replaceable></term>
+        <listitem>
+          <para>
+            The max length of almost all strings encoded in MQTT packets. This includes topics, user properties, client IDs, etc. Some fields, like passwords, are excluded. Payloads are also excluded (as they are not strings).
+          </para>
+          <para>
+            The reason is to avoid abuse. The default should be enough for most deployments.
+          </para>
+          <para>
+            If the limit is tripped, the error in the log will clearly say so, and mention <option>max_string_length</option>.
+          </para>
+          <para>
+            Default value: <literal>4096</literal>
+          </para>
+        </listitem>
+      </varlistentry>
       <varlistentry xml:id="max_packet_size">
         <term><option>max_packet_size</option> <replaceable>bytes</replaceable></term>
         <listitem>

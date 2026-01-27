@@ -5,7 +5,7 @@
 \\$2 \(la\\$1\(ra\\$3
 ..
 .if \n(.g .mso www.tmac
-.TH flashmq.conf 5 "Jan 24 2026" "" ""
+.TH flashmq.conf 5 "Jan 27 2026" "" ""
 .SH NAME
 flashmq.conf \- FlashMQ configuration file format
 .SH SYNOPSIS
@@ -106,6 +106,15 @@ Default value: \fIfalse\fR
 If you have topics with usernames in it, people can possibly manipulate your ACL checking by saying their username is 'John+foobar'. Audit your security before you allow this.
 
 Default value: \fIfalse\fR
+.TP
+\*(T<\fB\m[green]max_string_length\m[] \fI\m[cyan]bytes\m[]\fR\fR\*(T>
+The max length of almost all strings encoded in MQTT packets. This includes topics, user properties, client IDs, etc. Some fields, like passwords, are excluded. Payloads are also excluded (as they are not strings).
+
+The reason is to avoid abuse. The default should be enough for most deployments.
+
+If the limit is tripped, the error in the log will clearly say so, and mention \fB\m[green]max_string_length\fR\m[].
+
+Default value: \fI4096\fR
 .TP
 \*(T<\fB\m[green]max_packet_size\m[] \fI\m[cyan]bytes\m[]\fR\fR\*(T>
 MQTT packets have a maximum size of about 256 MB. This memory will (temporarily) be allocated upon arrival of such packets, so there may be cause to set it lower.

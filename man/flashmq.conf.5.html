@@ -242,7 +242,7 @@
           });
         });
       });
-      </script><article id="flashmq.conf.5"><nav xmlns="http://docbook.org/ns/docbook" xmlns:dbk="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:semver="https://semver.org/spec/v2.0.0.html" xmlns:fmq="http://www.flashmq.org/man/" id="flashmq-version-nav"><select id="select-flashmq-version"><option value="" selected>latest</option><option value="1.25.0">≥ v1.25.0</option><option value="1.24.0">≥ v1.24.0</option><option value="1.23.0">≥ v1.23.0</option><option value="1.22.0">≥ v1.22.0</option><option value="1.21.0">≥ v1.21.0</option><option value="1.20.0">≥ v1.20.0</option><option value="1.19.0">≥ v1.19.0</option><option value="1.18.0">≥ v1.18.0</option><option value="1.16.0">≥ v1.16.0</option><option value="1.15.1">≥ v1.15.1</option><option value="1.14.0">≥ v1.14.0</option><option value="1.13.0">≥ v1.13.0</option><option value="1.12.0">≥ v1.12.0</option><option value="1.11.0">≥ v1.11.0</option><option value="1.10.0">≥ v1.10.0</option><option value="1.9.0">≥ v1.9.0</option><option value="1.8.4">≥ v1.8.4</option><option value="1.8.0">≥ v1.8.0</option><option value="1.7.0">≥ v1.7.0</option><option value="1.6.7">≥ v1.6.7</option><option value="1.4.4">≥ v1.4.4</option><option value="1.4.2">≥ v1.4.2</option><option value="1.2.0">≥ v1.2.0</option></select></nav><header><h1>flashmq.conf<code class="manvolnum"> (5)</code></h1><h2 class="refpurpose">FlashMQ configuration file format</h2></header><section class="refsynopsisdiv" id="synopsis"><header><h2>Synopsis</h2></header>
+      </script><article id="flashmq.conf.5"><nav xmlns="http://docbook.org/ns/docbook" xmlns:dbk="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:semver="https://semver.org/spec/v2.0.0.html" xmlns:fmq="http://www.flashmq.org/man/" id="flashmq-version-nav"><select id="select-flashmq-version"><option value="" selected>latest</option><option value="1.26.0">≥ v1.26.0</option><option value="1.25.0">≥ v1.25.0</option><option value="1.24.0">≥ v1.24.0</option><option value="1.23.0">≥ v1.23.0</option><option value="1.22.0">≥ v1.22.0</option><option value="1.21.0">≥ v1.21.0</option><option value="1.20.0">≥ v1.20.0</option><option value="1.19.0">≥ v1.19.0</option><option value="1.18.0">≥ v1.18.0</option><option value="1.16.0">≥ v1.16.0</option><option value="1.15.1">≥ v1.15.1</option><option value="1.14.0">≥ v1.14.0</option><option value="1.13.0">≥ v1.13.0</option><option value="1.12.0">≥ v1.12.0</option><option value="1.11.0">≥ v1.11.0</option><option value="1.10.0">≥ v1.10.0</option><option value="1.9.0">≥ v1.9.0</option><option value="1.8.4">≥ v1.8.4</option><option value="1.8.0">≥ v1.8.0</option><option value="1.7.0">≥ v1.7.0</option><option value="1.6.7">≥ v1.6.7</option><option value="1.4.4">≥ v1.4.4</option><option value="1.4.2">≥ v1.4.2</option><option value="1.2.0">≥ v1.2.0</option></select></nav><header><h1>flashmq.conf<code class="manvolnum"> (5)</code></h1><h2 class="refpurpose">FlashMQ configuration file format</h2></header><section class="refsynopsisdiv" id="synopsis"><header><h2>Synopsis</h2></header>
     <p>
        The <code class="filename">flashmq.conf</code> file is the configuration used for configuring the FlashMQ MQTT broker.
     </p>
@@ -424,6 +424,23 @@ multi-value-param one 'two' "three" "with ' char"
           </p>
           <p>
             Default value: <code class="literal">false</code>
+          </p>
+        </dd>
+      
+      
+        <dt id="max_string_length"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.26.0">≥ v1.26.0</div><code class="option">max_string_length</code> <code class="replaceable">bytes</code><a class="hash-anchor" href="#max_string_length">#</a></dt>
+        <dd>
+          <p>
+            The max length of almost all strings encoded in MQTT packets. This includes topics, user properties, client IDs, etc. Some fields, like passwords, are excluded. Payloads are also excluded (as they are not strings).
+          </p>
+          <p>
+            The reason is to avoid abuse. The default should be enough for most deployments.
+          </p>
+          <p>
+            If the limit is tripped, the error in the log will clearly say so, and mention <code class="option">max_string_length</code>.
+          </p>
+          <p>
+            Default value: <code class="literal">4096</code>
           </p>
         </dd>
       
