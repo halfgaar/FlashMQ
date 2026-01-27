@@ -114,6 +114,7 @@ public:
     RetainedMessagesMode retainedMessagesMode = RetainedMessagesMode::Enabled;
     SharedSubscriptionTargeting sharedSubscriptionTargeting = SharedSubscriptionTargeting::RoundRobin;
     uint16_t minimumWildcardSubscriptionDepth = 0;
+    uint16_t maxTopicSplitDepth = 128;
     WildcardSubscriptionDenyMode wildcardSubscriptionDenyMode = WildcardSubscriptionDenyMode::DenyAll;
     bool zeroByteUsernameIsAnonymous = false;
     std::chrono::milliseconds maxEventLoopDrift = std::chrono::milliseconds(2000);

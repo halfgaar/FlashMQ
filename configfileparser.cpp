@@ -230,6 +230,7 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validKeys.insert("include_dir");
     validKeys.insert("rebuild_subscription_tree_interval_seconds");
     validKeys.insert("minimum_wildcard_subscription_depth");
+    validKeys.insert("max_topic_split_depth");
     validKeys.insert("wildcard_subscription_deny_mode");
     validKeys.insert("zero_byte_username_is_anonymous");
     validKeys.insert("overload_mode");
@@ -1240,6 +1241,11 @@ void ConfigFileParser::loadFile(bool test)
                 if (testKeyValidity(key, "minimum_wildcard_subscription_depth", validKeys))
                 {
                     tmpSettings.minimumWildcardSubscriptionDepth = value_to_int_ranged<uint16_t>(key, value);
+                }
+
+                if (testKeyValidity(key, "max_topic_split_depth", validKeys))
+                {
+                    tmpSettings.maxTopicSplitDepth = value_to_int_ranged<uint16_t>(key, value);
                 }
 
                 if (testKeyValidity(key, "wildcard_subscription_deny_mode", validKeys))
