@@ -699,6 +699,24 @@ multi-value-param one 'two' "three" "with ' char"
         </listitem>
       </varlistentry>
 
+      <varlistentry xml:id="max_topic_split_depth" condition="flashmq ≥ 1.26.0">
+        <term><option>max_topic_split_depth</option> <replaceable>number</replaceable></term>
+        <listitem>
+          <para>
+            Defines the maximum number of components a topic/filter string can have. For example, <literal>one/two/three</literal> has three.
+          </para>
+          <para>
+            The reason is to avoid abuse. The default should be enough for most deployments.
+          </para>
+          <para>
+            If the limit is tripped, the error in the log will clearly say so, and mention <option>max_topic_split_depth</option>.
+          </para>
+          <para>
+            Default: <replaceable>128</replaceable>
+          </para>
+        </listitem>
+      </varlistentry>
+
       <varlistentry xml:id="wildcard_subscription_deny_mode" condition="flashmq ≥ 1.9.0">
         <term><option>wildcard_subscription_deny_mode</option> <replaceable>deny_all</replaceable>|<replaceable>deny_retained_only</replaceable></term>
         <listitem>

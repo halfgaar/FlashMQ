@@ -915,6 +915,24 @@ multi-value-param one 'two' "three" "with ' char"
       
 
       
+        <dt id="max_topic_split_depth"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.26.0">≥ v1.26.0</div><code class="option">max_topic_split_depth</code> <code class="replaceable">number</code><a class="hash-anchor" href="#max_topic_split_depth">#</a></dt>
+        <dd>
+          <p>
+            Defines the maximum number of components a topic/filter string can have. For example, <code class="literal">one/two/three</code> has three.
+          </p>
+          <p>
+            The reason is to avoid abuse. The default should be enough for most deployments.
+          </p>
+          <p>
+            If the limit is tripped, the error in the log will clearly say so, and mention <code class="option">max_topic_split_depth</code>.
+          </p>
+          <p>
+            Default: <code class="replaceable">128</code>
+          </p>
+        </dd>
+      
+
+      
         <dt id="wildcard_subscription_deny_mode"><div xmlns="http://docbook.org/ns/docbook" class="flashmq_version_requirement" data-since-flashmq-version="1.9.0">≥ v1.9.0</div><code class="option">wildcard_subscription_deny_mode</code> <code class="replaceable">deny_all</code>|<code class="replaceable">deny_retained_only</code><a class="hash-anchor" href="#wildcard_subscription_deny_mode">#</a></dt>
         <dd>
           <p>

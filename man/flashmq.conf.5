@@ -5,7 +5,7 @@
 \\$2 \(la\\$1\(ra\\$3
 ..
 .if \n(.g .mso www.tmac
-.TH flashmq.conf 5 "Jan 27 2026" "" ""
+.TH flashmq.conf 5 "Jan 28 2026" "" ""
 .SH NAME
 flashmq.conf \- FlashMQ configuration file format
 .SH SYNOPSIS
@@ -348,6 +348,15 @@ Defines the minimum level of the first wildcard topic filter (\fB\m[green]#\fR\m
 The reason you may want to limit it, is performance. If you have a base message load of 100,000 messages per second, each client subscribing to \fB\m[green]#\fR\m[] causes that many permission checks per second. If you have 100 clients doing that, there will be 10 million permission checks per second.
 
 Default: \fI\m[cyan]0\m[]\fR
+.TP
+\*(T<\fB\m[green]max_topic_split_depth\m[] \fI\m[cyan]number\m[]\fR\fR\*(T>
+Defines the maximum number of components a topic/filter string can have. For example, \fIone/two/three\fR has three.
+
+The reason is to avoid abuse. The default should be enough for most deployments.
+
+If the limit is tripped, the error in the log will clearly say so, and mention \fB\m[green]max_topic_split_depth\fR\m[].
+
+Default: \fI\m[cyan]128\m[]\fR
 .TP
 \*(T<\fB\m[green]wildcard_subscription_deny_mode\m[] \fI\m[cyan]deny_all\m[]\fR|\fI\m[cyan]deny_retained_only\m[]\fR\fR\*(T>
 For \fB\m[green]minimum_wildcard_subscription_depth\fR\m[], specify what you want to deny. Trying to give a client all retained messages can cause quite some load, so only denying the retained messages upon receiving a broad wildcard subscription can be useful if you have a low enough general message volume, but a high number of retained messages.
