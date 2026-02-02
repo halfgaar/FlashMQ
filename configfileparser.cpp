@@ -18,6 +18,7 @@ See LICENSE for license details.
 #include <sys/stat.h>
 #include <optional>
 #include <sys/sysinfo.h>
+#include <stack>
 
 #include <openssl/ssl.h>
 #include <openssl/err.h>
@@ -369,7 +370,7 @@ void ConfigFileParser::loadFile(bool test)
     const std::list<std::string> unprocessed_lines = readFileRecursively(path);
     std::list<std::string> lines;
 
-    bool inBlock = false;
+    int blockDepth = 0;
     std::ostringstream oss;
     int linenr = 0;
 
@@ -396,12 +397,6 @@ void ConfigFileParser::loadFile(bool test)
         const bool blockStartMatch = std::regex_search(line, matches, block_regex_start);
         const bool blockEndMatch = std::regex_search(line, matches, block_regex_end);
 
-        if ((blockStartMatch && inBlock) || (blockEndMatch && !inBlock))
-        {
-            oss << "Unexpected block start or end at line " << linenr << ": " << line;
-            throw ConfigFileException(oss.str());
-        }
-
         if (!std::regex_search(line, matches, key_value_regex) && !blockStartMatch && !blockEndMatch)
         {
             oss << "Line '" << line << "' invalid";
@@ -409,26 +404,27 @@ void ConfigFileParser::loadFile(bool test)
         }
 
         if (blockStartMatch)
-            inBlock = true;
+            blockDepth++;
         if (blockEndMatch)
-            inBlock = false;
+            blockDepth--;
 
         lines.push_back(line);
     }
 
-    if (inBlock)
+    if (blockDepth != 0)
     {
-        throw ConfigFileException("Unclosed config block. Expecting }");
+        throw ConfigFileException("Unmatched curly braces");
     }
 
     std::unordered_map<std::string, std::string> pluginOpts;
 
-    ConfigParseLevel curParseLevel = ConfigParseLevel::Root;
+    std::stack<ConfigParseLevel> curParseLevel;
     std::shared_ptr<Listener> curListener;
     std::optional<BridgeConfig> curBridge;
     std::list<BridgeConfig> preMultipliedBridges;
     Settings tmpSettings;
 
+    curParseLevel.push(ConfigParseLevel::Root);
     const std::set<std::string> blockNames {"listen", "bridge"};
 
     // Then once we know the config file is valid, process it.
@@ -441,12 +437,18 @@ void ConfigFileParser::loadFile(bool test)
             const std::string &key = matches[1].str();
             if (testKeyValidity(key, "listen", blockNames))
             {
-                curParseLevel = ConfigParseLevel::Listen;
+                if (curParseLevel.top() != ConfigParseLevel::Root)
+                    throw ConfigFileException("Block '" + key + "' must be a root level");
+
+                curParseLevel.push(ConfigParseLevel::Listen);
                 curListener = std::make_shared<Listener>();
             }
             else if (testKeyValidity(key, "bridge", blockNames))
             {
-                curParseLevel = ConfigParseLevel::Bridge;
+                if (curParseLevel.top() != ConfigParseLevel::Root)
+                    throw ConfigFileException("Block '" + key + "' must be a root level");
+
+                curParseLevel.push(ConfigParseLevel::Bridge);
                 curBridge = std::make_optional<BridgeConfig>();
             }
             else
@@ -468,7 +470,7 @@ void ConfigFileParser::loadFile(bool test)
         }
         else if (std::regex_match(line, matches, block_regex_end))
         {
-            if (curParseLevel == ConfigParseLevel::Listen)
+            if (curParseLevel.top() == ConfigParseLevel::Listen)
             {
                 curListener->isValid();
 
@@ -487,13 +489,19 @@ void ConfigFileParser::loadFile(bool test)
                 }
                 curListener.reset();
             }
-            else if (curParseLevel == ConfigParseLevel::Bridge)
+            else if (curParseLevel.top() == ConfigParseLevel::Bridge)
             {
                 curBridge->isValid();
                 preMultipliedBridges.push_back(std::move(curBridge.value()));
             }
 
-            curParseLevel = ConfigParseLevel::Root;
+            curParseLevel.pop();
+
+            if (curParseLevel.empty())
+            {
+                throw ConfigFileException("Too many closing '}'");
+            }
+
             continue;
         }
 
@@ -509,7 +517,7 @@ void ConfigFileParser::loadFile(bool test)
 
         try
         {
-            if (curParseLevel == ConfigParseLevel::Listen)
+            if (curParseLevel.top() == ConfigParseLevel::Listen)
             {
                 if (testKeyValidity(key, "protocol", validListenKeys))
                 {
@@ -694,7 +702,7 @@ void ConfigFileParser::loadFile(bool test)
                 testCorrectNumberOfValues(key, number_of_expected_values, values);
                 continue;
             }
-            else if (curParseLevel == ConfigParseLevel::Bridge)
+            else if (curParseLevel.top() == ConfigParseLevel::Bridge)
             {
                 if (testKeyValidity(key, "local_username", validBridgeKeys))
                 {
@@ -926,7 +934,6 @@ void ConfigFileParser::loadFile(bool test)
                 testCorrectNumberOfValues(key, number_of_expected_values, values);
                 continue;
             }
-
 
             const std::string plugin_opt_ = "plugin_opt_";
             if (startsWith(key, plugin_opt_))
