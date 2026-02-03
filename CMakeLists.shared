@@ -92,6 +92,7 @@ set(FLASHMQ_HEADERS
     ${RELPATH}flashmq_public.h
     ${RELPATH}sdnotify.h
     ${RELPATH}threadlocked.h
+    ${RELPATH}sharedmutexowned.h
 )
 
 set(FLASHMQ_IMPLS
