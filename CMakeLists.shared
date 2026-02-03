@@ -95,6 +95,7 @@ set(FLASHMQ_HEADERS
     ${RELPATH}usedids.h
     ${RELPATH}sharedmutexowned.h
     ${RELPATH}reentrantmap.h
+    ${RELPATH}checkeduniqueptr.h
 )
 
 set(FLASHMQ_IMPLS
