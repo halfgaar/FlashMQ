@@ -90,6 +90,7 @@ set(FLASHMQ_HEADERS
     ${RELPATH}clientacceptqueue.h
     ${RELPATH}checkedsharedptr.h
     ${RELPATH}sharedmutexowned.h
+    ${RELPATH}reentrantmap.h
 )
 
 set(FLASHMQ_IMPLS
