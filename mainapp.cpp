@@ -33,6 +33,7 @@ See LICENSE for license details.
 #include "globals.h"
 #include "fmqssl.h"
 #include "persistencefunctions.h"
+#include "sdnotify.h"
 
 MainApp::MainApp(const std::string &configFilePath)
 {
@@ -1363,6 +1364,8 @@ void MainApp::queueThreadInitDecrement()
 
             reloadTimers(nullptr);
             started = true;
+
+            notify_ready();
         }
         catch (std::exception &ex)
         {

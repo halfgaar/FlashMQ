@@ -90,6 +90,7 @@ set(FLASHMQ_HEADERS
     ${RELPATH}clientacceptqueue.h
     ${RELPATH}checkedsharedptr.h
     ${RELPATH}flashmq_public.h
+    ${RELPATH}sdnotify.h
 )
 
 set(FLASHMQ_IMPLS
@@ -157,4 +158,5 @@ set(FLASHMQ_IMPLS
     ${RELPATH}fmqssl.cpp
     ${RELPATH}persistencefunctions.cpp
     ${RELPATH}clientacceptqueue.cpp
+    ${RELPATH}sdnotify.cpp
     )
