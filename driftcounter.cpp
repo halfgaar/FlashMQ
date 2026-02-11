@@ -25,7 +25,7 @@ std::chrono::milliseconds DriftCounter::getDrift() const
 {
     auto now = std::chrono::steady_clock::now();
 
-    const auto last_update_copy = last_update;
+    const auto last_update_copy = last_update.value_or(std::chrono::steady_clock::now());
 
     if (last_update_copy + (std::chrono::milliseconds(HEARTBEAT_INTERVAL) * 2 ) < now)
         return std::chrono::duration_cast<std::chrono::milliseconds>(now - last_update_copy);
