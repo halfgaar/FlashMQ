@@ -53,8 +53,11 @@ class MainApp
     bool doConfigReload = false;
     bool doLogFileReOpen = false;
     bool doQuitAction = false;
+    bool errorExit = false;
     bool doMemoryTrim = false;
+    size_t threadsPendingInit = 0;
     QueuedTasks timed_tasks;
+    MutexOwned<std::vector<std::function<void()>>> taskQueue;
 
     uint overloadLogCounter = 0;
     DriftCounter drift;
@@ -81,11 +84,12 @@ class MainApp
     void loadConfig(bool reload);
     void reloadConfig();
     void reopenLogfile();
-    void reloadTimers(bool reload, const Settings &old_settings);
+    void reloadTimers(const Settings *old_settings);
     static void doHelp(const char *arg);
     static void showLicense();
-    std::list<ScopedSocket> createListenSocket(const std::shared_ptr<Listener> &listener);
+    std::list<ScopedSocket> createListenSocket(const std::shared_ptr<Listener> &listener, bool do_listen);
     void wakeUpThread();
+    void addImmediateTask(std::function<void ()> f);
     void queueKeepAliveCheckAtAllThreads();
     void queuePasswordFileReloadAllThreads();
     void queuepluginPeriodicEventAllThreads();
@@ -98,6 +102,7 @@ class MainApp
     void sendBridgesToThreads();
     void queueBridgeReconnectAllThreads();
     void queueInternalHeartbeat();
+    void performAllImmediateTasks();
 
     MainApp(const std::string &configFilePath);
 public:
@@ -117,6 +122,7 @@ public:
     void queuePurgeSubscriptionTree();
     void queueMemoryTrim();
     void memoryTrim();
+    void queueThreadInitDecrement();
 };
 
 #endif // MAINAPP_H

@@ -23,6 +23,8 @@ class ScopedSocket
     int socket = -1;
     std::string unixSocketPath;
     std::weak_ptr<Listener> listener;
+    bool listening = false;
+    std::string listenMessage;
 public:
     ScopedSocket() = default;
     ScopedSocket(int socket, const std::string &unixSocketPath, const std::shared_ptr<Listener> &listener);
@@ -32,6 +34,8 @@ public:
     int get() const;
     ScopedSocket &operator=(ScopedSocket &&other);
     std::shared_ptr<Listener> getListener() const;
+    void setListenMessage(const std::string &s);
+    void doListen(int epoll_fd);
 };
 
 #endif // SCOPEDSOCKET_H

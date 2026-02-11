@@ -131,7 +131,7 @@ void MainApp::showLicense()
     puts("Author: Wiebe Cazemier <wiebe@flashmq.org>");
 }
 
-std::list<ScopedSocket> MainApp::createListenSocket(const std::shared_ptr<Listener> &listener)
+std::list<ScopedSocket> MainApp::createListenSocket(const std::shared_ptr<Listener> &listener, bool do_listen)
 {
     std::list<ScopedSocket> result;
 
@@ -193,8 +193,6 @@ std::list<ScopedSocket> MainApp::createListenSocket(const std::shared_ptr<Listen
                 logtext << "listener on [" << listener->getBindAddress(p) << "]:" << listener->port;
             }
 
-            logger->log(LOG_NOTICE) << logtext.str();
-
             BindAddr bindAddr(family, listener->getBindAddress(p), listener->port, listener->unixSocketUser, listener->unixSocketGroup, listener->unixSocketMode);
 
             ScopedSocket uniqueListenFd(check<std::runtime_error>(socket(family, SOCK_STREAM, 0)), listener->unixSocketPath, listener);
@@ -220,14 +218,12 @@ std::list<ScopedSocket> MainApp::createListenSocket(const std::shared_ptr<Listen
             check<std::runtime_error>(fcntl(uniqueListenFd.get(), F_SETFL, flags | O_NONBLOCK ));
 
             bindAddr.bind_socket(uniqueListenFd.get());
-            check<std::runtime_error>(listen(uniqueListenFd.get(), 32768));
+            uniqueListenFd.setListenMessage(logtext.str());
 
-            struct epoll_event ev;
-            memset(&ev, 0, sizeof (struct epoll_event));
-
-            ev.data.fd = uniqueListenFd.get();
-            ev.events = EPOLLIN;
-            check<std::runtime_error>(epoll_ctl(this->epollFdAccept, EPOLL_CTL_ADD, uniqueListenFd.get(), &ev));
+            if (do_listen)
+            {
+                uniqueListenFd.doListen(this->epollFdAccept);
+            }
 
             result.push_back(std::move(uniqueListenFd));
         }
@@ -248,6 +244,22 @@ void MainApp::wakeUpThread()
 {
     uint64_t one = 1;
     check<std::runtime_error>(write(taskEventFd, &one, sizeof(uint64_t)));
+}
+
+void MainApp::addImmediateTask(std::function<void ()> f)
+{
+    bool wakeupNeeded = true;
+
+    {
+        auto task_queue_locked = taskQueue.lock();
+        wakeupNeeded = task_queue_locked->empty();
+        task_queue_locked->push_back(std::move(f));
+    }
+
+    if (wakeupNeeded)
+    {
+        wakeUpThread();
+    }
 }
 
 void MainApp::queueKeepAliveCheckAtAllThreads()
@@ -430,6 +442,29 @@ void MainApp::queueInternalHeartbeat()
     for (ThreadDataOwner &thread : threads)
     {
         thread->queueInternalHeartbeat();
+    }
+}
+
+void MainApp::performAllImmediateTasks()
+{
+    std::vector<std::function<void()>> copiedTasks;
+
+    {
+        auto task_queue_locked = taskQueue.lock();
+        copiedTasks = std::move(*task_queue_locked);
+        task_queue_locked->clear();
+    }
+
+    for(auto &f : copiedTasks)
+    {
+        try
+        {
+            f();
+        }
+        catch (std::exception &ex)
+        {
+            Logger::getInstance()->log(LOG_ERR) << "Error in MainApp::performAllImmediateTasks: " << ex.what();
+        }
     }
 }
 
@@ -654,6 +689,8 @@ void MainApp::start()
         threads.front()->queuePublishStatsOnDollarTopic(thread_datas);
     }
 
+    this->threadsPendingInit = threads.size();
+
     {
         auto locked_global_threads = globals->threadDatas.lock();
 
@@ -674,7 +711,6 @@ void MainApp::start()
     struct epoll_event events[MAX_EVENTS];
     memset(&events, 0, sizeof (struct epoll_event)*MAX_EVENTS);
 
-    started = true;
     while (running)
     {
         const uint32_t next_task_delay = timed_tasks.getTimeTillNext();
@@ -868,6 +904,8 @@ void MainApp::start()
                     {
                         memoryTrim();
                     }
+
+                    performAllImmediateTasks();
                 }
             }
             catch (std::exception &ex)
@@ -944,6 +982,11 @@ void MainApp::start()
 
     std::list<BridgeInfoForSerializing> bridgeInfos = BridgeInfoForSerializing::getBridgeInfosForSerializing(this->bridgeConfigs);
     saveState(this->settings, bridgeInfos, false);
+
+    if (errorExit)
+    {
+        throw std::runtime_error("Exiting with error.");
+    }
 }
 
 void MainApp::queueQuit()
@@ -1036,7 +1079,7 @@ void MainApp::loadConfig(bool reload)
         for(std::shared_ptr<Listener> &listener : this->listeners)
         {
             listener->loadCertAndKeyFromConfig();
-            std::list<ScopedSocket> scopedSockets = createListenSocket(listener);
+            std::list<ScopedSocket> scopedSockets = createListenSocket(listener, reload);
 
             if (scopedSockets.empty())
             {
@@ -1114,7 +1157,8 @@ void MainApp::loadConfig(bool reload)
         thread->queueReload(settings);
     }
 
-    reloadTimers(reload, oldSettings);
+    if (reload)
+        reloadTimers(&oldSettings);
 }
 
 void MainApp::reloadConfig()
@@ -1142,20 +1186,20 @@ void MainApp::reopenLogfile()
     logger->logf(LOG_NOTICE, "Log files reopened");
 }
 
-void MainApp::reloadTimers(bool reload, const Settings &old_settings)
+void MainApp::reloadTimers(const Settings *old_settings)
 {
     /*
      * Avoid postponing timed events when people continously send sighup signals.
      *
      * TODO: better method, that is not susceptible to forgetting adding settings here when more timers can change.
      */
-    if (reload && settings.pluginTimerPeriod == old_settings.pluginTimerPeriod && settings.saveStateInterval == old_settings.saveStateInterval)
+    if (old_settings && settings.pluginTimerPeriod == old_settings->pluginTimerPeriod && settings.saveStateInterval == old_settings->saveStateInterval)
     {
         logger->log(LOG_NOTICE) << "Timer config not changed. Not re-adding timers.";
         return;
     }
 
-    if (reload)
+    if (old_settings)
         logger->log(LOG_NOTICE) << "Settings impacting timed events changed. Re-adding timers.";
     else
         logger->log(LOG_NOTICE) << "Adding timers";
@@ -1295,6 +1339,40 @@ void MainApp::memoryTrim()
         sresult = "Result was 1, so memory was returned to the system.";
 
     logger->log(LOG_NOTICE) << "Operation malloc_trim(0) done. " << sresult << " Duration was " << dur.count() << " µs.";
+}
+
+void MainApp::queueThreadInitDecrement()
+{
+    auto f = [this]() {
+        if (this->threadsPendingInit == 0)
+            return;
+
+        this->threadsPendingInit--;
+
+        if (this->threadsPendingInit != 0)
+            return;
+
+        Logger::getInstance()->log(LOG_NOTICE) << "Threads initialized. Creating listeners and timers.";
+
+        try
+        {
+            for (auto &pair : activeListenSockets)
+            {
+                pair.second.doListen(this->epollFdAccept);
+            }
+
+            reloadTimers(nullptr);
+            started = true;
+        }
+        catch (std::exception &ex)
+        {
+            Logger::getInstance()->log(LOG_ERROR) << "Error creating listeners and timers : " << ex.what();
+            errorExit = true;
+            queueQuit();
+        }
+    };
+
+    addImmediateTask(f);
 }
 
 

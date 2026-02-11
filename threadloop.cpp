@@ -37,6 +37,13 @@ void do_thread_work(std::shared_ptr<ThreadData> threadData)
         logger->logf(LOG_NOTICE, "Thread %d doing auth init.", threadData->threadnr);
         threadData->initplugin();
         threadData->running = true;
+
+        auto lockedMainApp = threadData->mMainApp.lock();
+
+        if (lockedMainApp)
+        {
+            lockedMainApp->queueThreadInitDecrement();
+        }
     }
     catch(std::exception &ex)
     {
