@@ -96,7 +96,7 @@ class MainApp
     void waitForWillsQueued();
     void queueRetainedMessageExpiration();
     void sendBridgesToThreads();
-    void queueBridgeReconnectAllThreads(bool alsoQueueNexts);
+    void queueBridgeReconnectAllThreads();
     void queueInternalHeartbeat();
 
     MainApp(const std::string &configFilePath);

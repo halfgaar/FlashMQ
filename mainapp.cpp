@@ -382,7 +382,7 @@ void MainApp::sendBridgesToThreads()
     }
 }
 
-void MainApp::queueBridgeReconnectAllThreads(bool alsoQueueNexts)
+void MainApp::queueBridgeReconnectAllThreads()
 {
     try
     {
@@ -395,12 +395,6 @@ void MainApp::queueBridgeReconnectAllThreads(bool alsoQueueNexts)
     {
         Logger *logger = Logger::getInstance();
         logger->logf(LOG_ERR, ex.what());
-    }
-
-    if (alsoQueueNexts)
-    {
-        auto fReconnectBridges = std::bind(&MainApp::queueBridgeReconnectAllThreads, this, false);
-        timed_tasks.addTask(fReconnectBridges, 5000, true);
     }
 }
 
@@ -670,7 +664,7 @@ void MainApp::start()
     }
 
     sendBridgesToThreads();
-    queueBridgeReconnectAllThreads(true);
+    queueBridgeReconnectAllThreads();
 
     std::minstd_rand randomish;
     randomish.seed(get_random_int<unsigned long>());
@@ -1100,7 +1094,7 @@ void MainApp::loadConfig(bool reload)
         if (reload)
         {
             sendBridgesToThreads();
-            queueBridgeReconnectAllThreads(false);
+            queueBridgeReconnectAllThreads();
         }
     }
 
@@ -1224,6 +1218,15 @@ void MainApp::reloadTimers(bool reload, const Settings &old_settings)
     {
         auto fInternalHeartbeat = std::bind(&MainApp::queueInternalHeartbeat, this);
         timed_tasks.addTask(fInternalHeartbeat, HEARTBEAT_INTERVAL, true);
+    }
+
+    {
+        uint32_t interval = 5000;
+#ifdef TESTING
+        interval = 1000;
+#endif
+        auto fReconnectBridges = std::bind(&MainApp::queueBridgeReconnectAllThreads, this);
+        timed_tasks.addTask(fReconnectBridges, interval, true);
     }
 }
 
