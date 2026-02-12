@@ -724,9 +724,13 @@ void MainApp::start()
                             const uint32_t delay = (randomish() & 0x0FFF) + 1000;
                             oss << ". Closing after " << delay << " ms.";
 
-                            auto close_f = [fd]()
+                            // Queue managed fd so that on SIGHUP, they all get closed when the timers are cleared. A bit clunky to
+                            // make a shared pointer, but tasks need copyable things.
+                            std::shared_ptr<FdManaged> fd_managed = std::make_shared<FdManaged>(fd);
+
+                            auto close_f = [fd_managed]()
                             {
-                                close(fd);
+                                (void)fd_managed;
                             };
 
                             timed_tasks.addTask(close_f, delay);
