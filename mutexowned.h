@@ -2,9 +2,8 @@
 #define MUTEXOWNED_H
 
 #include <mutex>
-#include <memory>
 
-class MutexOwnedObjectNull : private std::exception
+class __attribute__((visibility("default"))) MutexOwnedObjectNull : public std::exception
 {
 public:
     virtual const char* what() const noexcept override

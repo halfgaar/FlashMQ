@@ -3,7 +3,7 @@
 
 #include <memory>
 
-class PointerNullException : private std::exception
+class __attribute__((visibility("default"))) PointerNullException : public std::exception
 {
 public:
     virtual const char* what() const noexcept override
