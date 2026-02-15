@@ -30,15 +30,6 @@ std::mutex Authentication::initMutex;
 std::mutex Authentication::deinitMutex;
 std::mutex Authentication::authChecksMutex;
 
-void mosquitto_log_printf(int level, const char *fmt, ...)
-{
-    Logger *logger = Logger::getInstance();
-    va_list valist;
-    va_start(valist, fmt);
-    logger->logf(level, fmt, valist);
-    va_end(valist);
-}
-
 MosquittoPasswordFileEntry::MosquittoPasswordFileEntry(PasswordHashType type, const std::vector<unsigned char> &&salt, const std::vector<unsigned char> &&cryptedPassword, int iterations) :
     type(type),
     salt(salt),

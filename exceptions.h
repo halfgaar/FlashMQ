@@ -17,6 +17,11 @@ See LICENSE for license details.
 
 #include "types.h"
 
+/*
+ * Note: the exceptions here are not exposed by the compiler, that means they won't travel over DSO (plugin) boundaries.
+ *
+ */
+
 /**
  * @brief The ProtocolError class is handled by the error handler in the worker threads and is used to make decisions about if and how
  * to inform a client and log the message.

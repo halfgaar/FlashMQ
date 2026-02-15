@@ -111,12 +111,6 @@ typedef void(*F_flashmq_plugin_on_unsubscribe_v4)(
     const std::string &username, const std::string &topic, const std::vector<std::string> &subtopics,
     const std::string &shareName, const std::vector<std::pair<std::string, std::string>> *userProperties);
 
-extern "C"
-{
-    // Gets called by the plugin, so it needs to exist, globally
-    void mosquitto_log_printf(int level, const char *fmt, ...);
-}
-
 std::string AuthResultToString(AuthResult r);
 
 /**

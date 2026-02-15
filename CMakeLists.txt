@@ -22,11 +22,8 @@ if (${COMPILER_RT_HAS_MSSE4_2_FLAG})
     SET(CMAKE_CXX_FLAGS "-msse4.2")
 endif()
 
-check_cxx_compiler_flag("-rdynamic" COMPILER_SUPPORTS_RDYNAMIC)
-if (${COMPILER_SUPPORTS_RDYNAMIC})
-    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -rdynamic")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -rdynamic")
-endif()
+add_compile_options(-fvisibility=hidden -fvisibility-inlines-hidden)
+add_link_options(-rdynamic)
 
 add_compile_options(-Wall -Wextra)
 
