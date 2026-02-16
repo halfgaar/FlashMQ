@@ -13,6 +13,7 @@ int main(int argc, char *argv[])
 {
     bool skip_tests_with_internet = false;
     bool skip_server_tests = false;
+    bool abort_on_first_fail = false;
     std::vector<std::string> tests;
     bool option_list_terminated = false;
 
@@ -33,6 +34,8 @@ int main(int argc, char *argv[])
             skip_tests_with_internet = true;
         else if (name == "--skip-server-tests")
             skip_server_tests = true;
+        else if (name == "--abort-on-first-fail")
+            abort_on_first_fail = true;
         else if (name.find("--") == 0)
         {
             std::cerr << "Unknown argument " << name << std::endl;
@@ -44,7 +47,7 @@ int main(int argc, char *argv[])
     }
 
     MainTests maintests;
-    if (!maintests.test(skip_tests_with_internet, skip_server_tests, tests))
+    if (!maintests.test(skip_tests_with_internet, skip_server_tests, abort_on_first_fail, tests))
         return 1;
 
     return 0;

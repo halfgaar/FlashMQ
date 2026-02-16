@@ -343,7 +343,7 @@ MainTests::MainTests()
     REGISTER_FUNCTION(testSubscriptionIdOverlappingSubscriptions);
 }
 
-bool MainTests::test(bool skip_tests_with_internet, bool skip_server_tests, const std::vector<std::string> &tests)
+bool MainTests::test(bool skip_tests_with_internet, bool skip_server_tests, bool abort_on_first_fail, const std::vector<std::string> &tests)
 {
     int testCount = 0;
     int testPassCount = 0;
@@ -375,6 +375,9 @@ bool MainTests::test(bool skip_tests_with_internet, bool skip_server_tests, cons
 
     for (const auto &pair : *selectedTests)
     {
+        if (abort_on_first_fail && testFailCount > 0)
+            break;
+
         const TestFunction &tf = pair.second;
 
         if (skip_tests_with_internet && tf.requiresInternet)

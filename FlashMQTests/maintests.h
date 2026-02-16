@@ -267,7 +267,7 @@ class MainTests
 public:
     MainTests();
 
-    bool test(bool skip_tests_with_internet, bool skip_server_tests, const std::vector<std::string> &tests);
+    bool test(bool skip_tests_with_internet, bool skip_server_tests, bool abort_on_first_fail, const std::vector<std::string> &tests);
 };
 
 #endif // MAINTESTS_H
