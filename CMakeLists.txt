@@ -27,6 +27,38 @@ add_link_options(-rdynamic)
 
 add_compile_options(-Wall -Wextra)
 
+# Begin fuzz-persistent
+# NB: These fuzzing targets require a special compiler!
+add_custom_target(fuzzing_targets)
+set_target_properties(fuzzing_targets PROPERTIES EXCLUDE_FROM_ALL TRUE)
+
+file(GLOB all_implementations "${PROJECT_SOURCE_DIR}/*.cpp")
+list(REMOVE_ITEM all_implementations "${PROJECT_SOURCE_DIR}/main.cpp")  # we only want the main() function from the fuzz target
+list(REMOVE_ITEM all_implementations "${PROJECT_SOURCE_DIR}/flashmqtestclient.cpp")  # it causes problems: /usr/lib/gcc/x86_64-pc-linux-gnu/11.3.0/include/g++-v11/ext/new_allocator.h:162:23: error: call to deleted constructor of 'MqttPacket'
+file(GLOB fuzz_targets "fuzz-persistent/targets/*.cpp")
+foreach(file ${fuzz_targets})
+  if (NOT ${CMAKE_VERSION} VERSION_LESS "3.20.0")
+    # CMake 3.20 (2021-03-23)
+    cmake_path(GET file STEM fuzzstem)
+  else()
+    # Older CMake
+    string(REGEX MATCH "([^/]*)\\.[a-z]*$" OUTVAR "${file}")
+    set(fuzzstem "${CMAKE_MATCH_1}")
+    if(NOT fuzzstem)
+      message(FATAL_ERROR "Problem in ${CMAKE_CURRENT_LIST_FILE}: cmake_path wasn't available and regex failed to extract stem")
+    endif()
+  endif()
+  set(fuzzbinary "fuzz_${fuzzstem}")
+  add_dependencies(fuzzing_targets ${fuzzbinary})
+  add_executable(${fuzzbinary} ${file})
+  target_sources(${fuzzbinary} PRIVATE ${all_implementations})
+  target_link_libraries(${fuzzbinary} dl ssl crypto resolv)
+  set_target_properties(${fuzzbinary} PROPERTIES EXCLUDE_FROM_ALL TRUE)
+
+  message(STATUS "Generated fuzzing target ${fuzzbinary}")
+endforeach()
+# End fuzz-persistent
+
 add_executable(flashmq
     ${FLASHMQ_HEADERS}
     ${FLASHMQ_IMPLS}
