@@ -40,7 +40,7 @@ void do_thread_work(std::shared_ptr<ThreadData> threadData)
 
         auto lockedMainApp = threadData->mMainApp.lock();
 
-        if (lockedMainApp)
+        if (!threadData->deferThreadReady && lockedMainApp)
         {
             lockedMainApp->queueThreadInitDecrement();
         }

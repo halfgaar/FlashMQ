@@ -120,6 +120,7 @@ class ThreadData
 public:
     Settings settingsLocalCopy; // Is updated on reload, within the thread loop.
     Authentication authentication;
+    bool deferThreadReady = false;
     bool running = true;
     bool finished = false;
     bool allWillsQueued = false;

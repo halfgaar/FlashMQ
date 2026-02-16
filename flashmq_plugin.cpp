@@ -17,6 +17,7 @@ See LICENSE for license details.
 #include "subscriptionstore.h"
 #include "globals.h"
 #include "utils.h"
+#include "mainapp.h"
 
 void flashmq_logf(int level, const char *str, ...)
 {
@@ -310,4 +311,38 @@ void flashmq_get_client_pointer(const std::weak_ptr<Session> &session, std::weak
     std::shared_ptr<Session> sessionLocked = session.lock();
     if (!sessionLocked) return;
     clientOut = sessionLocked->makeSharedClient();
+}
+
+void flashmq_defer_thread_ready()
+{
+    auto d = ThreadGlobals::getThreadData();
+
+    if (!d)
+    {
+        Logger::getInstance()->log(LOG_ERROR) << "Calling flashmq_defer_thread_ready from custom thread.";
+        return;
+    }
+
+    d->deferThreadReady = true;
+}
+
+void flashmq_signal_thread_ready()
+{
+    const auto d = ThreadGlobals::getThreadData();
+
+    if (!d)
+    {
+        Logger::getInstance()->log(LOG_ERROR) << "Calling flashmq_signal_thread_ready from custom thread.";
+        return;
+    }
+
+    if (!d->deferThreadReady)
+        return;
+
+    std::shared_ptr<MainApp> lockedMainApp = d->mMainApp.lock();
+
+    if (!lockedMainApp)
+        return;
+
+    lockedMainApp->queueThreadInitDecrement();
 }

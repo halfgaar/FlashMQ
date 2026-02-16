@@ -298,6 +298,30 @@ uint32_t API flashmq_add_task(std::function<void()> f, uint32_t delay_in_ms);
  */
 void API flashmq_remove_task(uint32_t id);
 
+/**
+ * @brief Use this if you don't want your thread to be signalled ready after flashmq_plugin_init().
+ *
+ * Normally, when threads return from flashmq_plugin_init(), the worker thread signals to the main thread it's done. Once
+ * all threads have done this, the listeners are created and systemd is notified. You may want to defer this, until all
+ * your auth data is loaded, for instance.
+ *
+ * One simple solution to queue back this event is to use flashmq_add_task() to poll on a timer and check if your data is
+ * loaded, and run flashmq_signal_thread_ready() when it's ready.
+ *
+ * [Introduced in FlashMQ 1.26.0]
+ */
+void API flashmq_defer_thread_ready();
+
+/**
+ * @brief Counterpart to flashmq_defer_thread_ready().
+ *
+ * There is no timeout action. If you don't do this, FlashMQ will never be ready. When starting from systemd unit of
+ * type 'notify', it will be restarted after a set time.
+ *
+ * [Introduced in FlashMQ 1.26.0]
+ */
+void API flashmq_signal_thread_ready();
+
 }
 
 #endif // FLASHMQ_PUBLIC_H
