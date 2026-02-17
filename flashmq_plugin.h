@@ -164,8 +164,7 @@ bool flashmq_plugin_alter_subscription(
  * @brief flashmq_plugin_alter_publish allows changing of the non-const arguments.
  * @param thread_data is memory allocated in flashmq_plugin_allocate_thread_memory().
  * @return boolean indicating whether the packet was changed. It saves FlashMQ from having to do a full compare. Not returning the truth here
- * results in unpredictable behavior. Note: this only applies to the topic, because FlashMQ has to know whether to resplit
- * the topic string. You can change other flags and still return false.
+ * results in unpredictable behavior. Note: if only changing retain, you can get away with returning false.
  *
  * Be aware that changing publishes may incur a (slight) reduction in performance.
  *
@@ -173,8 +172,8 @@ bool flashmq_plugin_alter_subscription(
  */
 bool flashmq_plugin_alter_publish(
     void *thread_data, const std::string &clientid, std::string &topic, const std::vector<std::string> &subtopics,
-    std::string_view payload, uint8_t &qos, bool &retain, const std::optional<std::string> &correlationData,
-    const std::optional<std::string> &responseTopic, const std::optional<std::string> &contentType,
+    std::string_view payload, uint8_t &qos, bool &retain, std::optional<std::string> &correlationData,
+    std::optional<std::string> &responseTopic, std::optional<std::string> &contentType,
     std::vector<std::pair<std::string, std::string>> *userProperties);
 
 /**

@@ -577,8 +577,8 @@ bool Authentication::alterSubscribe(const std::string &clientid, std::string &to
 
 bool Authentication::alterPublish(
     const std::string &clientid, std::string &topic, const std::vector<std::string> &subtopics, std::string_view payload,
-    uint8_t &qos, bool &retain, const std::optional<std::string> &correlationData,
-    const std::optional<std::string> &responseTopic, const std::optional<std::string> &contentType,
+    uint8_t &qos, bool &retain, std::optional<std::string> &correlationData,
+    std::optional<std::string> &responseTopic, std::optional<std::string> &contentType,
     std::vector<std::pair<std::string, std::string>> *userProperties)
 {
 #ifdef TESTING
