@@ -18,18 +18,19 @@ If you build manually with `cmake` with default options, you won't have `-DCMAKE
 ## Docker
 
 Official Docker images aren't available yet, but building your own Docker image can be done with the provided Dockerfile.
+For this you only need to copy the Dockerfile from this repository.
 
 ```
-# It's best to checkout a tagged release. See 'git tag'.
-git checkout <tag name>
+# build flashmq docker image for a specific branch, i.e. v1.25.0
+docker build --build-arg GIT_TAG_NAME=v1.25.0 . -t halfgaar/flashmq
 
-# build flashmq docker image
+# Alternatively, build flashmq docker image for the master branch
 docker build . -t halfgaar/flashmq
 
 # run using docker (with, as an example, a place for a config file (default
 # name flashmq.conf). Create extra volumes as you need, for the persistence DB
 # file, logs, password files, auth plugin, etc.
-docker run -p 1883:1883 -v /srv/flashmq/etc/:/etc/flashmq halfgaar/flashmq
+docker run -p 1883:1883 -v /srv/flashmq/etc/:/etc/flashmq --user 1000:1000 halfgaar/flashmq
 
 # for development you can target the build stage to get an image you can use for development
 docker build . --target=build
