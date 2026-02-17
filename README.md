@@ -17,22 +17,33 @@ If you build manually with `cmake` with default options, you won't have `-DCMAKE
 
 ## Docker
 
-Official Docker images aren't available yet, but building your own Docker image can be done with the provided Dockerfile.
+Official Docker images aren't available yet, but building your own Docker image can be done with the provided `Dockerfile`. Be sure to use the new buildx builder, as the `Dockerfile` is not compatible with the legacy build plugin.
+
+You can build using the `Dockerfile` only (replace `<tag_name>` with a proper version tag, like `v1.25.0`):
 
 ```
-# It's best to checkout a tagged release. See 'git tag'.
-git checkout <tag name>
+docker build --file Dockerfile https://github.com/halfgaar/FlashMQ.git#<tag_name> -t halfgaar/flashmq
+```
 
-# build flashmq docker image
+Or, build using a local git clone (building a specific version tag is recommended):
+
+```
+git checkout <tag_name>
 docker build . -t halfgaar/flashmq
+```
 
-# run using docker (with, as an example, a place for a config file (default
-# name flashmq.conf). Create extra volumes as you need, for the persistence DB
-# file, logs, password files, auth plugin, etc.
-docker run -p 1883:1883 -v /srv/flashmq/etc/:/etc/flashmq halfgaar/flashmq
+To run:
 
-# for development you can target the build stage to get an image you can use for development
-docker build . --target=build
+```
+docker run -p 1883:1883 -v /srv/flashmq/etc/:/etc/flashmq --user 1000:1000 halfgaar/flashmq
+```
+
+Create extra volumes as you need, for the persistence DB file, logs, password files, plugin, etc.
+
+For development you can target the build stage to get an image you can use for development:
+
+```
+docker build . --build-arg BUILD_TYPE=Debug --target=build
 ```
 
 ## Plugins
