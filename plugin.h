@@ -121,6 +121,7 @@ typedef AuthResult(*F_flashmq_plugin_acl_check_v5)(
     const std::string &topic, const std::vector<std::string> &subtopics, const std::string &sharename, std::string_view payload,
     const uint8_t qos, const bool retain, const std::optional<std::string> &correlationData,
     const std::optional<std::string> &responseTopic, const std::optional<std::string> &contentType,
+    const std::optional<std::chrono::time_point<std::chrono::steady_clock>> expiresAt,
     const std::vector<std::pair<std::string, std::string>> *userProperties);
 
 std::string AuthResultToString(AuthResult r);
@@ -219,6 +220,7 @@ public:
             const std::string &clientid, const std::string &username, const std::string &topic, const std::vector<std::string> &subtopics,
             const std::string &sharename, std::string_view payload, AclAccess access, uint8_t qos, bool retain, const std::optional<std::string> &correlationData,
             const std::optional<std::string> &responseTopic, const std::optional<std::string> &contentType,
+            const std::optional<std::chrono::time_point<std::chrono::steady_clock>> expiresAt,
             const std::vector<std::pair<std::string, std::string>> *userProperties);
     AuthResult loginCheck(const std::string &clientid, const std::string &username, const std::string &password,
                           const std::vector<std::pair<std::string, std::string>> *userProperties, const std::weak_ptr<Client> &client, const bool allowAnonymous);

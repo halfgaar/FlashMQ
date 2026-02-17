@@ -28,6 +28,7 @@
 #include <unordered_map>
 #include <string_view>
 #include <optional>
+#include <chrono>
 #include "flashmq_public.h"
 
 #define FLASHMQ_PLUGIN_VERSION 5
@@ -254,6 +255,7 @@ AuthResult flashmq_plugin_acl_check(
     std::string_view payload, const uint8_t qos, const bool retain,
     const std::optional<std::string> &correlationData, const std::optional<std::string> &responseTopic,
     const std::optional<std::string> &contentType,
+    const std::optional<std::chrono::time_point<std::chrono::steady_clock>> expiresAt,
     const std::vector<std::pair<std::string, std::string>> *userProperties);
 
 /**

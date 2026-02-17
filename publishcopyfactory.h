@@ -56,6 +56,7 @@ public:
     const std::optional<std::string> &getCorrelationData() const;
     const std::optional<std::string> &getResponseTopic() const;
     const std::optional<std::string> &getContentType() const;
+    const std::optional<std::chrono::time_point<std::chrono::steady_clock>> getExpiresAt() const;
     static int getPublishLayoutCompareKey(ProtocolVersion pv, uint8_t qos);
 };
 
