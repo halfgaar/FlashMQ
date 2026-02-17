@@ -55,6 +55,7 @@ public:
     const std::vector<std::pair<std::string, std::string>> *getUserProperties() const;
     const std::optional<std::string> &getCorrelationData() const;
     const std::optional<std::string> &getResponseTopic() const;
+    const std::optional<std::string> &getContentType() const;
     static int getPublishLayoutCompareKey(ProtocolVersion pv, uint8_t qos);
 };
 

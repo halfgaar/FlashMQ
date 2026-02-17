@@ -1773,7 +1773,7 @@ void MqttPacket::handleSubscribe(std::shared_ptr<Client> &sender)
         {
             const AuthResult newAuthResult = authentication.aclCheck(
                 sender->getClientId(), sender->getUsername(), topic, subtopics, shareName, std::string_view(), AclAccess::subscribe, qos,
-                false, std::optional<std::string>(), std::optional<std::string>(), getUserProperties());
+                false, std::optional<std::string>(), std::optional<std::string>(), {}, getUserProperties());
 
             // We don't allow upgrading back to success. This gets too complicated between having no additional ACL, having an ACL file, and/or a plugin.
             if (newAuthResult != AuthResult::success)
@@ -2187,7 +2187,7 @@ void MqttPacket::handlePublish(std::shared_ptr<Client> &sender)
         const bool altered = authentication.alterPublish(
             this->publishData.client_id, this->publishData.topic, this->publishData.getSubtopics(),
             getPayloadView(), this->publishData.qos, this->publishData.retain, this->publishData.correlationData, this->publishData.responseTopic,
-            this->publishData.getUserProperties());
+            this->publishData.contentType, this->publishData.getUserProperties());
 
         if (altered)
             this->publishData.resplitTopic();
@@ -2701,6 +2701,11 @@ const std::optional<std::string> &MqttPacket::getCorrelationData() const
 const std::optional<std::string> &MqttPacket::getResponseTopic() const
 {
     return this->publishData.responseTopic;
+}
+
+const std::optional<std::string> &MqttPacket::getContentType() const
+{
+    return this->publishData.contentType;
 }
 
 bool MqttPacket::getRetain() const

@@ -195,6 +195,15 @@ const std::optional<std::string> &PublishCopyFactory::getResponseTopic() const
     return publish->responseTopic;
 }
 
+const std::optional<std::string> &PublishCopyFactory::getContentType() const
+{
+    if (packet)
+        return packet->getContentType();
+
+    assert(publish);
+    return publish->contentType;
+}
+
 int PublishCopyFactory::getPublishLayoutCompareKey(ProtocolVersion pv, uint8_t qos)
 {
     int key = 0;

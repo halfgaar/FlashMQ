@@ -56,9 +56,9 @@ void PluginLoader::loadPlugin(const std::string &pathToSoFile)
         pluginFamily = PluginFamily::FlashMQ;
         flashmqPluginVersionNumber = version();
 
-        if (flashmqPluginVersionNumber < 1 || flashmqPluginVersionNumber  > 4)
+        if (flashmqPluginVersionNumber < 1 || flashmqPluginVersionNumber  > 5)
         {
-            throw FatalError("This FlashMQ version only support plugin version 1, 2, 3 or 4.");
+            throw FatalError("This FlashMQ version only support plugin version 1, 2, 3, 4 or 5.");
         }
     }
     else if ((version = (F_plugin_version)loadSymbol("mosquitto_auth_plugin_version", false)) != nullptr)
