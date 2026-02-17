@@ -124,6 +124,12 @@ void Authentication::loadPlugin(const PluginLoader &l)
             flashmq_plugin_alter_publish_v3 = (F_flashmq_plugin_alter_publish_v3)l.loadSymbol("flashmq_plugin_alter_publish", false);
             flashmq_plugin_on_unsubscribe_v4 = (F_flashmq_plugin_on_unsubscribe_v4)l.loadSymbol("flashmq_plugin_on_unsubscribe", false);
         }
+        else if (flashmqPluginVersionNumber == 5)
+        {
+            flashmq_plugin_acl_check_v5 = (F_flashmq_plugin_acl_check_v5)l.loadSymbol("flashmq_plugin_acl_check");
+            flashmq_plugin_alter_publish_v5 = (F_flashmq_plugin_alter_publish_v5)l.loadSymbol("flashmq_plugin_alter_publish", false);
+            flashmq_plugin_on_unsubscribe_v4 = (F_flashmq_plugin_on_unsubscribe_v4)l.loadSymbol("flashmq_plugin_on_unsubscribe", false);
+        }
         else
         {
             throw FatalError("Unreachable error reached in detecting plugin version.");
@@ -311,7 +317,7 @@ AuthResult Authentication::aclCheck(Publish &publishData, std::string_view paylo
 {
     AuthResult result = aclCheck(
         publishData.client_id, publishData.username, publishData.topic, publishData.getSubtopics(), "", payload, access, publishData.qos,
-        publishData.retain, publishData.correlationData, publishData.responseTopic, publishData.getUserProperties());
+        publishData.retain, publishData.correlationData, publishData.responseTopic, publishData.contentType, publishData.getUserProperties());
 
     // Anonymous publishes come from FlashMQ internally, like SYS topics. We need to allow them.
     if (access == AclAccess::write && publishData.client_id.empty())
@@ -323,7 +329,8 @@ AuthResult Authentication::aclCheck(Publish &publishData, std::string_view paylo
 AuthResult Authentication::aclCheck(
         const std::string &clientid, const std::string &username, const std::string &topic, const std::vector<std::string> &subtopics,
         const std::string &sharename, std::string_view payload, AclAccess access, uint8_t qos, bool retain, const std::optional<std::string> &correlationData,
-        const std::optional<std::string> &responseTopic, const std::vector<std::pair<std::string, std::string>> *userProperties)
+        const std::optional<std::string> &responseTopic, const std::optional<std::string> &contentType,
+        const std::vector<std::pair<std::string, std::string>> *userProperties)
 {
     assert(subtopics.size() > 0);
 #ifdef TESTING
@@ -376,7 +383,13 @@ AuthResult Authentication::aclCheck(
         // gets disconnected.
         try
         {
-            if (flashmqPluginVersionNumber == 4)
+            if (flashmqPluginVersionNumber == 5)
+            {
+                return flashmq_plugin_acl_check_v5(
+                    pluginData, access, clientid, username, topic, subtopics, sharename, payload, qos, retain,
+                    correlationData, responseTopic, contentType, userProperties);
+            }
+            else if (flashmqPluginVersionNumber == 4)
             {
                 return flashmq_plugin_acl_check_v4(
                     pluginData, access, clientid, username, topic, subtopics, sharename, payload, qos, retain,
@@ -565,7 +578,7 @@ bool Authentication::alterSubscribe(const std::string &clientid, std::string &to
 bool Authentication::alterPublish(
     const std::string &clientid, std::string &topic, const std::vector<std::string> &subtopics, std::string_view payload,
     uint8_t &qos, bool &retain, const std::optional<std::string> &correlationData,
-    const std::optional<std::string> &responseTopic,
+    const std::optional<std::string> &responseTopic, const std::optional<std::string> &contentType,
     std::vector<std::pair<std::string, std::string>> *userProperties)
 {
 #ifdef TESTING
@@ -589,7 +602,14 @@ bool Authentication::alterPublish(
     {
         try
         {
-            if (flashmqPluginVersionNumber == 3 || flashmqPluginVersionNumber == 4)
+            if (flashmqPluginVersionNumber == 5)
+            {
+                if (flashmq_plugin_alter_publish_v5)
+                    return flashmq_plugin_alter_publish_v5(
+                        pluginData, clientid, topic, subtopics, payload, qos, retain,
+                        correlationData, responseTopic, contentType, userProperties);
+            }
+            else if (flashmqPluginVersionNumber == 3 || flashmqPluginVersionNumber == 4)
             {
                 if (flashmq_plugin_alter_publish_v3)
                     return flashmq_plugin_alter_publish_v3(pluginData, clientid, topic, subtopics, payload, qos, retain,

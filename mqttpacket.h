@@ -181,6 +181,7 @@ public:
     std::vector<std::pair<std::string, std::string>> *getUserProperties() const;
     const std::optional<std::string> &getCorrelationData() const;
     const std::optional<std::string> &getResponseTopic() const;
+    const std::optional<std::string> &getContentType() const;
 };
 
 struct SubscriptionTuple

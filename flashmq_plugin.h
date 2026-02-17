@@ -30,7 +30,7 @@
 #include <optional>
 #include "flashmq_public.h"
 
-#define FLASHMQ_PLUGIN_VERSION 4
+#define FLASHMQ_PLUGIN_VERSION 5
 
 extern "C"
 {
@@ -174,7 +174,8 @@ bool flashmq_plugin_alter_subscription(
 bool flashmq_plugin_alter_publish(
     void *thread_data, const std::string &clientid, std::string &topic, const std::vector<std::string> &subtopics,
     std::string_view payload, uint8_t &qos, bool &retain, const std::optional<std::string> &correlationData,
-    const std::optional<std::string> &responseTopic, std::vector<std::pair<std::string, std::string>> *userProperties);
+    const std::optional<std::string> &responseTopic, const std::optional<std::string> &contentType,
+    std::vector<std::pair<std::string, std::string>> *userProperties);
 
 /**
  * @brief flashmq_plugin_login_check is called on login of a client.
@@ -253,6 +254,7 @@ AuthResult flashmq_plugin_acl_check(
     const std::string &topic, const std::vector<std::string> &subtopics, const std::string &shareName,
     std::string_view payload, const uint8_t qos, const bool retain,
     const std::optional<std::string> &correlationData, const std::optional<std::string> &responseTopic,
+    const std::optional<std::string> &contentType,
     const std::vector<std::pair<std::string, std::string>> *userProperties);
 
 /**
