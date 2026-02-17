@@ -188,11 +188,14 @@ void publish_in_thread()
     flashmq_publish_message("topic/from/thread", 0, false, "payload from thread");
 }
 
-AuthResult flashmq_plugin_acl_check(void *thread_data, const AclAccess access, const std::string &clientid, const std::string &username,
-                                    const std::string &topic, const std::vector<std::string> &subtopics, const std::string &shareName,
-                                    std::string_view payload, const uint8_t qos, const bool retain,
-                                    const std::optional<std::string> &correlationData, const std::optional<std::string> &responseTopic,
-                                    const std::vector<std::pair<std::string, std::string>> *userProperties)
+AuthResult flashmq_plugin_acl_check(
+    void *thread_data, const AclAccess access, const std::string &clientid, const std::string &username,
+    const std::string &topic, const std::vector<std::string> &subtopics, const std::string &shareName,
+    std::string_view payload, const uint8_t qos, const bool retain,
+    const std::optional<std::string> &correlationData, const std::optional<std::string> &responseTopic,
+    const std::optional<std::string> &contentType,
+    const std::optional<std::chrono::time_point<std::chrono::steady_clock>> expiresAt,
+    const std::vector<std::pair<std::string, std::string>> *userProperties)
 {
     (void)thread_data;
     (void)access;
@@ -205,6 +208,8 @@ AuthResult flashmq_plugin_acl_check(void *thread_data, const AclAccess access, c
     (void)responseTopic;
     (void)userProperties;
     (void)shareName;
+    (void)contentType;
+    (void)expiresAt;
 
     if (clientid == "return_error")
         return AuthResult::error;
@@ -306,9 +311,11 @@ AuthResult flashmq_plugin_extended_auth(void *thread_data, const std::string &cl
     return AuthResult::auth_method_not_supported;
 }
 
-bool flashmq_plugin_alter_publish(void *thread_data, const std::string &clientid, std::string &topic, const std::vector<std::string> &subtopics, std::string_view payload,
-                                  uint8_t &qos, bool &retain, const std::optional<std::string> &correlationData, const std::optional<std::string> &responseTopic,
-                                  std::vector<std::pair<std::string, std::string>> *userProperties)
+bool flashmq_plugin_alter_publish(
+    void *thread_data, const std::string &clientid, std::string &topic, const std::vector<std::string> &subtopics,
+    std::string_view payload, uint8_t &qos, bool &retain, std::optional<std::string> &correlationData,
+    std::optional<std::string> &responseTopic, std::optional<std::string> &contentType,
+    std::vector<std::pair<std::string, std::string>> *userProperties)
 {
     (void)thread_data;
     (void)clientid;
@@ -318,6 +325,7 @@ bool flashmq_plugin_alter_publish(void *thread_data, const std::string &clientid
     (void)correlationData;
     (void)responseTopic;
     (void)userProperties;
+    (void)contentType;
 
     TestPluginData *p = static_cast<TestPluginData*>(thread_data);
 
