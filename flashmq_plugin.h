@@ -156,8 +156,9 @@ void flashmq_plugin_periodic_event(void *thread_data);
  *
  * [Can optionally be implemented by plugin]
  */
-bool flashmq_plugin_alter_subscription(void *thread_data, const std::string &clientid, std::string &topic, const std::vector<std::string> &subtopics,
-                                       uint8_t &qos, const std::vector<std::pair<std::string, std::string>> *userProperties);
+bool flashmq_plugin_alter_subscription(
+    void *thread_data, const std::string &clientid, std::string &topic, const std::vector<std::string> &subtopics,
+    uint8_t &qos, const std::vector<std::pair<std::string, std::string>> *userProperties);
 
 /**
  * @brief flashmq_plugin_alter_publish allows changing of the non-const arguments.
@@ -170,9 +171,10 @@ bool flashmq_plugin_alter_subscription(void *thread_data, const std::string &cli
  *
  * [Can optionally be implemented by plugin]
  */
-bool flashmq_plugin_alter_publish(void *thread_data, const std::string &clientid, std::string &topic, const std::vector<std::string> &subtopics,
-                                  std::string_view payload, uint8_t &qos, bool &retain, const std::optional<std::string> &correlationData,
-                                  const std::optional<std::string> &responseTopic, std::vector<std::pair<std::string, std::string>> *userProperties);
+bool flashmq_plugin_alter_publish(
+    void *thread_data, const std::string &clientid, std::string &topic, const std::vector<std::string> &subtopics,
+    std::string_view payload, uint8_t &qos, bool &retain, const std::optional<std::string> &correlationData,
+    const std::optional<std::string> &responseTopic, std::vector<std::pair<std::string, std::string>> *userProperties);
 
 /**
  * @brief flashmq_plugin_login_check is called on login of a client.
@@ -194,8 +196,9 @@ bool flashmq_plugin_alter_publish(void *thread_data, const std::string &clientid
  *
  * [Must be implemented by plugin]
  */
-AuthResult flashmq_plugin_login_check(void *thread_data, const std::string &clientid, const std::string &username, const std::string &password,
-                                      const std::vector<std::pair<std::string, std::string>> *userProperties, const std::weak_ptr<Client> &client);
+AuthResult flashmq_plugin_login_check(
+    void *thread_data, const std::string &clientid, const std::string &username, const std::string &password,
+    const std::vector<std::pair<std::string, std::string>> *userProperties, const std::weak_ptr<Client> &client);
 
 /**
  * @brief flashmq_plugin_client_disconnected Called when clients disconnect or their keep-alive expire.
@@ -215,9 +218,10 @@ void flashmq_plugin_client_disconnected(void *thread_data, const std::string &cl
  *
  * [Can optionally be implemented by plugin]
  */
-void flashmq_plugin_on_unsubscribe(void *thread_data, const std::weak_ptr<Session> &session, const std::string &clientid,
-                                   const std::string &username, const std::string &topic, const std::vector<std::string> &subtopics,
-                                   const std::string &shareName, const std::vector<std::pair<std::string, std::string>> *userProperties);
+void flashmq_plugin_on_unsubscribe(
+    void *thread_data, const std::weak_ptr<Session> &session, const std::string &clientid,
+    const std::string &username, const std::string &topic, const std::vector<std::string> &subtopics,
+    const std::string &shareName, const std::vector<std::pair<std::string, std::string>> *userProperties);
 
 /**
  * @brief flashmq_plugin_acl_check is called on publish, deliver and subscribe.
@@ -244,11 +248,12 @@ void flashmq_plugin_on_unsubscribe(void *thread_data, const std::weak_ptr<Sessio
  *
  * [Must be implemented by plugin]
  */
-AuthResult flashmq_plugin_acl_check(void *thread_data, const AclAccess access, const std::string &clientid, const std::string &username,
-                                    const std::string &topic, const std::vector<std::string> &subtopics, const std::string &shareName,
-                                    std::string_view payload, const uint8_t qos, const bool retain,
-                                    const std::optional<std::string> &correlationData, const std::optional<std::string> &responseTopic,
-                                    const std::vector<std::pair<std::string, std::string>> *userProperties);
+AuthResult flashmq_plugin_acl_check(
+    void *thread_data, const AclAccess access, const std::string &clientid, const std::string &username,
+    const std::string &topic, const std::vector<std::string> &subtopics, const std::string &shareName,
+    std::string_view payload, const uint8_t qos, const bool retain,
+    const std::optional<std::string> &correlationData, const std::optional<std::string> &responseTopic,
+    const std::vector<std::pair<std::string, std::string>> *userProperties);
 
 /**
  * @brief flashmq_plugin_extended_auth can be used to implement MQTT 5 extended auth. This is optional.
@@ -265,9 +270,10 @@ AuthResult flashmq_plugin_acl_check(void *thread_data, const AclAccess access, c
  *
  * [Can optionally be implemented by plugin]
  */
-AuthResult flashmq_plugin_extended_auth(void *thread_data, const std::string &clientid, ExtendedAuthStage stage, const std::string &authMethod,
-                                        const std::string &authData, const std::vector<std::pair<std::string, std::string>> *userProperties, std::string &returnData,
-                                        std::string &username, const std::weak_ptr<Client> &client);
+AuthResult flashmq_plugin_extended_auth(
+    void *thread_data, const std::string &clientid, ExtendedAuthStage stage, const std::string &authMethod,
+    const std::string &authData, const std::vector<std::pair<std::string, std::string>> *userProperties, std::string &returnData,
+    std::string &username, const std::weak_ptr<Client> &client);
 
 /**
  * @brief Is called when the socket watched by 'flashmq_poll_add_fd()' has an event.
