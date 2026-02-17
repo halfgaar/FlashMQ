@@ -113,8 +113,8 @@ typedef void(*F_flashmq_plugin_on_unsubscribe_v4)(
 
 typedef bool (*F_flashmq_plugin_alter_publish_v5)(
     void *thread_data, const std::string &clientid, std::string &topic, const std::vector<std::string> &subtopics,
-    std::string_view payload, uint8_t &qos, bool &retain, const std::optional<std::string> &correlationData,
-    const std::optional<std::string> &responseTopic, const std::optional<std::string> &contentType,
+    std::string_view payload, uint8_t &qos, bool &retain, std::optional<std::string> &correlationData,
+    std::optional<std::string> &responseTopic, std::optional<std::string> &contentType,
     std::vector<std::pair<std::string, std::string>> *userProperties);
 typedef AuthResult(*F_flashmq_plugin_acl_check_v5)(
     void *thread_data, const AclAccess access, const std::string &clientid, const std::string &username,
@@ -228,8 +228,8 @@ public:
     bool alterSubscribe(const std::string &clientid, std::string &topic, const std::vector<std::string> &subtopics, uint8_t &qos,
                         const std::vector<std::pair<std::string, std::string>> *userProperties);
     bool alterPublish(const std::string &clientid, std::string &topic, const std::vector<std::string> &subtopics, std::string_view payload,
-                      uint8_t &qos, bool &retain, const std::optional<std::string> &correlationData, const std::optional<std::string> &responseTopic,
-                      const std::optional<std::string> &contentType, std::vector<std::pair<std::string, std::string>> *userProperties);
+                      uint8_t &qos, bool &retain, std::optional<std::string> &correlationData, std::optional<std::string> &responseTopic,
+                      std::optional<std::string> &contentType, std::vector<std::pair<std::string, std::string>> *userProperties);
     void clientDisconnected(const std::string &clientid);
     void fdReady(int fd, int events, const std::weak_ptr<void> &p);
 
