@@ -204,6 +204,15 @@ const std::optional<std::string> &PublishCopyFactory::getContentType() const
     return publish->contentType;
 }
 
+const std::optional<std::chrono::time_point<std::chrono::steady_clock> > PublishCopyFactory::getExpiresAt() const
+{
+    if (packet)
+        return packet->getExpiresAt();
+
+    assert(publish);
+    return publish->expiresAt();
+}
+
 int PublishCopyFactory::getPublishLayoutCompareKey(ProtocolVersion pv, uint8_t qos)
 {
     int key = 0;

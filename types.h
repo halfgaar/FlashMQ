@@ -258,6 +258,7 @@ public:
             const std::vector<std::pair<std::string, std::string>> *userProperties,
             const std::string *responseTopic, const std::string *correlationData, const std::string *contentType);
     bool hasExpired() const;
+    std::optional<std::chrono::time_point<std::chrono::steady_clock>> expiresAt() const;
 
     template<typename T>
     T getAge() const
@@ -268,7 +269,6 @@ public:
         return std::chrono::duration_cast<T>(std::chrono::steady_clock::now() - this->expireInfo->createdAt);
     }
 
-    std::chrono::seconds getAge() const;
     std::vector<std::pair<std::string, std::string>> *getUserProperties() const;
     void addUserProperty(const std::string &key, const std::string &val);
     void addUserProperty(std::string &&key, std::string &&val);

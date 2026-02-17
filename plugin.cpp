@@ -317,7 +317,8 @@ AuthResult Authentication::aclCheck(Publish &publishData, std::string_view paylo
 {
     AuthResult result = aclCheck(
         publishData.client_id, publishData.username, publishData.topic, publishData.getSubtopics(), "", payload, access, publishData.qos,
-        publishData.retain, publishData.correlationData, publishData.responseTopic, publishData.contentType, publishData.getUserProperties());
+        publishData.retain, publishData.correlationData, publishData.responseTopic, publishData.contentType, publishData.expiresAt(),
+        publishData.getUserProperties());
 
     // Anonymous publishes come from FlashMQ internally, like SYS topics. We need to allow them.
     if (access == AclAccess::write && publishData.client_id.empty())
@@ -330,6 +331,7 @@ AuthResult Authentication::aclCheck(
         const std::string &clientid, const std::string &username, const std::string &topic, const std::vector<std::string> &subtopics,
         const std::string &sharename, std::string_view payload, AclAccess access, uint8_t qos, bool retain, const std::optional<std::string> &correlationData,
         const std::optional<std::string> &responseTopic, const std::optional<std::string> &contentType,
+        const std::optional<std::chrono::time_point<std::chrono::steady_clock>> expiresAt,
         const std::vector<std::pair<std::string, std::string>> *userProperties)
 {
     assert(subtopics.size() > 0);
@@ -387,7 +389,7 @@ AuthResult Authentication::aclCheck(
             {
                 return flashmq_plugin_acl_check_v5(
                     pluginData, access, clientid, username, topic, subtopics, sharename, payload, qos, retain,
-                    correlationData, responseTopic, contentType, userProperties);
+                    correlationData, responseTopic, contentType, expiresAt, userProperties);
             }
             else if (flashmqPluginVersionNumber == 4)
             {

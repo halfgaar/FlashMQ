@@ -205,7 +205,15 @@ bool Publish::hasExpired() const
     if (!expireInfo)
         return false;
 
-    return (getAge<std::chrono::milliseconds>() > expireInfo->expiresAfter);
+    return expireInfo->expiresAt() < std::chrono::steady_clock::now();
+}
+
+std::optional<std::chrono::time_point<std::chrono::steady_clock>> Publish::expiresAt() const
+{
+    if (!expireInfo)
+        return {};
+
+    return expireInfo->expiresAt();
 }
 
 std::vector<std::pair<std::string, std::string>> *Publish::getUserProperties() const
