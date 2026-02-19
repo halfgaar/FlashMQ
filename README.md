@@ -18,13 +18,14 @@ If you build manually with `cmake` with default options, you won't have `-DCMAKE
 ## Docker
 
 Official Docker images aren't available yet, but building your own Docker image can be done with the provided Dockerfile.
-For this you only need to copy the Dockerfile from this repository.
 
 ```
-# build flashmq docker image for a specific branch, i.e. v1.25.0
-docker build --build-arg GIT_TAG_NAME=v1.25.0 . -t halfgaar/flashmq
+# To build without downloading the source:
+# In the next line, replace <tag name> with the tag name of the latest release.
+docker build https://github.com/halfgaar/FlashMQ.git#<tag name> -t halfgaar/flashmq
 
-# Alternatively, build flashmq docker image for the master branch
+# It's best to checkout a tagged release. See 'git tag'.
+git checkout <tag name>
 docker build . -t halfgaar/flashmq
 
 # run using docker (with, as an example, a place for a config file (default

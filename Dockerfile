@@ -10,8 +10,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get -y install g++ make
 RUN useradd --system --shell /bin/false --user-group --no-log-init flashmq
 
 WORKDIR /usr/src/app
-RUN git clone https://github.com/halfgaar/FlashMQ .
-RUN git checkout ${GIT_TAG_NAME}
+COPY . .
 RUN ./build.sh
 
 # convert docker buildx platform name to Debian platform name
