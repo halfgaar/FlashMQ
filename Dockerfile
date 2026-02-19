@@ -6,6 +6,9 @@ ARG GIT_TAG_NAME="" #Empty tag is master branch
 # install build dependencies
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get -y install g++ make cmake libssl-dev file git
 
+# create flashmq user and group for runtime image below
+RUN useradd --system --shell /bin/false --user-group --no-log-init flashmq
+
 WORKDIR /usr/src/app
 RUN git clone https://github.com/halfgaar/FlashMQ .
 RUN git checkout ${GIT_TAG_NAME}
@@ -13,7 +16,7 @@ RUN ./build.sh
 
 # convert docker buildx platform name to Debian platform name
 FROM scratch AS run-amd64
-ARG PLATFORM=${PLATFORM}
+ARG PLATFORM=x86_64
 ARG LD_LOCATION=/lib64/ld-linux-x86-64.so.2
 
 FROM scratch AS run-arm64
@@ -22,6 +25,10 @@ ARG LD_LOCATION=/lib/ld-linux-aarch64.so.1
 
 # from scratch image is empty
 FROM run-$TARGETARCH AS run
+
+USER flashmq:flashmq
+COPY --from=build /etc/passwd /etc/passwd
+COPY --from=build /etc/group /etc/group
 
 # copy in the shared libaries in use discovered using ldd on release binary
 COPY --from=build /lib/${PLATFORM}-linux-gnu/libpthread.so.0 /lib/${PLATFORM}-linux-gnu/libpthread.so.0
