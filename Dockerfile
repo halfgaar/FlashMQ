@@ -1,8 +1,6 @@
 # build target, used for building the binary, providing shared libraries and could be used as a development env
 FROM debian:trixie-slim AS build
 
-ARG GIT_TAG_NAME="" #Empty tag is master branch
-
 # install build dependencies
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get -y install g++ make cmake libssl-dev file git
 
