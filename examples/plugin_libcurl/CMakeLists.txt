@@ -9,6 +9,7 @@ add_compile_options(-Wall)
 
 add_library(plugin_libcurl SHARED
   vendor/flashmq_plugin.h
+  vendor/flashmq_public.h
 
   src/pluginstate.h
   src/curl_functions.h

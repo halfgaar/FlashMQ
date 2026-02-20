@@ -128,8 +128,9 @@ void flashmq_plugin_poll_event_received(void *thread_data, int fd, uint32_t even
 }
 
 
-AuthResult flashmq_plugin_login_check(void *thread_data, const std::string &clientid, const std::string &username, const std::string &password,
-                                      const std::vector<std::pair<std::string, std::string>> *userProperties, const std::weak_ptr<Client> &client)
+AuthResult flashmq_plugin_login_check(
+    void *thread_data, const std::string &clientid, const std::string &username, const std::string &password,
+    const std::vector<std::pair<std::string, std::string>> *userProperties, const std::weak_ptr<Client> &client)
 {
     (void)clientid;
     (void)userProperties;
@@ -173,14 +174,18 @@ AuthResult flashmq_plugin_login_check(void *thread_data, const std::string &clie
 }
 
 AuthResult flashmq_plugin_acl_check(
-        void *thread_data, const AclAccess access, const std::string &clientid, const std::string &username,
-        const std::string &topic, const std::vector<std::string> &subtopics, const std::string &shareName,
-        std::string_view payload, const uint8_t qos, const bool retain,
-        const std::optional<std::string> &correlationData, const std::optional<std::string> &responseTopic,
-        const std::vector<std::pair<std::string, std::string>> *userProperties)
+    void *thread_data, const AclAccess access, const std::string &clientid, const std::string &username,
+    const std::string &topic, const std::vector<std::string> &subtopics, const std::string &shareName,
+    std::string_view payload, const uint8_t qos, const bool retain,
+    const std::optional<std::string> &correlationData, const std::optional<std::string> &responseTopic,
+    const std::optional<std::string> &contentType,
+    const std::optional<std::chrono::time_point<std::chrono::steady_clock>> expiresAt,
+    const std::vector<std::pair<std::string, std::string>> *userProperties)
 {
     (void)thread_data; (void)access; (void)clientid; (void)username; (void)topic; (void)subtopics; (void)shareName;
-    (void)payload; (void)qos; (void)retain; (void)correlationData; (void)responseTopic; (void)userProperties;
+    (void)payload; (void)qos; (void)retain; (void)correlationData; (void)responseTopic;
+    (void)contentType; (void) expiresAt; (void)userProperties;
+
 
     return AuthResult::success;
 }
