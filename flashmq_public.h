@@ -186,6 +186,8 @@ bool API flashmq_plugin_add_subscription(
  * correct (anymore). The login functions also give this weak pointer so you can store it with the async operation, to be used again later for
  * a call to this function.
  *
+ * Can be called from any thread.
+ *
  * [New version since plugin version 4, FlashMQ version 1.25.0]
  */
 void API flashmq_continue_async_authentication_v4(
@@ -261,6 +263,8 @@ void API flashmq_get_client_pointer(const std::weak_ptr<Session> &session, std::
  * You can also call it again with different events, in which case it will modify the existing entry. If you specify
  * a non-expired p, it will overwrite the original data associated with the fd.
  *
+ * Is meant for the local worker thread. It's a no-op in custom threads.
+ *
  * Will throw exceptions on error, so be sure to handle them.
  */
 void API flashmq_poll_add_fd(int fd, uint32_t events, const std::weak_ptr<void> &p);
@@ -272,6 +276,8 @@ void API flashmq_poll_add_fd(int fd, uint32_t events, const std::weak_ptr<void> 
  * Closing a socket will also remove it from the epoll system, but if you don't call this function on close, you may get stray
  * events once the fd number is reused. There is protection against it, but you may end up with unpredictable behavior.
  *
+ * Is meant for the local worker thread. It's a no-op in custom threads.
+ *
  * Will throw exceptions on error, so be sure to handle them.
  */
 void API flashmq_poll_remove_fd(uint32_t fd);
@@ -282,7 +288,7 @@ void API flashmq_poll_remove_fd(uint32_t fd);
  * @param delay_in_ms
  * @return id of the timer, which can be used to remove it.
  *
- * The task queue is local to the thread, including the id returned.
+ * The task queue is local to the current worker thread, including the id returned. It's a no-op in custom threads.
  *
  * This can be necessary for asynchronous interfaces, like libcurl.
  *
@@ -294,7 +300,7 @@ uint32_t API flashmq_add_task(std::function<void()> f, uint32_t delay_in_ms);
  * @brief Remove a task with id as given by 'flashmq_add_task()'.
  * @param id
  *
- * The task queue is local to the thread, including the id returned.
+ * The task queue is local to the current worker thread, including the id returned. It's a no-op in custom threads.
  */
 void API flashmq_remove_task(uint32_t id);
 
