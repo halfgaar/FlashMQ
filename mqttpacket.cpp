@@ -906,8 +906,7 @@ ConnectData MqttPacket::parseConnectData(std::shared_ptr<Client> &sender)
 
     if (user_name_flag)
     {
-        // Usernames must be UTF-8, but we defer that check so we can give proper a CONNACK, and continue parsing.
-        result.username = readBytesToString(settings.maxStringLength, false);
+        result.username = readBytesToString(settings.maxStringLength, true, false, ReasonCodes::BadUserNameOrPassword);
 
         if (result.username.value().empty())
         {
@@ -1119,18 +1118,6 @@ void MqttPacket::handleConnect(std::shared_ptr<Client> &sender)
     }
 
     const Settings &settings = *ThreadGlobals::getSettings();
-
-    // I deferred the initial UTF8 check on username to be able to give an appropriate connack here, but to me, the specs
-    // are actually vague whether 'BadUserNameOrPassword' should be given on invalid UTF8.
-    if (connectData.username && !isValidUtf8(connectData.username.value()))
-    {
-        ConnAck connAck(protocolVersion, ReasonCodes::BadUserNameOrPassword);
-        MqttPacket response(connAck);
-        sender->setDisconnectStage(DisconnectStage::SendPendingAppData);
-        sender->writeMqttPacket(response);
-        logger->logf(LOG_ERR, "Username has invalid UTF8: %s", connectData.username.value().c_str());
-        return;
-    }
 
     bool validClientId = true;
 
@@ -2665,7 +2652,7 @@ size_t MqttPacket::decodeVariableByteIntAtPos()
     return value;
 }
 
-std::string MqttPacket::readBytesToString(const uint16_t maxLength, bool validateUtf8, bool alsoCheckInvalidPublishChars)
+std::string MqttPacket::readBytesToString(const uint16_t maxLength, bool validateUtf8, bool alsoCheckInvalidPublishChars, const ReasonCodes reasonCode)
 {
     assert(maxLength > 0);
 
@@ -2681,7 +2668,7 @@ std::string MqttPacket::readBytesToString(const uint16_t maxLength, bool validat
         if (!isValidUtf8(result, alsoCheckInvalidPublishChars))
         {
             logger->logf(LOG_DEBUG, "Data of invalid UTF-8 string or publish topic: %s", result.c_str());
-            throw ProtocolError("Invalid UTF8 string detected, or invalid publish characters.", ReasonCodes::MalformedPacket);
+            throw ProtocolError("Invalid UTF8 string detected, or invalid publish characters.", reasonCode);
         }
     }
 
