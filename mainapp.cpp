@@ -709,15 +709,14 @@ void MainApp::start()
 
     this->bgWorker.start();
 
-    struct epoll_event events[MAX_EVENTS];
-    memset(&events, 0, sizeof (struct epoll_event)*MAX_EVENTS);
+    std::vector<epoll_event> events(MAX_EVENTS);
 
     while (running)
     {
         const uint32_t next_task_delay = timed_tasks.getTimeTillNext();
         const uint32_t epoll_wait_time = std::min<uint32_t>(next_task_delay, 100);
 
-        int num_fds = epoll_wait(this->epollFdAccept, events, MAX_EVENTS, epoll_wait_time);
+        int num_fds = epoll_wait(this->epollFdAccept, events.data(), events.size(), epoll_wait_time);
 
         if (epoll_wait_time == 0)
             timed_tasks.performAll();

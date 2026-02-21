@@ -23,9 +23,7 @@ void do_thread_work(std::shared_ptr<ThreadData> threadData)
     ThreadGlobals::assignThreadData(threadData);
     ThreadGlobals::assignSettings(&threadData->settingsLocalCopy);
 
-    struct epoll_event events[MAX_EVENTS];
-    memset(&events, 0, sizeof (struct epoll_event)*MAX_EVENTS);
-
+    std::vector<epoll_event> events(MAX_EVENTS);
     std::vector<MqttPacket> packetQueueIn;
 
     Logger *logger = Logger::getInstance();
@@ -66,7 +64,7 @@ void do_thread_work(std::shared_ptr<ThreadData> threadData)
         const uint32_t next_task_delay = threadData->delayedTasks.getTimeTillNext();
         const uint32_t epoll_wait_time = std::min<uint32_t>(next_task_delay, 100);
 
-        int fdcount = epoll_wait(epoll_fd, events, MAX_EVENTS, epoll_wait_time);
+        int fdcount = epoll_wait(epoll_fd, events.data(), events.size(), epoll_wait_time);
 
         if (__builtin_expect(epoll_wait_time == 0, 0))
         {
