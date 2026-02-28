@@ -12,6 +12,14 @@ class LockedWeakPtr
 
 public:
 
+    LockedWeakPtr() = default;
+
+    LockedWeakPtr(const std::shared_ptr<T> &r) :
+        p(r)
+    {
+
+    }
+
     std::shared_ptr<T> lock()
     {
         std::lock_guard<std::mutex> l(m);

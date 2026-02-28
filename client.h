@@ -134,7 +134,7 @@ class Client
     std::shared_ptr<WillPublish> willPublish;
 
     int epoll_fd = -1;
-    std::weak_ptr<ThreadData> threadData; // The thread (data) that this client 'lives' in.
+    LockedWeakPtr<ThreadData> threadData; // The thread (data) that this client 'lives' in.
 
     std::shared_ptr<Session> session;
 
