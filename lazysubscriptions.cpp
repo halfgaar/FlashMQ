@@ -5,37 +5,47 @@
 
 LazySubscriber::LazySubscriber(
         const std::shared_ptr<BridgeState> &bridgeState, const std::shared_ptr<ThreadData> &thread,
-        int min_required_wildcard_depth, uint8_t qos, const std::string &share_name) :
+        int min_required_wildcard_depth, uint8_t qos) :
     bridge(bridgeState),
     thread(thread),
     min_required_wildcard_depth(min_required_wildcard_depth),
-    qos(qos),
-    share_name(share_name)
+    qos(qos)
+{
+
+}
+
+LazySubscriptionNode::LazySubscriptionNode()
 {
 
 }
 
 
+
 ReceivingLazySubscriber::ReceivingLazySubscriber(
-        const std::weak_ptr<BridgeState> &receiver, const std::weak_ptr<ThreadData> &thread, uint8_t qos, const std::string &share_name,
-        size_t depth) :
+        const std::weak_ptr<BridgeState> &receiver, const std::weak_ptr<ThreadData> &thread,
+        const std::string &distribution_group, uint8_t qos, size_t depth) :
     receiver(receiver),
     thread(thread),
+    distribution_group(distribution_group),
     qos(qos),
-    share_name(share_name),
     depth(depth)
 {
 
 }
 
-std::string ReceivingLazySubscriber::getPatternWithShareName(const std::vector<std::string> &subtopics) const
+std::string ReceivingLazySubscriber::getPattern(const std::vector<std::string> &subtopics) const
 {
     std::string pattern;
 
-    if (!share_name.empty())
+    /*
+     * We use shares for when the connection count of bridges is changed and config is reloaded. This changes
+     * the targetted client, and we need to make sure we still only get the message once. Also
+     * see collectClientsEndpoint(...).
+     */
+    if (!distribution_group.empty())
     {
         pattern.append(std::string_view("$share/"));
-        pattern.append(share_name);
+        pattern.append(distribution_group);
     }
 
     size_t len = 0;
@@ -153,7 +163,7 @@ LazySubscriptions::LazySubscriptions()
 
 void LazySubscriptions::addSubscription(
     const std::shared_ptr<BridgeState> &bridgeState, const std::string &pattern,
-    uint8_t qos, const std::string &share_name)
+    uint8_t qos, const std::string &distribution_group_name)
 {
     assert(pattern.find("$share") == std::string::npos);
 
@@ -172,26 +182,53 @@ void LazySubscriptions::addSubscription(
     const int min_required_wildcard_depth{getFirstWildcardDepth(subtopics) + 1};
 
     const std::shared_ptr<LazySubscriptionNode> node = getDeepestNode(subtopics);
-    auto subscribers = node->subscribers.unique_lock();
+    auto subscribers = node->subscriber_groups.unique_lock();
     assert(!bridgeState->threadData->expired());
-    subscribers->emplace_back(bridgeState, bridgeState->threadData->lock(), min_required_wildcard_depth, qos, share_name);
+    subscribers->operator[](distribution_group_name).emplace_back(bridgeState, bridgeState->threadData->lock(), min_required_wildcard_depth, qos);
     bridgeState->constructTrackedSubscriptions();
 }
 
+/**
+ * @brief LazySubscriptions::collectClientsEndpoint
+ *
+ * Targetting the client based on the uniqueness of the resulting subscription. Because we always shorten the incoming
+ * subscription to the broadest possible multi-level wildcard, it should not be possible for clients to
+ * generate subscriptions resulting in different forwarded subscriptions. In other words, no matter if one or
+ * multiple clients place overlapping subscriptions, they should always pick the same connection.
+ */
 void LazySubscriptions::collectClientsEndpoint(
-    LazySubscriptionNode *this_node, std::vector<ReceivingLazySubscriber> &collected_clients, const int level_depth, int first_wildcard_depth)
+    LazySubscriptionNode *this_node, const size_t previous_nodes_hash, std::vector<ReceivingLazySubscriber> &collected_clients,
+    const int level_depth, int first_wildcard_depth) noexcept
 {
-    auto subscriber_data = this_node->subscribers.shared_lock();
+    auto subscriber_data = this_node->subscriber_groups.shared_lock();
 
-    for (const LazySubscriber &s : *subscriber_data)
+    for (const auto &pair : *subscriber_data)
     {
-        if (first_wildcard_depth > -1 && first_wildcard_depth < s.min_required_wildcard_depth)
+        const std::string &distribution_group_name = pair.first;
+        const std::vector<LazySubscriber> &lazy_subscribers = pair.second;
+
+        if (lazy_subscribers.empty())
             continue;
 
-        collected_clients.emplace_back(s.bridge, s.thread, s.qos, s.share_name, level_depth);
-
-        if (collected_clients.back().receiver.expired())
+        /*
+         * This mechanism, selecting by modulo of size, would normally have the problem that when you add connections
+         * to your bridge and reload, it targets another connection, resulting in a new outgoing subscription. We
+         * solve that by using shared subscriptions. See ReceivingLazySubscriber::getPattern(...).
+         */
+        const size_t start = previous_nodes_hash % lazy_subscribers.size();
+        for (size_t i = 0; i < lazy_subscribers.size(); i++)
         {
+            const LazySubscriber &s = lazy_subscribers.at((start + i) % lazy_subscribers.size());
+
+            if (first_wildcard_depth > -1 && first_wildcard_depth < s.min_required_wildcard_depth)
+                continue;
+
+            auto &candidate = collected_clients.emplace_back(s.bridge, s.thread, distribution_group_name, s.qos, level_depth);
+            const std::shared_ptr<BridgeState> bridge_candidate = candidate.receiver.lock();
+
+            if (bridge_candidate)
+                break;
+
             collected_clients.pop_back();
         }
     }
@@ -199,10 +236,12 @@ void LazySubscriptions::collectClientsEndpoint(
 
 void LazySubscriptions::collectClients(
     std::vector<std::string>::const_iterator cur_subtopic_it, std::vector<std::string>::const_iterator end,
-    LazySubscriptionNode *this_node, std::vector<ReceivingLazySubscriber> &collected_clients, int level_depth, int first_wildcard_depth)
+    LazySubscriptionNode *this_node, const size_t previous_nodes_hash, std::vector<ReceivingLazySubscriber> &collected_clients,
+    int level_depth, int first_wildcard_depth) noexcept
 {
     if (this_node == nullptr)
         return;
+
 
     const auto &children = std::as_const(this_node->children);
 
@@ -218,6 +257,7 @@ void LazySubscriptions::collectClients(
 
     level_depth++;
     const std::string &cur_subtop = *cur_subtopic_it;
+    const size_t next_hash_of_tail = previous_nodes_hash ^ std::hash<std::string>()(cur_subtop);
     const auto next_subtopic = ++cur_subtopic_it;
     const bool wildcard = cur_subtop == "+" || cur_subtop == "#";
     const int next_first_wildcard_level_depth = first_wildcard_depth < 0 && wildcard ? level_depth : first_wildcard_depth;
@@ -227,7 +267,7 @@ void LazySubscriptions::collectClients(
         auto multi_level = children.find("#");
         if (multi_level != children.cend())
         {
-            collectClientsEndpoint(multi_level->second.get(), collected_clients, level_depth + 1, next_first_wildcard_level_depth);
+            collectClientsEndpoint(multi_level->second.get(), next_hash_of_tail, collected_clients, level_depth + 1, next_first_wildcard_level_depth);
         }
     }
 
@@ -235,7 +275,7 @@ void LazySubscriptions::collectClients(
 
     if (sub_node != children.end())
     {
-        collectClients(next_subtopic, end, sub_node->second.get(), collected_clients, level_depth, next_first_wildcard_level_depth);
+        collectClients(next_subtopic, end, sub_node->second.get(), next_hash_of_tail, collected_clients, level_depth, next_first_wildcard_level_depth);
     }
 }
 
@@ -257,7 +297,7 @@ void LazySubscriptions::expandLazySubscriptions(
         if ((*data)->children.empty())
             return;
 
-        collectClients(subtopics.begin(), subtopics.end(), data->get(), collected_receivers, -1, -1);
+        collectClients(subtopics.begin(), subtopics.end(), data->get(), data->get()->node_hash, collected_receivers, -1, -1);
     }
 
     if (collected_receivers.empty())
@@ -267,7 +307,7 @@ void LazySubscriptions::expandLazySubscriptions(
     {
         assert(receiver.thread.lock());
 
-        std::string pattern = receiver.getPatternWithShareName(subtopics);
+        std::string pattern = receiver.getPattern(subtopics);
         uint8_t effective_qos = std::min(receiver.qos, qos);
 
         std::shared_ptr<BridgeState> bridgeState = receiver.receiver.lock();
@@ -300,7 +340,7 @@ void registerLazySubscriptions(std::shared_ptr<BridgeState> &bridgeState)
 
     for (const BridgeLazySubscription &lazy_sub : bridgeState->c.lazySubscriptions)
     {
-        globals->lazySubscriptions.value().addSubscription(bridgeState, lazy_sub.pattern, lazy_sub.qos, lazy_sub.share_name);
+        globals->lazySubscriptions.value().addSubscription(bridgeState, lazy_sub.pattern, lazy_sub.qos, lazy_sub.distribution_group_name);
     }
 }
 
