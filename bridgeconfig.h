@@ -33,7 +33,7 @@ struct BridgeLazySubscription
 {
     std::string pattern;
     uint8_t qos = 0;
-    std::string share_name;
+    std::string distribution_group_name;
 
     BridgeLazySubscription() = default;
     BridgeLazySubscription(const std::string &pattern, uint8_t qos);
@@ -126,6 +126,7 @@ public:
     void isValid();
     std::vector<BridgeConfig> multiply() const;
     void setSharedSubscriptionName(const std::string &share_name);
+    void setLazySubsDistributionGroupName(const std::string &name);
 
     bool operator ==(const BridgeConfig &other) const;
     bool operator !=(const BridgeConfig &other) const;

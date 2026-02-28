@@ -292,10 +292,13 @@ void BridgeConfig::setSharedSubscriptionName(const std::string &share_name)
 {
     setSharedSubscriptionName(publishes, share_name);
     setSharedSubscriptionName(subscribes, share_name);
+}
 
+void BridgeConfig::setLazySubsDistributionGroupName(const std::string &name)
+{
     for (auto &l : lazySubscriptions)
     {
-        l.share_name = share_name;
+        l.distribution_group_name = name;
     }
 }
 
@@ -420,6 +423,7 @@ std::vector<BridgeConfig> BridgeConfig::multiply() const
         if (this->connection_count > 1 || !this->lazySubscriptions.empty())
         {
             result.back().setSharedSubscriptionName(share_name);
+            result.back().setLazySubsDistributionGroupName(share_name); // It can actually be the same as the share name.
 
             /*
              * This means that when people have an existing bridge config with `use_saved_clientid`, it will lose its state when
@@ -471,7 +475,7 @@ BridgeLazySubscription::BridgeLazySubscription(const std::string &pattern, uint8
 
 bool BridgeLazySubscription::operator==(const BridgeLazySubscription &other) const
 {
-    return this->pattern == other.pattern && this->qos == other.qos && this->share_name == other.share_name;
+    return this->pattern == other.pattern && this->qos == other.qos && this->distribution_group_name == other.distribution_group_name;
 }
 
 void BridgeLazySubscription::isValid() const
