@@ -709,7 +709,7 @@ void MainApp::start()
 
     this->bgWorker.start();
 
-    std::vector<epoll_event> events(MAX_EVENTS);
+    std::vector<epoll_event> events(128);
 
     while (running)
     {
