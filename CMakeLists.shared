@@ -91,6 +91,7 @@ set(FLASHMQ_HEADERS
     ${RELPATH}checkedsharedptr.h
     ${RELPATH}flashmq_public.h
     ${RELPATH}sdnotify.h
+    ${RELPATH}threadlocked.h
 )
 
 set(FLASHMQ_IMPLS
