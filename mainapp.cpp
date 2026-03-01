@@ -389,7 +389,7 @@ void MainApp::sendBridgesToThreads()
         else
         {
             std::shared_ptr<BridgeState> bridgeState = std::make_shared<BridgeState>(bridge);
-            bridgeState->threadData = owner;
+            bridgeState->threadData = std::weak_ptr<ThreadData>(owner);
             owner->giveBridge(bridgeState);
         }
     }

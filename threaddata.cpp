@@ -257,7 +257,7 @@ void ThreadData::bridgeReconnect()
             bridge->initSSL(false);
 
             std::shared_ptr<Client> client;
-            std::shared_ptr<Session> session = bridge->session.lock();
+            std::shared_ptr<Session> session = bridge->session->lock();
 
             if (session)
                 client = session->makeSharedClient();
@@ -270,7 +270,7 @@ void ThreadData::bridgeReconnect()
                 continue;
             }
 
-            _threadData = bridge->threadData.lock();
+            _threadData = bridge->threadData->lock();
 
             if (!_threadData)
                 continue;
@@ -344,7 +344,7 @@ void ThreadData::bridgeReconnect()
             {
                 std::shared_ptr<SubscriptionStore> subscriptionStore = globals->subscriptionStore;
                 session = subscriptionStore->getBridgeSession(c);
-                bridge->session = session;
+                bridge->session = std::weak_ptr<Session>(session);
             }
 
             session->setLocalPrefix(bridge->c.local_prefix);
@@ -772,7 +772,7 @@ void ThreadData::removeBridge(const BridgeConfig &bridgeConfig, const std::strin
     if (!bridge)
         return;
 
-    std::shared_ptr<Session> session = bridge->session.lock();
+    std::shared_ptr<Session> session = bridge->session->lock();
 
     if (!session)
         return;
@@ -818,6 +818,8 @@ void ThreadData::acceptPendingBridges()
 
     for (std::shared_ptr<BridgeState> &bridgeState : bridgesToAccept)
     {
+        bridgeState->resetThreadOwners();
+
         auto pos = clients.bridges.find(bridgeState->c.clientidPrefix);
 
         if (pos != clients.bridges.end())

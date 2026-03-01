@@ -1322,7 +1322,7 @@ void MqttPacket::handleConnAck(std::shared_ptr<Client> &sender)
     logger->logf(LOG_NOTICE, "Bridge '%s' connection established. Subscribing to topics.", sender->repr().c_str());
 
     std::shared_ptr<SubscriptionStore> store = globals->subscriptionStore;
-    std::shared_ptr<Session> session = bridgeState->session.lock();
+    std::shared_ptr<Session> session = bridgeState->session->lock();
 
     // Should be impossible.
     if (!session)
@@ -1831,7 +1831,7 @@ void MqttPacket::handleSubAck(std::shared_ptr<Client> &sender)
     if (!bridgeState)
         return;
 
-    std::shared_ptr<Session> session = bridgeState->session.lock();
+    std::shared_ptr<Session> session = bridgeState->session->lock();
 
     // Should be impossible.
     if (!session)

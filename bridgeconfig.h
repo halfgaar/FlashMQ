@@ -9,6 +9,7 @@
 #include "dnsresolver.h"
 #include "sslctxmanager.h"
 #include "utils.h"
+#include "threadlocked.h"
 
 enum class BridgeTLSMode
 {
@@ -118,8 +119,8 @@ class BridgeState
     int intervalLogged = 0;
 public:
     const BridgeConfig c;
-    std::weak_ptr<Session> session;
-    std::weak_ptr<ThreadData> threadData; // kind of hacky, but I need it later.
+    ThreadLocked<std::weak_ptr<Session>> session;
+    ThreadLocked<std::weak_ptr<ThreadData>> threadData; // kind of hacky, but I need it later.
     std::optional<SslCtxManager> sslctx;
 
     BridgeState(const BridgeConfig &config);
@@ -132,6 +133,7 @@ public:
     bool timeForNewReconnectAttempt();
     void registerReconnect();
     void resetReconnectCounter();
+    void resetThreadOwners();
 };
 
 #endif // BRIDGECONFIG_H

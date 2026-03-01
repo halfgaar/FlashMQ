@@ -210,6 +210,12 @@ void BridgeState::resetReconnectCounter()
     intervalLogged = 0;
 }
 
+void BridgeState::resetThreadOwners()
+{
+    session.reset_thread();
+    threadData.reset_thread();
+}
+
 /**
  * @brief BridgeConfig::setClientId is for setting the client ID on start to the one from a saved state. That's why it only works when the prefix matches.
  * @param prefix
