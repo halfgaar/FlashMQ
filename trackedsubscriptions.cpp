@@ -1,4 +1,5 @@
 #include "trackedsubscriptions.h"
+#include "session.h"
 
 bool InFlightTrackedSubscription::outdated() const
 {
@@ -12,11 +13,13 @@ bool InFlightTrackedUnsubscription::outdated() const
 
 TrackedSubscriptionMutation::TrackedSubscriptionMutation(
         const std::string &pattern, const uint8_t qos, const std::string &originatingClientId,
-        const std::shared_ptr<Session> &originatingSession, TrackedSubscriptionMutationTask task) :
+        const std::shared_ptr<Session> &originatingSession, const uint16_t originatingPacketId, TrackedSubscriptionMutationTask task) :
     pattern(pattern),
     qos(qos),
     originatingClientId(originatingClientId),
     originatingSession(originatingSession),
+    originatingClient(originatingSession ? originatingSession->getWeakClient() : std::weak_ptr<Client>()),
+    originatingPacketId(originatingPacketId),
     task(task)
 {
 

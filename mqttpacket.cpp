@@ -1454,7 +1454,7 @@ void MqttPacket::handleConnAck(std::shared_ptr<Client> &sender)
         std::string _;
         parseSubscriptionShare(subtopics, shareName, _);
         const bool no_local = shareName.empty(); // See above about no-local.
-        globals->subscriptionStore.addSubscription(session, subtopics, pub.qos, no_local, true, shareName, 0);
+        globals->subscriptionStore.addSubscription(session, 0, subtopics, pub.qos, no_local, true, shareName, 0);
     }
 
     ThreadGlobals::getThreadData()->publishBridgeState(bridgeState, true, {});
@@ -1860,11 +1860,10 @@ void MqttPacket::handleSubscribe(std::shared_ptr<Client> &sender)
         throw ProtocolError("No topics specified to subscribe to.", ReasonCodes::MalformedPacket);
     }
 
-    SubAck subAck(this->protocolVersion, packet_id, subs_reponse_codes);
-    MqttPacket response(subAck);
-    sender->writeMqttPacket(response);
-
     std::shared_ptr<Session> session = sender->getSession();
+    std::vector<DeferredRetainedSending> retainedSending;
+
+    size_t expandedCount = 0;
 
     // Adding the subscription will also send publishes for retained messages, so that's why we're doing it at the end.
     for(const SubscriptionTuple &tup : deferredSubscribes)
@@ -1872,18 +1871,22 @@ void MqttPacket::handleSubscribe(std::shared_ptr<Client> &sender)
         if (tup.authResult == AuthResult::success_but_drop)
             continue;
 
-        const AddSubscriptionType add_type = globals->subscriptionStore.addSubscription(
-            session, tup.subtopics, tup.qos, tup.noLocal, tup.retainAsPublished, tup.shareName, tup.subscriptionIdentifier);
+        auto [addType, oneExpandedCount] = globals->subscriptionStore.addSubscription(
+            session, packet_id, tup.subtopics, tup.qos, tup.noLocal, tup.retainAsPublished, tup.shareName, tup.subscriptionIdentifier);
+
+        expandedCount += oneExpandedCount;
 
         if (tup.authResult == AuthResult::success && tup.shareName.empty())
         {
             if ((tup.retainHandling == RetainHandling::SendRetainedMessagesAtSubscribe) ||
-                (tup.retainHandling == RetainHandling::SendRetainedMessagesAtNewSubscribeOnly && add_type == AddSubscriptionType::NewSubscription) )
+                (tup.retainHandling == RetainHandling::SendRetainedMessagesAtNewSubscribeOnly && addType == AddSubscriptionType::NewSubscription) )
             {
-                globals->subscriptionStore.giveClientRetainedMessages(session, tup.subtopics, tup.qos, tup.subscriptionIdentifier);
+                retainedSending.emplace_back(tup.subtopics, tup.qos, tup.subscriptionIdentifier);
             }
         }
     }
+
+    sender->stageOrSendSubAck(sender, {std::move(retainedSending), std::move(subs_reponse_codes), packet_id}, expandedCount);
 }
 
 void MqttPacket::handleSubAck(std::shared_ptr<Client> &sender)
@@ -1918,7 +1921,7 @@ void MqttPacket::handleSubAck(std::shared_ptr<Client> &sender)
 
     if (tracked_subs)
     {
-        tracked_subs->removeMatchingInFlightTrackedSubscriptions(data.packet_id);
+        tracked_subs->handledSubackActions(data.packet_id);
 
         if (tracked_subs->requiresProcessingTrackedSubscriptions())
         {
