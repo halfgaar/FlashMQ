@@ -138,7 +138,7 @@ bool flashmq_plugin_add_subscription(
     std::string topicDummy;
     parseSubscriptionShare(subtopics, shareName, topicDummy);
 
-    const AddSubscriptionType result = store->addSubscription(session_locked, subtopics, qos, noLocal, retainAsPublished, shareName, subscriptionIdentifier);
+    const auto [result, expand_count] = store->addSubscription(session_locked, 0, subtopics, qos, noLocal, retainAsPublished, shareName, subscriptionIdentifier);
     return result == AddSubscriptionType::Invalid ? false : true;
 }
 

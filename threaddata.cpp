@@ -145,6 +145,16 @@ void ThreadData::queueRemoveExpiredRetainedMessages()
     wakeUpThread();
 }
 
+void ThreadData::queueSendSubAckInOriginatingClient(const std::shared_ptr<Client> client, const uint16_t originatingPacketId)
+{
+    auto f = [client, originatingPacketId]()
+    {
+        client->sendStagedSuback(originatingPacketId);
+    };
+
+    addImmediateTask(f);
+}
+
 void ThreadData::queuePurgeStaleTrackedLazySubscriptionsAll(const PurgeTrackedSubscriptionModifier modifier)
 {
     auto f = [this, modifier](){
@@ -992,6 +1002,30 @@ void ThreadData::queueProcessTrackedSubscriptionMutations(const std::shared_ptr<
     addImmediateTask(f);
 }
 
+void ThreadData::queueTimeoutTrackedSubscriptionStagedSubacksTimeouts()
+{
+    auto f = [this] () {
+        Logger::getInstance()->log(LOG_DEBUG) << "Doing sendAllTimedOutStagedSubacks on all bridges in thread " << threadnr;
+
+        for (auto &pair : clients.bridges)
+        {
+            std::shared_ptr<BridgeState> &bridge = pair.second;
+
+            if (!bridge)
+                continue;
+
+            auto &tracked_subs = bridge->getTrackedSubscriptions();
+
+            if (!tracked_subs)
+                continue;
+
+            tracked_subs->sendAllTimedOutStagedSubacks();
+        }
+    };
+
+    addImmediateTask(f);
+}
+
 void ThreadData::queueInternalHeartbeat()
 {
     auto f = [this](std::chrono::time_point<std::chrono::steady_clock> t){
@@ -1314,6 +1348,7 @@ void ThreadData::doKeepAliveCheck()
 
     retryProcessingTrackedSubscriptionMutationsAll(ProcessTrackedSubscriptionMutationsModifier::Retry);
     queuePurgeStaleTrackedLazySubscriptionsAll(PurgeTrackedSubscriptionModifier::Retry);
+    queueTimeoutTrackedSubscriptionStagedSubacksTimeouts();
 
     const std::chrono::seconds now = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now().time_since_epoch());
 

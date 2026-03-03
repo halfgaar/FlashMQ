@@ -118,6 +118,8 @@ class Client
     int disconnectReasonLogLevel = LOG_NOTICE;
     std::chrono::time_point<std::chrono::steady_clock> lastActivity = std::chrono::steady_clock::now();
 
+    std::unordered_map<uint16_t, SubAckAction> stagedSubAcks;
+
     std::string ssl_version;
     std::string clientid;
     std::string username;
@@ -161,6 +163,7 @@ class Client
     void setReadyForWriting(bool val, MutexLocked<WriteBuf> &writebuf);
     void setReadyForReading(bool val);
     void setAddr(const std::string &address);
+    void sendSubAck(const SubAckAction &action);
 
 public:
     uint8_t preAuthPacketCounter = 0;
@@ -254,6 +257,8 @@ public:
     const std::unique_ptr<StowedClientRegistrationData> &getRegistrationData() const;
     void clearRegistrationData();
 
+    void stageOrSendSubAck(const std::shared_ptr<Client> &this_client, SubAckAction &&action, const size_t expandedCount);
+    void sendStagedSuback(const uint16_t packetId);
     void stageConnack(std::unique_ptr<ConnAck> &&c);
     void sendConnackSuccess();
     void sendConnackDeny(ReasonCodes reason);

@@ -491,3 +491,20 @@ std::chrono::seconds PublishExpireInfo::getCurrentTimeToExpire() const
     std::chrono::seconds newExpireAfter = std::max(expiresAfter - delay, std::chrono::seconds(0));
     return newExpireAfter;
 }
+
+DeferredRetainedSending::DeferredRetainedSending(const std::vector<std::string> &subtopics, const uint8_t qos, const uint32_t subscriptionIdentifier) :
+    mSubtopics(subtopics),
+    mQos(qos),
+    mSubscriptionIdentifier(subscriptionIdentifier)
+
+{
+
+}
+
+SubAckAction::SubAckAction(std::vector<DeferredRetainedSending> &&retainedSending, std::list<ReasonCodes> &&responseCodes, const uint16_t packetId) :
+    mRetainedSending(std::move(retainedSending)),
+    mResponseCodes(std::move(responseCodes)),
+    mPacketId(packetId)
+{
+
+}

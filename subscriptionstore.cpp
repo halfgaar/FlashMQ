@@ -253,20 +253,24 @@ std::shared_ptr<SubscriptionNode> SubscriptionStore::getDeepestNode(const std::v
     return result;
 }
 
-AddSubscriptionType SubscriptionStore::addSubscription(
-    const std::shared_ptr<Session> &session, const std::vector<std::string> &subtopics, uint8_t qos, bool noLocal, bool retainAsPublished,
-    const std::string &shareName, const uint32_t subscriptionIdentifier)
+std::tuple<AddSubscriptionType, size_t> SubscriptionStore::addSubscription(
+    const std::shared_ptr<Session> &session, const uint16_t originatingPacketId, const std::vector<std::string> &subtopics, uint8_t qos,
+    bool noLocal, bool retainAsPublished, const std::string &shareName, const uint32_t subscriptionIdentifier)
 {
-    if (!session) return AddSubscriptionType::Invalid;
+    if (!session) return {AddSubscriptionType::Invalid, 0};
 
     const std::shared_ptr<SubscriptionNode> deepestNode = getDeepestNode(subtopics);
 
     if (!deepestNode)
-        return AddSubscriptionType::Invalid;
+        return {AddSubscriptionType::Invalid, 0};
+
+    size_t expanded_count = 0;
 
     if (globals->lazySubscriptions)
-        globals->lazySubscriptions->expandLazySubscriptions(TrackedSubscriptionMutationTask::Subscribe, session, subtopics, qos);
-    return deepestNode->addSubscriber(session, qos, noLocal, retainAsPublished, shareName, subscriptionIdentifier);
+        expanded_count = globals->lazySubscriptions->expandLazySubscriptions(TrackedSubscriptionMutationTask::Subscribe, session, originatingPacketId, subtopics, qos);
+    const AddSubscriptionType result = deepestNode->addSubscriber(session, qos, noLocal, retainAsPublished, shareName, subscriptionIdentifier);
+
+    return {result, expanded_count};
 }
 
 void SubscriptionStore::removeSubscription(
@@ -281,7 +285,7 @@ void SubscriptionStore::removeSubscription(
         return;
 
     if (globals->lazySubscriptions)
-        globals->lazySubscriptions->expandLazySubscriptions(TrackedSubscriptionMutationTask::Unsubscribe, session, subtopics, 0);
+        globals->lazySubscriptions->expandLazySubscriptions(TrackedSubscriptionMutationTask::Unsubscribe, session, 0, subtopics, 0);
     node->removeSubscriber(session, shareName);
 }
 
@@ -1727,7 +1731,7 @@ void SubscriptionStore::loadSessionsAndSubscriptions(const std::string &filePath
                 if (session_it == sessionsByIdConst.end())
                     continue;
 
-                addSubscription(session_it->second, splitTopic(topic), sub.qos, sub.noLocal, sub.retainAsPublished, sub.shareName, sub.subscriptionidentifier);
+                addSubscription(session_it->second, 0, splitTopic(topic), sub.qos, sub.noLocal, sub.retainAsPublished, sub.shareName, sub.subscriptionidentifier);
             }
         }
     }
