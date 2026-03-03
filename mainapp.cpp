@@ -619,10 +619,10 @@ void MainApp::start()
             websocketsubscriber->setFakeUpgraded();
             globals->subscriptionStore.registerClientAndKickExistingOne(websocketsubscriber);
             subtopics = splitTopic("#");
-            globals->subscriptionStore.addSubscription(websocketsubscriber->getSession(), subtopics, 0, false, false, empty, 0);
+            globals->subscriptionStore.addSubscription(websocketsubscriber->getSession(), 0, subtopics, 0, false, false, empty, 0);
 
             globals->subscriptionStore.registerClientAndKickExistingOne(subscriber);
-            globals->subscriptionStore.addSubscription(subscriber->getSession(), subtopics, 0, false, false, empty, 0);
+            globals->subscriptionStore.addSubscription(subscriber->getSession(), 0, subtopics, 0, false, false, empty, 0);
 
             if (connectionProtocol == ConnectionProtocol::WebsocketMqtt && strContains(fuzzFilePathLower, "upgrade"))
             {

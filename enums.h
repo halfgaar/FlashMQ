@@ -60,4 +60,11 @@ enum class HaProxyMode
     HaProxyClientVerficiationWithAuthn
 };
 
+enum class AddSubscriptionType
+{
+    Invalid,
+    NewSubscription,
+    ExistingSubscription
+};
+
 #endif // ENUMS_H

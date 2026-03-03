@@ -279,15 +279,15 @@ void LazySubscriptions::collectClients(
     }
 }
 
-void LazySubscriptions::expandLazySubscriptions(
-    TrackedSubscriptionMutationTask task, const std::shared_ptr<Session> originating_session,
+size_t LazySubscriptions::expandLazySubscriptions(
+    TrackedSubscriptionMutationTask task, const std::shared_ptr<Session> &originating_session, const uint16_t originating_packetId,
     const std::vector<std::string> &subtopics, const uint8_t qos)
 {
     assert(subtopics.size() == 0 || subtopics.at(0) != "$share");
 
     // Don't match the bridge's own internal subscriptions to ourself (the 'publish' lines in the config).
     if (originating_session->getClientType() == ClientType::LocalBridge)
-        return;
+        return 0;
 
     std::vector<ReceivingLazySubscriber> collected_receivers;
 
@@ -295,13 +295,15 @@ void LazySubscriptions::expandLazySubscriptions(
         auto data = root.shared_lock();
 
         if ((*data)->children.empty())
-            return;
+            return 0;
 
-        collectClients(subtopics.begin(), subtopics.end(), data->get(), data->get()->node_hash, collected_receivers, -1, -1);
+        collectClients(subtopics.begin(), subtopics.end(), data->get(), 0, collected_receivers, -1, -1);
     }
 
     if (collected_receivers.empty())
-        return;
+        return 0;
+
+    size_t count = 0;
 
     for(ReceivingLazySubscriber &receiver : collected_receivers)
     {
@@ -321,13 +323,17 @@ void LazySubscriptions::expandLazySubscriptions(
             continue;
 
         const bool doWakeup = tracked_subs->addTrackedSubscriptionMutation(
-            TrackedSubscriptionMutation(pattern, effective_qos, originating_session->getClientId(), originating_session, task));
+            TrackedSubscriptionMutation(pattern, effective_qos, originating_session->getClientId(), originating_session, originating_packetId, task));
+
+        count++;
 
         if (doWakeup)
         {
             receiver.thread.lock()->queueProcessTrackedSubscriptionMutations(bridgeState, ProcessTrackedSubscriptionMutationsModifier::FirstFinishResending);
         }
     }
+
+    return count;
 }
 
 void registerLazySubscriptions(std::shared_ptr<BridgeState> &bridgeState)
