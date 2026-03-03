@@ -18,6 +18,9 @@ struct TrackedSubscriptionMutation
     const uint8_t qos{};
     const std::string originatingClientId;
     const std::weak_ptr<Session> originatingSession;
+    const std::weak_ptr<Client> originatingClient;
+    const uint16_t originatingPacketId{};
+    const std::weak_ptr<ThreadData> originatingThread;
     const TrackedSubscriptionMutationTask task{};
 
     TrackedSubscriptionMutation() = delete;
@@ -25,7 +28,7 @@ struct TrackedSubscriptionMutation
     TrackedSubscriptionMutation(TrackedSubscriptionMutation&&) = default;
     TrackedSubscriptionMutation(
         const std::string &pattern, const uint8_t qos, const std::string &originatingClientId,
-        const std::shared_ptr<Session> &originatingSession, TrackedSubscriptionMutationTask task);
+        const std::shared_ptr<Session> &originatingSession, const uint16_t originatingPacketId, TrackedSubscriptionMutationTask task);
 };
 
 struct TrackedSubscription
@@ -46,6 +49,7 @@ struct InFlightTrackedSubscription
 {
     uint16_t id = 0;
     std::vector<Subscribe> subscribes;
+    std::weak_ptr<Client> originating_client;
     int tryCount = 0;
     std::chrono::time_point<std::chrono::steady_clock> createdAt = std::chrono::steady_clock::now();
 

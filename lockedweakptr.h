@@ -26,6 +26,12 @@ public:
         return p.lock();
     }
 
+    std::weak_ptr<T> get_weak()
+    {
+        std::lock_guard<std::mutex> l(m);
+        return p;
+    }
+
     bool expired()
     {
         std::lock_guard<std::mutex> l(m);
