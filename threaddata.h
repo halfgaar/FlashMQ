@@ -178,6 +178,7 @@ public:
     void queueRemoveExpiredSessions();
     void queuePurgeSubscriptionTree();
     void queueRemoveExpiredRetainedMessages();
+    void queueSendSubAckInOriginatingClient(const std::shared_ptr<Client> client, const uint16_t originatingPacketId);
 
     void queueClientNextKeepAliveCheck(std::shared_ptr<Client> &client, bool keepRechecking);
     void continuationOfAuthentication(std::shared_ptr<Client> &client, AuthResult authResult, const std::string &authMethod, const std::string &returnData);
@@ -200,6 +201,7 @@ public:
     void queuePurgeStaleTrackedLazySubscriptions(const std::shared_ptr<BridgeState> &bridgeState, const PurgeTrackedSubscriptionModifier modifier);
     void retryProcessingTrackedSubscriptionMutationsAll(ProcessTrackedSubscriptionMutationsModifier modifier);
     void queueProcessTrackedSubscriptionMutations(const std::shared_ptr<BridgeState> &bridgeState, const ProcessTrackedSubscriptionMutationsModifier modifier);
+    void queueTimeoutTrackedSubscriptionStagedSubacksTimeouts();
 
     size_t getNrOfClients();
     void updateNrOfClients();

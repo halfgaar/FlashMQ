@@ -699,6 +699,43 @@ void Client::clearRegistrationData()
     this->registrationData.reset();
 }
 
+void Client::stageOrSendSubAck(const std::shared_ptr<Client> &this_client, SubAckAction &&action, const size_t expandedCount)
+{
+    assert(this == this_client.get());
+
+    if (expandedCount == 0)
+    {
+        sendSubAck(action);
+        return;
+    }
+
+    const uint16_t packid = action.mPacketId;
+
+    auto result = stagedSubAcks.insert({packid, std::move(action)});
+    if (!std::get<bool>(result))
+    {
+        logger->log(LOG_WARNING)
+            << "stageOrSendSubAck: staged SUBACK with id " << action.mPacketId << " is already exists (id reused). This is probabaly a bug in the client. "
+            << "Replying directly instead of staging.";
+        sendSubAck(action);
+        return;
+    }
+}
+
+void Client::sendStagedSuback(const uint16_t packetId)
+{
+    assert(this->threadData.lock()->thread_id == pthread_self());
+
+    auto pos = stagedSubAcks.find(packetId);
+
+    if (pos == stagedSubAcks.end())
+        return;
+
+    const SubAckAction x(std::move(pos->second));
+    stagedSubAcks.erase(pos);
+    sendSubAck(x);
+}
+
 /**
  * @brief Client::stageConnack saves the success connack for later use.
  * @param c
@@ -934,6 +971,28 @@ void Client::setAddr(const std::string &address)
         return;
 
     addr.setAddress(address);
+}
+
+void Client::sendSubAck(const SubAckAction &action)
+{
+    auto store = globals->subscriptionStore;
+
+    /*
+     * Writing the suback here, as opposed to before adding subscriptions way back in the calling context, means the client may
+     * have already received packets that match the subscription. That should not be a problem, because the spec says:
+     *
+     * "The Server is permitted to start sending PUBLISH packets matching the Subscription before the Server sends the SUBACK packet."
+     */
+    SubAck subAck(this->protocolVersion, action.mPacketId, action.mResponseCodes);
+    MqttPacket response(subAck);
+    writeMqttPacket(response);
+
+    auto session = getSession();
+
+    for (const DeferredRetainedSending &d : action.mRetainedSending)
+    {
+        store->giveClientRetainedMessages(session, d.mSubtopics, d.mQos, d.mSubscriptionIdentifier);
+    }
 }
 
 bool Client::tryAcmeRedirect()

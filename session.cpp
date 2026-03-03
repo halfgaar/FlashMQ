@@ -86,6 +86,11 @@ std::shared_ptr<Client> Session::makeSharedClient()
     return client.lock();
 }
 
+std::weak_ptr<Client> Session::getWeakClient()
+{
+    return this->client.get_weak();
+}
+
 void Session::assignActiveConnection(const std::shared_ptr<Client> &client)
 {
     this->client = client;

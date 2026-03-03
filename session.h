@@ -100,6 +100,7 @@ public:
     const std::string &getUsername() const { return username; }
     const std::optional<std::string> &getFmqClientGroupId() const { return fmq_client_group_id; }
     std::shared_ptr<Client> makeSharedClient();
+    std::weak_ptr<Client> getWeakClient();
     void assignActiveConnection(const std::shared_ptr<Client> &client);
     void assignActiveConnection(const std::shared_ptr<Session> &thisSession, const std::shared_ptr<Client> &client,
                                 uint16_t clientReceiveMax, uint32_t sessionExpiryInterval, bool clean_start);

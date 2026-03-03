@@ -16,6 +16,7 @@ See LICENSE for license details.
 #include <vector>
 
 #include "forward_declarations.h"
+#include "enums.h"
 
 #include "types.h"
 #include "cirbuf.h"

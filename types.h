@@ -388,4 +388,22 @@ enum class PacketDropReason
     QoSTODOSomethingSomething
 };
 
+struct DeferredRetainedSending
+{
+    const std::vector<std::string> mSubtopics;
+    const uint8_t mQos {};
+    const uint32_t mSubscriptionIdentifier {};
+
+    DeferredRetainedSending(const std::vector<std::string> &subtopics, const uint8_t qos, const uint32_t subscriptionIdentifier);
+};
+
+struct SubAckAction
+{
+    const std::vector<DeferredRetainedSending> mRetainedSending;
+    const std::list<ReasonCodes> mResponseCodes;
+    const uint16_t mPacketId {};
+
+    SubAckAction(std::vector<DeferredRetainedSending> &&retainedSending, std::list<ReasonCodes> &&responseCodes, const uint16_t packetId);
+};
+
 #endif // TYPES_H
