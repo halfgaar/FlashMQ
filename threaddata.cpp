@@ -846,6 +846,10 @@ void ThreadData::acceptPendingBridges()
 
 void ThreadData::deleteClients()
 {
+    // Can have shared pointers to clients
+    taskQueue.lock()->clear();
+    delayedTasks.clear();
+
     clients.by_fd.clear();
     clients.bridges.clear();
     acceptQueue.clients.lock()->clear();
