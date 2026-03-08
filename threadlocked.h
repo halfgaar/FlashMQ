@@ -18,8 +18,10 @@ public:
 
     template<typename... Args>
     ThreadLocked(Args... args) :
-        d(args...),
-        user(std::this_thread::get_id())
+        d(args...)
+#ifndef NDEBUG
+        ,user(std::this_thread::get_id())
+#endif
     {
 
     }
