@@ -236,7 +236,7 @@ bool Session::clearQosMessage(uint16_t packet_id, bool qosHandshakeEnds)
         result = true;
     }
 
-    if (qosHandshakeEnds)
+    if (qosHandshakeEnds && result)
     {
         qos_locked->increaseFlowControlQuota();
     }
