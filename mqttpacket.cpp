@@ -2292,6 +2292,27 @@ PubRecData MqttPacket::parsePubRecData()
     if (!atEnd())
     {
         result.reasonCode = static_cast<ReasonCodes>(readUint8());
+
+        if (result.reasonCode > ReasonCodes::Success)
+        {
+            switch(result.reasonCode)
+            {
+            case ReasonCodes::Success:
+            case ReasonCodes::NoMatchingSubscribers:
+            case ReasonCodes::UnspecifiedError:
+            case ReasonCodes::ImplementationSpecificError:
+            case ReasonCodes::NotAuthorized:
+            case ReasonCodes::TopicNameInvalid:
+            case ReasonCodes::PacketIdentifierInUse:
+            case ReasonCodes::QuotaExceeded:
+            case ReasonCodes::PayloadFormatInvalid:
+            {
+                break;
+            }
+            default:
+                throw ProtocolError("Invalid reason code in PUBREC", ReasonCodes::ProtocolError);
+            }
+        }
     }
 
     return result;
