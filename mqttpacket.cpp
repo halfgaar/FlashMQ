@@ -977,29 +977,49 @@ ConnAckData MqttPacket::parseConnAckData()
                 result.session_expire = std::min<uint32_t>(readFourBytesToUint32(), result.session_expire);
                 break;
             case Mqtt5Properties::ReceiveMaximum:
+            {
                 if (pcounts[1]++ > 0)
                     throw ProtocolError("Can't specify " + propertyToString(prop) + " more than once", ReasonCodes::ProtocolError);
 
-                result.client_receive_max = std::min<uint16_t>(readTwoBytesToUInt16(), result.client_receive_max);
+                const uint16_t val{readTwoBytesToUInt16()};
+                if (val == 0)
+                    throw ProtocolError("In CONNACK: ReceiveMax can't be 0", ReasonCodes::ProtocolError);
+                result.client_receive_max = std::min<uint16_t>(val, result.client_receive_max);
                 break;
+            }
             case Mqtt5Properties::MaximumQoS:
+            {
                 if (pcounts[2]++ > 0)
                     throw ProtocolError("Can't specify " + propertyToString(prop) + " more than once", ReasonCodes::ProtocolError);
 
-                result.max_qos = std::min<uint8_t>(readUint8(), result.max_qos);
+                const uint8_t val {readUint8()};
+                if (val > 2)
+                    throw ProtocolError("In CONNACK: QoS must be <= 2", ReasonCodes::ProtocolError);
+                result.max_qos = std::min<uint8_t>(val, result.max_qos);
                 break;
+            }
             case Mqtt5Properties::RetainAvailable:
+            {
                 if (pcounts[3]++ > 0)
                     throw ProtocolError("Can't specify " + propertyToString(prop) + " more than once", ReasonCodes::ProtocolError);
 
-                result.retained_available = static_cast<bool>(readByte());
+                const uint8_t val{readUint8()};
+                if (val > 1)
+                    throw ProtocolError("In CONNACK: RetainAvailable must be <= 1", ReasonCodes::ProtocolError);
+                result.retained_available = static_cast<bool>(val);
                 break;
+            }
             case Mqtt5Properties::MaximumPacketSize:
+            {
                 if (pcounts[4]++ > 0)
                     throw ProtocolError("Can't specify " + propertyToString(prop) + " more than once", ReasonCodes::ProtocolError);
 
-                result.max_outgoing_packet_size = std::min<uint32_t>(readFourBytesToUint32(), result.max_outgoing_packet_size);
+                const uint32_t val {readFourBytesToUint32()};
+                if (val == 0)
+                    throw ProtocolError("In CONNACK: MaximumPacketSize must be > 0", ReasonCodes::ProtocolError);
+                result.max_outgoing_packet_size = std::min<uint32_t>(val, result.max_outgoing_packet_size);
                 break;
+            }
             case Mqtt5Properties::AssignedClientIdentifier:
                 if (pcounts[5]++ > 0)
                     throw ProtocolError("Can't specify " + propertyToString(prop) + " more than once", ReasonCodes::ProtocolError);
@@ -1039,11 +1059,16 @@ ConnAckData MqttPacket::parseConnAckData()
                 readByte();
                 break;
             case Mqtt5Properties::SharedSubscriptionAvailable:
+            {
                 if (pcounts[10]++ > 0)
                     throw ProtocolError("Can't specify " + propertyToString(prop) + " more than once", ReasonCodes::ProtocolError);
 
-                result.shared_subscriptions_available = !!readByte();
+                const uint8_t val{readUint8()};
+                if (val > 1)
+                    throw ProtocolError("In CONNACK: SharedSubscriptionAvailable must be <= 1", ReasonCodes::ProtocolError);
+                result.shared_subscriptions_available = static_cast<bool>(val);
                 break;
+            }
             case Mqtt5Properties::ServerKeepAlive:
                 if (pcounts[11]++ > 0)
                     throw ProtocolError("Can't specify " + propertyToString(prop) + " more than once", ReasonCodes::ProtocolError);
