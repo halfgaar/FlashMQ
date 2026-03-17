@@ -28,7 +28,8 @@ Network::Network(const std::string &network)
 
         std::memcpy(this->data.data(), &tmpaddr, sizeof(tmpaddr));
 
-        uint32_t _netmask = (uint64_t)0xFFFFFFFFu << (32 - maskbits);
+        const uint64_t bits {0xFFFFFFFFu};
+        uint32_t _netmask {static_cast<uint32_t>( (bits << (32 - maskbits)) & 0xFFFFFFFFu )};
         this->in_mask = htonl(_netmask);
 
         this->family = AF_INET;
@@ -69,18 +70,18 @@ Network::Network(const std::string &network)
         }
 
         int m = maskbits;
-        int i = 0;
+        size_t i = 0;
         const uint64_t x{0xFFFFFFFF00000000};
 
         while (m > 0)
         {
             int shift_remainder = std::min<int>(m, 32);
-            uint32_t b = x >> shift_remainder;
+            const uint32_t b {static_cast<uint32_t>( (x >> shift_remainder) & 0xFFFFFFFFu )};
             in6_mask.at(i++) = htonl(b);
             m -= 32;
         }
 
-        for (int i = 0; i < 4; i++)
+        for (size_t i = 0; i < 4; i++)
         {
             network_addr_relevant_bits.__in6_u.__u6_addr32[i] = tmpaddr.sin6_addr.__in6_u.__u6_addr32[i] & in6_mask.at(i);
         }
@@ -116,7 +117,7 @@ bool Network::match(const sockaddr *addr) const
         std::memcpy(&tmp_arg, addr, sizeof(tmp_arg));
 
         struct in6_addr arg_addr_relevant_bits;
-        for (int i = 0; i < 4; i++)
+        for (size_t i = 0; i < 4; i++)
         {
             arg_addr_relevant_bits.__in6_u.__u6_addr32[i] = tmp_arg.sin6_addr.__in6_u.__u6_addr32[i] & in6_mask.at(i);
         }
