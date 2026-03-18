@@ -404,9 +404,10 @@ void Session::removeOutgoingQoS2MessageId(u_int16_t packet_id)
 
     const auto it = qos_locked->outgoingQoS2MessageIds.find(packet_id);
     if (it != qos_locked->outgoingQoS2MessageIds.end())
+    {
         qos_locked->outgoingQoS2MessageIds.erase(it);
-
-    qos_locked->increaseFlowControlQuota();
+        qos_locked->increaseFlowControlQuota();
+    }
 }
 
 void Session::increaseFlowControlQuotaLocked()
