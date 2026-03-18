@@ -106,6 +106,7 @@ class MqttPacket
     void calculateRemainingLength();
     void setPosToDataStart();
     bool atEnd() const;
+    bool withinBound(const size_t limit) const;
 
 #ifndef TESTING
     // In production, I want to be sure I don't accidentally copy packets, because it's slow.

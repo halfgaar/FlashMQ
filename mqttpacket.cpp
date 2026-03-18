@@ -682,7 +682,7 @@ ConnectData MqttPacket::parseConnectData(std::shared_ptr<Client> &sender)
         std::array<uint8_t, 8> pcounts;
         pcounts.fill(0);
 
-        while (pos < prop_end_at)
+        while (withinBound(prop_end_at))
         {
             const Mqtt5Properties prop = static_cast<Mqtt5Properties>(readUint8());
 
@@ -811,7 +811,7 @@ ConnectData MqttPacket::parseConnectData(std::shared_ptr<Client> &sender)
             std::array<uint8_t, 8> pcounts;
             pcounts.fill(0);
 
-            while (pos < prop_end_at)
+            while (withinBound(prop_end_at))
             {
                 const Mqtt5Properties prop = static_cast<Mqtt5Properties>(readUint8());
 
@@ -964,7 +964,7 @@ ConnAckData MqttPacket::parseConnAckData()
         std::array<uint8_t, 16> pcounts;
         pcounts.fill(0);
 
-        while (pos < prop_end_at)
+        while (withinBound(prop_end_at))
         {
             const Mqtt5Properties prop = static_cast<Mqtt5Properties>(readUint8());
 
@@ -1445,7 +1445,7 @@ AuthPacketData MqttPacket::parseAuthData()
         std::array<uint8_t, 4> pcounts;
         pcounts.fill(0);
 
-        while (pos < prop_end_at)
+        while (withinBound(prop_end_at))
         {
             const Mqtt5Properties prop = static_cast<Mqtt5Properties>(readUint8());
 
@@ -1558,7 +1558,7 @@ DisconnectData MqttPacket::parseDisconnectData()
             std::array<uint8_t, 4> pcounts;
             pcounts.fill(0);
 
-            while (pos < prop_end_at)
+            while (withinBound(prop_end_at))
             {
                 const Mqtt5Properties prop = static_cast<Mqtt5Properties>(readUint8());
 
@@ -1662,7 +1662,7 @@ void MqttPacket::handleSubscribe(std::shared_ptr<Client> &sender)
         std::array<uint8_t, 1> pcounts;
         pcounts.fill(0);
 
-        while (pos < prop_end_at)
+        while (withinBound(prop_end_at))
         {
             const Mqtt5Properties prop = static_cast<Mqtt5Properties>(readUint8());
 
@@ -1886,7 +1886,7 @@ void MqttPacket::handleUnsubscribe(std::shared_ptr<Client> &sender)
         const size_t proplen = decodeVariableByteIntAtPos();
         const size_t prop_end_at = pos + proplen;
 
-        while (pos < prop_end_at)
+        while (withinBound(prop_end_at))
         {
             const Mqtt5Properties prop = static_cast<Mqtt5Properties>(readUint8());
 
@@ -1988,7 +1988,7 @@ void MqttPacket::parsePublishData(std::shared_ptr<Client> &sender)
         std::array<uint8_t, 8> pcounts;
         pcounts.fill(0);
 
-        while (pos < prop_end_at)
+        while (withinBound(prop_end_at))
         {
             const Mqtt5Properties prop = static_cast<Mqtt5Properties>(readUint8());
 
@@ -2412,7 +2412,7 @@ SubAckData MqttPacket::parseSubAckData()
         std::array<uint8_t, 1> pcounts;
         pcounts.fill(0);
 
-        while (pos < prop_end_at)
+        while (withinBound(prop_end_at))
         {
             const Mqtt5Properties prop = static_cast<Mqtt5Properties>(readUint8());
 
@@ -2464,6 +2464,14 @@ bool MqttPacket::atEnd() const
 {
     assert(pos <= bites.size());
     return pos >= bites.size();
+}
+
+bool MqttPacket::withinBound(const size_t limit) const
+{
+    if (pos > limit)
+        throw ProtocolError("Out of bounds", ReasonCodes::MalformedPacket);
+
+    return pos < limit;
 }
 
 void MqttPacket::setPacketId(uint16_t packet_id)
