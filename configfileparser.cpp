@@ -300,6 +300,7 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validBridgeKeys.insert("minimum_tls_version");
     validBridgeKeys.insert("connection_count");
     validBridgeKeys.insert("max_buffer_size");
+    validBridgeKeys.insert("routing_group_id");
 
     validBridgeLazySubscriptionKeys.insert("subscribe");
     validBridgeLazySubscriptionKeys.insert("qos");
@@ -945,6 +946,13 @@ void ConfigFileParser::loadFile(bool test)
                         throw ConfigFileException("Bridge's " + key + " cannot be bigger than 1 GB");
 
                     curBridge->maxBufferSize = val;
+                }
+                if (testKeyValidity(key, "routing_group_id", validBridgeKeys))
+                {
+                    if (valueTrimmed.length() != 12)
+                        throw ConfigFileException("Length of " + key + " must be 12 chars (and fully random)");
+
+                    curBridge->setFmqClientGroupId(valueTrimmed);
                 }
 
                 testCorrectNumberOfValues(key, number_of_expected_values, values);
