@@ -334,6 +334,11 @@ const std::optional<std::string> &BridgeConfig::getFmqClientGroupId() const
     return this->fmq_client_group_id;
 }
 
+void BridgeConfig::setFmqClientGroupId(const std::string &group_id)
+{
+    this->fmq_client_group_id = group_id;
+}
+
 void BridgeConfig::isValid()
 {
     if (sslPrivkey.empty() != sslFullchain.empty())
@@ -432,7 +437,8 @@ std::vector<BridgeConfig> BridgeConfig::multiply() const
              */
             result.back().appendConnectionNumber(i);
 
-            result.back().fmq_client_group_id = group_id;
+            if (!result.back().fmq_client_group_id)
+                result.back().fmq_client_group_id = group_id;
         }
 
         result.back().setClientId();
