@@ -123,6 +123,7 @@ public:
     void setClientId(const std::string &prefix, const std::string &id);
     const std::string &getClientid() const;
     const std::optional<std::string> &getFmqClientGroupId() const;
+    void setFmqClientGroupId(const std::string &group_id);
     void isValid();
     std::vector<BridgeConfig> multiply() const;
     void setSharedSubscriptionName(const std::string &share_name);
