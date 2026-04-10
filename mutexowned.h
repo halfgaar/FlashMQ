@@ -111,6 +111,11 @@ public:
 
     }
 
+    ~MutexOwned()
+    {
+        m.lock();
+    }
+
     MutexLocked<T> lock()
     {
         MutexLocked<T> r(d, m);
