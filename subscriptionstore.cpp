@@ -936,8 +936,16 @@ void SubscriptionStore::trySetRetainedMessages(const Publish &publish, const std
     if (td->queuedRetainedMessagesEmpty() && setRetainedMessage(publish, subtopics, try_lock_fail))
         return;
 
-    const std::chrono::milliseconds spread(td->randomish() % settings->setRetainedMessageDeferTimeoutSpread.count());
-    std::chrono::time_point<std::chrono::steady_clock> limit = std::chrono::steady_clock::now() + settings->setRetainedMessageDeferTimeout + spread;
+    auto spread {settings->setRetainedMessageDeferTimeoutSpread};
+
+    if (spread != std::chrono::milliseconds::zero())
+    {
+        const int64_t rnd = static_cast<uint32_t>(td->randomish());
+        spread = std::chrono::milliseconds{rnd % spread.count()};
+    }
+
+    const auto randomized_timeout = settings->setRetainedMessageDeferTimeout + spread;
+    std::chrono::time_point<std::chrono::steady_clock> limit = std::chrono::steady_clock::now() + randomized_timeout;
     td->queueSettingRetainedMessage(publish, subtopics, limit);
 }
 
