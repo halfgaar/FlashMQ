@@ -81,6 +81,9 @@ const Subscription *SharedSubscribers::getNext(size_t hash) const
 {
     const Subscription *result = nullptr;
 
+    if (members.empty())
+        return nullptr;
+
     size_t pos = hash % members.size();
 
     for (size_t i = 0; i < members.size(); i++)
