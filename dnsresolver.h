@@ -23,8 +23,8 @@
  */
 class DnsResolver
 {
-    struct gaicb lookup;
-    struct addrinfo request;
+    struct gaicb lookup {};
+    struct addrinfo request {};
     std::string curName;
     std::chrono::time_point<std::chrono::steady_clock> getResultsTimeout;
 

@@ -18,9 +18,6 @@ void DnsResolver::freeStuff()
 
 DnsResolver::DnsResolver()
 {
-    std::memset(&lookup, 0, sizeof(struct gaicb));
-    std::memset(&request, 0, sizeof(struct addrinfo));
-
     request.ai_family = AF_UNSPEC;
     request.ai_socktype = SOCK_STREAM;
     request.ai_flags = AI_V4MAPPED | AI_ADDRCONFIG;

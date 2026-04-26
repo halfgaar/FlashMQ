@@ -46,8 +46,7 @@ BindAddr::BindAddr(
 
     if (family == AF_INET)
     {
-        struct sockaddr_in in_addr_v4;
-        std::memset(&in_addr_v4, 0, sizeof(in_addr_v4));
+        struct sockaddr_in in_addr_v4 {};
 
         this->len = sizeof(in_addr_v4);
 
@@ -63,8 +62,7 @@ BindAddr::BindAddr(
     }
     if (family == AF_INET6)
     {
-        struct sockaddr_in6 in_addr_v6;
-        std::memset(&in_addr_v6, 0, sizeof(in_addr_v6));
+        struct sockaddr_in6 in_addr_v6 {};
 
         this->len = sizeof(in_addr_v6);
 
@@ -80,8 +78,7 @@ BindAddr::BindAddr(
     }
     if (family == AF_UNIX)
     {
-        struct sockaddr_un path;
-        std::memset(&path, 0, sizeof(path));
+        struct sockaddr_un path {};
 
         this->len = sizeof(path);
 

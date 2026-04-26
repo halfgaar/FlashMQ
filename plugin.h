@@ -191,8 +191,8 @@ class Authentication
     const std::string mosquittoPasswordFile;
     const std::string mosquittoAclFile;
 
-    struct timespec mosquittoPasswordFileLastLoad;
-    struct timespec mosquittoAclFileLastChange;
+    struct timespec mosquittoPasswordFileLastLoad {};
+    struct timespec mosquittoAclFileLastChange {};
 
     std::unique_ptr<std::unordered_map<std::string, MosquittoPasswordFileEntry>> mosquittoPasswordEntries;
     std::unique_ptr<EVP_MD_CTX, void(*)(EVP_MD_CTX*)> mosquittoDigestContext;

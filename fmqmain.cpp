@@ -52,8 +52,7 @@ void signal_handler(int signal)
 
 int register_signal_handers()
 {
-    struct sigaction sa;
-    memset(&sa, 0, sizeof (struct sigaction));
+    struct sigaction sa {};
     sa.sa_handler = &signal_handler;
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = SA_RESTART;

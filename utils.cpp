@@ -415,8 +415,7 @@ std::string_view dirnameOf(std::string_view path)
 
 size_t getFileSize(const std::string &path)
 {
-    struct stat statbuf;
-    memset(&statbuf, 0, sizeof(struct stat));
+    struct stat statbuf {};
     if (stat(path.c_str(), &statbuf) < 0)
         throw std::runtime_error("Can't get size of " + path);
 
@@ -428,8 +427,7 @@ size_t getFileSize(const std::string &path)
 
 uint64_t getFreeSpace(const std::string &path)
 {
-    struct statvfs statbuf;
-    memset(&statbuf, 0, sizeof(struct statvfs));
+    struct statvfs statbuf {};
 
     if (statvfs(path.c_str(), &statbuf) < 0)
         throw std::runtime_error("Can't get free space of " + path);
@@ -449,7 +447,7 @@ sa_family_t getFamilyFromSockAddr(const sockaddr *addr)
     if (!addr)
         return AF_UNSPEC;
 
-    sockaddr tmp;
+    sockaddr tmp {};
     std::memcpy(&tmp, addr, sizeof(tmp));
 
     return tmp.sa_family;
@@ -684,8 +682,7 @@ std::string timestampWithMillis()
     const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 1000;
     const time_t timer = std::chrono::system_clock::to_time_t(now);
 
-    struct tm my_tm;
-    memset(&my_tm, 0, sizeof(struct tm));
+    struct tm my_tm {};
     struct tm *my_tm_result = localtime_r(&timer, &my_tm);
 
     if (!my_tm_result)
@@ -968,8 +965,7 @@ void unlink_if_sock(const std::string &path)
     if (path.empty())
         return;
 
-    struct stat statbuf;
-    std::memset(&statbuf, 0, sizeof(statbuf));
+    struct stat statbuf {};
     if (lstat(path.c_str(), &statbuf) < 0)
         return;
 
@@ -987,9 +983,8 @@ void fmq_ensure_fail(const char *file, int line)
 
 std::optional<SysUserFields> get_pw_name(const std::string &user)
 {
-    struct passwd pwd;
+    struct passwd pwd {};
     struct passwd *result = nullptr;
-    std::memset(&pwd, 0, sizeof(pwd));
     std::vector<char> buf(16384);
 
     if (getpwnam_r(user.c_str(), &pwd, buf.data(), buf.size(), &result) != 0)
@@ -1011,9 +1006,8 @@ std::optional<SysUserFields> get_pw_name(const std::string &user)
 
 std::optional<SysGroupFields> get_gr_name(const std::string &group)
 {
-    struct group grp;
+    struct group grp {};
     struct group *result = nullptr;
-    std::memset(&grp, 0, sizeof(grp));
     std::vector<char> buf(16384);
 
     if (getgrnam_r(group.c_str(), &grp, buf.data(), buf.size(), &result) != 0)

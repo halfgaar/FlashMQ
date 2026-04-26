@@ -54,7 +54,6 @@ Authentication::Authentication(Settings &settings) :
     }
 
     EVP_DigestInit_ex(mosquittoDigestContext.get(), sha512, NULL);
-    memset(&mosquittoPasswordFileLastLoad, 0, sizeof(struct timespec));
 }
 
 void *Authentication::loadSymbol(void *handle, const char *symbol, bool exceptionOnError) const
@@ -708,8 +707,7 @@ void Authentication::loadMosquittoPasswordFile()
         return;
     }
 
-    struct stat statbuf;
-    memset(&statbuf, 0, sizeof(struct stat));
+    struct stat statbuf {};
     check<std::runtime_error>(stat(mosquittoPasswordFile.c_str(), &statbuf));
     struct timespec ctime = statbuf.st_ctim;
 
@@ -810,8 +808,7 @@ void Authentication::loadMosquittoAclFile()
         return;
     }
 
-    struct stat statbuf;
-    memset(&statbuf, 0, sizeof(struct stat));
+    struct stat statbuf {};
     check<std::runtime_error>(stat(mosquittoAclFile.c_str(), &statbuf));
     struct timespec ctime = statbuf.st_ctim;
 

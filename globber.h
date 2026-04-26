@@ -9,7 +9,7 @@ class GlobT
 {
     friend class Globber;
 
-    glob_t result;
+    glob_t result {};
 
 public:
     GlobT();

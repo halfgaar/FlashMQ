@@ -580,8 +580,7 @@ void MainApp::start()
     logger->noLongerLogToStd();
 #endif
 
-    struct epoll_event ev;
-    memset(&ev, 0, sizeof (struct epoll_event));
+    struct epoll_event ev {};
     ev.data.fd = taskEventFd;
     ev.events = EPOLLIN;
     check<std::runtime_error>(epoll_ctl(this->epollFdAccept, EPOLL_CTL_ADD, taskEventFd, &ev));
@@ -744,8 +743,7 @@ void MainApp::start()
                     if (logger->wouldLog(LOG_DEBUG))
                         logger->log(LOG_DEBUG) << "Accepting connection on thread " << thread_data->threadnr << " on " << listener->getProtocolName();
 
-                    struct sockaddr_storage addr_mem;
-                    std::memset(&addr_mem, 0, sizeof(addr_mem));
+                    struct sockaddr_storage addr_mem {};
                     struct sockaddr *addr = reinterpret_cast<sockaddr*>(&addr_mem);
                     socklen_t len = sizeof(addr_mem);
                     int fd = check<std::runtime_error>(accept(cur_fd, addr, &len));

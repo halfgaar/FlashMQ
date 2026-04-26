@@ -5,7 +5,7 @@
 
 GlobT::GlobT()
 {
-    std::memset(&result, 0, sizeof (glob_t));
+
 }
 
 GlobT::~GlobT()

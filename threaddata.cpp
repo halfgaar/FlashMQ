@@ -1146,8 +1146,7 @@ void ThreadData::pollExternalFd(int fd, uint32_t events, const std::weak_ptr<voi
     if (mode == EPOLL_CTL_ADD || !p.expired())
         externalFds[fd] = p;
 
-    struct epoll_event ev;
-    memset(&ev, 0, sizeof (struct epoll_event));
+    struct epoll_event ev {};
     ev.data.fd = fd;
     ev.events = events;
     check<std::runtime_error>(epoll_ctl(this->epollfd.get(), mode, fd, &ev));

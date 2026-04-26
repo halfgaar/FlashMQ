@@ -887,8 +887,7 @@ void Client::setReadyForWriting(bool val, MutexLocked<WriteBuf> &writebuf)
 
     writebuf->readyForWriting = val;
 
-    struct epoll_event ev;
-    memset(&ev, 0, sizeof (struct epoll_event));
+    struct epoll_event ev {};
     ev.data.fd = fd.get();
     ev.events = readyForReading*EPOLLIN | val*EPOLLOUT;
     check<std::runtime_error>(epoll_ctl(this->epoll_fd, EPOLL_CTL_MOD, fd.get(), &ev));
@@ -915,8 +914,7 @@ void Client::setReadyForReading(bool val)
 
     readyForReading = val;
 
-    struct epoll_event ev;
-    memset(&ev, 0, sizeof (struct epoll_event));
+    struct epoll_event ev {};
     ev.data.fd = fd.get();
 
     {

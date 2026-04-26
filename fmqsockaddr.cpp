@@ -92,12 +92,10 @@ void FMQSockaddr::setAddress(const std::string &address)
     }
 
     {
-        struct in_addr a;
-        std::memset(&a, 0, sizeof(a));
+        struct in_addr a {};
         if (inet_pton(AF_INET, address.c_str(), &a) > 0)
         {
-            sockaddr_in addr;
-            std::memset(&addr, 0, sizeof(addr));
+            sockaddr_in addr {};
 
             addr.sin_addr = a;
             addr.sin_port = port;
@@ -111,12 +109,10 @@ void FMQSockaddr::setAddress(const std::string &address)
     }
 
     {
-        struct in6_addr a;
-        std::memset(&a, 0, sizeof(a));
+        struct in6_addr a {};
         if (inet_pton(AF_INET6, address.c_str(), &a) > 0)
         {
-            sockaddr_in6 addr;
-            std::memset(&addr, 0, sizeof(addr));
+            sockaddr_in6 addr {};
 
             addr.sin6_addr = a;
             addr.sin6_port = port;

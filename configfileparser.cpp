@@ -139,8 +139,7 @@ void ConfigFileParser::checkFileExistsAndReadable(const std::string &key, const 
         throw ConfigFileException(oss.str());
     }
 
-    struct stat statbuf;
-    memset(&statbuf, 0, sizeof(struct stat));
+    struct stat statbuf {};
     if (stat(pathToCheck.c_str(), &statbuf) < 0)
         throw ConfigFileException(formatString("Reading stat of '%s' failed.", pathToCheck.c_str()));
 
@@ -177,8 +176,7 @@ void ConfigFileParser::checkFileOrItsDirWritable(const std::string &filepath)
 
 void ConfigFileParser::checkDirExists(const std::string &key, const std::string &dir)
 {
-    struct stat statbuf;
-    memset(&statbuf, 0, sizeof(struct stat));
+    struct stat statbuf {};
     if (stat(dir.c_str(), &statbuf) < 0)
         throw ConfigFileException(formatString("Error for '%s': path '%s' does not exist or reading stat failed.", key.c_str(), dir.c_str()));
 
