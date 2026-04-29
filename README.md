@@ -7,7 +7,9 @@
 
 FlashMQ is a high-performance, light-weight MQTT broker/server, designed to take good advantage of multi-CPU environments.
 
-Builds (AppImage and a Debian/Ubuntu apt server) are provided on [www.flashmq.org](https://www.flashmq.org).
+Builds (AppImage and a Debian/Ubuntu apt server) are provided on [www.flashmq.org](https://www.flashmq.org/download/).
+The apt repository's GPG key fingerprint is `874E6552A197BDD069A1526E1788BCA932A92BDF`. You can confirm it by comparing
+it to the one on the download page.
 
 ## Building from source
 
