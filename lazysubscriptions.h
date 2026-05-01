@@ -12,18 +12,25 @@ struct LazySubscriber
 {
     const std::weak_ptr<BridgeState> bridge;
     const std::weak_ptr<ThreadData> thread;
+    const std::string distribution_group_id;
     const int min_required_wildcard_depth = std::numeric_limits<int>::max();
     const uint8_t qos = 2;
 
     LazySubscriber() = delete;
     LazySubscriber(
         const std::shared_ptr<BridgeState> &bridgeState, const std::shared_ptr<ThreadData> &thread,
-        int min_required_wildcard_depth, uint8_t qos);
+        const std::string &distribution_group_id, int min_required_wildcard_depth, uint8_t qos);
 };
 
 struct LazySubscriptionNode
 {
+    /*
+     * These are grouped by original client id prefix (without multiplication number). The idea is that
+     * you can have multiple bridges have a lazy subscription to something like N/#. When each of them
+     * have multiple connections, expansion should happen once for each bridge.
+     */
     SharedMutexOwned<std::unordered_map<std::string, std::vector<LazySubscriber>>> subscriber_groups;
+
     std::unordered_map<std::string, std::shared_ptr<LazySubscriptionNode>> children;
 
     LazySubscriptionNode();
@@ -60,11 +67,11 @@ class LazySubscriptions
 
     static void collectClientsEndpoint(
         LazySubscriptionNode *this_node, const size_t previous_nodes_hash, std::vector<ReceivingLazySubscriber> &collected_clients,
-        const int level_depth, int first_wildcard_depth) noexcept;
+        const std::optional<std::string> &originating_fmq_client_group_id, const int level_depth, int first_wildcard_depth) noexcept;
     static void collectClients(
         std::vector<std::string>::const_iterator cur_subtopic_it, std::vector<std::string>::const_iterator end,
         LazySubscriptionNode *this_node, const size_t previous_nodes_hash, std::vector<ReceivingLazySubscriber> &collected_clients,
-        int level_depth, int first_wildcard_depth) noexcept;
+        const std::optional<std::string> &originating_fmq_client_group_id, int level_depth, int first_wildcard_depth) noexcept;
 
 public:
     FMQ_DISABLE_COPY_AND_MOVE(LazySubscriptions);
