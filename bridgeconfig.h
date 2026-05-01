@@ -33,7 +33,6 @@ struct BridgeLazySubscription
 {
     std::string pattern;
     uint8_t qos = 0;
-    std::string distribution_group_name;
 
     BridgeLazySubscription() = default;
     BridgeLazySubscription(const std::string &pattern, uint8_t qos);
@@ -77,6 +76,7 @@ class BridgeConfig
     std::string clientid;
     std::optional<std::string> fmq_client_group_id; // For a custom feature of no-local shared subscriptions.
     size_t client_id_max_length = 10;
+    std::optional<std::string> originalClientIdPrefix;
 
     void setClientId();
     void appendConnectionNumber(size_t no);
@@ -120,6 +120,7 @@ public:
 
     std::list<BridgeLazySubscription> lazySubscriptions;
 
+    std::string getUnmultipliedClientIdPrefix() const;
     void setClientId(const std::string &prefix, const std::string &id);
     const std::string &getClientid() const;
     const std::optional<std::string> &getFmqClientGroupId() const;
@@ -127,7 +128,6 @@ public:
     void isValid();
     std::vector<BridgeConfig> multiply() const;
     void setSharedSubscriptionName(const std::string &share_name);
-    void setLazySubsDistributionGroupName(const std::string &name);
 
     bool operator ==(const BridgeConfig &other) const;
     bool operator !=(const BridgeConfig &other) const;

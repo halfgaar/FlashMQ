@@ -283,6 +283,9 @@ void BridgeConfig::setClientId()
 
 void BridgeConfig::appendConnectionNumber(size_t no)
 {
+    assert(!this->originalClientIdPrefix.has_value());
+    this->originalClientIdPrefix = clientidPrefix;
+
     std::string no_s = std::to_string(no);
     this->client_id_max_length += no_s.length() + 1;
     this->clientidPrefix.append("_").append(std::to_string(no));
@@ -292,14 +295,6 @@ void BridgeConfig::setSharedSubscriptionName(const std::string &share_name)
 {
     setSharedSubscriptionName(publishes, share_name);
     setSharedSubscriptionName(subscribes, share_name);
-}
-
-void BridgeConfig::setLazySubsDistributionGroupName(const std::string &name)
-{
-    for (auto &l : lazySubscriptions)
-    {
-        l.distribution_group_name = name;
-    }
 }
 
 void BridgeConfig::setSharedSubscriptionName(std::vector<BridgeTopicPath> &topics, const std::string &share_name)
@@ -322,6 +317,11 @@ void BridgeConfig::setSharedSubscriptionName(std::vector<BridgeTopicPath> &topic
 
         t.topic = new_topic;
     }
+}
+
+std::string BridgeConfig::getUnmultipliedClientIdPrefix() const
+{
+    return originalClientIdPrefix.value_or(clientidPrefix);
 }
 
 const std::string &BridgeConfig::getClientid() const
@@ -428,7 +428,6 @@ std::vector<BridgeConfig> BridgeConfig::multiply() const
         if (this->connection_count > 1 || !this->lazySubscriptions.empty())
         {
             result.back().setSharedSubscriptionName(share_name);
-            result.back().setLazySubsDistributionGroupName(share_name); // It can actually be the same as the share name.
 
             /*
              * This means that when people have an existing bridge config with `use_saved_clientid`, it will lose its state when
@@ -481,7 +480,7 @@ BridgeLazySubscription::BridgeLazySubscription(const std::string &pattern, uint8
 
 bool BridgeLazySubscription::operator==(const BridgeLazySubscription &other) const
 {
-    return this->pattern == other.pattern && this->qos == other.qos && this->distribution_group_name == other.distribution_group_name;
+    return this->pattern == other.pattern && this->qos == other.qos;
 }
 
 void BridgeLazySubscription::isValid() const
