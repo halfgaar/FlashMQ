@@ -5,9 +5,10 @@
 
 LazySubscriber::LazySubscriber(
         const std::shared_ptr<BridgeState> &bridgeState, const std::shared_ptr<ThreadData> &thread,
-        int min_required_wildcard_depth, uint8_t qos) :
+        const std::string &distribution_group_id, int min_required_wildcard_depth, uint8_t qos) :
     bridge(bridgeState),
     thread(thread),
+    distribution_group_id(distribution_group_id),
     min_required_wildcard_depth(min_required_wildcard_depth),
     qos(qos)
 {
@@ -184,7 +185,8 @@ void LazySubscriptions::addSubscription(
     const std::shared_ptr<LazySubscriptionNode> node = getDeepestNode(subtopics);
     auto subscribers = node->subscriber_groups.unique_lock();
     assert(!bridgeState->threadData->expired());
-    subscribers->operator[](distribution_group_name).emplace_back(bridgeState, bridgeState->threadData->lock(), min_required_wildcard_depth, qos);
+    subscribers->operator[](bridgeState->c.getUnmultipliedClientIdPrefix()).emplace_back(
+        bridgeState, bridgeState->threadData->lock(), distribution_group_name, min_required_wildcard_depth, qos);
     bridgeState->constructTrackedSubscriptions();
 }
 
@@ -198,13 +200,12 @@ void LazySubscriptions::addSubscription(
  */
 void LazySubscriptions::collectClientsEndpoint(
     LazySubscriptionNode *this_node, const size_t previous_nodes_hash, std::vector<ReceivingLazySubscriber> &collected_clients,
-    const int level_depth, int first_wildcard_depth) noexcept
+    const std::optional<std::string> &originating_fmq_client_group_id, const int level_depth, int first_wildcard_depth) noexcept
 {
     auto subscriber_data = this_node->subscriber_groups.shared_lock();
 
     for (const auto &pair : *subscriber_data)
     {
-        const std::string &distribution_group_name = pair.first;
         const std::vector<LazySubscriber> &lazy_subscribers = pair.second;
 
         if (lazy_subscribers.empty())
@@ -223,11 +224,16 @@ void LazySubscriptions::collectClientsEndpoint(
             if (first_wildcard_depth > -1 && first_wildcard_depth < s.min_required_wildcard_depth)
                 continue;
 
-            auto &candidate = collected_clients.emplace_back(s.bridge, s.thread, distribution_group_name, s.qos, level_depth);
+            auto &candidate = collected_clients.emplace_back(s.bridge, s.thread, s.distribution_group_id, s.qos, level_depth);
             const std::shared_ptr<BridgeState> bridge_candidate = candidate.receiver.lock();
 
             if (bridge_candidate)
+            {
+                if (bridge_candidate->c.getFmqClientGroupId() == originating_fmq_client_group_id)
+                    collected_clients.pop_back();
+
                 break;
+            }
 
             collected_clients.pop_back();
         }
@@ -237,7 +243,7 @@ void LazySubscriptions::collectClientsEndpoint(
 void LazySubscriptions::collectClients(
     std::vector<std::string>::const_iterator cur_subtopic_it, std::vector<std::string>::const_iterator end,
     LazySubscriptionNode *this_node, const size_t previous_nodes_hash, std::vector<ReceivingLazySubscriber> &collected_clients,
-    int level_depth, int first_wildcard_depth) noexcept
+    const std::optional<std::string> &originating_fmq_client_group_id, int level_depth, int first_wildcard_depth) noexcept
 {
     if (this_node == nullptr)
         return;
@@ -267,7 +273,7 @@ void LazySubscriptions::collectClients(
         auto multi_level = children.find("#");
         if (multi_level != children.cend())
         {
-            collectClientsEndpoint(multi_level->second.get(), next_hash_of_tail, collected_clients, level_depth + 1, next_first_wildcard_level_depth);
+            collectClientsEndpoint(multi_level->second.get(), next_hash_of_tail, collected_clients, originating_fmq_client_group_id, level_depth + 1, next_first_wildcard_level_depth);
         }
     }
 
@@ -275,7 +281,7 @@ void LazySubscriptions::collectClients(
 
     if (sub_node != children.end())
     {
-        collectClients(next_subtopic, end, sub_node->second.get(), next_hash_of_tail, collected_clients, level_depth, next_first_wildcard_level_depth);
+        collectClients(next_subtopic, end, sub_node->second.get(), next_hash_of_tail, collected_clients, originating_fmq_client_group_id, level_depth, next_first_wildcard_level_depth);
     }
 }
 
@@ -297,7 +303,7 @@ size_t LazySubscriptions::expandLazySubscriptions(
         if ((*data)->children.empty())
             return 0;
 
-        collectClients(subtopics.begin(), subtopics.end(), data->get(), 0, collected_receivers, -1, -1);
+        collectClients(subtopics.begin(), subtopics.end(), data->get(), 0, collected_receivers, originating_session->getFmqClientGroupId(), -1, -1);
     }
 
     if (collected_receivers.empty())
@@ -346,7 +352,7 @@ void registerLazySubscriptions(std::shared_ptr<BridgeState> &bridgeState)
 
     for (const BridgeLazySubscription &lazy_sub : bridgeState->c.lazySubscriptions)
     {
-        globals->lazySubscriptions.value().addSubscription(bridgeState, lazy_sub.pattern, lazy_sub.qos, lazy_sub.distribution_group_name);
+        globals->lazySubscriptions.value().addSubscription(bridgeState, lazy_sub.pattern, lazy_sub.qos, bridgeState->c.getFmqClientGroupId().value());
     }
 }
 
