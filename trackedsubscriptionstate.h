@@ -72,7 +72,7 @@ class TrackedSubscriptionState
 public:
     std::unique_ptr<ReentrantMap<std::string, TrackedSubscription>> stealTrackedSubscriptions();
     void replaceTrackedSubscriptions(std::unique_ptr<ReentrantMap<std::string, TrackedSubscription>> &&val);
-    bool addTrackedSubscriptionMutation(TrackedSubscriptionMutation &&mut);
+    void addTrackedSubscriptionMutation(TrackedSubscriptionMutation &&mut);
     void processTrackedSubscriptionMutations(
         const std::shared_ptr<BridgeState> &bridgeState, const ProcessTrackedSubscriptionMutationsModifier modifier);
     void cleanupExpiredTrackedSubscriptions(

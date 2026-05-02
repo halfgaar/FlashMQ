@@ -18,9 +18,11 @@ See LICENSE for license details.
 #include <chrono>
 #include <vector>
 #include <optional>
+#include <unordered_set>
 
 #include "forward_declarations.h"
 #include "nocopy.h"
+#include "enums.h"
 
 #define FMQ_CLIENT_GROUP_ID "fmq_client_group_id"
 
@@ -404,6 +406,13 @@ struct SubAckAction
     const uint16_t mPacketId {};
 
     SubAckAction(std::vector<DeferredRetainedSending> &&retainedSending, std::list<ReasonCodes> &&responseCodes, const uint16_t packetId);
+};
+
+struct AddSubscriptionResult
+{
+    AddSubscriptionType type = AddSubscriptionType::Invalid;
+    size_t expanded_count {};
+    std::optional<std::unordered_set<std::shared_ptr<ThreadData>>> affected_threads_lazy_subs;
 };
 
 #endif // TYPES_H

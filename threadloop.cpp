@@ -129,6 +129,10 @@ void do_thread_work(std::shared_ptr<ThreadData> threadData)
                 threadData->acceptQueue.readFd();
                 threadData->acceptPendingClients();
             }
+            else if (fd == threadData->lazySubscriptionsEventFd.get())
+            {
+                threadData->processLazySubsubscriptionsAllBridges();
+            }
             else
             {
                 ready_clients.emplace_back(static_cast<uint32_t>(cur_ev.events), threadData->getClient(fd));

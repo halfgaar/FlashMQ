@@ -95,6 +95,8 @@ class ThreadData
 
     const std::shared_ptr<const PluginLoader> pluginLoader;
 
+    std::atomic<bool> queuedLazySubscriptionProcessingAllBridges {false};
+
     void reload(const Settings &settings);
     void wakeUpThread();
     void doKeepAliveCheck();
@@ -128,6 +130,7 @@ public:
     int threadnr = 0;
     int taskEventFd = -1;
     int disconnectingAllEventFd = -1;
+    FdManaged lazySubscriptionsEventFd;
     std::atomic<size_t> clientCount{0};
     MutexOwned<std::list<std::function<void()>>> taskQueue;
     QueuedTasks delayedTasks;
@@ -202,6 +205,8 @@ public:
     void retryProcessingTrackedSubscriptionMutationsAll(ProcessTrackedSubscriptionMutationsModifier modifier);
     void queueProcessTrackedSubscriptionMutations(const std::shared_ptr<BridgeState> &bridgeState, const ProcessTrackedSubscriptionMutationsModifier modifier);
     void queueTimeoutTrackedSubscriptionStagedSubacksTimeouts();
+    void queueProcessTrackedSubscriptionMutationsAllBridges();
+    void processLazySubsubscriptionsAllBridges() noexcept;
 
     size_t getNrOfClients();
     void updateNrOfClients();

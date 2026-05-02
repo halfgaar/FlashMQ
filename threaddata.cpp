@@ -39,6 +39,7 @@ ThreadData::ThreadData(int threadnr, const Settings &settings, const std::shared
     settingsLocalCopy(settings),
     authentication(settingsLocalCopy),
     threadnr(threadnr),
+    lazySubscriptionsEventFd(eventfd(0, EFD_NONBLOCK)),
     mMainApp(mainApp)
 {
     logger = Logger::getInstance();
@@ -51,9 +52,12 @@ ThreadData::ThreadData(int threadnr, const Settings &settings, const std::shared
     if (disconnectingAllEventFd < 0)
         throw std::runtime_error("Can't create eventfd.");
 
+    if (lazySubscriptionsEventFd.get() < 0)
+        throw std::runtime_error("Can't create eventfd.");
+
     randomish.seed(get_random_int<unsigned long>());
 
-    std::array<int, 3> event_fds {taskEventFd, disconnectingAllEventFd, acceptQueue.event_fd.get()};
+    std::array<int, 4> event_fds {taskEventFd, disconnectingAllEventFd, acceptQueue.event_fd.get(), lazySubscriptionsEventFd.get()};
     for (int efd : event_fds)
     {
         struct epoll_event ev{};
@@ -1337,6 +1341,65 @@ void ThreadData::performAllImmediateTasks()
             Logger *logger = Logger::getInstance();
             logger->logf(LOG_ERR, "Error in queued task: %s", ex.what());
         }
+    }
+}
+
+void ThreadData::queueProcessTrackedSubscriptionMutationsAllBridges()
+{
+    // We use this in such a way that may write to the eventfd occasionally when not required, but mostly
+    // it will correctly not do it when not necessary. It prevents calling the 'write' too much, while
+    // allowing spurious exections of processLazySubsubscriptionsAllBridges().
+    const bool previous = queuedLazySubscriptionProcessingAllBridges.exchange(true, std::memory_order_relaxed);
+
+    if (previous)
+        return;
+
+    uint64_t one = 1;
+    check<std::runtime_error>(write(lazySubscriptionsEventFd.get(), &one, sizeof(uint64_t)));
+}
+
+/**
+ * @brief ThreadData::processLazySubsubscriptionsAllBridges is for calling processTrackedSubscriptionMutations after lazy
+ * subscriptions have been expanded and mutations placed.
+ *
+ * We use this method with eventfd instead of queueing functions because on a server with many subscription actions,
+ * which potentially cause many bridge connections in many threads to be ready this would queue
+ * processTrackedSubscriptionMutations() sequently while it's enough to just get to it when the event loop restarts.
+ *
+ * There are still other places where we do target queueing processTrackedSubscriptionMutations() more directly. That's
+ * when we know it's caused by one bridge connection for itself, with a one-to-one cause and requeue.
+ */
+void ThreadData::processLazySubsubscriptionsAllBridges() noexcept
+{
+    assert(pthread_self() == thread_id);
+
+    try
+    {
+        // Set to false first, to make sure we never lose a trigger.
+        queuedLazySubscriptionProcessingAllBridges.store(false, std::memory_order_relaxed);
+
+        uint64_t eventfd_value = 0;
+        if (read(lazySubscriptionsEventFd.get(), &eventfd_value, sizeof(uint64_t)) < 0)
+            Logger::getInstance()->log(LOG_ERROR) << "Error reading fd in processLazySubsubscriptions: " << strerror(errno);
+
+        for(auto &bridge_pair : clients.bridges)
+        {
+            if (!bridge_pair.second)
+                continue;
+
+            auto &tracked_subs = bridge_pair.second->getTrackedSubscriptions();
+
+            if (!tracked_subs)
+                continue;
+
+            tracked_subs->processTrackedSubscriptionMutations(bridge_pair.second, ProcessTrackedSubscriptionMutationsModifier::FirstFinishResending);
+        }
+    }
+    catch (std::exception &ex)
+    {
+        Logger::getInstance()->log(LOG_ERR)
+            << "Error in processLazySubsubscriptions: " << ex.what() << ". This shouldn't "
+            << "happen and is likely a bug.";
     }
 }
 

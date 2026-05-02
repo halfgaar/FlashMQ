@@ -192,7 +192,7 @@ class SubscriptionStore
 public:
     SubscriptionStore();
 
-    std::tuple<AddSubscriptionType, size_t> addSubscription(
+    AddSubscriptionResult addSubscription(
         const std::shared_ptr<Session> &session, const uint16_t originatingPacketId, const std::vector<std::string> &subtopics, uint8_t qos,
         bool noLocal, bool retainAsPublished, const std::string &shareName, const uint32_t subscriptionIdentifier);
     void removeSubscription(const std::shared_ptr<Session> &session, const std::vector<std::string> &subtopics, const std::string &shareName);

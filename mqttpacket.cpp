@@ -1822,7 +1822,7 @@ void MqttPacket::handleSubscribe(std::shared_ptr<Client> &sender)
     std::shared_ptr<Session> session = sender->getSession();
     std::vector<DeferredRetainedSending> retainedSending;
 
-    size_t expandedCount = 0;
+    AddSubscriptionResult aggregated_result;
 
     // Adding the subscription will also send publishes for retained messages, so that's why we're doing it at the end.
     for(const SubscriptionTuple &tup : deferredSubscribes)
@@ -1832,22 +1832,39 @@ void MqttPacket::handleSubscribe(std::shared_ptr<Client> &sender)
 
         auto store = globals->subscriptionStore;
 
-        auto [addType, oneExpandedCount] = store->addSubscription(
+        const AddSubscriptionResult add_result = store->addSubscription(
             session, packet_id, tup.subtopics, tup.qos, tup.noLocal, tup.retainAsPublished, tup.shareName, tup.subscriptionIdentifier);
 
-        expandedCount += oneExpandedCount;
+        aggregated_result.expanded_count += add_result.expanded_count;
+
+        if (add_result.affected_threads_lazy_subs)
+        {
+            if (!aggregated_result.affected_threads_lazy_subs)
+                aggregated_result.affected_threads_lazy_subs.emplace();
+
+            aggregated_result.affected_threads_lazy_subs.value().insert(
+                add_result.affected_threads_lazy_subs->begin(), add_result.affected_threads_lazy_subs->end());
+        }
 
         if (tup.authResult == AuthResult::success && tup.shareName.empty())
         {
             if ((tup.retainHandling == RetainHandling::SendRetainedMessagesAtSubscribe) ||
-                (tup.retainHandling == RetainHandling::SendRetainedMessagesAtNewSubscribeOnly && addType == AddSubscriptionType::NewSubscription) )
+                (tup.retainHandling == RetainHandling::SendRetainedMessagesAtNewSubscribeOnly && add_result.type == AddSubscriptionType::NewSubscription) )
             {
                 retainedSending.emplace_back(tup.subtopics, tup.qos, tup.subscriptionIdentifier);
             }
         }
     }
 
-    sender->stageOrSendSubAck(sender, {std::move(retainedSending), std::move(subs_reponse_codes), packet_id}, expandedCount);
+    sender->stageOrSendSubAck(sender, {std::move(retainedSending), std::move(subs_reponse_codes), packet_id}, aggregated_result.expanded_count);
+
+    if (aggregated_result.affected_threads_lazy_subs)
+    {
+        for (auto &t : aggregated_result.affected_threads_lazy_subs.value())
+        {
+            t->queueProcessTrackedSubscriptionMutationsAllBridges();
+        }
+    }
 }
 
 void MqttPacket::handleSubAck(std::shared_ptr<Client> &sender)

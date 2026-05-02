@@ -253,24 +253,28 @@ std::shared_ptr<SubscriptionNode> SubscriptionStore::getDeepestNode(const std::v
     return result;
 }
 
-std::tuple<AddSubscriptionType, size_t> SubscriptionStore::addSubscription(
+AddSubscriptionResult SubscriptionStore::addSubscription(
     const std::shared_ptr<Session> &session, const uint16_t originatingPacketId, const std::vector<std::string> &subtopics, uint8_t qos,
     bool noLocal, bool retainAsPublished, const std::string &shareName, const uint32_t subscriptionIdentifier)
 {
-    if (!session) return {AddSubscriptionType::Invalid, 0};
+    if (!session)
+        return {};
 
     const std::shared_ptr<SubscriptionNode> deepestNode = getDeepestNode(subtopics);
 
     if (!deepestNode)
-        return {AddSubscriptionType::Invalid, 0};
+        return {};
 
-    size_t expanded_count = 0;
+    std::optional<AddSubscriptionResult> result;
 
     if (globals->lazySubscriptions)
-        expanded_count = globals->lazySubscriptions->expandLazySubscriptions(TrackedSubscriptionMutationTask::Subscribe, session, originatingPacketId, subtopics, qos);
-    const AddSubscriptionType result = deepestNode->addSubscriber(session, qos, noLocal, retainAsPublished, shareName, subscriptionIdentifier);
+        result = globals->lazySubscriptions->expandLazySubscriptions(TrackedSubscriptionMutationTask::Subscribe, session, originatingPacketId, subtopics, qos);
 
-    return {result, expanded_count};
+    if (!result)
+        result.emplace();
+
+    result->type = deepestNode->addSubscriber(session, qos, noLocal, retainAsPublished, shareName, subscriptionIdentifier);
+    return result.value();
 }
 
 void SubscriptionStore::removeSubscription(
