@@ -80,7 +80,7 @@ public:
     void addSubscription(
         const std::shared_ptr<BridgeState> &bridgeState, const std::string &pattern,
         uint8_t qos, const std::string &distribution_group_name);
-    size_t expandLazySubscriptions(
+    AddSubscriptionResult expandLazySubscriptions(
         TrackedSubscriptionMutationTask task, const std::shared_ptr<Session> &originating_session, const uint16_t originating_packetId,
         const std::vector<std::string> &subtopics, const uint8_t qos);
 };
