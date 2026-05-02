@@ -138,8 +138,8 @@ bool flashmq_plugin_add_subscription(
     std::string topicDummy;
     parseSubscriptionShare(subtopics, shareName, topicDummy);
 
-    const auto [result, expand_count] = store->addSubscription(session_locked, 0, subtopics, qos, noLocal, retainAsPublished, shareName, subscriptionIdentifier);
-    return result == AddSubscriptionType::Invalid ? false : true;
+    const auto result = store->addSubscription(session_locked, 0, subtopics, qos, noLocal, retainAsPublished, shareName, subscriptionIdentifier);
+    return result.type == AddSubscriptionType::Invalid ? false : true;
 }
 
 void flashmq_continue_async_authentication(const std::weak_ptr<Client> &client, AuthResult result, const std::string &authMethod, const std::string &returnData)

@@ -44,6 +44,7 @@ ThreadData::ThreadData(int threadnr, const Settings &settings, const std::shared
     settingsLocalCopy(settings),
     authentication(settingsLocalCopy),
     threadnr(threadnr),
+    lazySubscriptionsEventFd(eventfd(0, EFD_NONBLOCK)),
     mMainApp(mainApp)
 {
     logger = Logger::getInstance();
@@ -56,9 +57,12 @@ ThreadData::ThreadData(int threadnr, const Settings &settings, const std::shared
     if (disconnectingAllEventFd < 0)
         throw std::runtime_error("Can't create eventfd.");
 
+    if (lazySubscriptionsEventFd.get() < 0)
+        throw std::runtime_error("Can't create eventfd.");
+
     randomish.seed(get_random_int<unsigned long>());
 
-    std::array<int, 3> event_fds {taskEventFd, disconnectingAllEventFd, pub->acceptQueue.event_fd.get()};
+    std::array<int, 4> event_fds {taskEventFd, disconnectingAllEventFd, pub->acceptQueue.event_fd.get(), lazySubscriptionsEventFd.get()};
     for (int efd : event_fds)
     {
         struct epoll_event ev{};
@@ -1023,7 +1027,7 @@ void ThreadData::queueTimeoutTrackedSubscriptionStagedSubacksTimeouts()
     auto f = [this] () {
         Logger::getInstance()->log(LOG_DEBUG) << "Doing sendAllTimedOutStagedSubacks on all bridges in thread " << threadnr;
 
-        for (auto &pair : clients.bridges)
+        for (auto &pair : priv->clients.bridges)
         {
             std::shared_ptr<BridgeState> &bridge = pair.second;
 
@@ -1357,6 +1361,66 @@ void ThreadData::performAllImmediateTasks()
             Logger *logger = Logger::getInstance();
             logger->logf(LOG_ERR, "Error in queued task: %s", ex.what());
         }
+    }
+}
+
+void ThreadData::queueProcessTrackedSubscriptionMutationsAllBridges()
+{
+    auto already_queued = queuedLazySubscriptionProcessingAllBridges.lock();
+
+    if (*already_queued)
+        return;
+
+    *already_queued = true;
+
+    uint64_t one = 1;
+    check<std::runtime_error>(write(lazySubscriptionsEventFd.get(), &one, sizeof(uint64_t)));
+}
+
+/**
+ * @brief ThreadData::processLazySubsubscriptionsAllBridges is for calling processTrackedSubscriptionMutations after lazy
+ * subscriptions have been expanded and mutations placed.
+ *
+ * We use this method with eventfd instead of queueing functions because on a server with many subscription actions,
+ * which potentially cause many bridge connections in many threads to be ready this would queue
+ * processTrackedSubscriptionMutations() sequently while it's enough to just get to it when the event loop restarts.
+ *
+ * There are still other places where we do target queueing processTrackedSubscriptionMutations() more directly. That's
+ * when we know it's caused by one bridge connection for itself, with a one-to-one cause and requeue.
+ */
+void ThreadData::processLazySubsubscriptionsAllBridges() noexcept
+{
+    assert(pthread_self() == thread_id);
+
+    try
+    {
+        {
+            auto already_queued = queuedLazySubscriptionProcessingAllBridges.lock();
+            *already_queued = false;
+
+            uint64_t eventfd_value = 0;
+            if (read(lazySubscriptionsEventFd.get(), &eventfd_value, sizeof(uint64_t)) < 0)
+                Logger::getInstance()->log(LOG_ERROR) << "Error reading fd in processLazySubsubscriptions: " << strerror(errno);
+        }
+
+        for(auto &bridge_pair : priv->clients.bridges)
+        {
+            if (!bridge_pair.second)
+                continue;
+
+            auto &tracked_subs = bridge_pair.second->getTrackedSubscriptions();
+
+            if (!tracked_subs)
+                continue;
+
+            tracked_subs->processTrackedSubscriptionMutations(bridge_pair.second, ProcessTrackedSubscriptionMutationsModifier::FirstFinishResending);
+        }
+    }
+    catch (std::exception &ex)
+    {
+        Logger::getInstance()->log(LOG_ERR)
+            << "Error in processLazySubsubscriptions: " << ex.what() << ". This shouldn't "
+            << "happen and is likely a bug.";
     }
 }
 
