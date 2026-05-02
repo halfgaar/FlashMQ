@@ -1850,6 +1850,13 @@ void MqttPacket::handleSubAck(std::shared_ptr<Client> &sender)
 
     const SubAckData data = parseSubAckData();
 
+    if (logger->wouldLog(LOG_SUBSCRIBE))
+    {
+        logger->log(LOG_SUBSCRIBE)
+            << "SUBACK received from '" << sender->getClientId()
+            << "' with id " << data.packet_id << " having " << data.subAckCodes.size() << " ack(s) in it.";
+    }
+
     std::shared_ptr<BridgeState> bridgeState = sender->getBridgeState();
 
     // Should be impossible.
