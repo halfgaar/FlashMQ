@@ -285,15 +285,17 @@ void LazySubscriptions::collectClients(
     }
 }
 
-size_t LazySubscriptions::expandLazySubscriptions(
+AddSubscriptionResult LazySubscriptions::expandLazySubscriptions(
     TrackedSubscriptionMutationTask task, const std::shared_ptr<Session> &originating_session, const uint16_t originating_packetId,
     const std::vector<std::string> &subtopics, const uint8_t qos)
 {
     assert(subtopics.size() == 0 || subtopics.at(0) != "$share");
 
+    AddSubscriptionResult result;
+
     // Don't match the bridge's own internal subscriptions to ourself (the 'publish' lines in the config).
     if (originating_session->getClientType() == ClientType::LocalBridge)
-        return 0;
+        return result;
 
     std::vector<ReceivingLazySubscriber> collected_receivers;
 
@@ -301,15 +303,13 @@ size_t LazySubscriptions::expandLazySubscriptions(
         auto data = root.shared_lock();
 
         if ((*data)->children.empty())
-            return 0;
+            return result;
 
         collectClients(subtopics.begin(), subtopics.end(), data->get(), 0, collected_receivers, originating_session->getFmqClientGroupId(), -1, -1);
     }
 
     if (collected_receivers.empty())
-        return 0;
-
-    size_t count = 0;
+        return result;
 
     for(ReceivingLazySubscriber &receiver : collected_receivers)
     {
@@ -328,18 +328,18 @@ size_t LazySubscriptions::expandLazySubscriptions(
         if (!tracked_subs)
             continue;
 
-        const bool doWakeup = tracked_subs->addTrackedSubscriptionMutation(
+        tracked_subs->addTrackedSubscriptionMutation(
             TrackedSubscriptionMutation(pattern, effective_qos, originating_session->getClientId(), originating_session, originating_packetId, task));
 
-        count++;
+        result.expanded_count++;
 
-        if (doWakeup)
-        {
-            receiver.thread.lock()->queueProcessTrackedSubscriptionMutations(bridgeState, ProcessTrackedSubscriptionMutationsModifier::FirstFinishResending);
-        }
+        if (!result.affected_threads_lazy_subs)
+            result.affected_threads_lazy_subs.emplace();
+
+        result.affected_threads_lazy_subs.value().insert(receiver.thread.lock());
     }
 
-    return count;
+    return result;
 }
 
 void registerLazySubscriptions(std::shared_ptr<BridgeState> &bridgeState)

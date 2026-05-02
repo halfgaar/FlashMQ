@@ -36,12 +36,10 @@ void queueSendSubAckInOriginatingClient(const std::weak_ptr<Client> &client, con
 }
 
 
-bool TrackedSubscriptionState::addTrackedSubscriptionMutation(TrackedSubscriptionMutation &&mut)
+void TrackedSubscriptionState::addTrackedSubscriptionMutation(TrackedSubscriptionMutation &&mut)
 {
     auto locked = trackedSubscriptionMutations.lock();
-    bool wakeupRequired = locked->empty();
     locked->emplace_back(std::move(mut));
-    return wakeupRequired;
 }
 
 void TrackedSubscriptionState::stageInFlightTrackedSubscriptions(std::vector<Subscribe> &&subscribes, uint16_t pack_id)
@@ -140,8 +138,17 @@ void TrackedSubscriptionState::processTrackedSubscriptionMutations(
 {
     assert(ThreadGlobals::getThreadData()->thread_id == pthread_self());
 
-    if (modifier == ProcessTrackedSubscriptionMutationsModifier::FirstFinishResending && curPosResending != trackedSubscriptions->end())
-        return;
+    if (modifier == ProcessTrackedSubscriptionMutationsModifier::FirstFinishResending)
+    {
+        // Queueing this function in this mode when an action is pending shouldn't take action. It would also
+        // have stopped at the retry logic below, but technically for another reason. Plus, this saves running some
+        // useless code.
+        if (inFlightTrackedSubscriptions)
+            return;
+
+        if (curPosResending != trackedSubscriptions->end())
+            return;
+    }
 
     std::shared_ptr<Session> session = bridgeState->session->lock();
 
