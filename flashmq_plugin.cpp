@@ -138,7 +138,9 @@ bool flashmq_plugin_add_subscription(
     std::string topicDummy;
     parseSubscriptionShare(subtopics, shareName, topicDummy);
 
-    const auto result = store->addSubscription(session_locked, 0, subtopics, qos, noLocal, retainAsPublished, shareName, subscriptionIdentifier);
+    // Note that adding a subscription here may still expand lazy subscriptions, we don't have an orignating client or packet id,
+    // so we can't inform the calling context of received subacks.
+    const auto result = store->addSubscription(session_locked, nullptr, subtopics, qos, noLocal, retainAsPublished, shareName, subscriptionIdentifier);
     return result.type == AddSubscriptionType::Invalid ? false : true;
 }
 

@@ -180,6 +180,14 @@ void ThreadData::queueSendSubAckInOriginatingClient(const std::shared_ptr<Client
     addImmediateTask(f);
 }
 
+void ThreadData::queueSubackReleaseTimeout(const SubAckReleaseTrigger &t)
+{
+    assert(pthread_self() == thread_id);
+
+    const std::chrono::time_point<std::chrono::steady_clock> timeout = std::chrono::steady_clock::now() + std::chrono::seconds(3);
+    priv->queuedSubackTimeouts.emplace(std::chrono::time_point_cast<std::chrono::seconds>(timeout), t);
+}
+
 void ThreadData::queuePurgeStaleTrackedLazySubscriptionsAll(const PurgeTrackedSubscriptionModifier modifier)
 {
     auto f = [this, modifier](){
@@ -1025,21 +1033,31 @@ void ThreadData::queueProcessTrackedSubscriptionMutations(const std::shared_ptr<
 void ThreadData::queueTimeoutTrackedSubscriptionStagedSubacksTimeouts()
 {
     auto f = [this] () {
-        Logger::getInstance()->log(LOG_DEBUG) << "Doing sendAllTimedOutStagedSubacks on all bridges in thread " << threadnr;
+        Logger::getInstance()->log(LOG_DEBUG) << "Processing timed out subacks" << threadnr;
 
-        for (auto &pair : priv->clients.bridges)
+        const auto now = std::chrono::steady_clock::now();
+
+        for (auto i = priv->queuedSubackTimeouts.begin() ; i != priv->queuedSubackTimeouts.end();)
         {
-            std::shared_ptr<BridgeState> &bridge = pair.second;
+            if (i->first > now)
+                break;
 
-            if (!bridge)
+            auto cur = i++;
+
+            if (*(cur->second.sent))
+            {
+                priv->queuedSubackTimeouts.erase(cur);
+                continue;
+            }
+
+            std::shared_ptr<Client> client = cur->second.m_client.lock();
+            const uint16_t packid{ cur->second.m_staged_suback_packet_id };
+            priv->queuedSubackTimeouts.erase(cur);
+
+            if (!client)
                 continue;
 
-            auto &tracked_subs = bridge->getTrackedSubscriptions();
-
-            if (!tracked_subs)
-                continue;
-
-            tracked_subs->sendAllTimedOutStagedSubacks();
+            client->sendStagedSuback(packid);
         }
     };
 
