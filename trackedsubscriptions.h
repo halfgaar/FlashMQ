@@ -18,9 +18,7 @@ struct TrackedSubscriptionMutation
     const uint8_t qos{};
     const std::string originatingClientId;
     const std::weak_ptr<Session> originatingSession;
-    const std::weak_ptr<Client> originatingClient;
-    const uint16_t originatingPacketId{};
-    const std::weak_ptr<ThreadData> originatingThread;
+    const std::optional<SubAckReleaseTrigger> subAckReleaseTrigger;
     const TrackedSubscriptionMutationTask task{};
 
     TrackedSubscriptionMutation() = delete;
@@ -28,7 +26,7 @@ struct TrackedSubscriptionMutation
     TrackedSubscriptionMutation(TrackedSubscriptionMutation&&) = default;
     TrackedSubscriptionMutation(
         const std::string &pattern, const uint8_t qos, const std::string &originatingClientId,
-        const std::shared_ptr<Session> &originatingSession, const uint16_t originatingPacketId, TrackedSubscriptionMutationTask task);
+        const std::shared_ptr<Session> &originatingSession, const SubAckReleaseTrigger *subAckReleaseTrigger, TrackedSubscriptionMutationTask task);
 };
 
 struct TrackedSubscription
