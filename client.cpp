@@ -699,7 +699,9 @@ void Client::clearRegistrationData()
     this->registrationData.reset();
 }
 
-void Client::stageOrSendSubAck(const std::shared_ptr<Client> &this_client, SubAckAction &&action, const size_t expandedCount)
+void Client::stageOrSendSubAck(
+    const std::shared_ptr<Client> &this_client, SubAckAction &&action, const size_t expandedCount,
+    const SubAckReleaseTrigger &suback_release_trigger)
 {
     assert(this == this_client.get());
 
@@ -710,6 +712,8 @@ void Client::stageOrSendSubAck(const std::shared_ptr<Client> &this_client, SubAc
     }
 
     const uint16_t packid = action.mPacketId;
+
+    ThreadGlobals::getThreadData()->queueSubackReleaseTimeout(suback_release_trigger);
 
     auto result = stagedSubAcks.insert({packid, std::move(action)});
     if (!std::get<bool>(result))

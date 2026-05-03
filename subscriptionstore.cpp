@@ -254,7 +254,7 @@ std::shared_ptr<SubscriptionNode> SubscriptionStore::getDeepestNode(const std::v
 }
 
 AddSubscriptionResult SubscriptionStore::addSubscription(
-    const std::shared_ptr<Session> &session, const uint16_t originatingPacketId, const std::vector<std::string> &subtopics, uint8_t qos,
+    const std::shared_ptr<Session> &session, const SubAckReleaseTrigger *sub_ack_release_trigger, const std::vector<std::string> &subtopics, uint8_t qos,
     bool noLocal, bool retainAsPublished, const std::string &shareName, const uint32_t subscriptionIdentifier)
 {
     if (!session)
@@ -268,7 +268,7 @@ AddSubscriptionResult SubscriptionStore::addSubscription(
     std::optional<AddSubscriptionResult> result;
 
     if (globals->lazySubscriptions)
-        result = globals->lazySubscriptions->expandLazySubscriptions(TrackedSubscriptionMutationTask::Subscribe, session, originatingPacketId, subtopics, qos);
+        result.emplace(globals->lazySubscriptions->expandLazySubscriptions(TrackedSubscriptionMutationTask::Subscribe, session, sub_ack_release_trigger, subtopics, qos));
 
     if (!result)
         result.emplace();

@@ -286,7 +286,7 @@ void LazySubscriptions::collectClients(
 }
 
 AddSubscriptionResult LazySubscriptions::expandLazySubscriptions(
-    TrackedSubscriptionMutationTask task, const std::shared_ptr<Session> &originating_session, const uint16_t originating_packetId,
+    TrackedSubscriptionMutationTask task, const std::shared_ptr<Session> &originating_session, const SubAckReleaseTrigger *suback_release_trigger,
     const std::vector<std::string> &subtopics, const uint8_t qos)
 {
     assert(subtopics.size() == 0 || subtopics.at(0) != "$share");
@@ -328,8 +328,8 @@ AddSubscriptionResult LazySubscriptions::expandLazySubscriptions(
         if (!tracked_subs)
             continue;
 
-        tracked_subs->addTrackedSubscriptionMutation(
-            TrackedSubscriptionMutation(pattern, effective_qos, originating_session->getClientId(), originating_session, originating_packetId, task));
+        TrackedSubscriptionMutation mutation(pattern, effective_qos, originating_session->getClientId(), originating_session, suback_release_trigger, task);
+        tracked_subs->addTrackedSubscriptionMutation(std::move(mutation));
 
         result.expanded_count++;
 

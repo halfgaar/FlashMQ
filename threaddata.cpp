@@ -159,6 +159,14 @@ void ThreadData::queueSendSubAckInOriginatingClient(const std::shared_ptr<Client
     addImmediateTask(f);
 }
 
+void ThreadData::queueSubackReleaseTimeout(const SubAckReleaseTrigger &t)
+{
+    assert(pthread_self() == thread_id);
+
+    std::chrono::time_point<std::chrono::steady_clock> timeout = std::chrono::steady_clock::now() + std::chrono::seconds(3);
+    queuedSubackTimeouts.emplace(timeout, t);
+}
+
 void ThreadData::queuePurgeStaleTrackedLazySubscriptionsAll(const PurgeTrackedSubscriptionModifier modifier)
 {
     auto f = [this, modifier](){
@@ -1009,21 +1017,31 @@ void ThreadData::queueProcessTrackedSubscriptionMutations(const std::shared_ptr<
 void ThreadData::queueTimeoutTrackedSubscriptionStagedSubacksTimeouts()
 {
     auto f = [this] () {
-        Logger::getInstance()->log(LOG_DEBUG) << "Doing sendAllTimedOutStagedSubacks on all bridges in thread " << threadnr;
+        Logger::getInstance()->log(LOG_DEBUG) << "Processing timed out subacks" << threadnr;
 
-        for (auto &pair : clients.bridges)
+        const auto now = std::chrono::steady_clock::now();
+
+        for (auto i = queuedSubackTimeouts.begin() ; i != queuedSubackTimeouts.end();)
         {
-            std::shared_ptr<BridgeState> &bridge = pair.second;
+            if (i->first > now)
+                break;
 
-            if (!bridge)
+            auto cur = i++;
+
+            if (*(cur->second.sent))
+            {
+                queuedSubackTimeouts.erase(cur);
+                continue;
+            }
+
+            std::shared_ptr<Client> client = cur->second.m_client.lock();
+            const uint16_t packid{ cur->second.m_staged_suback_packet_id };
+            queuedSubackTimeouts.erase(cur);
+
+            if (!client)
                 continue;
 
-            auto &tracked_subs = bridge->getTrackedSubscriptions();
-
-            if (!tracked_subs)
-                continue;
-
-            tracked_subs->sendAllTimedOutStagedSubacks();
+            client->sendStagedSuback(packid);
         }
     };
 

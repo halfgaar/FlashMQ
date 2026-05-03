@@ -508,3 +508,10 @@ SubAckAction::SubAckAction(std::vector<DeferredRetainedSending> &&retainedSendin
 {
 
 }
+
+SubAckReleaseTrigger::SubAckReleaseTrigger(const std::weak_ptr<Client> &client, const uint16_t packet_id) :
+    m_client(client),
+    m_staged_suback_packet_id(packet_id)
+{
+
+}

@@ -408,6 +408,17 @@ struct SubAckAction
     SubAckAction(std::vector<DeferredRetainedSending> &&retainedSending, std::list<ReasonCodes> &&responseCodes, const uint16_t packetId);
 };
 
+struct SubAckReleaseTrigger
+{
+    const std::weak_ptr<Client> m_client;
+    const uint16_t m_staged_suback_packet_id {};
+    std::shared_ptr<bool> sent = std::make_shared<bool>(false);
+
+    SubAckReleaseTrigger() = delete;
+    SubAckReleaseTrigger(const SubAckReleaseTrigger&) = default;
+    SubAckReleaseTrigger(const std::weak_ptr<Client> &client, const uint16_t packet_id);
+};
+
 struct AddSubscriptionResult
 {
     AddSubscriptionType type = AddSubscriptionType::Invalid;

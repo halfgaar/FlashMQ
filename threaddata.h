@@ -90,6 +90,7 @@ class ThreadData
 
     std::forward_list<std::weak_ptr<Client>> clientsQueuedForRemoving;
     std::map<std::chrono::seconds, std::vector<KeepAliveCheck>> queuedKeepAliveChecks;
+    std::multimap<std::chrono::time_point<std::chrono::steady_clock>, SubAckReleaseTrigger> queuedSubackTimeouts;
 
     std::list<QueuedRetainedMessage> queuedRetainedMessages;
 
@@ -182,6 +183,7 @@ public:
     void queuePurgeSubscriptionTree();
     void queueRemoveExpiredRetainedMessages();
     void queueSendSubAckInOriginatingClient(const std::shared_ptr<Client> client, const uint16_t originatingPacketId);
+    void queueSubackReleaseTimeout(const SubAckReleaseTrigger &t);
 
     void queueClientNextKeepAliveCheck(std::shared_ptr<Client> &client, bool keepRechecking);
     void continuationOfAuthentication(std::shared_ptr<Client> &client, AuthResult authResult, const std::string &authMethod, const std::string &returnData);

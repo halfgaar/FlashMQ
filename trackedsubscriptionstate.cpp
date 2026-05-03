@@ -6,33 +6,17 @@
 #include "trackedsubscriptionstate.h"
 #include "logger.h"
 
-TrackedSubscriptionState::ArmedSubackData::ArmedSubackData(const std::weak_ptr<Client> &client, const uint16_t packet_id) :
-    m_client(client),
-    m_packet_id(packet_id)
+void queueSendSubAckInOriginatingClient(const std::optional<SubAckReleaseTrigger> &t)
 {
+    if (!t)
+        return;
 
-}
-
-TrackedSubscriptionState::ArmedSuback::ArmedSuback(const std::weak_ptr<Client> &client, const uint16_t packet_id) :
-    m_d(std::make_shared<ArmedSubackData>(client, packet_id)),
-    m_packet_id(packet_id)
-{
-
-}
-
-bool TrackedSubscriptionState::ArmedSuback::operator<(const ArmedSuback &other) const
-{
-    return m_packet_id < other.m_packet_id;
-}
-
-
-void queueSendSubAckInOriginatingClient(const std::weak_ptr<Client> &client, const uint16_t originatingPacketId)
-{
-    std::shared_ptr<Client> orignating_client = client.lock();
+    std::shared_ptr<Client> orignating_client = t->m_client.lock();
     if (!orignating_client)
         return;
     std::shared_ptr<ThreadData> client_thread = orignating_client->lockThreadData();
-    client_thread->queueSendSubAckInOriginatingClient(orignating_client, originatingPacketId);
+    client_thread->queueSendSubAckInOriginatingClient(orignating_client, t->m_staged_suback_packet_id);
+    *t->sent = true;
 }
 
 
@@ -307,7 +291,7 @@ void TrackedSubscriptionState::processTrackedSubscriptionMutations(
                 }
 
                 // We don't have to wait for a remote ack because we're not relaying a subscription. So, we can send this now.
-                queueSendSubAckInOriginatingClient(mut.originatingClient, mut.originatingPacketId);
+                queueSendSubAckInOriginatingClient(mut.subAckReleaseTrigger);
 
                 continue;
             }
@@ -328,12 +312,8 @@ void TrackedSubscriptionState::processTrackedSubscriptionMutations(
                     << ", effective QoS = " << static_cast<int>(mut.qos) << ". Packet ID = " << pack_id.value();
             }
 
-            {
-                auto &all_armed_subacks = armedSubacks[pack_id.value()]; // one 'pack_id' is used for the entire run through this function, so this is always 'all'.
-                auto &set_of_one_client = all_armed_subacks[mut.originatingClientId];
-                auto armed_subacks_one_client = set_of_one_client.emplace(mut.originatingClient, mut.originatingPacketId);
-                armedSubacksTimeouts.insert({std::chrono::steady_clock::now() + std::chrono::seconds(4), armed_subacks_one_client.first->m_d});
-            }
+            if (mut.subAckReleaseTrigger)
+                outgoingSubscriptionsToSubackReleases.emplace(pack_id.value(), *mut.subAckReleaseTrigger);
 
             Subscribe &sub = subscribes.emplace_back(mut.pattern, mut.qos);
             sub.retainAsPublished = true;
@@ -546,38 +526,14 @@ void TrackedSubscriptionState::handledSubackActions(const uint16_t id)
 
 void TrackedSubscriptionState::sendArmedStagedSuback(const uint16_t id)
 {
-    auto pos = armedSubacks.find(id);
+    auto all_triggers = outgoingSubscriptionsToSubackReleases.equal_range(id);
 
-    if (pos == armedSubacks.end())
-        return;
-
-    const std::unordered_map<std::string, std::set<ArmedSuback>> all(std::move(pos->second));
-    armedSubacks.erase(pos);
-
-    for (const auto &one_client : all)
+    for (auto i = all_triggers.first; i != all_triggers.second; )
     {
-        for (const auto &of_one_client : one_client.second)
-        {
-            queueSendSubAckInOriginatingClient(of_one_client.m_d->m_client, of_one_client.m_packet_id);
-        }
-    }
-}
-
-void TrackedSubscriptionState::sendAllTimedOutStagedSubacks()
-{
-    for (auto x = armedSubacksTimeouts.begin(); x != armedSubacksTimeouts.end(); )
-    {
-        if (x->first > std::chrono::steady_clock::now())
-            break;
-
-        auto pos = x++;
-        auto entry = pos->second.lock();
-        armedSubacksTimeouts.erase(pos);
-
-        if (!entry)
-            continue;
-
-        queueSendSubAckInOriginatingClient(entry->m_client, entry->m_packet_id);
+        auto pos = i++;
+        const SubAckReleaseTrigger &t = pos->second;
+        queueSendSubAckInOriginatingClient(t);
+        outgoingSubscriptionsToSubackReleases.erase(pos);
     }
 }
 

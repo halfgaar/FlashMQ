@@ -1413,7 +1413,7 @@ void MqttPacket::handleConnAck(std::shared_ptr<Client> &sender)
         std::string _;
         parseSubscriptionShare(subtopics, shareName, _);
         const bool no_local = shareName.empty(); // See above about no-local.
-        store->addSubscription(session, 0, subtopics, pub.qos, no_local, true, shareName, 0);
+        store->addSubscription(session, nullptr, subtopics, pub.qos, no_local, true, shareName, 0);
     }
 
     ThreadGlobals::getThreadData()->publishBridgeState(bridgeState, true, {});
@@ -1823,6 +1823,7 @@ void MqttPacket::handleSubscribe(std::shared_ptr<Client> &sender)
     std::vector<DeferredRetainedSending> retainedSending;
 
     AddSubscriptionResult aggregated_result;
+    SubAckReleaseTrigger suback_release_trigger(sender, packet_id);
 
     // Adding the subscription will also send publishes for retained messages, so that's why we're doing it at the end.
     for(const SubscriptionTuple &tup : deferredSubscribes)
@@ -1833,7 +1834,7 @@ void MqttPacket::handleSubscribe(std::shared_ptr<Client> &sender)
         auto store = globals->subscriptionStore;
 
         const AddSubscriptionResult add_result = store->addSubscription(
-            session, packet_id, tup.subtopics, tup.qos, tup.noLocal, tup.retainAsPublished, tup.shareName, tup.subscriptionIdentifier);
+            session, &suback_release_trigger, tup.subtopics, tup.qos, tup.noLocal, tup.retainAsPublished, tup.shareName, tup.subscriptionIdentifier);
 
         aggregated_result.expanded_count += add_result.expanded_count;
 
@@ -1856,7 +1857,7 @@ void MqttPacket::handleSubscribe(std::shared_ptr<Client> &sender)
         }
     }
 
-    sender->stageOrSendSubAck(sender, {std::move(retainedSending), std::move(subs_reponse_codes), packet_id}, aggregated_result.expanded_count);
+    sender->stageOrSendSubAck(sender, {std::move(retainedSending), std::move(subs_reponse_codes), packet_id}, aggregated_result.expanded_count, suback_release_trigger);
 
     if (aggregated_result.affected_threads_lazy_subs)
     {

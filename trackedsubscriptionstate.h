@@ -27,25 +27,6 @@ enum class PurgeTrackedSubscriptionModifier
 
 class TrackedSubscriptionState
 {
-    struct ArmedSubackData
-    {
-        const std::weak_ptr<Client> m_client;
-        const uint16_t m_packet_id {};
-
-        ArmedSubackData(const std::weak_ptr<Client> &client, const uint16_t packet_id);
-    };
-
-    struct ArmedSuback
-    {
-        const std::shared_ptr<ArmedSubackData> m_d;
-        const uint16_t m_packet_id {};
-
-        ArmedSuback() = delete;
-        ArmedSuback(const std::weak_ptr<Client> &client, const uint16_t packet_id);
-
-        bool operator<(const ArmedSuback &other) const;
-    };
-
     MutexOwned<std::deque<TrackedSubscriptionMutation>> trackedSubscriptionMutations;
     std::unique_ptr<ReentrantMap<std::string, TrackedSubscription>> trackedSubscriptions = std::make_unique<ReentrantMap<std::string, TrackedSubscription>>();
 
@@ -60,8 +41,7 @@ class TrackedSubscriptionState
     std::optional<InFlightTrackedSubscription> inFlightTrackedSubscriptions;
     std::optional<InFlightTrackedUnsubscription> inFlightTrackedUnsubscriptions;
 
-    std::unordered_map<uint16_t, std::unordered_map<std::string, std::set<ArmedSuback>>> armedSubacks;
-    std::multimap<std::chrono::time_point<std::chrono::steady_clock>, std::weak_ptr<ArmedSubackData>> armedSubacksTimeouts;
+    std::unordered_multimap<uint16_t, SubAckReleaseTrigger> outgoingSubscriptionsToSubackReleases;
 
     void stageInFlightTrackedSubscriptions(std::vector<Subscribe> &&subscribes, uint16_t pack_id);
     void stageInFlightTrackedUnsubscriptions(std::vector<Unsubscribe> &&unsubscribes, uint16_t pack_id);
@@ -81,7 +61,6 @@ public:
     bool requiresContinuationOfPurging();
     void handledSubackActions(const uint16_t id);
     void sendArmedStagedSuback(const uint16_t id);
-    void sendAllTimedOutStagedSubacks();
     void removeMatchingInFlightTrackedSubscriptions(uint16_t id);
     void removeMatchingInFlightTrackedUnsubscriptions(uint16_t id);
     bool hasOutdatedInFlightTrackedSubscriptions() const;
