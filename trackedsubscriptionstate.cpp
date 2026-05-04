@@ -11,11 +11,10 @@ void queueSendSubAckInOriginatingClient(const std::optional<SubAckReleaseTrigger
     if (!t)
         return;
 
-    std::shared_ptr<Client> orignating_client = t->m_client.lock();
-    if (!orignating_client)
+    if (!t->m_client_thread)
         return;
-    std::shared_ptr<ThreadData> client_thread = orignating_client->lockThreadData();
-    client_thread->queueSendSubAckInOriginatingClient(orignating_client, t->m_staged_suback_packet_id);
+
+    t->m_client_thread->queueImmediateStagedSuback(t->m_client, t->m_staged_suback_packet_id);
 }
 
 

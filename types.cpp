@@ -513,8 +513,9 @@ SubAckAction::SubAckAction(
 
 }
 
-SubAckReleaseTrigger::SubAckReleaseTrigger(const std::shared_ptr<Client> &client, const uint16_t packet_id) :
+SubAckReleaseTrigger::SubAckReleaseTrigger(const std::shared_ptr<Client> &client, const std::shared_ptr<ThreadData> &client_thread, const uint16_t packet_id) :
     m_client(client),
+    m_client_thread(client_thread),
     m_staged_suback_packet_id(packet_id)
 {
 
