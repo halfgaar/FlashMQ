@@ -2173,7 +2173,7 @@ void MqttPacket::handlePublish(std::shared_ptr<Client> &sender)
     const uint16_t _packet_id = this->packet_id;
 
     // Stage the ack, with the proper ID.
-    AckSender ackSender(this->publishData.qos, this->packet_id, this->protocolVersion, sender);
+    AckSender ackSender(this->publishData.qos, this->packet_id, this->protocolVersion);
 
     if (publishData.retain && settings->retainedMessagesMode == RetainedMessagesMode::DisconnectWithError)
     {
@@ -2188,7 +2188,7 @@ void MqttPacket::handlePublish(std::shared_ptr<Client> &sender)
         }
         else if (sender->getMqtt3QoSExceedAction() == Mqtt3QoSExceedAction::Drop)
         {
-            ackSender.sendNow();
+            ackSender.sendNow(sender.get());
         }
     }
     else if (publishData.qos == 2 && sender->getSession()->incomingQoS2MessageIdInTransit(_packet_id))
@@ -2243,13 +2243,13 @@ void MqttPacket::handlePublish(std::shared_ptr<Client> &sender)
                 first_byte = bites[0];
 
                 PublishCopyFactory factory(this);
-                ackSender.sendNow();
+                ackSender.sendNow(sender.get());
                 globals->subscriptionStore->queuePacketAtSubscribers(factory, sender->getClientId(), sender->getFmqClientGroupId());
             }
         }
         else if (authResult == AuthResult::success_but_drop_publish)
         {
-            ackSender.sendNow();
+            ackSender.sendNow(sender.get());
         }
         else
         {
@@ -2264,6 +2264,8 @@ void MqttPacket::handlePublish(std::shared_ptr<Client> &sender)
     if (publishData.qos > 0)
         this->setPacketId(0);
 #endif
+
+    ackSender.sendNow(sender.get());
 }
 
 void MqttPacket::parsePubAckData()

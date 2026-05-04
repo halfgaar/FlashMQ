@@ -13,23 +13,24 @@ See LICENSE for license details.
 #include "mqttpacket.h"
 #include "client.h"
 
-AckSender::AckSender(uint8_t qos, uint16_t packetId, ProtocolVersion protocolVersion, std::shared_ptr<Client> &client) :
+AckSender::AckSender(uint8_t qos, uint16_t packetId, ProtocolVersion protocolVersion) :
     qos(qos),
     packetId(packetId),
-    protocolVersion(protocolVersion),
-    client(client)
+    protocolVersion(protocolVersion)
 {
 
 }
 
 AckSender::~AckSender()
 {
-    if (!sent)
-        sendNow();
+    assert(sent);
 }
 
-void AckSender::sendNow()
+void AckSender::sendNow(Client *client)
 {
+    if (sent)
+        return;
+
     this->sent = true;
 
     if (qos == 0)

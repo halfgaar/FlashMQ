@@ -17,18 +17,21 @@ See LICENSE for license details.
 
 class AckSender
 {
-    uint8_t qos;
-    uint16_t packetId;
+    uint8_t qos {};
+    uint16_t packetId {};
     ProtocolVersion protocolVersion = ProtocolVersion::None;
-    std::shared_ptr<Client> &client;
     ReasonCodes ackCode = ReasonCodes::Success;
     bool sent = false;
 public:
     AckSender(const AckSender &other) = delete;
     AckSender(AckSender &&other) = delete;
-    AckSender(uint8_t qos, uint16_t packetId, ProtocolVersion protocolVersion, std::shared_ptr<Client> &client);
+    AckSender() = delete;
+    AckSender &operator=(const AckSender&) = delete;
+    AckSender &operator=(AckSender&&) = delete;
+
+    AckSender(uint8_t qos, uint16_t packetId, ProtocolVersion protocolVersion);
     ~AckSender();
-    void sendNow();
+    void sendNow(Client *client);
     void setAckCode(ReasonCodes ackCode);
 };
 
