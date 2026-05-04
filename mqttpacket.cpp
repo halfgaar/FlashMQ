@@ -1823,7 +1823,7 @@ void MqttPacket::handleSubscribe(std::shared_ptr<Client> &sender)
     std::vector<DeferredRetainedSending> retainedSending;
 
     AddSubscriptionResult aggregated_result;
-    SubAckReleaseTrigger suback_release_trigger(sender, packet_id);
+    SubAckReleaseTrigger suback_release_trigger(sender, sender->lockThreadData(), packet_id);
 
     // Adding the subscription will also send publishes for retained messages, so that's why we're doing it at the end.
     for(const SubscriptionTuple &tup : deferredSubscribes)

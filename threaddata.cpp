@@ -40,6 +40,7 @@ ThreadData::ThreadData(int threadnr, const Settings &settings, const std::shared
     authentication(settingsLocalCopy),
     threadnr(threadnr),
     lazySubscriptionsEventFd(eventfd(0, EFD_NONBLOCK)),
+    subacksEventFd(eventfd(0, EFD_NONBLOCK)),
     mMainApp(mainApp)
 {
     logger = Logger::getInstance();
@@ -55,10 +56,12 @@ ThreadData::ThreadData(int threadnr, const Settings &settings, const std::shared
     if (lazySubscriptionsEventFd.get() < 0)
         throw std::runtime_error("Can't create eventfd.");
 
+    if (subacksEventFd.get() < 0)
+        throw std::runtime_error("Can't create eventfd.");
+
     randomish.seed(get_random_int<unsigned long>());
 
-    std::array<int, 4> event_fds {taskEventFd, disconnectingAllEventFd, acceptQueue.event_fd.get(), lazySubscriptionsEventFd.get()};
-    for (int efd : event_fds)
+    for (int efd : std::initializer_list<int> {taskEventFd, disconnectingAllEventFd, acceptQueue.event_fd.get(), lazySubscriptionsEventFd.get(), subacksEventFd.get()})
     {
         struct epoll_event ev{};
         ev.data.fd = efd;
@@ -149,14 +152,56 @@ void ThreadData::queueRemoveExpiredRetainedMessages()
     wakeUpThread();
 }
 
-void ThreadData::queueSendSubAckInOriginatingClient(const std::shared_ptr<Client> client, const uint16_t originatingPacketId)
+void ThreadData::queueImmediateStagedSuback(const std::weak_ptr<Client> &client, const uint16_t originatingPacketId)
 {
-    auto f = [client, originatingPacketId]()
-    {
-        client->decrementStagedSubAckAndSend(originatingPacketId, false);
-    };
+    bool wakeup = true;
 
-    addImmediateTask(f);
+    {
+        auto locked = queuedImmediateSubacks.lock();
+        wakeup = locked->empty();
+        locked->emplace_back(client, originatingPacketId);
+    }
+
+    if (!wakeup)
+        return;
+
+    uint64_t one = 1;
+    check<std::runtime_error>(write(subacksEventFd.get(), &one, sizeof(uint64_t)));
+}
+
+void ThreadData::processImmediateSubacks()
+{
+    uint64_t eventfd_value = 0;
+    if (read(subacksEventFd.get(), &eventfd_value, sizeof(uint64_t)) < 0)
+        Logger::getInstance()->log(LOG_ERROR) << "Error reading fd in processImmediateSubacks: " << strerror(errno);
+
+    try
+    {
+        std::vector<QueuedSubackTrigger> copies;
+
+        {
+            auto locked = queuedImmediateSubacks.lock();
+            copies = std::move(*locked);
+            locked->clear();
+            locked->reserve(1024);
+        }
+
+        for (const QueuedSubackTrigger &entry : copies)
+        {
+            std::shared_ptr<Client> client = entry.m_client.lock();
+
+            if (!client)
+                continue;
+
+            client->decrementStagedSubAckAndSend(entry.m_packet_id, false);
+        }
+    }
+    catch (std::exception &ex)
+    {
+        Logger::getInstance()->log(LOG_ERR)
+            << "Error in processImmediateSubacks: " << ex.what() << ". This shouldn't "
+            << "happen and is likely a bug.";
+    }
 }
 
 void ThreadData::queueSubackReleaseTimeout(const SubAckReleaseTrigger &t)

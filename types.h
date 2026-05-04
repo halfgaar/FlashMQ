@@ -405,11 +405,12 @@ class SubAckReleaseTrigger
 
 public:
     const std::weak_ptr<Client> m_client;
+    const std::shared_ptr<ThreadData> m_client_thread;
     const uint16_t m_staged_suback_packet_id {};
 
     SubAckReleaseTrigger() = delete;
     SubAckReleaseTrigger(const SubAckReleaseTrigger&) = default;
-    SubAckReleaseTrigger(const std::shared_ptr<Client> &client, const uint16_t packet_id);
+    SubAckReleaseTrigger(const std::shared_ptr<Client> &client, const std::shared_ptr<ThreadData> &client_thread, const uint16_t packet_id);
 
     bool sent() const
     {

@@ -56,6 +56,19 @@ struct QueuedRetainedMessage
     QueuedRetainedMessage(const Publish &p, const std::vector<std::string> &subtopics, const std::chrono::time_point<std::chrono::steady_clock> limit);
 };
 
+struct QueuedSubackTrigger
+{
+    const std::weak_ptr<Client> m_client;
+    const uint16_t m_packet_id;
+
+    QueuedSubackTrigger(const std::weak_ptr<Client> client, const uint16_t packet_id) :
+        m_client(client),
+        m_packet_id(packet_id)
+    {
+
+    }
+};
+
 struct Clients
 {
     std::unordered_map<int, std::shared_ptr<Client>> by_fd;
@@ -91,6 +104,7 @@ class ThreadData
     std::forward_list<std::weak_ptr<Client>> clientsQueuedForRemoving;
     std::map<std::chrono::seconds, std::vector<KeepAliveCheck>> queuedKeepAliveChecks;
     std::multimap<std::chrono::time_point<std::chrono::steady_clock>, SubAckReleaseTrigger> queuedSubackTimeouts;
+    MutexOwned<std::vector<QueuedSubackTrigger>> queuedImmediateSubacks;
 
     std::list<QueuedRetainedMessage> queuedRetainedMessages;
 
@@ -132,6 +146,7 @@ public:
     int taskEventFd = -1;
     int disconnectingAllEventFd = -1;
     FdManaged lazySubscriptionsEventFd;
+    FdManaged subacksEventFd;
     std::atomic<size_t> clientCount{0};
     MutexOwned<std::list<std::function<void()>>> taskQueue;
     QueuedTasks delayedTasks;
@@ -182,8 +197,9 @@ public:
     void queueRemoveExpiredSessions();
     void queuePurgeSubscriptionTree();
     void queueRemoveExpiredRetainedMessages();
-    void queueSendSubAckInOriginatingClient(const std::shared_ptr<Client> client, const uint16_t originatingPacketId);
     void queueSubackReleaseTimeout(const SubAckReleaseTrigger &t);
+    void queueImmediateStagedSuback(const std::weak_ptr<Client> &client, const uint16_t originatingPacketId);
+    void processImmediateSubacks();
 
     void queueClientNextKeepAliveCheck(std::shared_ptr<Client> &client, bool keepRechecking);
     void continuationOfAuthentication(std::shared_ptr<Client> &client, AuthResult authResult, const std::string &authMethod, const std::string &returnData);

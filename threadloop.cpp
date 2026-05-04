@@ -133,6 +133,10 @@ void do_thread_work(std::shared_ptr<ThreadData> threadData)
             {
                 threadData->processLazySubsubscriptionsAllBridges();
             }
+            else if (fd == threadData->subacksEventFd.get())
+            {
+                threadData->processImmediateSubacks();
+            }
             else
             {
                 ready_clients.emplace_back(static_cast<uint32_t>(cur_ev.events), threadData->getClient(fd));
