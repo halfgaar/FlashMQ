@@ -1710,7 +1710,7 @@ void MqttPacket::handleSubscribe(std::shared_ptr<Client> &sender)
 
     std::forward_list<SubscriptionTuple> deferredSubscribes;
 
-    std::list<ReasonCodes> subs_reponse_codes;
+    std::vector<ReasonCodes> subs_reponse_codes;
     while (remainingAfterPos() > 0)
     {
         std::string topic = readBytesToString(settings->maxStringLength, true);

@@ -204,7 +204,7 @@ public:
     std::list<ReasonCodes> responses;
     std::shared_ptr<Mqtt5PropertyBuilder> propertyBuilder;
 
-    SubAck(const ProtocolVersion protVersion, uint16_t packet_id, const std::list<ReasonCodes> &subs_qos_reponses);
+    SubAck(const ProtocolVersion protVersion, uint16_t packet_id, const std::vector<ReasonCodes> &subs_qos_reponses);
     size_t getLengthWithoutFixedHeader() const;
 };
 
@@ -431,13 +431,13 @@ public:
 struct SubAckAction
 {
     const std::vector<DeferredRetainedSending> mRetainedSending;
-    const std::list<ReasonCodes> mResponseCodes;
+    const std::vector<ReasonCodes> mResponseCodes;
     SubAckReleaseTrigger mSubAckReleaseTrigger;
     const uint16_t mPacketId {};
     size_t mAckCountDown;
 
     SubAckAction(
-        std::vector<DeferredRetainedSending> &&retainedSending, std::list<ReasonCodes> &&responseCodes,
+        std::vector<DeferredRetainedSending> &&retainedSending, std::vector<ReasonCodes> &&responseCodes,
         const SubAckReleaseTrigger &subAckReleaseTrigger, const uint16_t packetId, const size_t expandedCount);
 };
 
