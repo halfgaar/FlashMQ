@@ -132,7 +132,7 @@ size_t ConnAck::getLengthWithoutFixedHeader() const
     return result;
 }
 
-SubAck::SubAck(const ProtocolVersion protVersion, uint16_t packet_id, const std::list<ReasonCodes> &subs_qos_reponses) :
+SubAck::SubAck(const ProtocolVersion protVersion, uint16_t packet_id, const std::vector<ReasonCodes> &subs_qos_reponses) :
     protocol_version(protVersion),
     packet_id(packet_id)
 {
@@ -502,7 +502,7 @@ DeferredRetainedSending::DeferredRetainedSending(const std::vector<std::string> 
 }
 
 SubAckAction::SubAckAction(
-        std::vector<DeferredRetainedSending> &&retainedSending, std::list<ReasonCodes> &&responseCodes,
+        std::vector<DeferredRetainedSending> &&retainedSending, std::vector<ReasonCodes> &&responseCodes,
         const SubAckReleaseTrigger &subAckReleaseTrigger, const uint16_t packetId, const size_t expandedCount) :
     mRetainedSending(std::move(retainedSending)),
     mResponseCodes(std::move(responseCodes)),
