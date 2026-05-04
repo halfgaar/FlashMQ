@@ -334,6 +334,8 @@ void Client::writePing()
 
 PacketDropReason Client::writeMqttPacket(const MqttPacket &packet)
 {
+    assert(packet.packetType != PacketType::Reserved);
+
     const size_t packetSize = packet.getSizeIncludingNonPresentHeader();
 
     // "Where a Packet is too large to send, the Server MUST discard it without sending it and then behave as if it had completed

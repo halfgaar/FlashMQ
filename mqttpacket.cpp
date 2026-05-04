@@ -204,6 +204,7 @@ MqttPacket::MqttPacket(const PubResponse &pubAck) :
     bites(pubAck.getLengthIncludingFixedHeader())
 {
     this->protocolVersion = pubAck.protocol_version;
+    this->packetType = pubAck.packet_type;
 
     fixed_header_length = 2;
     const uint8_t firstByteDefaultBits = pubAck.packet_type == PacketType::PUBREL ? 0b0010 : 0;
