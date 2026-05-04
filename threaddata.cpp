@@ -172,7 +172,7 @@ void ThreadData::queueSendSubAckInOriginatingClient(const std::shared_ptr<Client
 {
     auto f = [client, originatingPacketId]()
     {
-        client->sendStagedSuback(originatingPacketId);
+        client->decrementStagedSubAckAndSend(originatingPacketId, false);
     };
 
     addImmediateTask(f);
@@ -1029,7 +1029,7 @@ void ThreadData::queueTimeoutTrackedSubscriptionStagedSubacksTimeouts()
 
             auto cur = i++;
 
-            if (*(cur->second.sent))
+            if (cur->second.sent())
             {
                 priv->queuedSubackTimeouts.erase(cur);
                 continue;
@@ -1042,7 +1042,7 @@ void ThreadData::queueTimeoutTrackedSubscriptionStagedSubacksTimeouts()
             if (!client)
                 continue;
 
-            client->sendStagedSuback(packid);
+            client->decrementStagedSubAckAndSend(packid, true);
         }
     };
 

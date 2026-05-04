@@ -501,15 +501,19 @@ DeferredRetainedSending::DeferredRetainedSending(const std::vector<std::string> 
 
 }
 
-SubAckAction::SubAckAction(std::vector<DeferredRetainedSending> &&retainedSending, std::list<ReasonCodes> &&responseCodes, const uint16_t packetId) :
+SubAckAction::SubAckAction(
+        std::vector<DeferredRetainedSending> &&retainedSending, std::list<ReasonCodes> &&responseCodes,
+        const SubAckReleaseTrigger &subAckReleaseTrigger, const uint16_t packetId, const size_t expandedCount) :
     mRetainedSending(std::move(retainedSending)),
     mResponseCodes(std::move(responseCodes)),
-    mPacketId(packetId)
+    mSubAckReleaseTrigger(subAckReleaseTrigger),
+    mPacketId(packetId),
+    mAckCountDown(expandedCount)
 {
 
 }
 
-SubAckReleaseTrigger::SubAckReleaseTrigger(const std::weak_ptr<Client> &client, const uint16_t packet_id) :
+SubAckReleaseTrigger::SubAckReleaseTrigger(const std::shared_ptr<Client> &client, const uint16_t packet_id) :
     m_client(client),
     m_staged_suback_packet_id(packet_id)
 {
