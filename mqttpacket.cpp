@@ -1857,7 +1857,8 @@ void MqttPacket::handleSubscribe(std::shared_ptr<Client> &sender)
         }
     }
 
-    sender->stageOrSendSubAck(sender, {std::move(retainedSending), std::move(subs_reponse_codes), packet_id}, aggregated_result.expanded_count, suback_release_trigger);
+    SubAckAction suback_action(std::move(retainedSending), std::move(subs_reponse_codes), suback_release_trigger, packet_id, aggregated_result.expanded_count);
+    sender->stageOrSendSubAck(sender, std::move(suback_action));
 
     if (aggregated_result.affected_threads_lazy_subs)
     {

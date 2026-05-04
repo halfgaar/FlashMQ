@@ -699,13 +699,11 @@ void Client::clearRegistrationData()
     this->registrationData.reset();
 }
 
-void Client::stageOrSendSubAck(
-    const std::shared_ptr<Client> &this_client, SubAckAction &&action, const size_t expandedCount,
-    const SubAckReleaseTrigger &suback_release_trigger)
+void Client::stageOrSendSubAck(const std::shared_ptr<Client> &this_client, SubAckAction &&action)
 {
     assert(this == this_client.get());
 
-    if (expandedCount == 0)
+    if (action.mAckCountDown == 0)
     {
         sendSubAck(action);
         return;
@@ -713,7 +711,7 @@ void Client::stageOrSendSubAck(
 
     const uint16_t packid = action.mPacketId;
 
-    ThreadGlobals::getThreadData()->queueSubackReleaseTimeout(suback_release_trigger);
+    ThreadGlobals::getThreadData()->queueSubackReleaseTimeout(action.mSubAckReleaseTrigger);
 
     auto result = stagedSubAcks.insert({packid, std::move(action)});
     if (!std::get<bool>(result))
@@ -726,7 +724,7 @@ void Client::stageOrSendSubAck(
     }
 }
 
-void Client::sendStagedSuback(const uint16_t packetId)
+void Client::decrementStagedSubAckAndSend(const uint16_t packetId, bool force)
 {
     assert(this->threadData.lock()->thread_id == pthread_self());
 
@@ -735,9 +733,12 @@ void Client::sendStagedSuback(const uint16_t packetId)
     if (pos == stagedSubAcks.end())
         return;
 
-    const SubAckAction x(std::move(pos->second));
-    stagedSubAcks.erase(pos);
-    sendSubAck(x);
+    if (--pos->second.mAckCountDown == 0 || force)
+    {
+        const SubAckAction x(std::move(pos->second));
+        stagedSubAcks.erase(pos);
+        sendSubAck(x);
+    }
 }
 
 /**
@@ -988,6 +989,8 @@ void Client::sendSubAck(const SubAckAction &action)
     SubAck subAck(this->protocolVersion, action.mPacketId, action.mResponseCodes);
     MqttPacket response(subAck);
     writeMqttPacket(response);
+
+    action.mSubAckReleaseTrigger.mark_sent();
 
     auto session = getSession();
 

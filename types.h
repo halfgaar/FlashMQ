@@ -399,24 +399,46 @@ struct DeferredRetainedSending
     DeferredRetainedSending(const std::vector<std::string> &subtopics, const uint8_t qos, const uint32_t subscriptionIdentifier);
 };
 
+class SubAckReleaseTrigger
+{
+    std::shared_ptr<bool> m_sent = std::make_shared<bool>(false);
+
+public:
+    const std::weak_ptr<Client> m_client;
+    const uint16_t m_staged_suback_packet_id {};
+
+    SubAckReleaseTrigger() = delete;
+    SubAckReleaseTrigger(const SubAckReleaseTrigger&) = default;
+    SubAckReleaseTrigger(const std::shared_ptr<Client> &client, const uint16_t packet_id);
+
+    bool sent() const
+    {
+        if (!m_sent)
+            return true;
+
+        return *m_sent;
+    }
+
+    void mark_sent() const
+    {
+        if (!m_sent)
+            return;
+
+        *m_sent = true;
+    }
+};
+
 struct SubAckAction
 {
     const std::vector<DeferredRetainedSending> mRetainedSending;
     const std::list<ReasonCodes> mResponseCodes;
+    SubAckReleaseTrigger mSubAckReleaseTrigger;
     const uint16_t mPacketId {};
+    size_t mAckCountDown;
 
-    SubAckAction(std::vector<DeferredRetainedSending> &&retainedSending, std::list<ReasonCodes> &&responseCodes, const uint16_t packetId);
-};
-
-struct SubAckReleaseTrigger
-{
-    const std::weak_ptr<Client> m_client;
-    const uint16_t m_staged_suback_packet_id {};
-    std::shared_ptr<bool> sent = std::make_shared<bool>(false);
-
-    SubAckReleaseTrigger() = delete;
-    SubAckReleaseTrigger(const SubAckReleaseTrigger&) = default;
-    SubAckReleaseTrigger(const std::weak_ptr<Client> &client, const uint16_t packet_id);
+    SubAckAction(
+        std::vector<DeferredRetainedSending> &&retainedSending, std::list<ReasonCodes> &&responseCodes,
+        const SubAckReleaseTrigger &subAckReleaseTrigger, const uint16_t packetId, const size_t expandedCount);
 };
 
 struct AddSubscriptionResult

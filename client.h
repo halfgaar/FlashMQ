@@ -257,10 +257,8 @@ public:
     const std::unique_ptr<StowedClientRegistrationData> &getRegistrationData() const;
     void clearRegistrationData();
 
-    void stageOrSendSubAck(
-        const std::shared_ptr<Client> &this_client, SubAckAction &&action, const size_t expandedCount,
-        const SubAckReleaseTrigger &suback_release_trigger);
-    void sendStagedSuback(const uint16_t packetId);
+    void stageOrSendSubAck(const std::shared_ptr<Client> &this_client, SubAckAction &&action);
+    void decrementStagedSubAckAndSend(const uint16_t packetId, bool force);
     void stageConnack(std::unique_ptr<ConnAck> &&c);
     void sendConnackSuccess();
     void sendConnackDeny(ReasonCodes reason);
