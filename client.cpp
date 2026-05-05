@@ -49,6 +49,41 @@ Client::WriteBuf::WriteBuf(size_t size) :
 
 }
 
+void Client::WriteBuf::checkPressure(const size_t limit, Client *client)
+{
+    if (buf.getCapacity() > std::min<size_t>(limit * 100, 1073741824))
+    {
+        if (!pressuredAt)
+        {
+            Logger::getInstance()->log(LOG_WARNING)
+                << "Client " << client->repr() << " write buffer size of " << buf.getCapacity()
+                << " is more than 100 times allowed buffer size of " << limit << ". If this persists, client will be disconnected.";
+            pressuredAt = std::chrono::steady_clock::now();
+        }
+        else if (pressuredAt.value() + std::chrono::minutes(3) < std::chrono::steady_clock::now())
+        {
+            const std::string err("Client exceeding 100 times max buf size of " + std::to_string(limit) + " for more than 3 minutes.");
+            throw BadClientException(err);
+        }
+    }
+    else
+    {
+        pressuredAt.reset();
+    }
+}
+
+void Client::WriteBuf::forceResetUnderPressureWhenEmpty()
+{
+    if (!pressuredAt)
+        return;
+
+    if (buf.usedBytes() > 0)
+        return;
+
+    buf.resetCapacity(ThreadGlobals::getSettings()->clientInitialBufferSize);
+    pressuredAt.reset();
+}
+
 /**
  * @brief Client::Client
  * @param fd
@@ -356,12 +391,14 @@ PacketDropReason Client::writeMqttPacket(const MqttPacket &packet)
     // Grow as far as we can. We have to make room for one MQTT packet.
     write_buf_locked->buf.ensureFreeSpace(packetSize, growBufMaxTo);
 
-    // And drop a publish when it doesn't fit, even after resizing. This means we do allow pings. And
+    // And drop a publish when it doesn't fit, even after resizing. This means we do allow pings and acks. And
     // QoS packet are queued and limited elsewhere.
     if (packet.packetType == PacketType::PUBLISH && packet.getQos() == 0 && packetSize > write_buf_locked->buf.freeSpace())
     {
         return PacketDropReason::BufferFull;
     }
+
+    write_buf_locked->checkPressure(maxBufSize, this);
 
     packet.readIntoBuf(write_buf_locked->buf);
 
@@ -516,6 +553,8 @@ void Client::writeBufIntoFd()
         if (error == IoWrapResult::Wouldblock)
             break;
     }
+
+    write_buf_locked->forceResetUnderPressureWhenEmpty();
 
     const bool data_pending = write_buf_locked->buf.usedBytes() > 0 || ioWrapper.hasPendingWrite() || error == IoWrapResult::Wouldblock;
 

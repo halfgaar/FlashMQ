@@ -80,8 +80,12 @@ class Client
     {
         CirBuf buf;
         bool readyForWriting = false;
+        std::optional<std::chrono::time_point<std::chrono::steady_clock>> pressuredAt;
 
         WriteBuf(size_t size);
+
+        void checkPressure(const size_t limit, Client *client);
+        void forceResetUnderPressureWhenEmpty();
     };
 
     friend class IoWrapper;
