@@ -532,6 +532,15 @@ void SubscriptionStore::publishNonRecursively(
             targetSessions.pop_back();
             continue;
         }
+
+        // We will soon support explicitely configuring the 'routing_group_id' (user-facing name for it), so
+        // check on non-shared subscriptions too.
+        const std::optional<std::string> &session_group_id = targetSessions.back().session->getFmqClientGroupId();
+        if (session_group_id && session_group_id == fmq_client_group_id)
+        {
+            targetSessions.pop_back();
+            continue;
+        }
     }
 
     if (this_node->sharedSubscribers.empty())
