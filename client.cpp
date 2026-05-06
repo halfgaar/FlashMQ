@@ -43,8 +43,9 @@ AsyncAuthResult::AsyncAuthResult(AuthResult result, const std::string authMethod
 
 }
 
-Client::WriteBuf::WriteBuf(size_t size) :
-    buf(size)
+Client::WriteBuf::WriteBuf(size_t size, uint32_t maxOutgoingPacketSize) :
+    buf(size),
+    maxOutgoingPacketSize(maxOutgoingPacketSize)
 {
 
 }
@@ -100,14 +101,13 @@ Client::Client(
         HaProxyMode haProxyMode, const struct sockaddr *addr, const Settings &settings, bool fuzzMode) :
     fd(fd),
     fuzzMode(fuzzMode),
-    maxOutgoingPacketSize(settings.maxPacketSize),
     maxIncomingPacketSize(settings.maxPacketSize),
     maxQos(settings.maxQos),
     mqtt3QoSExceedAction(settings.mqtt3QoSExceedAction),
     maxIncomingTopicAliasValue(settings.maxIncomingTopicAliasValue), // Retaining snapshot of current setting, to not confuse clients when the setting changes.
     ioWrapper(std::move(ssl), connectionProtocol, settings.clientInitialBufferSize, this),
     readbuf(settings.clientInitialBufferSize),
-    writebuf(settings.clientInitialBufferSize),
+    writebuf(settings.clientInitialBufferSize, settings.maxPacketSize),
     clientType(type),
     mHaProxyMode(haProxyMode),
     threadData(threadData),
@@ -275,7 +275,10 @@ void Client::connectToBridgeTarget(FMQSockaddr addr)
 
 void Client::setMaxBufSizeOverride(uint32_t val)
 {
-    this->maxBufSizeOverride = val;
+    this->maxReadBufSizeOverride = val;
+
+    auto locked = writebuf.lock();
+    locked->maxBufSizeOverride = val;
 }
 
 void Client::startOrContinueSslHandshake()
@@ -327,7 +330,7 @@ DisconnectStage Client::readFdIntoBuffer()
         {
             const Settings *settings = ThreadGlobals::getSettings();
             // I guess I should have just made a 'max buffer size' option, and not distinguish between read/write?
-            const uint32_t maxBufSize = this->maxBufSizeOverride.value_or(settings->clientMaxWriteBufferSize);
+            const uint32_t maxBufSize = this->maxReadBufSizeOverride.value_or(settings->clientMaxWriteBufferSize);
             const uint32_t maxBufOrBigPacketSize= std::max<uint32_t>(this->maxIncomingPacketSize, maxBufSize);
 
             // We always grow for another iteration when there are still decoded websocket/SSL bytes, because epoll doesn't tell us that buffer has data.
@@ -369,24 +372,25 @@ void Client::writePing()
 
 PacketDropReason Client::writeMqttPacket(const MqttPacket &packet)
 {
+    // Warning: this method is called from all threads.
+
     assert(packet.packetType != PacketType::Reserved);
 
+    const Settings *settings = ThreadGlobals::getSettings();
     const size_t packetSize = packet.getSizeIncludingNonPresentHeader();
+
+    auto write_buf_locked = writebuf.lock();
 
     // "Where a Packet is too large to send, the Server MUST discard it without sending it and then behave as if it had completed
     // sending that Application Message [MQTT-3.1.2-25]."
-    if (packetSize > this->maxOutgoingPacketSize)
+    if (packetSize > write_buf_locked->maxOutgoingPacketSize)
     {
         return PacketDropReason::BiggerThanPacketLimit;
     }
 
-    const Settings *settings = ThreadGlobals::getSettings();
-
     // After introducing the client_max_write_buffer_size with low default, this makes it somewhat backwards compatible with the default big packet size.
-    const uint32_t maxBufSize = this->maxBufSizeOverride.value_or(settings->clientMaxWriteBufferSize);
+    const uint32_t maxBufSize = write_buf_locked->maxBufSizeOverride.value_or(settings->clientMaxWriteBufferSize);
     const uint32_t growBufMaxTo = std::max<uint32_t>(maxBufSize, packetSize * 2);
-
-    auto write_buf_locked = writebuf.lock();
 
     // Grow as far as we can. We have to make room for one MQTT packet.
     write_buf_locked->buf.ensureFreeSpace(packetSize, growBufMaxTo);
@@ -1049,8 +1053,12 @@ void Client::setClientProperties(
     this->username = username;
     this->connectPacketSeen = connectPacketSeen;
     this->keepalive = keepalive;
-    this->maxOutgoingPacketSize = maxOutgoingPacketSize;
     this->maxOutgoingTopicAliasValue = maxOutgoingTopicAliasValue;
+
+    {
+        auto write_buf_locked = writebuf.lock();
+        write_buf_locked->maxOutgoingPacketSize = maxOutgoingPacketSize;
+    }
 }
 
 void Client::setClientProperties(bool connectPacketSeen, uint16_t keepalive, uint32_t maxOutgoingPacketSize, uint16_t maxOutgoingTopicAliasValue, bool supportsRetained)
@@ -1063,9 +1071,13 @@ void Client::setClientProperties(bool connectPacketSeen, uint16_t keepalive, uin
 
     this->connectPacketSeen = connectPacketSeen;
     this->keepalive = keepalive;
-    this->maxOutgoingPacketSize = maxOutgoingPacketSize;
     this->maxOutgoingTopicAliasValue = maxOutgoingTopicAliasValue;
     this->supportsRetained = supportsRetained;
+
+    {
+        auto write_buf_locked = writebuf.lock();
+        write_buf_locked->maxOutgoingPacketSize = maxOutgoingPacketSize;
+    }
 }
 
 void Client::stageWill(WillPublish &&willPublish)

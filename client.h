@@ -82,7 +82,10 @@ class Client
         bool readyForWriting = false;
         std::optional<std::chrono::time_point<std::chrono::steady_clock>> pressuredAt;
 
-        WriteBuf(size_t size);
+        uint32_t maxOutgoingPacketSize {};
+        std::optional<uint32_t> maxBufSizeOverride;
+
+        WriteBuf(size_t size, uint32_t maxOutgoingPacketSize);
 
         void checkPressure(const size_t limit, Client *client);
         void forceResetUnderPressureWhenEmpty();
@@ -95,9 +98,9 @@ class Client
 
     ProtocolVersion protocolVersion = ProtocolVersion::None;
 
-    uint32_t maxOutgoingPacketSize;
     const uint32_t maxIncomingPacketSize;
-    std::optional<uint32_t> maxBufSizeOverride;
+    std::optional<uint32_t> maxReadBufSizeOverride;
+
     uint8_t maxQos = 2;
     Mqtt3QoSExceedAction mqtt3QoSExceedAction = Mqtt3QoSExceedAction::Disconnect;
 
