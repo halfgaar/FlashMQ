@@ -162,7 +162,7 @@ public:
     void removeBridgeQueued(const BridgeConfig &bridgeConfig, const std::string &reason);
     std::shared_ptr<Client> getClient(int fd);
     void removeClientQueued(const std::shared_ptr<Client> &client);
-    void removeClientQueued(int fd);
+    void removeClientQueued(int fd, const Client *client);
     void removeClient(std::shared_ptr<Client> client);
     void serverInitiatedDisconnect(std::shared_ptr<Client> &&client, ReasonCodes reason, const std::string &reason_text);
     void serverInitiatedDisconnect(const std::shared_ptr<Client> &client, ReasonCodes reason, const std::string &reason_text);

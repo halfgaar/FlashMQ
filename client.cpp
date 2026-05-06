@@ -498,7 +498,7 @@ PacketDropReason Client::writeMqttPacketAndBlameThisClient(const MqttPacket &pac
     {
         std::shared_ptr<ThreadData> td = this->threadData.lock();
         if (td)
-            td->removeClientQueued(fd.get());
+            td->removeClientQueued(fd.get(), this);
 
         return PacketDropReason::ClientError;
     }
