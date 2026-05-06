@@ -953,9 +953,9 @@ void ThreadData::removeClientQueued(const std::shared_ptr<Client> &client)
     }
 }
 
-void ThreadData::removeClientQueued(int fd, const Client *client)
+void ThreadData::removeClientQueued(int fd, const Client *client, const std::string &reason)
 {
-    auto f = [this, fd, client] {
+    auto f = [this, fd, client, reason] {
         bool wakeUpNeeded = true;
         std::shared_ptr<Client> clientFound;
 
@@ -968,6 +968,9 @@ void ThreadData::removeClientQueued(int fd, const Client *client)
         // Raw client pointer only for checking; don't dereference.
         if (!clientFound || clientFound.get() != client)
             return;
+
+        if (!reason.empty())
+            clientFound->setDisconnectReason(reason);
 
         wakeUpNeeded = clientsQueuedForRemoving.empty();
         clientsQueuedForRemoving.push_front(std::move(clientFound));
