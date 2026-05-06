@@ -25,7 +25,7 @@ See LICENSE for license details.
 #include <random>
 #include <atomic>
 
-#include "client.h"
+#include "forward_declarations.h"
 #include "plugin.h"
 #include "logger.h"
 #include "derivablecounter.h"
@@ -38,6 +38,8 @@ See LICENSE for license details.
 #include "clientacceptqueue.h"
 
 class MainApp;
+
+void logStringStreamQueuedHelper(std::ostringstream &oss, Client *client);
 
 struct KeepAliveCheck
 {
@@ -212,6 +214,38 @@ public:
 
     void addImmediateTask(std::function<void()> f);
     void performAllImmediateTasks();
+
+    template<typename... Args>
+    void logStringQueued(int fd, const Client *client, int level, Args... args)
+    {
+        auto f = [this, fd, client, level, args...] {
+            std::shared_ptr<Client> clientFound;
+
+            auto client_it = clients.by_fd.find(fd);
+            if (client_it != clients.by_fd.end())
+                clientFound = client_it->second;
+
+            // Raw client pointer only for checking; don't dereference.
+            if (!clientFound || clientFound.get() != client)
+                return;
+
+            std::ostringstream oss;
+
+            auto handle = [&](auto arg)
+            {
+                if constexpr (std::is_placeholder_v<decltype(arg)> > 0)
+                    logStringStreamQueuedHelper(oss, clientFound.get());
+                else
+                    oss << arg;
+            };
+
+            (handle(args), ...);
+
+            Logger::getInstance()->log(level) << oss.str();
+        };
+
+        addImmediateTask(f);
+    }
 };
 
 

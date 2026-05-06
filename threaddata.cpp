@@ -19,6 +19,11 @@ See LICENSE for license details.
 #include "utils.h"
 #include "threadloop.h"
 
+void logStringStreamQueuedHelper(std::ostringstream &oss, Client *client)
+{
+    oss << client->repr();
+}
+
 KeepAliveCheck::KeepAliveCheck(const std::shared_ptr<Client> client) :
     client(client)
 {

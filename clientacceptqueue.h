@@ -5,9 +5,9 @@
 
 #include <vector>
 
+#include "forward_declarations.h"
 #include "mutexowned.h"
 #include "fdmanaged.h"
-#include "client.h"
 
 struct ClientAcceptQueue
 {

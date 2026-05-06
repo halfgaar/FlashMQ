@@ -21,6 +21,7 @@ class Session;
 class Settings;
 class Mqtt5PropertyBuilder;
 class SessionsAndSubscriptionsDB;
+class BridgeState;
 
 
 #endif // FORWARD_DECLARATIONS_H

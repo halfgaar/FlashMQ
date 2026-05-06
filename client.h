@@ -33,6 +33,7 @@ See LICENSE for license details.
 #include "fdmanaged.h"
 #include "mutexowned.h"
 #include "fmqssl.h"
+#include "threaddata.h"
 
 #include "publishcopyfactory.h"
 
@@ -310,7 +311,16 @@ public:
     uint8_t getMaxQos() const { return this->maxQos; }
     void setMaxQos(uint8_t qos) { this->maxQos = qos; }
 
+    template<typename... Args>
+    void logFormatStringQueued(int level, Args... args)
+    {
+        auto td = this->threadData.lock();
 
+        if (!td)
+            return;
+
+        td->logStringQueued(fd.get(), this, level, args...);
+    }
 };
 
 #endif // CLIENT_H

@@ -56,9 +56,9 @@ void Client::WriteBuf::checkPressure(const size_t limit, Client *client)
     {
         if (!pressuredAt)
         {
-            Logger::getInstance()->log(LOG_WARNING)
-                << "Client " << client->repr() << " write buffer size of " << buf.getCapacity()
-                << " is more than 100 times allowed buffer size of " << limit << ". If this persists, client will be disconnected.";
+            client->logFormatStringQueued(LOG_WARNING,
+                "Client '", std::placeholders::_1, "' write buffer size of ", buf.getCapacity(), " is more than 100 times allowed buffer size of ",
+                limit, ". If this persists, client will be disconnected.");
             pressuredAt = std::chrono::steady_clock::now();
         }
         else if (pressuredAt.value() + std::chrono::minutes(3) < std::chrono::steady_clock::now())
