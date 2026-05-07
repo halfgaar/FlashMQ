@@ -50,6 +50,12 @@ Client::WriteBuf::WriteBuf(size_t size, uint32_t maxOutgoingPacketSize) :
 
 }
 
+void Client::WriteBuf::checkPressure(Client *client)
+{
+    const size_t limit = getMaxBufSize();
+    checkPressure(limit, client);
+}
+
 void Client::WriteBuf::checkPressure(const size_t limit, Client *client)
 {
     if (buf.getCapacity() > std::min<size_t>(limit * 100, 1073741824))
@@ -83,6 +89,12 @@ void Client::WriteBuf::forceResetUnderPressureWhenEmpty()
 
     buf.resetCapacity(ThreadGlobals::getSettings()->clientInitialBufferSize);
     pressuredAt.reset();
+}
+
+uint32_t Client::WriteBuf::getMaxBufSize() const
+{
+    const Settings *settings = ThreadGlobals::getSettings();
+    return maxBufSizeOverride.value_or(settings->clientMaxWriteBufferSize);
 }
 
 /**
@@ -359,6 +371,7 @@ void Client::writeText(const std::string &text)
     assert(ioWrapper.getWebsocketState() == WebsocketState::NotUpgraded);
 
     auto write_buf_locked = writebuf.lock();
+    write_buf_locked->checkPressure(this);
     write_buf_locked->buf.writerange(text.begin(), text.end());
     setReadyForWriting(true, write_buf_locked);
 }
@@ -366,6 +379,7 @@ void Client::writeText(const std::string &text)
 void Client::writePing()
 {
     auto write_buf_locked = writebuf.lock();
+    write_buf_locked->checkPressure(this);
     write_buf_locked->buf.write(0b11000000, 0);
     setReadyForWriting(true, write_buf_locked);
 }
@@ -376,7 +390,6 @@ PacketDropReason Client::writeMqttPacket(const MqttPacket &packet)
 
     assert(packet.packetType != PacketType::Reserved);
 
-    const Settings *settings = ThreadGlobals::getSettings();
     const size_t packetSize = packet.getSizeIncludingNonPresentHeader();
 
     auto write_buf_locked = writebuf.lock();
@@ -389,7 +402,7 @@ PacketDropReason Client::writeMqttPacket(const MqttPacket &packet)
     }
 
     // After introducing the client_max_write_buffer_size with low default, this makes it somewhat backwards compatible with the default big packet size.
-    const uint32_t maxBufSize = write_buf_locked->maxBufSizeOverride.value_or(settings->clientMaxWriteBufferSize);
+    const uint32_t maxBufSize { write_buf_locked->getMaxBufSize() };
     const uint32_t growBufMaxTo = std::max<uint32_t>(maxBufSize, packetSize * 2);
 
     // Grow as far as we can. We have to make room for one MQTT packet.
@@ -511,6 +524,7 @@ PacketDropReason Client::writeMqttPacketAndBlameThisClient(const MqttPacket &pac
 void Client::writePingResp()
 {
     auto write_buf_locked = writebuf.lock();
+    write_buf_locked->checkPressure(this);
     write_buf_locked->buf.write(0b11010000, 0);
     setReadyForWriting(true, write_buf_locked);
 }

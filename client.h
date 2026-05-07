@@ -89,7 +89,9 @@ class Client
         WriteBuf(size_t size, uint32_t maxOutgoingPacketSize);
 
         void checkPressure(const size_t limit, Client *client);
+        void checkPressure(Client *client);
         void forceResetUnderPressureWhenEmpty();
+        uint32_t getMaxBufSize() const;
     };
 
     friend class IoWrapper;
