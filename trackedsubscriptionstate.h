@@ -66,6 +66,12 @@ public:
     void removeMatchingInFlightTrackedUnsubscriptions(uint16_t id);
     bool hasOutdatedInFlightTrackedSubscriptions() const;
     bool hasOutdatedInFlightTrackedUnsubscriptions() const;
+
+    size_t trackedSubscriptionCount() const { return trackedSubscriptions->size(); }
+    size_t trackedSubscriptionMutationCount();
+
+    size_t getResendCount() const { return this->resendCount; }
+    size_t getResendTotal() const { return this->resendTotal; }
 };
 
 #endif // TRACKEDSUBSCRIPTIONSTATE_H

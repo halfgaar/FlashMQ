@@ -245,6 +245,12 @@ void TrackedSubscriptionState::processTrackedSubscriptionMutations(
                 << "Resending tracked lazy subscriptions after connection loss: "
                 << resendCount << " of " << resendTotal << ". Packet ID = " << pack_id.value();
 
+        if (curPosResending == trackedSubscriptions->end())
+        {
+            resendCount = 0;
+            resendTotal = 0;
+        }
+
         // We must have done something, or returned (like when QoS quota done). Otherwise the requeing of the action
         // for the next batch stalls, because SUBACKS do that.
         assert(!subscribes.empty());
@@ -597,5 +603,11 @@ bool TrackedSubscriptionState::hasOutdatedInFlightTrackedSubscriptions() const
 bool TrackedSubscriptionState::hasOutdatedInFlightTrackedUnsubscriptions() const
 {
     return this->inFlightTrackedUnsubscriptions && this->inFlightTrackedUnsubscriptions.value().outdated();
+}
+
+size_t TrackedSubscriptionState::trackedSubscriptionMutationCount()
+{
+    auto locked = trackedSubscriptionMutations.lock();
+    return locked->size();
 }
 

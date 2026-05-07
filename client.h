@@ -177,6 +177,7 @@ class Client
     void sendSubAck(const SubAckAction &action);
 
 public:
+    DerivableAtomicCounter droppedPacketsBufferFull;
     uint8_t preAuthPacketCounter = 0;
 
     Client(

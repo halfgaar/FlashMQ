@@ -412,6 +412,7 @@ PacketDropReason Client::writeMqttPacket(const MqttPacket &packet)
     // QoS packet are queued and limited elsewhere.
     if (packet.packetType == PacketType::PUBLISH && packet.getQos() == 0 && packetSize > write_buf_locked->buf.freeSpace())
     {
+        droppedPacketsBufferFull.inc();
         return PacketDropReason::BufferFull;
     }
 
