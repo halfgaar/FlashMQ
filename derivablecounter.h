@@ -13,6 +13,7 @@ See LICENSE for license details.
 
 #include <chrono>
 #include <mutex>
+#include <atomic>
 
 /**
  * @brief The DerivableCounter is a counter which can derive val/dt.
@@ -29,6 +30,19 @@ class DerivableCounter
 public:
 
     void inc(uint64_t n = 1);
+    uint64_t get() const;
+    double getPerSecond();
+};
+
+class DerivableAtomicCounter
+{
+    std::atomic<uint64_t> val = 0;
+    std::atomic<uint64_t> valPrevious = 0;
+    std::chrono::time_point<std::chrono::steady_clock> timeOfPrevious = std::chrono::steady_clock::now();
+    std::mutex timeMutex;
+
+public:
+    void inc(const uint64_t n = 1);
     uint64_t get() const;
     double getPerSecond();
 };

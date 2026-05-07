@@ -263,6 +263,7 @@ public:
     void deleteClients();
     void clear();
 
+    void queuePublishLazySubscriptionStats();
     void queuePurgeStaleTrackedLazySubscriptionsAll(const PurgeTrackedSubscriptionModifier modifier);
     void queuePurgeStaleTrackedLazySubscriptions(const std::shared_ptr<BridgeState> &bridgeState, const PurgeTrackedSubscriptionModifier modifier);
     void retryProcessingTrackedSubscriptionMutationsAll(ProcessTrackedSubscriptionMutationsModifier modifier);

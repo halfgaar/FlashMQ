@@ -287,6 +287,7 @@ void MainApp::queuePublishStatsOnDollarTopic()
         for(ThreadDataOwner &t : threads)
         {
             thread_datas.push_back(t.getThreadData());
+            t.getThreadData()->queuePublishLazySubscriptionStats();
         }
 
         threads.at(0).callIfThread(&ThreadData::queuePublishStatsOnDollarTopic, thread_datas);

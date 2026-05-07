@@ -233,6 +233,88 @@ void ThreadData::queueSubackReleaseTimeout(const SubAckReleaseTrigger &t)
     priv->queuedSubackTimeouts.emplace(std::chrono::time_point_cast<std::chrono::seconds>(timeout), t);
 }
 
+void ThreadData::queuePublishLazySubscriptionStats()
+{
+    auto f = [this](){
+        for (auto &pair : this->clients.bridges)
+        {
+            if (!pair.second)
+                continue;
+
+            CheckedUniquePtr<TrackedSubscriptionState> &tracked_subs = pair.second->getTrackedSubscriptions();
+
+            if (!tracked_subs)
+                continue;
+
+            uint64_t dropped_count {};
+            int64_t dropped_per_second {};
+
+            {
+                std::shared_ptr<Session> session = pair.second->session->lock();
+
+                if (session)
+                {
+                    std::shared_ptr<Client> client = session->makeSharedClient();
+
+                    if (client)
+                    {
+                        dropped_count = { client->droppedPacketsBufferFull.get() };
+                        dropped_per_second = { static_cast<int64_t>(client->droppedPacketsBufferFull.getPerSecond()) };
+                    }
+                }
+            }
+
+            {
+                std::string topic("$SYS/broker/bridge/");
+                topic.append(pair.second->c.clientidPrefix);
+                topic.append("/dropped_packets/buffer_full/count");
+                globals->stats.setExtra(topic, std::to_string(dropped_count));
+            }
+
+            {
+                std::string topic("$SYS/broker/bridge/");
+                topic.append(pair.second->c.clientidPrefix);
+                topic.append("/dropped_packets/buffer_full/per_second");
+                globals->stats.setExtra(topic, std::to_string(dropped_per_second));
+            }
+
+            {
+                std::string topic("$SYS/broker/bridge/");
+                topic.append(pair.second->c.clientidPrefix);
+                topic.append("/lazy_subscriptions/tracked/count");
+
+                globals->stats.setExtra(topic, std::to_string(tracked_subs->trackedSubscriptionCount()));
+            }
+
+            {
+                std::string topic("$SYS/broker/bridge/");
+                topic.append(pair.second->c.clientidPrefix);
+                topic.append("/lazy_subscriptions/tracked/resend_total");
+
+                globals->stats.setExtra(topic, std::to_string(tracked_subs->getResendTotal()));
+            }
+
+            {
+                std::string topic("$SYS/broker/bridge/");
+                topic.append(pair.second->c.clientidPrefix);
+                topic.append("/lazy_subscriptions/tracked/resend_current");
+
+                globals->stats.setExtra(topic, std::to_string(tracked_subs->getResendCount()));
+            }
+
+            {
+                std::string topic("$SYS/broker/bridge/");
+                topic.append(pair.second->c.clientidPrefix);
+                topic.append("/lazy_subscriptions/mutations/pending_count");
+
+                globals->stats.setExtra(topic, std::to_string(tracked_subs->trackedSubscriptionMutationCount()));
+            }
+        }
+    };
+
+    this->addImmediateTask(f);
+}
+
 void ThreadData::queuePurgeStaleTrackedLazySubscriptionsAll(const PurgeTrackedSubscriptionModifier modifier)
 {
     auto f = [this, modifier](){
