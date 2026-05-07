@@ -39,3 +39,26 @@ double DerivableCounter::getPerSecond()
     valPrevious = val;
     return result;
 }
+
+void DerivableAtomicCounter::inc(const uint64_t n)
+{
+    this->val.fetch_add(n, std::memory_order_relaxed);
+}
+
+uint64_t DerivableAtomicCounter::get() const
+{
+    return this->val;
+}
+
+double DerivableAtomicCounter::getPerSecond()
+{
+    std::lock_guard<std::mutex> locker(timeMutex);
+
+    std::chrono::time_point<std::chrono::steady_clock> now = std::chrono::steady_clock::now();
+    std::chrono::milliseconds msSinceLastTime = std::chrono::duration_cast<std::chrono::milliseconds>(now - timeOfPrevious);
+    const uint64_t messagesTimes1000 = (val - valPrevious) * 1000;
+    double result = messagesTimes1000 / static_cast<double>(msSinceLastTime.count() + 1); // branchless avoidance of div by 0;
+    timeOfPrevious = now;
+    valPrevious.store(val);
+    return result;
+}
