@@ -187,6 +187,7 @@ MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, const Publish &_pu
     this->publishData.client_id = _publish.client_id;
     this->publishData.username = _publish.username;
     this->publishData.skipTopic = _skip_topic;
+    this->publishData.fmqNoRelay = _publish.fmqNoRelay;
     this->publishData.qos = _qos;
     this->publishData.retain = _publish.retain;
     this->publishData.topicAlias = _topic_alias;
@@ -1916,7 +1917,12 @@ void MqttPacket::handleSubscribe(std::shared_ptr<Client> &sender)
                 add_result.affected_threads_lazy_subs->begin(), add_result.affected_threads_lazy_subs->end());
         }
 
-        if (tup.authResult == AuthResult::success && tup.shareName.empty())
+        /*
+         * Normally shared subscriptions don't trigger retained sending, because it would/could mean another
+         * client on the same share receives the publish from a subscription. In case of FlashMQ groups,
+         * this is OK.
+         */
+        if (tup.authResult == AuthResult::success && (tup.shareName.empty() || session->getFmqClientGroupId() ))
         {
             if ((tup.retainHandling == RetainHandling::SendRetainedMessagesAtSubscribe) ||
                 (tup.retainHandling == RetainHandling::SendRetainedMessagesAtNewSubscribeOnly && add_result.type == AddSubscriptionType::NewSubscription) )
@@ -2250,6 +2256,14 @@ void MqttPacket::parsePublishData(std::shared_ptr<Client> &sender)
     if (publishData.topic.empty())
         throw ProtocolError("Empty publish topic", ReasonCodes::ProtocolError);
 
+    if (publishData.userProperties && publishData.userProperties->size() > 0)
+    {
+        if (publishData.userProperties->operator[](0).first == std::string_view(FMQ_NO_RELAY))
+        {
+            publishData.fmqNoRelay = true;
+        }
+    }
+
     payloadLen = remainingAfterPos();
     payloadStart = pos;
 
@@ -2378,7 +2392,7 @@ void MqttPacket::handlePublish(std::shared_ptr<Client> &sender)
                 }
             }
 
-            if (!publishData.retain || settings->retainedMessagesMode <= RetainedMessagesMode::Downgrade)
+            if (!publishData.fmqNoRelay && (!publishData.retain || settings->retainedMessagesMode <= RetainedMessagesMode::Downgrade))
             {
                 // Set dup flag to 0, because that must not be propagated [MQTT-3.3.1-3].
                 bites[0] &= 0b11110111;

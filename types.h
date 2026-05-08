@@ -26,6 +26,7 @@ See LICENSE for license details.
 
 #define FMQ_CLIENT_GROUP_ID "fmq_client_group_id"
 #define FMQ_CLIENT_ID_PREFIX "fmq_client_id_prefix"
+#define FMQ_NO_RELAY "fmq_no_relay"
 
 enum class PacketType
 {
@@ -242,6 +243,7 @@ public:
 
     uint8_t qos = 0;
     bool retain = false; // Note: existing subscribers don't get publishes of retained messages with retain=1. [MQTT-3.3.1-9]
+    bool fmqNoRelay = false;
     uint16_t topicAlias = 0;
     bool skipTopic = false;
     bool payloadUtf8 = false;

@@ -346,8 +346,8 @@ void TrackedSubscriptionState::processTrackedSubscriptionMutations(
             /*
              * Because of the nature of the feature, multiple clients subscribing to one pattern at different QoS levels
              * use the same subscription at the other end. We have to request the retained message because it may now
-             * be with a different QoS. This will have the side effect of others getting an unexpected publish with the
-             * 'retain' flag on, but that's seemingly unavoidable.
+             * be with a different QoS. Because FlashMQ sends retain messages to each other with the custom 'no
+             * relay' feature, this will not cause a stray publish at clients.
              */
             sub.retainHandling = RetainHandling::SendRetainedMessagesAtSubscribe;
         }
