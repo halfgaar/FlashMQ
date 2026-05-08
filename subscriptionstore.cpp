@@ -724,6 +724,11 @@ void SubscriptionStore::giveClientRetainedMessagesRecursively(std::vector<std::s
             if (!rm.hasExpired()) // We can't also erase here, because we're operating under a read lock.
             {
                 Publish publish = rm.publish;
+
+                // When a bridge group gets retained messages, it's for copying them to itself only. It
+                // will then give the subscribing clients the message from its own store.
+                publish.fmqNoRelay = session->getFmqClientGroupId().has_value();
+
                 if (auth.aclCheck(publish, publish.payload) == AuthResult::success)
                 {
                     PublishCopyFactory copyFactory(&publish);

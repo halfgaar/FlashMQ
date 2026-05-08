@@ -283,6 +283,9 @@ std::optional<Mqtt5PropertyBuilder> Publish::getPropertyBuilder() const
     if (userProperties)
         non_optional(property_builder)->writeUserProperties(*userProperties);
 
+    if (fmqNoRelay)
+        non_optional(property_builder)->writeUserProperty(FMQ_NO_RELAY, "1");
+
     return property_builder;
 }
 
