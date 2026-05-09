@@ -107,6 +107,7 @@ public:
     int rlimitNoFile = 1000000;
     uint32_t expireSessionsAfterSeconds = 1209600;
     std::chrono::seconds expireRetainedMessagesAfterSeconds = std::chrono::seconds(std::numeric_limits<int32_t>::max());
+    std::chrono::seconds lazySubscriptionRelayTimeout = std::chrono::seconds(600);
     int pluginTimerPeriod = 60;
     std::string storageDir;
     int threadCount = 0;
