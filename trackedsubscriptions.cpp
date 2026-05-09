@@ -33,18 +33,28 @@ TrackedSubscription::TrackedSubscription(const std::string &pattern, const uint8
 
 void TrackedSubscription::purge()
 {
-    for (auto _ = sessions.begin(); _ != sessions.end();)
+    for (auto _ = m_sessions.begin(); _ != m_sessions.end();)
     {
         auto session_pos = _++;
 
         if (session_pos->expired())
-            sessions.erase(session_pos);
+        {
+            m_sessions.erase(session_pos);
+            this->m_updated_at = std::chrono::steady_clock::now();
+        }
     }
 }
 
-bool TrackedSubscription::empty() const
+void TrackedSubscription::add_session(const std::weak_ptr<Session> &session)
 {
-    return sessions.empty();
+    this->m_sessions.insert(session);
+    this->m_updated_at = std::chrono::steady_clock::now();
+}
+
+void TrackedSubscription::remove_session(const std::weak_ptr<Session> &session)
+{
+    this->m_sessions.erase(session);
+    this->m_updated_at = std::chrono::steady_clock::now();
 }
 
 

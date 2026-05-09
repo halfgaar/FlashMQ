@@ -246,6 +246,7 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validKeys.insert("persistence_data_to_save");
     validKeys.insert("max_string_length");
     validKeys.insert("lazy_subscription_relay_timeout");
+    validKeys.insert("orphaned_lazy_subscription_retention");
 
     validListenKeys.insert("port");
     validListenKeys.insert("protocol");
@@ -1481,6 +1482,11 @@ void ConfigFileParser::loadFile(bool test)
                 if (testKeyValidity(key, "lazy_subscription_relay_timeout", validKeys))
                 {
                     tmpSettings.lazySubscriptionRelayTimeout = std::chrono::seconds(value_to_int_ranged<uint32_t>(key, valueTrimmed, 300));
+                }
+
+                if (testKeyValidity(key, "orphaned_lazy_subscription_retention", validKeys))
+                {
+                    tmpSettings.orphanedLazySubscriptionRetention = std::chrono::seconds(value_to_int_ranged<uint32_t>(key, valueTrimmed, 300));
                 }
             }
         }
