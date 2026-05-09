@@ -269,18 +269,33 @@ void TrackedSubscriptionState::processTrackedSubscriptionMutations(
     muts.reserve(256);
 
     {
+        const Settings *settings = ThreadGlobals::getSettings();
+
         auto locked = trackedSubscriptionMutations.lock();
 
         if (locked->empty())
             return;
 
+        const auto now_at_start = std::chrono::steady_clock::now();
+
         size_t batch_entry = 0;
         size_t cur_packet_size = 0;
-        while (!locked->empty() && cur_packet_size <= packet_size_limit && ++batch_entry <= batch_size)
+        const auto limit = std::chrono::steady_clock::now() + std::chrono::milliseconds(300);
+        while (!locked->empty() && cur_packet_size <= packet_size_limit && batch_entry <= batch_size && std::chrono::steady_clock::now() < limit)
         {
-            muts.emplace_back(std::move(locked->front()));
+            TrackedSubscriptionMutation &mutation = locked->front();
+
+            if (mutation.createdAt + settings->lazySubscriptionRelayTimeout < now_at_start)
+            {
+                locked->pop_front();
+                continue;
+            }
+
+            batch_entry++;
+            cur_packet_size += 3 + mutation.pattern.size();
+
+            muts.emplace_back(std::move(mutation));
             locked->pop_front();
-            cur_packet_size += 3 + muts.back().pattern.size();
         }
     }
 
