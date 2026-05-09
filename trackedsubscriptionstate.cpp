@@ -315,7 +315,7 @@ void TrackedSubscriptionState::processTrackedSubscriptionMutations(
                 continue;
 
             TrackedSubscription &subscription = emplacementResultPos->val;
-            subscription.sessions.insert(mut.originatingSession);
+            subscription.add_session(mut.originatingSession);
 
             if (emplacement_result.second)
                 send_subscription = true;
@@ -380,7 +380,7 @@ void TrackedSubscriptionState::processTrackedSubscriptionMutations(
             if (!cur)
                 continue;
 
-            cur->val.sessions.erase(mut.originatingSession);
+            cur->val.remove_session(mut.originatingSession);
 
             /*
              * We're not removing the entry or unsubscribing here. When incoming subscriptions and unsubscriptions
@@ -481,6 +481,9 @@ void TrackedSubscriptionState::cleanupExpiredTrackedSubscriptions(
         return;
     }
 
+    const Settings *settings = ThreadGlobals::getSettings();
+    const auto now = std::chrono::steady_clock::now();
+
     std::vector<Unsubscribe> unsubs;
     std::optional<uint16_t> pack_id;
 
@@ -503,7 +506,7 @@ void TrackedSubscriptionState::cleanupExpiredTrackedSubscriptions(
 
         tracked_subscr_pos->val.purge();
 
-        if (tracked_subscr_pos->val.empty())
+        if (tracked_subscr_pos->val.empty() && tracked_subscr_pos->val.updated_at() + settings->orphanedLazySubscriptionRetention < now)
         {
             const std::string &filter = tracked_subscr_pos->key;
 

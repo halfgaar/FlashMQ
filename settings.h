@@ -108,6 +108,7 @@ public:
     uint32_t expireSessionsAfterSeconds = 1209600;
     std::chrono::seconds expireRetainedMessagesAfterSeconds = std::chrono::seconds(std::numeric_limits<int32_t>::max());
     std::chrono::seconds lazySubscriptionRelayTimeout = std::chrono::seconds(600);
+    std::chrono::seconds orphanedLazySubscriptionRetention = std::chrono::seconds(3600);
     int pluginTimerPeriod = 60;
     std::string storageDir;
     int threadCount = 0;

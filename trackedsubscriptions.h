@@ -30,18 +30,25 @@ struct TrackedSubscriptionMutation
         const std::shared_ptr<Session> &originatingSession, const SubAckReleaseTrigger *subAckReleaseTrigger, TrackedSubscriptionMutationTask task);
 };
 
-struct TrackedSubscription
+class TrackedSubscription
 {
-    std::string pattern;
-    uint8_t qos{};
-    std::set<std::weak_ptr<Session>, std::owner_less<std::weak_ptr<Session>>> sessions;
+    std::set<std::weak_ptr<Session>, std::owner_less<std::weak_ptr<Session>>> m_sessions;
+    std::chrono::time_point<std::chrono::steady_clock> m_updated_at = std::chrono::steady_clock::now();
+
+public:
+    const std::string pattern;
+    const uint8_t qos{};
 
     TrackedSubscription() = delete;
     FMQ_DISABLE_COPY(TrackedSubscription);
     TrackedSubscription(const std::string &pattern, const uint8_t qos);
 
     void purge();
-    bool empty() const;
+    void add_session(const std::weak_ptr<Session> &session);
+    void remove_session(const std::weak_ptr<Session> &session);
+
+    bool empty() const { return m_sessions.empty(); }
+    std::chrono::time_point<std::chrono::steady_clock> updated_at() const { return m_updated_at;};
 };
 
 struct InFlightTrackedSubscription
