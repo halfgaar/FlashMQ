@@ -190,8 +190,10 @@ void TrackedSubscriptionState::processTrackedSubscriptionMutations(
         return;
     }
 
-    constexpr size_t packet_size_limit = 2048;
-    constexpr size_t batch_size = 200;
+    const Settings *settings = ThreadGlobals::getSettings();
+
+    const size_t packet_size_limit = settings->lazySubscriptionPacketMaxSize;
+    const size_t batch_size = settings->lazySubscriptionPacketMaxBatchSize;
 
     if (curPosResending != trackedSubscriptions->end())
     {
@@ -269,8 +271,6 @@ void TrackedSubscriptionState::processTrackedSubscriptionMutations(
     muts.reserve(256);
 
     {
-        const Settings *settings = ThreadGlobals::getSettings();
-
         auto locked = trackedSubscriptionMutations.lock();
 
         if (locked->empty())
@@ -485,8 +485,9 @@ void TrackedSubscriptionState::cleanupExpiredTrackedSubscriptions(
     std::vector<Unsubscribe> unsubs;
     std::optional<uint16_t> pack_id;
 
-    constexpr size_t batch_size = 200;
-    constexpr size_t max_packet_size = 2048;
+    const size_t max_packet_size = settings->lazySubscriptionPacketMaxSize;
+    const size_t batch_size = settings->lazySubscriptionPacketMaxBatchSize;
+
     size_t cur_packet_size = 0;
     size_t batch_entry = 0;
     while (this->curPosPurging != this->trackedSubscriptions->end() && cur_packet_size < max_packet_size && batch_entry < batch_size)
