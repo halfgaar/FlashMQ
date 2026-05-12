@@ -192,6 +192,7 @@ public:
     int threadnr = 0;
     int taskEventFd = -1;
     int disconnectingAllEventFd = -1;
+    FdManaged processLazySubscriptionAffectedThreadsFd;
     FdManaged lazySubscriptionsEventFd;
     FdManaged subacksEventFd;
     std::atomic<size_t> clientCount{0};
@@ -271,6 +272,8 @@ public:
     void queueTimeoutTrackedSubscriptionStagedSubacksTimeouts();
     void queueProcessTrackedSubscriptionMutationsAllBridges();
     void processLazySubsubscriptionsAllBridges() noexcept;
+    void addThreadToDeferredMutationProcessing(const std::weak_ptr<ThreadData> &td);
+    void queueAllDeferredMutationProcessing() noexcept;
 
     size_t getNrOfClients();
     void updateNrOfClients();

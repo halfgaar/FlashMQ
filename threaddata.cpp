@@ -44,6 +44,7 @@ ThreadData::ThreadData(int threadnr, const Settings &settings, const std::shared
     settingsLocalCopy(settings),
     authentication(settingsLocalCopy),
     threadnr(threadnr),
+    processLazySubscriptionAffectedThreadsFd(eventfd(0, EFD_NONBLOCK)),
     lazySubscriptionsEventFd(eventfd(0, EFD_NONBLOCK)),
     subacksEventFd(eventfd(0, EFD_NONBLOCK)),
     mMainApp(mainApp)
@@ -51,23 +52,20 @@ ThreadData::ThreadData(int threadnr, const Settings &settings, const std::shared
     logger = Logger::getInstance();
 
     taskEventFd = eventfd(0, EFD_NONBLOCK);
-    if (taskEventFd < 0)
-        throw std::runtime_error("Can't create eventfd.");
-
     disconnectingAllEventFd = eventfd(0, EFD_NONBLOCK);
-    if (disconnectingAllEventFd < 0)
-        throw std::runtime_error("Can't create eventfd.");
-
-    if (lazySubscriptionsEventFd.get() < 0)
-        throw std::runtime_error("Can't create eventfd.");
-
-    if (subacksEventFd.get() < 0)
-        throw std::runtime_error("Can't create eventfd.");
 
     randomish.seed(get_random_int<unsigned long>());
 
-    for (int efd : std::initializer_list<int> {taskEventFd, disconnectingAllEventFd, pub->acceptQueue.event_fd.get(), lazySubscriptionsEventFd.get(), subacksEventFd.get()})
+    auto all_event_fds = {
+        taskEventFd, disconnectingAllEventFd, pub->acceptQueue.event_fd.get(), lazySubscriptionsEventFd.get(),
+        subacksEventFd.get(), processLazySubscriptionAffectedThreadsFd.get()
+    };
+
+    for (const int efd : all_event_fds)
     {
+        if (efd < 0)
+            throw std::runtime_error("Can't create eventfd.");
+
         struct epoll_event ev{};
         ev.data.fd = efd;
         ev.events = EPOLLIN;
@@ -236,7 +234,7 @@ void ThreadData::queueSubackReleaseTimeout(const SubAckReleaseTrigger &t)
 void ThreadData::queuePublishLazySubscriptionStats()
 {
     auto f = [this](){
-        for (auto &pair : this->clients.bridges)
+        for (auto &pair : priv->clients.bridges)
         {
             if (!pair.second)
                 continue;
@@ -1566,6 +1564,79 @@ void ThreadData::processLazySubsubscriptionsAllBridges() noexcept
     {
         Logger::getInstance()->log(LOG_ERR)
             << "Error in processLazySubsubscriptions: " << ex.what() << ". This shouldn't "
+            << "happen and is likely a bug.";
+    }
+}
+
+/**
+ * @brief This is not for queueing in threads, but to defer actions
+ * @param td
+ *
+ * When expanding lazy subscriptions, various actions done by the clients need to be finished until we can start
+ * processing the mutations in all threads. For instance, the SUBACKs needs to be staged. This function is merely
+ * a way to make it easy to make sure mutation processing is done after we return to the event loop. This prevents
+ * having to pass that knowledge all the way up the originating call site.
+ *
+ * That's why there is no mutex around the data.
+ */
+void ThreadData::addThreadToDeferredMutationProcessing(const std::weak_ptr<ThreadData> &td)
+{
+    assert(pthread_self() == thread_id);
+
+    const bool wakeup = priv->threadsToQueueAllLazySubMutationsIn.empty();
+    priv->threadsToQueueAllLazySubMutationsIn.push_back(td);
+
+    if (!wakeup)
+        return;
+
+    uint64_t one = 1;
+    check<std::runtime_error>(write(processLazySubscriptionAffectedThreadsFd.get(), &one, sizeof(uint64_t)));
+}
+
+/**
+ * @brief Counterpart of addThreadToDeferredMutationProcessing().
+ */
+void ThreadData::queueAllDeferredMutationProcessing() noexcept
+{
+    assert(pthread_self() == thread_id);
+
+    try
+    {
+        uint64_t eventfd_value = 0;
+        if (read(processLazySubscriptionAffectedThreadsFd.get(), &eventfd_value, sizeof(uint64_t)) < 0)
+            Logger::getInstance()->log(LOG_ERROR) << "Error reading fd in queueAllDeferredMutationProcessing: " << strerror(errno);
+
+        /*
+         * A simple and fast (cache-local) way to filter out duplicates. Duplicates should be rare enough that we care more about
+         * always being fast than sometimes trying to queue again.
+         */
+        std::array<ThreadData*, 8> dups {};
+        size_t dups_pos {};
+
+        for (const auto &t : priv->threadsToQueueAllLazySubMutationsIn)
+        {
+            std::shared_ptr<ThreadData> td = t.lock();
+
+            if (!td)
+                continue;
+
+            assert(dups_pos <= dups.size());
+            const auto end = dups.begin() + std::min<size_t>(dups.size(), dups_pos);
+            if (std::find(dups.begin(), end, td.get()) != end)
+                continue;
+
+            if (dups_pos < dups.size())
+                dups.at(dups_pos++) = td.get();
+
+            td->queueProcessTrackedSubscriptionMutationsAllBridges();
+        }
+
+        priv->threadsToQueueAllLazySubMutationsIn.clear();
+    }
+    catch (std::exception &ex)
+    {
+        Logger::getInstance()->log(LOG_ERR)
+            << "Error in queueAllDeferredMutationProcessing: " << ex.what() << ". This shouldn't "
             << "happen and is likely a bug.";
     }
 }

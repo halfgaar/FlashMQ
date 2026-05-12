@@ -1908,15 +1908,6 @@ void MqttPacket::handleSubscribe(std::shared_ptr<Client> &sender)
 
         aggregated_result.expanded_count += add_result.expanded_count;
 
-        if (add_result.affected_threads_lazy_subs)
-        {
-            if (!aggregated_result.affected_threads_lazy_subs)
-                aggregated_result.affected_threads_lazy_subs.emplace();
-
-            aggregated_result.affected_threads_lazy_subs.value().insert(
-                add_result.affected_threads_lazy_subs->begin(), add_result.affected_threads_lazy_subs->end());
-        }
-
         /*
          * Normally shared subscriptions don't trigger retained sending, because it would/could mean another
          * client on the same share receives the publish from a subscription. In case of FlashMQ groups,
@@ -1934,14 +1925,6 @@ void MqttPacket::handleSubscribe(std::shared_ptr<Client> &sender)
 
     SubAckAction suback_action(std::move(retainedSending), std::move(subs_reponse_codes), suback_release_trigger, packet_id, aggregated_result.expanded_count);
     sender->stageOrSendSubAck(sender, std::move(suback_action));
-
-    if (aggregated_result.affected_threads_lazy_subs)
-    {
-        for (auto &t : aggregated_result.affected_threads_lazy_subs.value())
-        {
-            t->queueProcessTrackedSubscriptionMutationsAllBridges();
-        }
-    }
 }
 
 void MqttPacket::handleSubAck(std::shared_ptr<Client> &sender)

@@ -130,6 +130,10 @@ void do_thread_work(std::shared_ptr<ThreadData> &&threadData)
                 threadData->pub->acceptQueue.readFd();
                 threadData->acceptPendingClients();
             }
+            else if (fd == threadData->processLazySubscriptionAffectedThreadsFd.get())
+            {
+                threadData->queueAllDeferredMutationProcessing();
+            }
             else if (fd == threadData->lazySubscriptionsEventFd.get())
             {
                 threadData->processLazySubsubscriptionsAllBridges();
