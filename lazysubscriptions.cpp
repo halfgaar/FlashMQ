@@ -2,6 +2,7 @@
 #include "lazysubscriptions.h"
 #include "threaddata.h"
 #include "globals.h"
+#include "threadglobals.h"
 
 LazySubscriber::LazySubscriber(
         const std::shared_ptr<BridgeState> &bridgeState, const std::shared_ptr<ThreadData> &thread,
@@ -285,13 +286,13 @@ void LazySubscriptions::collectClients(
     }
 }
 
-AddSubscriptionResult LazySubscriptions::expandLazySubscriptions(
+size_t LazySubscriptions::expandLazySubscriptions(
     TrackedSubscriptionMutationTask task, const std::shared_ptr<Session> &originating_session, const SubAckReleaseTrigger *suback_release_trigger,
     const std::vector<std::string> &subtopics, const uint8_t qos)
 {
     assert(subtopics.size() == 0 || subtopics.at(0) != "$share");
 
-    AddSubscriptionResult result;
+    size_t result {};
 
     // Don't match the bridge's own internal subscriptions to ourself (the 'publish' lines in the config).
     if (originating_session->getClientType() == ClientType::LocalBridge)
@@ -331,12 +332,8 @@ AddSubscriptionResult LazySubscriptions::expandLazySubscriptions(
         TrackedSubscriptionMutation mutation(pattern, effective_qos, originating_session->getClientId(), originating_session, suback_release_trigger, task);
         tracked_subs->addTrackedSubscriptionMutation(std::move(mutation));
 
-        result.expanded_count++;
-
-        if (!result.affected_threads_lazy_subs)
-            result.affected_threads_lazy_subs.emplace();
-
-        result.affected_threads_lazy_subs.value().insert(receiver.thread.lock());
+        result++;
+        ThreadGlobals::getThreadData()->addThreadToDeferredMutationProcessing(receiver.thread);
     }
 
     return result;

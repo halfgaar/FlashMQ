@@ -265,16 +265,13 @@ AddSubscriptionResult SubscriptionStore::addSubscription(
     if (!deepestNode)
         return {};
 
-    std::optional<AddSubscriptionResult> result;
+    AddSubscriptionResult result;
 
     if (globals->lazySubscriptions)
-        result.emplace(globals->lazySubscriptions->expandLazySubscriptions(TrackedSubscriptionMutationTask::Subscribe, session, sub_ack_release_trigger, subtopics, qos));
+        result.expanded_count = globals->lazySubscriptions->expandLazySubscriptions(TrackedSubscriptionMutationTask::Subscribe, session, sub_ack_release_trigger, subtopics, qos);
 
-    if (!result)
-        result.emplace();
-
-    result->type = deepestNode->addSubscriber(session, qos, noLocal, retainAsPublished, shareName, subscriptionIdentifier);
-    return result.value();
+    result.type = deepestNode->addSubscriber(session, qos, noLocal, retainAsPublished, shareName, subscriptionIdentifier);
+    return result;
 }
 
 void SubscriptionStore::removeSubscription(

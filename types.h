@@ -450,7 +450,6 @@ struct AddSubscriptionResult
 {
     AddSubscriptionType type = AddSubscriptionType::Invalid;
     size_t expanded_count {};
-    std::optional<std::unordered_set<std::shared_ptr<ThreadData>>> affected_threads_lazy_subs;
 };
 
 #endif // TYPES_H
