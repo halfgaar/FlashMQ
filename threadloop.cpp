@@ -15,9 +15,10 @@ See LICENSE for license details.
 #include "utils.h"
 #include "exceptions.h"
 
-void do_thread_work(std::shared_ptr<ThreadData> threadData)
+void do_thread_work(std::shared_ptr<ThreadData> &&threadData)
 {
     maskAllSignalsCurrentThread();
+    threadData->setName();
 
     int epoll_fd = threadData->getEpollFd();
     ThreadGlobals::assignThreadData(threadData);

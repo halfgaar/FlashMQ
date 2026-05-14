@@ -267,7 +267,7 @@ void MainApp::queueKeepAliveCheckAtAllThreads()
 {
     for (ThreadDataOwner &thread : threads)
     {
-        thread->queueDoKeepAliveCheck();
+        thread.callIfThread(&ThreadData::queueDoKeepAliveCheck);
     }
 }
 
@@ -275,7 +275,7 @@ void MainApp::queuePasswordFileReloadAllThreads()
 {
     for (ThreadDataOwner &thread : threads)
     {
-        thread->queuePasswdFileReload();
+        thread.callIfThread(&ThreadData::queuePasswdFileReload);
     }
 }
 
@@ -283,7 +283,7 @@ void MainApp::queuepluginPeriodicEventAllThreads()
 {
     for (ThreadDataOwner &thread : threads)
     {
-        thread->queuepluginPeriodicEvent();
+        thread.callIfThread(&ThreadData::queuepluginPeriodicEvent);
     }
 }
 
@@ -306,7 +306,7 @@ void MainApp::queuePublishStatsOnDollarTopic()
             thread_datas.push_back(t.getThreadData());
         }
 
-        threads.at(0)->queuePublishStatsOnDollarTopic(thread_datas);
+        threads.at(0).callIfThread(&ThreadData::queuePublishStatsOnDollarTopic, thread_datas);
     }
 }
 
@@ -326,8 +326,7 @@ void MainApp::queueSendQueuedWills()
     if (!threads.empty())
     {
         int threadnr = rand() % threads.size();
-        std::shared_ptr<ThreadData> t = threads[threadnr].getThreadData();
-        t->queueSendingQueuedWills();
+        threads[threadnr].callIfThread(&ThreadData::queueSendingQueuedWills);
     }
 }
 
@@ -335,7 +334,7 @@ void MainApp::waitForWillsQueued()
 {
     int i = 0;
 
-    while(std::any_of(threads.begin(), threads.end(), [](const ThreadDataOwner &t){ return !t->allWillsQueued && t->running; }) && i++ < 5000)
+    while(std::any_of(threads.begin(), threads.end(), [](const ThreadDataOwner &t){ return t.notAllWillQueuedButStillRunning(); }) && i++ < 5000)
     {
         usleep(1000);
     }
@@ -346,8 +345,7 @@ void MainApp::queueRetainedMessageExpiration()
     if (!threads.empty())
     {
         int threadnr = rand() % threads.size();
-        std::shared_ptr<ThreadData> t = threads[threadnr].getThreadData();
-        t->queueRemoveExpiredRetainedMessages();
+        threads[threadnr].callIfThread(&ThreadData::queueRemoveExpiredRetainedMessages);
     }
 }
 
@@ -401,7 +399,7 @@ void MainApp::queueBridgeReconnectAllThreads()
     {
         for (ThreadDataOwner &thread : threads)
         {
-            thread->queueBridgeReconnect();
+            thread.callIfThread(&ThreadData::queueBridgeReconnect);
         }
     }
     catch (std::exception &ex)
@@ -433,7 +431,7 @@ void MainApp::queueInternalHeartbeat()
     std::vector<std::chrono::milliseconds> drifts(threads.size());
 
     std::transform(threads.begin(), threads.end(), drifts.begin(), [] (const ThreadDataOwner &t) {
-        return t->driftCounter.getDrift();
+        return t.getDrift();
     });
 
     const size_t n = drifts.size() / 2;
@@ -442,7 +440,7 @@ void MainApp::queueInternalHeartbeat()
 
     for (ThreadDataOwner &thread : threads)
     {
-        thread->queueInternalHeartbeat();
+        thread.callIfThread(&ThreadData::queueInternalHeartbeat);
     }
 }
 
@@ -686,7 +684,7 @@ void MainApp::start()
             thread_datas.push_back(t.getThreadData());
         }
 
-        threads.front()->queuePublishStatsOnDollarTopic(thread_datas);
+        threads.front().callIfThread(&ThreadData::queuePublishStatsOnDollarTopic, thread_datas);
     }
 
     this->threadsPendingInit = threads.size();
@@ -923,7 +921,7 @@ void MainApp::start()
         logger->logf(LOG_DEBUG, "Having all client in all threads send or queue their will.");
         for(ThreadDataOwner &thread : threads)
         {
-            thread->queueSendWills();
+            thread.callIfThread(&ThreadData::queueSendWills);
         }
         waitForWillsQueued();
     }
@@ -931,44 +929,54 @@ void MainApp::start()
     logger->logf(LOG_DEBUG, "Having all client in all threads send a disconnect packet and initiate quit.");
     for(ThreadDataOwner &thread : threads)
     {
-        thread->queueSendDisconnects();
+        thread.callIfThread(&ThreadData::queueSendDisconnects);
     }
 
     oneInstanceLock.unlock();
 
+    bool waitTimeExpired = false;
+
     {
         logger->logf(LOG_DEBUG, "Waiting for our own quit event to have been queued.");
-        int count = 0;
-        while(std::any_of(threads.begin(), threads.end(), [](const ThreadDataOwner &t){ return t->running; }))
+        const auto limit = std::chrono::steady_clock::now() + std::chrono::seconds(30);
+        while(std::any_of(threads.begin(), threads.end(), [](const ThreadDataOwner &t){ return t.running(); }))
         {
-            if (count++ >= 30000)
+            if (limit < std::chrono::steady_clock::now())
+            {
+                logger->log(LOG_WARNING)
+                    << "(Some) threads did not have the quit event queued. Waiting for plugin cleanup will be skipped "
+                    << "because it will not have been initiated. This means an unclean program exit.";
+                waitTimeExpired = true;
                 break;
-            usleep(1000);
+            }
+            std::this_thread::sleep_for(std::chrono::microseconds(2000));
         }
     }
 
-    logger->logf(LOG_DEBUG, "Waiting for threads clean-up functions to finish.");
-    int count = 0;
-    bool waitTimeExpired = false;
-    while(std::any_of(threads.begin(), threads.end(), [](ThreadDataOwner &t){ return !t->finished; }))
+    if (!waitTimeExpired)
     {
-        if (count++ >= 30000)
+        logger->logf(LOG_DEBUG, "Waiting for threads clean-up functions to finish.");
+
+        const auto limit = std::chrono::steady_clock::now() + std::chrono::seconds(30);
+        while(std::any_of(threads.begin(), threads.end(), [](ThreadDataOwner &t){ return !t.finished(); }))
         {
-            waitTimeExpired = true;
-            break;
+            if (limit < std::chrono::steady_clock::now())
+            {
+                logger->log(LOG_WARNING)
+                    << "(Some) threads failed to terminate. Program will exit uncleanly. If you're "
+                    << "using a plugin, it may not be thread-safe.";
+                waitTimeExpired = true;
+                break;
+            }
+            std::this_thread::sleep_for(std::chrono::microseconds(2000));
         }
-        usleep(1000);
     }
 
-    if (waitTimeExpired)
-    {
-        logger->logf(LOG_WARNING, "(Some) threads failed to terminate. Program will exit uncleanly. If you're using a plugin, it may not be thread-safe.");
-    }
-    else
+    if (!waitTimeExpired)
     {
         for(ThreadDataOwner &thread : threads)
         {
-            logger->logf(LOG_DEBUG, "Waiting for thread %d to join.", thread->threadnr);
+            logger->log(LOG_DEBUG) << "Waiting for thread " << thread.threadnr << " to join.";
             thread.waitForQuit();
         }
     }
@@ -1152,7 +1160,7 @@ void MainApp::loadConfig(bool reload)
 
     for (ThreadDataOwner &thread : threads)
     {
-        thread->queueReload(settings);
+        thread.callIfThread(&ThreadData::queueReload, settings);
     }
 
     if (reload)
@@ -1297,8 +1305,7 @@ void MainApp::queueCleanup()
     if (!threads.empty())
     {
         int threadnr = rand() % threads.size();
-        std::shared_ptr<ThreadData> t = threads[threadnr].getThreadData();
-        t->queueRemoveExpiredSessions();
+        threads[threadnr].callIfThread(&ThreadData::queueRemoveExpiredSessions);
     }
 }
 
@@ -1307,8 +1314,7 @@ void MainApp::queuePurgeSubscriptionTree()
     if (!threads.empty())
     {
         int threadnr = rand() % threads.size();
-        std::shared_ptr<ThreadData> t = threads[threadnr].getThreadData();
-        t->queuePurgeSubscriptionTree();
+        threads[threadnr].callIfThread(&ThreadData::queuePurgeSubscriptionTree);
     }
 }
 

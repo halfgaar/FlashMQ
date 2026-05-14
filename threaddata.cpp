@@ -81,6 +81,13 @@ ThreadData::~ThreadData()
 
 }
 
+void ThreadData::setName()
+{
+    this->thread_id = pthread_self();
+    const std::string name("FlashMQ T " + std::to_string(this->threadnr));
+    pthread_setname_np(this->thread_id, name.c_str());
+}
+
 void ThreadData::quit()
 {
     running = false;
@@ -1371,7 +1378,9 @@ void ThreadData::wakeUpThread()
 
 
 ThreadDataOwner::ThreadDataOwner(int threadnr, const Settings &settings, const std::shared_ptr<PluginLoader> &pluginLoader, const std::weak_ptr<MainApp> mainApp) :
-    td(std::make_shared<ThreadData>(threadnr, settings, pluginLoader, mainApp))
+    threadnr(threadnr),
+    td(std::make_shared<ThreadData>(threadnr, settings, pluginLoader, mainApp)),
+    td_weak(td)
 {
 
 }
@@ -1383,16 +1392,7 @@ ThreadDataOwner::~ThreadDataOwner()
 
 void ThreadDataOwner::start()
 {
-    this->thread = std::thread(&do_thread_work, td);
-
-    pthread_t native = this->thread.native_handle();
-    td->thread_id = native;
-    std::ostringstream threadName;
-    threadName << "FlashMQ T " << td->threadnr;
-    threadName.flush();
-    std::string name = threadName.str();
-    const char *c_str = name.c_str();
-    pthread_setname_np(native, c_str);
+    this->thread = std::thread(&do_thread_work, std::move(td));
 }
 
 void ThreadDataOwner::waitForQuit()
@@ -1401,12 +1401,50 @@ void ThreadDataOwner::waitForQuit()
         thread.join();
 }
 
-ThreadData *ThreadDataOwner::operator->() const
-{
-    return td.get();
-}
-
 std::shared_ptr<ThreadData> ThreadDataOwner::getThreadData() const
 {
-    return td;
+    auto result = td_weak.lock();
+    if (!result)
+        throw std::runtime_error("ThreadDataOwner::getThreadData() null");
+    return result;
 }
+
+bool ThreadDataOwner::running() const
+{
+    auto t = td_weak.lock();
+    if (!t)
+        return false;
+    return t->running;
+}
+
+bool ThreadDataOwner::finished() const
+{
+    auto t = td_weak.lock();
+    if (!t)
+        return true;
+    return t->finished;
+}
+
+bool ThreadDataOwner::notAllWillQueuedButStillRunning() const
+{
+    auto t = td_weak.lock();
+    if (!t)
+        return false;
+    return !t->allWillsQueued && t->running;
+}
+
+std::chrono::milliseconds ThreadDataOwner::getDrift() const
+{
+    auto t = td_weak.lock();
+    if (!t)
+        return std::chrono::milliseconds(0);
+    return t->driftCounter.getAvgDrift();
+}
+
+
+
+
+
+
+
+

@@ -66,7 +66,9 @@ struct Clients
 
 struct ThreadDataOwner
 {
+    const int threadnr = -1;
     std::shared_ptr<ThreadData> td;
+    std::weak_ptr<ThreadData> td_weak;
     std::thread thread;
 
     ThreadDataOwner() = delete;
@@ -80,8 +82,25 @@ struct ThreadDataOwner
 
     void start();
     void waitForQuit();
-    ThreadData *operator->() const;
     std::shared_ptr<ThreadData> getThreadData() const;
+    bool running() const;
+    bool finished() const;
+    bool notAllWillQueuedButStillRunning() const;
+    std::chrono::milliseconds getDrift() const;
+
+    template<typename F, typename... Args>
+    void callIfThread(F&& f, Args&&... args)
+    {
+        auto t = td_weak.lock();
+        if (!t)
+            return;
+
+        return std::invoke(
+            std::forward<F>(f),
+            *t,
+            std::forward<Args>(args)...);
+    }
+
 };
 
 class ThreadData
@@ -157,6 +176,7 @@ public:
     ThreadData(ThreadData &&other) = delete;
     ~ThreadData();
 
+    void setName();
     int getEpollFd() const { return epollfd.get(); }
 
     void giveClient(std::shared_ptr<Client> &&client);

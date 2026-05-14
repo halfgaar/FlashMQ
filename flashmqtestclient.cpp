@@ -134,7 +134,7 @@ void FlashMQTestClient::connectClient(ProtocolVersion protocolVersion, bool clea
         // Hack to make it work with the rvalue argument whilest not voiding our own client.
         std::shared_ptr<Client> dummyToMoveFrom = client;
         client->addToEpoll(EPOLLIN); // Normally the worker thread does this, but we must avoid races, for the code below, that already tries to mod the epoll.
-        testServerWorkerThreadData->giveClient(std::move(dummyToMoveFrom));
+        testServerWorkerThreadData.callIfThread(&ThreadData::giveClient, std::move(dummyToMoveFrom));
     }
 
     // This gets called in the test client's worker thread, but the STL container's minimal thread safety should be enough: only list manipulation is
@@ -332,7 +332,7 @@ void FlashMQTestClient::publish(const std::string &topic, const std::string &pay
 
 void FlashMQTestClient::waitForQuit()
 {
-    testServerWorkerThreadData->queueQuit();
+    testServerWorkerThreadData.callIfThread(&ThreadData::queueQuit);
     testServerWorkerThreadData.waitForQuit();
 }
 
