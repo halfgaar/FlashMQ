@@ -105,15 +105,36 @@ struct ThreadDataOwner
 
 class ThreadData
 {
+public:
+
+    /**
+     * @brief Allows for single-shot future-proof deletion of all we own, including any shared pointers that we
+     * want to clear up at the end of this thread, before our destructor runs.
+     */
+    struct PrivateData
+    {
+        Clients clients;
+        std::forward_list<std::weak_ptr<Client>> clientsQueuedForRemoving;
+        std::map<std::chrono::seconds, std::vector<KeepAliveCheck>> queuedKeepAliveChecks;
+        std::list<QueuedRetainedMessage> queuedRetainedMessages;
+    };
+
+    /**
+     * @brief Same note as PrivateData.
+     */
+    struct PublicData
+    {
+        MutexOwned<std::list<std::function<void()>>> taskQueue;
+        QueuedTasks delayedTasks;
+        std::unordered_map<int, std::weak_ptr<void>> externalFds;
+        std::vector<std::weak_ptr<Client>> disconnectingClients;
+        ClientAcceptQueue acceptQueue;
+    };
+
+private:
     FdManaged epollfd;
-    Clients clients;
+    std::optional<PrivateData> priv = std::make_optional<PrivateData>();
     Logger *logger;
-
-    std::forward_list<std::weak_ptr<Client>> clientsQueuedForRemoving;
-    std::map<std::chrono::seconds, std::vector<KeepAliveCheck>> queuedKeepAliveChecks;
-
-    std::list<QueuedRetainedMessage> queuedRetainedMessages;
-
     const std::shared_ptr<const PluginLoader> pluginLoader;
 
     void reload(const Settings &settings);
@@ -139,6 +160,7 @@ class ThreadData
     void removeBridge(const BridgeConfig &bridgeConfig, const std::string &reason);
 
 public:
+    std::optional<PublicData> pub = std::make_optional<PublicData>();
     Settings settingsLocalCopy; // Is updated on reload, within the thread loop.
     Authentication authentication;
     bool deferThreadReady = false;
@@ -150,12 +172,7 @@ public:
     int taskEventFd = -1;
     int disconnectingAllEventFd = -1;
     std::atomic<size_t> clientCount{0};
-    MutexOwned<std::list<std::function<void()>>> taskQueue;
-    QueuedTasks delayedTasks;
     DriftCounter driftCounter;
-    std::unordered_map<int, std::weak_ptr<void>> externalFds;
-    std::vector<std::weak_ptr<Client>> disconnectingClients;
-    ClientAcceptQueue acceptQueue;
     std::weak_ptr<MainApp> mMainApp;
 
     DerivableCounter receivedMessageCounter;
@@ -216,6 +233,7 @@ public:
     void acceptPendingClients();
     void acceptPendingBridges();
     void deleteClients();
+    void clear();
 
     size_t getNrOfClients();
     void updateNrOfClients();
@@ -241,8 +259,8 @@ public:
         auto f = [this, fd, client, level, args...] {
             std::shared_ptr<Client> clientFound;
 
-            auto client_it = clients.by_fd.find(fd);
-            if (client_it != clients.by_fd.end())
+            auto client_it = priv->clients.by_fd.find(fd);
+            if (client_it != priv->clients.by_fd.end())
                 clientFound = client_it->second;
 
             // Raw client pointer only for checking; don't dereference.

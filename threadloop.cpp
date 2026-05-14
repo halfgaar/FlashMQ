@@ -62,14 +62,14 @@ void do_thread_work(std::shared_ptr<ThreadData> &&threadData)
     {
         VectorClearGuard clear_ready_clients(ready_clients);
 
-        const uint32_t next_task_delay = threadData->delayedTasks.getTimeTillNext();
+        const uint32_t next_task_delay = threadData->pub->delayedTasks.getTimeTillNext();
         const uint32_t epoll_wait_time = std::min<uint32_t>(next_task_delay, 100);
 
         int fdcount = epoll_wait(epoll_fd, events.data(), events.size(), epoll_wait_time);
 
         if (__builtin_expect(epoll_wait_time == 0, 0))
         {
-            threadData->delayedTasks.performAll();
+            threadData->pub->delayedTasks.performAll();
         }
 
         threadData->updateNrOfClients();
@@ -112,7 +112,7 @@ void do_thread_work(std::shared_ptr<ThreadData> &&threadData)
                 if (read(fd, &eventfd_value, sizeof(uint64_t)) < 0)
                     logger->log(LOG_ERROR) << "Error reading event fd: " << strerror(errno);
 
-                for (std::weak_ptr<Client> &wc : threadData->disconnectingClients)
+                for (std::weak_ptr<Client> &wc : threadData->pub->disconnectingClients)
                 {
                     std::shared_ptr<Client> c = wc.lock();
 
@@ -122,12 +122,12 @@ void do_thread_work(std::shared_ptr<ThreadData> &&threadData)
                     ready_clients.emplace_back(EPOLLOUT, std::move(c));
                 }
 
-                threadData->disconnectingClients.clear();
+                threadData->pub->disconnectingClients.clear();
                 threadData->queueQuit();
             }
-            else if (fd == threadData->acceptQueue.event_fd.get())
+            else if (fd == threadData->pub->acceptQueue.event_fd.get())
             {
-                threadData->acceptQueue.readFd();
+                threadData->pub->acceptQueue.readFd();
                 threadData->acceptPendingClients();
             }
             else
@@ -139,8 +139,8 @@ void do_thread_work(std::shared_ptr<ThreadData> &&threadData)
                     ready_clients.pop_back();
 
                     // If the fd is not a client, it may be an externally monitored fd, from the plugin.
-                    auto pos = threadData->externalFds.find(fd);
-                    if (pos != threadData->externalFds.end())
+                    auto pos = threadData->pub->externalFds.find(fd);
+                    if (pos != threadData->pub->externalFds.end())
                     {
                         std::weak_ptr<void> &p = pos->second;
                         threadData->authentication.fdReady(fd, cur_ev.events, p);
@@ -304,14 +304,13 @@ void do_thread_work(std::shared_ptr<ThreadData> &&threadData)
     {
         logger->logf(LOG_NOTICE, "Thread %d doing auth cleanup.", threadData->threadnr);
         threadData->cleanupplugin();
-
-        threadData->deleteClients();
     }
     catch(std::exception &ex)
     {
         logger->logf(LOG_ERR, "Error cleaning auth back-end: %s", ex.what());
     }
 
+    threadData->clear();
     threadData->finished = true;
 }
 
