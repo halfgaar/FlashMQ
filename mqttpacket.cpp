@@ -1393,7 +1393,12 @@ void MqttPacket::handleConnAck(std::shared_ptr<Client> &sender)
 
         if (!subscriptions.empty())
         {
-            MqttPacket subPacket(this->getProtocolVersion(), session->getNextPacketIdLocked(), 0, subscriptions);
+            std::optional<uint16_t> pack_id = session->getNextPacketIdLocked();
+
+            if (!pack_id)
+                throw std::runtime_error("No quota of packet IDs left to send bridge subscriptions after CONNACK? Should not be possible at this point.");
+
+            MqttPacket subPacket(this->getProtocolVersion(), pack_id.value(), 0, subscriptions);
             sender->writeMqttPacketAndBlameThisClient(subPacket);
         }
     }

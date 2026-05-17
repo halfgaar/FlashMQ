@@ -59,11 +59,13 @@ void Session::QoSData::clearExpiredMessagesFromQueue()
  *
  * You should also check that flowControl is higher than 0 before you use this.
  */
-uint16_t Session::QoSData::getNextPacketId()
+std::optional<uint16_t> Session::QoSData::getNextPacketId()
 {
+    if (flowControlQuota == 0)
+        return {};
+
     nextPacketId++;
     nextPacketId = std::max<uint16_t>(nextPacketId, 1);
-    assert(flowControlQuota > 0);
     flowControlQuota--;
     return nextPacketId;
 }
@@ -158,12 +160,38 @@ PacketDropReason Session::writePacket(PublishCopyFactory &copyFactory, const uin
         }
     }
 
-    uint16_t pack_id = 0;
+    std::optional<uint16_t> pack_id;
 
     if (__builtin_expect(effectiveQos > 0, 0))
     {
         const Settings *settings = ThreadGlobals::getSettings();
         MutexLocked<QoSData> qos_locked = qos.lock();
+
+        if (qos_locked->qosPacketQueue.getByteSize() >= settings->maxQosBytesPendingPerClient && qos_locked->qosPacketQueue.size() > 0)
+        {
+            if (qos_locked->QoSLogPrintedAtId != qos_locked->nextPacketId)
+            {
+                if (c)
+                {
+                    logger->log(LOG_WARNING)
+                        << "Dropping QoS message(s) for on-line client '" << client_id << "', because it hasn't seen "
+                        << "enough PUBACK/PUBCOMP/PUBRECs to release places "
+                        << "or it exceeded the queue size. You could increase 'max_qos_msg_pending_per_client' "
+                        << "or 'max_qos_bytes_pending_per_client' (but this is also subject the client's 'receive max').";
+                }
+                else
+                {
+                    logger->log(LOG_WARNING)
+                        << "Dropping QoS message(s) for off-line client '" << client_id << "', because the limit has been reached. "
+                        << "You can increase 'max_qos_msg_pending_per_client' and/or 'max_qos_bytes_pending_per_client' to buffer more.";
+                }
+                qos_locked->QoSLogPrintedAtId = qos_locked->nextPacketId;
+            }
+        }
+        else
+        {
+            pack_id = qos_locked->getNextPacketId();
+        }
 
         // We don't clear expired messages for online clients. It would slow down the 'happy flow' and those packets are already in the output
         // buffer, so we can't clear them anyway.
@@ -172,33 +200,13 @@ PacketDropReason Session::writePacket(PublishCopyFactory &copyFactory, const uin
             qos_locked->clearExpiredMessagesFromQueue();
         }
 
-        if (qos_locked->flowControlQuota <= 0 || (qos_locked->qosPacketQueue.getByteSize() >= settings->maxQosBytesPendingPerClient && qos_locked->qosPacketQueue.size() > 0))
+        if (!pack_id)
         {
-            if (qos_locked->QoSLogPrintedAtId != qos_locked->nextPacketId)
-            {
-                if (c)
-                {
-                    logger->log(LOG_WARNING) <<
-                        "Dropping QoS message(s) for on-line client '" << client_id << "', because it hasn't seen "
-                        "enough PUBACK/PUBCOMP/PUBRECs to release places "
-                        "or it exceeded the queue size. You could increase 'max_qos_msg_pending_per_client' "
-                        "or 'max_qos_bytes_pending_per_client' (but this is also subject the client's 'receive max').";
-                }
-                else
-                {
-                    logger->log(LOG_WARNING) <<
-                        "Dropping QoS message(s) for off-line client '" << client_id << "', because the limit has been reached. "
-                        "You can increase 'max_qos_msg_pending_per_client' and/or 'max_qos_bytes_pending_per_client' to buffer more.";
-                }
-                qos_locked->QoSLogPrintedAtId = qos_locked->nextPacketId;
-            }
             return PacketDropReason::QoSTODOSomethingSomething;
         }
 
-        pack_id = qos_locked->getNextPacketId();
-
         if (!destroyOnDisconnect)
-            qos_locked->qosPacketQueue.queuePublish(copyFactory, pack_id, effectiveQos, effectiveRetain, subscriptionIdentifier, topic_override);
+            qos_locked->qosPacketQueue.queuePublish(copyFactory, pack_id.value(), effectiveQos, effectiveRetain, subscriptionIdentifier, topic_override);
     }
 
     PacketDropReason return_value = PacketDropReason::ClientOffline;
@@ -208,7 +216,7 @@ PacketDropReason Session::writePacket(PublishCopyFactory &copyFactory, const uin
         if (!c->isRetainedAvailable())
             effectiveRetain = false;
 
-        return_value = c->writeMqttPacketAndBlameThisClient(copyFactory, effectiveQos, pack_id, effectiveRetain, subscriptionIdentifier, topic_override);
+        return_value = c->writeMqttPacketAndBlameThisClient(copyFactory, effectiveQos, pack_id.value_or(0), effectiveRetain, subscriptionIdentifier, topic_override);
     }
 
     return return_value;
@@ -416,7 +424,7 @@ void Session::increaseFlowControlQuotaLocked()
     qos_locked->increaseFlowControlQuota();
 }
 
-uint16_t Session::getNextPacketIdLocked()
+std::optional<uint16_t> Session::getNextPacketIdLocked()
 {
     MutexLocked<QoSData> qos_locked = qos.lock();
     return qos_locked->getNextPacketId();

@@ -57,7 +57,7 @@ class Session
         void clearExpiredMessagesFromQueue();
         void increaseFlowControlQuota();
         void increaseFlowControlQuota(int n);
-        uint16_t getNextPacketId();
+        std::optional<uint16_t> getNextPacketId();
     };
 
     friend class SessionsAndSubscriptionsDB;
@@ -119,7 +119,7 @@ public:
     void addOutgoingQoS2MessageId(uint16_t packet_id);
     void removeOutgoingQoS2MessageId(u_int16_t packet_id);
     void increaseFlowControlQuotaLocked();
-    uint16_t getNextPacketIdLocked();
+    std::optional<uint16_t> getNextPacketIdLocked();
     void resetQoSData();
 
     bool getDestroyOnDisconnect() const;

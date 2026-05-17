@@ -435,6 +435,8 @@ PacketDropReason Client::writeMqttPacketAndBlameThisClient(
     PublishCopyFactory &copyFactory, uint8_t max_qos, uint16_t packet_id, bool retain, uint32_t subscriptionIdentifier,
     const std::optional<std::string> &topic_override)
 {
+    assert(max_qos == 0 || packet_id > 0);
+
     uint16_t topic_alias = 0;
     uint16_t topic_alias_next = 0;
     bool skip_topic = false;
