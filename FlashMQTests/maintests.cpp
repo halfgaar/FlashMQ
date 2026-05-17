@@ -333,6 +333,11 @@ MainTests::MainTests()
     REGISTER_FUNCTION2(testPreviouslyValidConfigFile, false, false);
     REGISTER_FUNCTION3(testNoCopy);
     REGISTER_FUNCTION3(testBase64);
+    REGISTER_FUNCTION3(testUsedIds);
+    REGISTER_FUNCTION3(testUsedIds2);
+    REGISTER_FUNCTION3(testUsedIds3);
+    REGISTER_FUNCTION3(testUsedIds4);
+    REGISTER_FUNCTION3(testUsedIdsSpeed);
     REGISTER_FUNCTION(testSessionTakeoverOtherUsername);
     REGISTER_FUNCTION(testCorrelationData);
     REGISTER_FUNCTION(testSubscriptionIdOnlineClient);

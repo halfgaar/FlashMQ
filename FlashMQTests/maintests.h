@@ -244,6 +244,11 @@ class MainTests
 
     void forkingTestSaveAndLoadDelayedWill();
 
+    void testUsedIds();
+    void testUsedIds2();
+    void testUsedIds3();
+    void testUsedIds4();
+    void testUsedIdsSpeed();
     void testBase64();
     void testNoCopy();
     void testSessionTakeoverOtherUsername();

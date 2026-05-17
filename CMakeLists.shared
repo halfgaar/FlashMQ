@@ -92,6 +92,7 @@ set(FLASHMQ_HEADERS
     ${RELPATH}flashmq_public.h
     ${RELPATH}sdnotify.h
     ${RELPATH}threadlocked.h
+    ${RELPATH}usedids.h
 )
 
 set(FLASHMQ_IMPLS
@@ -160,4 +161,5 @@ set(FLASHMQ_IMPLS
     ${RELPATH}persistencefunctions.cpp
     ${RELPATH}clientacceptqueue.cpp
     ${RELPATH}sdnotify.cpp
+    ${RELPATH}usedids.cpp
     )
