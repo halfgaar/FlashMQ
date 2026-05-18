@@ -77,9 +77,11 @@ public:
         PublishCopyFactory &copyFactory, uint16_t id, uint8_t new_max_qos, bool retainAsPublished, const uint32_t subscriptionIdentifier,
         const std::optional<std::string> &topic_override);
     void queuePublish(Publish &&pub, uint16_t id, const std::optional<std::string> &topic_override);
-    int clearExpiredMessages();
+    std::vector<uint16_t> clearExpiredMessages();
     const std::shared_ptr<QueuedPublish> &getTail() const;
+#ifdef TESTING
     std::shared_ptr<QueuedPublish> popNext();
+#endif
 
 };
 

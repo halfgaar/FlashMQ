@@ -25,6 +25,7 @@ See LICENSE for license details.
 #include "lockedweakptr.h"
 #include "lockedsharedptr.h"
 #include "mutexowned.h"
+#include "usedids.h"
 
 class Session
 {
@@ -32,14 +33,12 @@ class Session
     friend class MainTests;
 #endif
 
-    struct QoSData
+    class QoSData
     {
+        UsedIds usedIds;
         QoSPublishQueue qosPacketQueue;
-        std::set<uint16_t> incomingQoS2MessageIds;
-        std::set<uint16_t> outgoingQoS2MessageIds;
         uint16_t nextPacketId = 0;
         uint16_t QoSLogPrintedAtId = 0;
-        std::chrono::time_point<std::chrono::steady_clock> lastExpiredMessagesAt = std::chrono::steady_clock::now();
 
         /**
          * Even though flow control data is not part of the session state, I'm keeping it here because there are already
@@ -48,16 +47,39 @@ class Session
         int flowControlCealing = 0xFFFF;
         int flowControlQuota = 0xFFFF;
 
+    public:
+        std::set<uint16_t> incomingQoS2MessageIds;
+        std::set<uint16_t> outgoingQoS2MessageIds;
+
+        std::chrono::time_point<std::chrono::steady_clock> lastExpiredMessagesAt = std::chrono::steady_clock::now();
+
         QoSData(const uint16_t maxQosMsgPendingPerClient) :
             flowControlQuota(maxQosMsgPendingPerClient)
         {
 
         }
 
+        template<typename... Args>
+        void queuePublish(Args&&... args)
+        {
+            qosPacketQueue.queuePublish(std::forward<Args>(args)...);
+        }
+
+        size_t getQueuedByteSize() const;
+        size_t getQueuedCount() const;
+        bool eraseQueuedPublish(const uint16_t packet_id);
+        std::shared_ptr<QueuedPublish> getQoSQueueTail();
+        void markQoSLogPrinted();
+        bool currentPackedIdLogPrinted() const;
+        void loadNextPacketId(const uint16_t id);
         void clearExpiredMessagesFromQueue();
-        void increaseFlowControlQuota();
-        void increaseFlowControlQuota(int n);
+        void decreaseFlowControlQuotaAgain(const uint16_t packet_id);
+        void increaseFlowControlQuota(const uint16_t packet_id);
+        void resetFlowControlCounters(const uint16_t receive_max);
+        bool flowControlExhausted() const;
         std::optional<uint16_t> getNextPacketId();
+        uint16_t getInternalNextPacketId() const;
+        void releasePacketId(const uint16_t id);
     };
 
     friend class SessionsAndSubscriptionsDB;
@@ -118,7 +140,7 @@ public:
     bool removeIncomingQoS2MessageId(u_int16_t packet_id);
     void addOutgoingQoS2MessageId(uint16_t packet_id);
     void removeOutgoingQoS2MessageId(u_int16_t packet_id);
-    void increaseFlowControlQuotaLocked();
+    void increaseFlowControlQuotaLocked(const uint16_t packet_id);
     std::optional<uint16_t> getNextPacketIdLocked();
     void resetQoSData();
 

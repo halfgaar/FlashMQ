@@ -194,7 +194,7 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV3V4V5V6V7()
 
                     if (logger->wouldLog(LOG_DEBUG))
                         logger->logf(LOG_DEBUG, "Loaded QoS %d message for topic '%s' for session '%s'.", pub.qos, pub.topic.c_str(), ses->getClientId().c_str());
-                    qos_locked->qosPacketQueue.queuePublish(std::move(pub), id, topic_override);
+                    qos_locked->queuePublish(std::move(pub), id, topic_override);
                 }
 
                 const uint32_t nrOfIncomingPacketIds = readUint32(eofFound);
@@ -219,8 +219,8 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV3V4V5V6V7()
 
                 const uint16_t nextPacketId = readUint16(eofFound);
                 if (logger->wouldLog(LOG_DEBUG))
-                    logger->logf(LOG_DEBUG, "Loaded next packetid %d.", qos_locked->nextPacketId);
-                qos_locked->nextPacketId = nextPacketId;
+                    logger->logf(LOG_DEBUG, "Loaded next packetid %d.", qos_locked->getInternalNextPacketId());
+                qos_locked->loadNextPacketId(nextPacketId);
             }
 
             const uint32_t originalSessionExpiryInterval = readUint32(eofFound);
@@ -344,11 +344,11 @@ void SessionsAndSubscriptionsDB::saveData(const std::vector<std::shared_ptr<Sess
             writeString(ses->client_id);
             writeOptionalString(ses->fmq_client_group_id);
 
-            const size_t qosPacketsExpected = qos_locked->qosPacketQueue.size();
+            const size_t qosPacketsExpected = qos_locked->getQueuedCount();
             size_t qosPacketsCounted = 0;
             writeUint32(qosPacketsExpected);
 
-            std::shared_ptr<QueuedPublish> qp = qos_locked->qosPacketQueue.getTail();
+            std::shared_ptr<QueuedPublish> qp = qos_locked->getQoSQueueTail();
             while (qp)
             {
                 qosPacketsCounted++;
@@ -402,8 +402,8 @@ void SessionsAndSubscriptionsDB::saveData(const std::vector<std::shared_ptr<Sess
             }
 
             if (logger->wouldLog(LOG_DEBUG))
-                logger->logf(LOG_DEBUG, "Writing next packetid %d.", qos_locked->nextPacketId);
-            writeUint16(qos_locked->nextPacketId);
+                logger->logf(LOG_DEBUG, "Writing next packetid %d.", qos_locked->getInternalNextPacketId());
+            writeUint16(qos_locked->getInternalNextPacketId());
 
             writeUint32(ses->getCurrentSessionExpiryInterval());
 

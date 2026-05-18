@@ -111,6 +111,8 @@ const std::shared_ptr<QueuedPublish> &QoSPublishQueue::getTail() const
     return tail;
 }
 
+#ifdef TESTING
+// This can't be used in the normal program because we don't have access to the used IDs here.
 std::shared_ptr<QueuedPublish> QoSPublishQueue::popNext()
 {
     std::shared_ptr<QueuedPublish> result = this->tail;
@@ -120,6 +122,7 @@ std::shared_ptr<QueuedPublish> QoSPublishQueue::popNext()
 
     return result;
 }
+#endif
 
 size_t QoSPublishQueue::size() const
 {
@@ -183,15 +186,15 @@ void QoSPublishQueue::queuePublish(Publish &&pub, uint16_t id, const std::option
     queue[id] = std::move(qp);
 }
 
-int QoSPublishQueue::clearExpiredMessages()
+std::vector<uint16_t> QoSPublishQueue::clearExpiredMessages()
 {
     if (this->queueExpirations.empty())
-        return 0;
+        return {};
 
     if (this->queueExpirations.begin()->first > std::chrono::steady_clock::now())
-        return 0;
+        return {};
 
-    int removed = 0;
+    std::vector<uint16_t> removed_ids;
 
     auto it = queueExpirations.begin();
     auto end = queueExpirations.end();
@@ -215,15 +218,14 @@ int QoSPublishQueue::clearExpiredMessages()
 
             if (p->getPublish().hasExpired())
             {
+                removed_ids.push_back(p->getPacketId());
                 this->eraseFromMapAndRelinkList(qpos);
-
                 this->queueExpirations.erase(cur_it);
-                removed++;
             }
         }
     }
 
-    return removed;
+    return removed_ids;
 }
 
 

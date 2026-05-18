@@ -1875,7 +1875,7 @@ void MqttPacket::handleSubAck(std::shared_ptr<Client> &sender)
     if (!session)
         return;
 
-    session->increaseFlowControlQuotaLocked();
+    session->increaseFlowControlQuotaLocked(data.packet_id);
 }
 
 void MqttPacket::handleUnsubscribe(std::shared_ptr<Client> &sender)
