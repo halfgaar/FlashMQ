@@ -6,7 +6,15 @@
 void printHelp(const std::string &arg0)
 {
     std::cout << std::endl;
-    std::cout << "Usage: " << arg0 << " [ --skip-tests-with-internet ] [ --skip-server-tests ] " << " <tests> " << std::endl;
+    std::cout << "Usage: " << arg0 << " [options] <tests> " << std::endl;
+
+    std::cout << R"helptext(
+Options:
+
+  --abort-on-first-fail
+  --skip-tests-with-internet
+  --skip-server-tests
+)helptext" << std::endl;
 }
 
 int main(int argc, char *argv[])
