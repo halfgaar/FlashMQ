@@ -9,12 +9,10 @@ See LICENSE for license details.
 */
 
 #include "logger.h"
-#include <sstream>
 #include <string.h>
 #include <functional>
 #include <mutex>
 
-#include "threaddata.h"
 #include "globals.h"
 #include "threadglobals.h"
 #include "utils.h"
@@ -307,35 +305,47 @@ void Logger::writeLog()
 std::string Logger::getPrefix(int level)
 {
     thread_local static auto caller_thread_id = pthread_self();
+    thread_local static std::string thread_name;
+
     const auto td = ThreadGlobals::getThreadData();
 
-    std::ostringstream oss;
-    const std::string stamp = timestampWithMillis();
-    oss << "[" << stamp << "] [" << getLogLevelString(level) << "] ";
+    std::string result;
+    result.append("[");
+    result.append(timestampWithMillis());
+    result.append("] [");
+    result.append(getLogLevelString(level));
+    result.append("] ");
 
-    if (td)
+    if (pthread_equal(caller_thread_id, globals->createdByThread))
     {
-        oss << "[T " << td->threadnr << "] ";
+        thread_name = "main";
     }
-    else if (pthread_equal(caller_thread_id, globals->createdByThread))
+    else if (thread_name.empty() || !td)
     {
-        oss << "[main] ";
-    }
-    else
-    {
+        /*
+         * We know our own threads set their own name at start before logging happens, so we can be sure
+         * we don't need to check it again. For custom threads, we do.
+         */
+
         std::array<char, 20> buf{};
         if (pthread_getname_np(caller_thread_id, buf.data(), buf.size()) == 0)
         {
-            std::string tname(buf.data());
-            oss << "[T " << tname << "] ";
-        }
-        else
-        {
-            oss << "[T custom] ";
+            const std::string tname(buf.data());
+            thread_name = tname;
         }
     }
 
-    std::string result = oss.str();
+    if (!thread_name.empty())
+    {
+        result.append("[");
+        result.append(thread_name);
+        result.append("] ");
+    }
+    else
+    {
+        result.append("[T custom] ");
+    }
+
     return result;
 }
 

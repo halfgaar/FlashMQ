@@ -84,8 +84,17 @@ ThreadData::~ThreadData()
 void ThreadData::setName()
 {
     this->thread_id = pthread_self();
-    const std::string name("FlashMQ T " + std::to_string(this->threadnr));
+    std::string name("FlashMQ T " + std::to_string(this->threadnr));
+
+    if (!this->threadPrefix.empty())
+        name = this->threadPrefix + " T " + std::to_string(this->threadnr);
+
     pthread_setname_np(this->thread_id, name.c_str());
+}
+
+void ThreadData::setThreadPrefix(const std::string &prefix)
+{
+    this->threadPrefix = prefix.substr(0, 8);
 }
 
 void ThreadData::quit()
@@ -1433,6 +1442,15 @@ std::chrono::milliseconds ThreadDataOwner::getDrift() const
     if (!t)
         return std::chrono::milliseconds(0);
     return t->driftCounter.getAvgDrift();
+}
+
+void ThreadDataOwner::setThreadPrefix(const std::string prefix)
+{
+    auto t = td_weak.lock();
+    if (!t)
+        return;
+
+    t->setThreadPrefix(prefix);
 }
 
 

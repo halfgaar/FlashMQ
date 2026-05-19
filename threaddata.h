@@ -101,6 +101,8 @@ struct ThreadDataOwner
             std::forward<Args>(args)...);
     }
 
+    void setThreadPrefix(const std::string prefix);
+
 };
 
 class ThreadData
@@ -136,6 +138,7 @@ private:
     std::optional<PrivateData> priv = std::make_optional<PrivateData>();
     Logger *logger;
     const std::shared_ptr<const PluginLoader> pluginLoader;
+    std::string threadPrefix;
 
     void reload(const Settings &settings);
     void wakeUpThread();
@@ -194,6 +197,7 @@ public:
     ~ThreadData();
 
     void setName();
+    void setThreadPrefix(const std::string &prefix);
     int getEpollFd() const { return epollfd.get(); }
 
     void giveClient(std::shared_ptr<Client> &&client);
