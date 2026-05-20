@@ -58,6 +58,8 @@ class QoSPublishQueue
     void addToExpirationQueue(std::shared_ptr<QueuedPublish> &qp);
     void eraseFromMapAndRelinkList(std::unordered_map<uint16_t, std::shared_ptr<QueuedPublish>>::iterator pos);
     void addToHeadOfLinkedList(std::shared_ptr<QueuedPublish> &qp);
+    void recalculateQosQueueBytes();
+    void subtractQoSBytes(const QueuedPublish *p);
 
 public:
     QoSPublishQueue() = default;

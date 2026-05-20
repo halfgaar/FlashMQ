@@ -65,13 +65,7 @@ bool QoSPublishQueue::erase(const uint16_t packet_id)
     if (pos != this->queue.end())
     {
         std::shared_ptr<QueuedPublish> &qp = pos->second;
-
-        const size_t mem = qp->getApproximateMemoryFootprint();
-        qosQueueBytes -= mem;
-        assert(qosQueueBytes >= 0);
-        if (qosQueueBytes < 0) // Should not happen, but correcting a hypothetical bug is fine for this purpose.
-            qosQueueBytes = 0;
-
+        subtractQoSBytes(qp.get());
         result = true;
         this->eraseFromMapAndRelinkList(pos);
     }
@@ -147,6 +141,33 @@ void QoSPublishQueue::addToHeadOfLinkedList(std::shared_ptr<QueuedPublish> &qp)
         this->tail = qp;
 }
 
+void QoSPublishQueue::recalculateQosQueueBytes()
+{
+    size_t new_value{};
+
+    for (const auto &x : queue)
+    {
+        if (!x.second)
+            continue;
+        new_value += x.second->getApproximateMemoryFootprint();
+    }
+
+    qosQueueBytes = { static_cast<ssize_t>(std::clamp<size_t>(new_value, 0, std::numeric_limits<ssize_t>::max())) };
+}
+
+void QoSPublishQueue::subtractQoSBytes(const QueuedPublish *p)
+{
+    if (!p)
+        return;
+
+    qosQueueBytes -= p->getApproximateMemoryFootprint();
+    assert(qosQueueBytes >= 0);
+
+    // Should not happen, but correcting a hypothetical bug is fine for this purpose.
+    if (qosQueueBytes < 0)
+        qosQueueBytes = 0;
+}
+
 /**
  * @brief QoSPublishQueue::queuePublish
  *
@@ -216,6 +237,7 @@ std::vector<uint16_t> QoSPublishQueue::clearExpiredMessages()
         if (qpos != this->queue.end() && qpos->second == qp)
         {
             removed_ids.push_back(qp->getPacketId());
+            subtractQoSBytes(qp.get());
             this->eraseFromMapAndRelinkList(qpos);
         }
     }
