@@ -11,7 +11,6 @@ See LICENSE for license details.
 #ifndef QOSPACKETQUEUE_H
 #define QOSPACKETQUEUE_H
 
-#include <list>
 #include <map>
 
 #include "types.h"
@@ -52,7 +51,7 @@ class QoSPublishQueue
     std::shared_ptr<QueuedPublish> tail;
 
     std::unordered_map<uint16_t, std::shared_ptr<QueuedPublish>> queue;
-    std::map<std::chrono::time_point<std::chrono::steady_clock>, uint16_t> queueExpirations;
+    std::multimap<std::chrono::time_point<std::chrono::steady_clock, std::chrono::seconds>, std::weak_ptr<QueuedPublish>> queueExpirations;
 
     ssize_t qosQueueBytes = 0;
 

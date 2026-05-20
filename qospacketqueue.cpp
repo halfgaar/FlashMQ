@@ -12,8 +12,6 @@ See LICENSE for license details.
 
 #include <cassert>
 
-#include "mqttpacket.h"
-
 QueuedPublish::QueuedPublish(Publish &&publish, uint16_t packet_id, const std::optional<std::string> &topic_override) :
     publish(std::move(publish)),
     packet_id(packet_id),
@@ -47,12 +45,16 @@ size_t QueuedPublish::getApproximateMemoryFootprint() const
 
 void QoSPublishQueue::addToExpirationQueue(std::shared_ptr<QueuedPublish> &qp)
 {
+    if (!qp)
+        return;
+
     Publish &pub = qp->getPublish();
 
     if (!pub.expireInfo)
         return;
 
-    this->queueExpirations[pub.expireInfo->expiresAt()] = qp->getPacketId();
+    const auto when = std::chrono::time_point_cast<std::chrono::seconds>(pub.expiresAt().value());
+    this->queueExpirations.emplace(when, qp);
 }
 
 bool QoSPublishQueue::erase(const uint16_t packet_id)
@@ -196,32 +198,25 @@ std::vector<uint16_t> QoSPublishQueue::clearExpiredMessages()
 
     std::vector<uint16_t> removed_ids;
 
-    auto it = queueExpirations.begin();
-    auto end = queueExpirations.end();
-    while (it != end)
+    for (auto _ = queueExpirations.begin(); _ != queueExpirations.end();)
     {
-        auto cur_it = it;
-        it++;
+        auto cur_it = _++;
 
-        const std::chrono::time_point<std::chrono::steady_clock> &when = cur_it->first;
-
-        if (when > std::chrono::steady_clock::now())
-        {
+        if (cur_it->first > std::chrono::steady_clock::now())
             break;
-        }
 
-        auto qpos = this->queue.find(cur_it->second);
+        const std::shared_ptr<QueuedPublish> qp = cur_it->second.lock();
+        queueExpirations.erase(cur_it);
 
-        if (qpos != this->queue.end())
+        if (!qp)
+            continue;
+
+        const auto qpos = this->queue.find(qp->getPacketId());
+
+        if (qpos != this->queue.end() && qpos->second == qp)
         {
-            std::shared_ptr<QueuedPublish> &p = qpos->second;
-
-            if (p->getPublish().hasExpired())
-            {
-                removed_ids.push_back(p->getPacketId());
-                this->eraseFromMapAndRelinkList(qpos);
-                this->queueExpirations.erase(cur_it);
-            }
+            removed_ids.push_back(qp->getPacketId());
+            this->eraseFromMapAndRelinkList(qpos);
         }
     }
 
