@@ -294,17 +294,13 @@ PacketDropReason Session::writePacket(PublishCopyFactory &copyFactory, const uin
             qos_locked->queuePublish(copyFactory, pack_id.value(), effectiveQos, effectiveRetain, subscriptionIdentifier, topic_override);
     }
 
-    PacketDropReason return_value = PacketDropReason::ClientOffline;
+    if (!c)
+        return PacketDropReason::ClientOffline;
 
-    if (c)
-    {
-        if (!c->isRetainedAvailable())
-            effectiveRetain = false;
+    if (!c->isRetainedAvailable())
+        effectiveRetain = false;
 
-        return_value = c->writeMqttPacketAndBlameThisClient(copyFactory, effectiveQos, pack_id.value_or(0), effectiveRetain, subscriptionIdentifier, topic_override);
-    }
-
-    return return_value;
+    return c->writeMqttPacketAndBlameThisClient(copyFactory, effectiveQos, pack_id.value_or(0), effectiveRetain, subscriptionIdentifier, topic_override);
 }
 
 /**
