@@ -236,49 +236,19 @@ void ThreadData::queuePublishLazySubscriptionStats()
     auto f = [this](){
         for (auto &pair : priv->clients.bridges)
         {
-            if (!pair.second)
+            std::shared_ptr<BridgeState> bridge = pair.second;
+
+            if (!bridge)
                 continue;
 
-            CheckedUniquePtr<TrackedSubscriptionState> &tracked_subs = pair.second->getTrackedSubscriptions();
+            CheckedUniquePtr<TrackedSubscriptionState> &tracked_subs = bridge->getTrackedSubscriptions();
 
             if (!tracked_subs)
                 continue;
 
-            uint64_t dropped_count {};
-            int64_t dropped_per_second {};
-
-            {
-                std::shared_ptr<Session> session = pair.second->session->lock();
-
-                if (session)
-                {
-                    std::shared_ptr<Client> client = session->makeSharedClient();
-
-                    if (client)
-                    {
-                        dropped_count = { client->droppedPacketsBufferFull.get() };
-                        dropped_per_second = { static_cast<int64_t>(client->droppedPacketsBufferFull.getPerSecond()) };
-                    }
-                }
-            }
-
             {
                 std::string topic("$SYS/broker/bridge/");
-                topic.append(pair.second->c.clientidPrefix);
-                topic.append("/dropped_packets/buffer_full/count");
-                globals->stats.setExtra(topic, std::to_string(dropped_count));
-            }
-
-            {
-                std::string topic("$SYS/broker/bridge/");
-                topic.append(pair.second->c.clientidPrefix);
-                topic.append("/dropped_packets/buffer_full/per_second");
-                globals->stats.setExtra(topic, std::to_string(dropped_per_second));
-            }
-
-            {
-                std::string topic("$SYS/broker/bridge/");
-                topic.append(pair.second->c.clientidPrefix);
+                topic.append(bridge->c.clientidPrefix);
                 topic.append("/lazy_subscriptions/tracked/count");
 
                 globals->stats.setExtra(topic, std::to_string(tracked_subs->trackedSubscriptionCount()));
@@ -286,7 +256,7 @@ void ThreadData::queuePublishLazySubscriptionStats()
 
             {
                 std::string topic("$SYS/broker/bridge/");
-                topic.append(pair.second->c.clientidPrefix);
+                topic.append(bridge->c.clientidPrefix);
                 topic.append("/lazy_subscriptions/tracked/resend_total");
 
                 globals->stats.setExtra(topic, std::to_string(tracked_subs->getResendTotal()));
@@ -294,7 +264,7 @@ void ThreadData::queuePublishLazySubscriptionStats()
 
             {
                 std::string topic("$SYS/broker/bridge/");
-                topic.append(pair.second->c.clientidPrefix);
+                topic.append(bridge->c.clientidPrefix);
                 topic.append("/lazy_subscriptions/tracked/resend_current");
 
                 globals->stats.setExtra(topic, std::to_string(tracked_subs->getResendCount()));
@@ -302,11 +272,66 @@ void ThreadData::queuePublishLazySubscriptionStats()
 
             {
                 std::string topic("$SYS/broker/bridge/");
-                topic.append(pair.second->c.clientidPrefix);
+                topic.append(bridge->c.clientidPrefix);
                 topic.append("/lazy_subscriptions/mutations/pending_count");
 
                 globals->stats.setExtra(topic, std::to_string(tracked_subs->trackedSubscriptionMutationCount()));
             }
+
+            size_t buf_peak_size {};
+            size_t buf_remainder_peak_size {};
+
+            std::shared_ptr<Session> session = bridge->session->lock();
+            if (session)
+            {
+                std::shared_ptr<Client> client = session->makeSharedClient();
+                if (client)
+                {
+                    buf_peak_size = { client->getWriteBufPeakSize() };
+                    buf_remainder_peak_size = { client->getWriteBufFlushRemainderPeakSize() };
+                }
+            }
+
+            {
+                std::string topic("$SYS/broker/bridge/");
+                topic.append(bridge->c.clientidPrefix);
+                topic.append("/write_buffer/peak_size");
+                globals->stats.setExtra(topic, std::to_string(buf_peak_size));
+            }
+
+            {
+                std::string topic("$SYS/broker/bridge/");
+                topic.append(bridge->c.clientidPrefix);
+                topic.append("/write_buffer/flush_remainder_peak_size");
+                globals->stats.setExtra(topic, std::to_string(buf_remainder_peak_size));
+            }
+        }
+
+        for (auto pos = priv->clients.remote_routing_group_clients.begin(); pos != priv->clients.remote_routing_group_clients.end();)
+        {
+            std::shared_ptr<Client> c = pos->lock();
+
+            if (!c)
+            {
+                pos = priv->clients.remote_routing_group_clients.erase(pos);
+                continue;
+            }
+
+            {
+                std::string topic("$SYS/broker/bridge_clients/");
+                topic.append(c->getClientIdOrPrefix());
+                topic.append("/write_buffer/peak_size");
+                globals->stats.setExtra(topic, std::to_string(c->getWriteBufPeakSize()));
+            }
+
+            {
+                std::string topic("$SYS/broker/bridge_clients/");
+                topic.append(c->getClientIdOrPrefix());
+                topic.append("/write_buffer/flush_remainder_peak_size");
+                globals->stats.setExtra(topic, std::to_string(c->getWriteBufFlushRemainderPeakSize()));
+            }
+
+            pos++;
         }
     };
 
@@ -1015,6 +1040,12 @@ void ThreadData::acceptPendingClients()
 
         // A non-repeating keep-alive check is for when clients do a TCP connect and then nothing else.
         queueClientNextKeepAliveCheck(client, false);
+
+        // TODO: perhaps also check if client id prefix is present
+        if (client->hasPreAssignedRoutingGroup())
+        {
+            priv->clients.remote_routing_group_clients.push_back(client);
+        }
 
         client->addToEpoll(EPOLLIN);
         priv->clients.by_fd[fd] = std::move(client);

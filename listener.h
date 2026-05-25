@@ -62,6 +62,7 @@ struct Listener
     std::vector<Network> denyList;
     std::optional<uint8_t> maxQos;
     std::optional<Mqtt3QoSExceedAction> mqtt3QoSExceedAction;
+    std::optional<std::string> fmq_client_group_id;
 
     void isValid();
     bool isSsl() const;

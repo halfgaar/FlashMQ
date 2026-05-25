@@ -876,6 +876,9 @@ void MainApp::start()
                     if (listener->mqtt3QoSExceedAction)
                         client->setMqtt3QoSExceedAction(listener->mqtt3QoSExceedAction.value());
 
+                    if (listener->fmq_client_group_id)
+                        client->setPreAssignedFmqClientGroup(listener->fmq_client_group_id.value());
+
                     thread_data->giveClient(std::move(client));
 
                     globals->stats.socketConnects.inc();

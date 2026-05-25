@@ -86,12 +86,19 @@ class Client
         uint32_t maxOutgoingPacketSize {};
         std::optional<uint32_t> maxBufSizeOverride;
 
+        size_t peakSize {};
+        size_t flushRemainderPeakSize {};
+
         WriteBuf(size_t size, uint32_t maxOutgoingPacketSize);
 
         void checkPressure(const size_t limit, Client *client);
         void checkPressure(Client *client);
         void forceResetUnderPressureWhenEmpty();
         uint32_t getMaxBufSize() const;
+        void updatePeakSize();
+        size_t getPeakSize();
+        void updateFlushRemainderPeakSize();
+        size_t getFlushRemainderPeakSize();
     };
 
     friend class IoWrapper;
@@ -133,6 +140,7 @@ class Client
     std::string ssl_version;
     std::string clientid;
     std::string username;
+    bool pre_assigned_routing_group = false;
     std::optional<std::string> fmq_client_group_id;
     std::optional<std::string> client_id_prefix;
     uint16_t keepalive = 10;
@@ -177,7 +185,6 @@ class Client
     void sendSubAck(const SubAckAction &action);
 
 public:
-    DerivableAtomicCounter droppedPacketsBufferFull;
     uint8_t preAuthPacketCounter = 0;
 
     Client(
@@ -215,6 +222,8 @@ public:
     void setClientProperties(ProtocolVersion protocolVersion, const std::string &clientId, const std::optional<std::string> &fmq_client_group_id,
                              const std::string username, bool connectPacketSeen, uint16_t keepalive, uint32_t maxOutgoingPacketSize, uint16_t maxOutgoingTopicAliasValue);
     void setClientProperties(bool connectPacketSeen, uint16_t keepalive, uint32_t maxOutgoingPacketSize, uint16_t maxOutgoingTopicAliasValue, bool supportsRetained);
+    void setPreAssignedFmqClientGroup(const std::string &s);
+    bool hasPreAssignedRoutingGroup();
     void setWill(const std::string &topic, const std::string &payload, bool retain, uint8_t qos);
     void stageWill(WillPublish &&willPublish);
     void setWillFromStaged();
@@ -258,6 +267,8 @@ public:
     bool keepAliveExpired();
     std::string getKeepAliveInfoString() const;
     void resetBuffersIfEligible();
+    size_t getWriteBufPeakSize();
+    size_t getWriteBufFlushRemainderPeakSize();
 
     void setTopicAlias(const uint16_t alias_id, const std::string &topic);
     const std::string &getTopicAlias(const uint16_t id) const;

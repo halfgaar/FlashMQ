@@ -97,6 +97,30 @@ uint32_t Client::WriteBuf::getMaxBufSize() const
     return maxBufSizeOverride.value_or(settings->clientMaxWriteBufferSize);
 }
 
+void Client::WriteBuf::updatePeakSize()
+{
+    this->peakSize = std::max<size_t>(this->peakSize, buf.usedBytes());
+}
+
+size_t Client::WriteBuf::getPeakSize()
+{
+    const size_t x = this->peakSize;
+    this->peakSize = 0;
+    return x;
+}
+
+size_t Client::WriteBuf::getFlushRemainderPeakSize()
+{
+    const size_t x = this->flushRemainderPeakSize;
+    this->flushRemainderPeakSize = 0;
+    return x;
+}
+
+void Client::WriteBuf::updateFlushRemainderPeakSize()
+{
+    this->flushRemainderPeakSize = std::max<size_t>(this->flushRemainderPeakSize, buf.usedBytes());
+}
+
 /**
  * @brief Client::Client
  * @param fd
@@ -412,13 +436,12 @@ PacketDropReason Client::writeMqttPacket(const MqttPacket &packet)
     // QoS packet are queued and limited elsewhere.
     if (packet.packetType == PacketType::PUBLISH && packet.getQos() == 0 && packetSize > write_buf_locked->buf.freeSpace())
     {
-        droppedPacketsBufferFull.inc();
         return PacketDropReason::BufferFull;
     }
 
     write_buf_locked->checkPressure(maxBufSize, this);
-
     packet.readIntoBuf(write_buf_locked->buf);
+    write_buf_locked->updatePeakSize();
 
     if (packet.packetType == PacketType::PUBLISH)
     {
@@ -582,6 +605,7 @@ void Client::writeBufIntoFd()
     write_buf_locked->forceResetUnderPressureWhenEmpty();
 
     const bool data_pending = write_buf_locked->buf.usedBytes() > 0 || ioWrapper.hasPendingWrite() || error == IoWrapResult::Wouldblock;
+    write_buf_locked->updateFlushRemainderPeakSize();
 
     if (this->disconnectStage == DisconnectStage::SendPendingAppData && !data_pending)
     {
@@ -682,6 +706,18 @@ void Client::resetBuffersIfEligible()
 
     auto write_buf_locked = writebuf.lock();
     write_buf_locked->buf.resetCapacityIfEligable(initialBufferSize);
+}
+
+size_t Client::getWriteBufPeakSize()
+{
+    auto l = writebuf.lock();
+    return l->getPeakSize();
+}
+
+size_t Client::getWriteBufFlushRemainderPeakSize()
+{
+    auto l = writebuf.lock();
+    return l->getFlushRemainderPeakSize();
 }
 
 void Client::setTopicAlias(const uint16_t alias_id, const std::string &topic)
@@ -1137,7 +1173,8 @@ void Client::setClientProperties(
 {
     this->protocolVersion = protocolVersion;
     this->clientid = clientId;
-    this->fmq_client_group_id = fmq_client_group_id;
+    if (!this->fmq_client_group_id)
+        this->fmq_client_group_id = fmq_client_group_id;
     this->username = username;
     this->connectPacketSeen = connectPacketSeen;
     this->keepalive = keepalive;
@@ -1176,6 +1213,18 @@ void Client::setClientIdPrefix(const std::optional<std::string> &p)
         throw ProtocolError("Client ID prefix must a substring of client ID", ReasonCodes::ImplementationSpecificError);
 
     this->client_id_prefix = p;
+}
+
+void Client::setPreAssignedFmqClientGroup(const std::string &s)
+{
+    assert(!this->pre_assigned_routing_group);
+    this->pre_assigned_routing_group = true;
+    this->fmq_client_group_id = s;
+}
+
+bool Client::hasPreAssignedRoutingGroup()
+{
+    return this->pre_assigned_routing_group;
 }
 
 void Client::stageWill(WillPublish &&willPublish)

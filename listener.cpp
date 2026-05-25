@@ -100,6 +100,11 @@ void Listener::isValid()
     {
         throw ConfigFileException("Client verification can't be done by both FlashMQ and HAProxy.");
     }
+
+    if (fmq_client_group_id && fmq_client_group_id.value().size() != 12)
+    {
+        throw ConfigFileException("Length of 'routing_group_id' must be 12 (and with good random).");
+    }
 }
 
 bool Listener::isSsl() const
