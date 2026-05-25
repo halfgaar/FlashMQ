@@ -276,6 +276,7 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validListenKeys.insert("mqtt3_qos_exceed_action");
     validListenKeys.insert("only_allow_from");
     validListenKeys.insert("deny_from");
+    validListenKeys.insert("routing_group_id");
 
     validBridgeKeys.insert("local_username");
     validBridgeKeys.insert("remote_username");
@@ -722,6 +723,13 @@ void ConfigFileParser::loadFile(bool test)
                 {
                     Network net(valueTrimmed);
                     curListener->denyList.push_back(net);
+                }
+                if (testKeyValidity(key, "routing_group_id", validListenKeys))
+                {
+                    if (valueTrimmed.length() != 12)
+                        throw ConfigFileException("Length of " + key + " must be 12 chars (and fully random)");
+
+                    curListener->fmq_client_group_id = valueTrimmed;
                 }
 
                 testCorrectNumberOfValues(key, number_of_expected_values, values);

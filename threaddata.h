@@ -74,6 +74,7 @@ struct QueuedSubackTrigger
 struct Clients
 {
     std::unordered_map<int, std::shared_ptr<Client>> by_fd;
+    std::vector<std::weak_ptr<Client>> remote_routing_group_clients;
     std::unordered_map<std::string, std::shared_ptr<BridgeState>> bridges;
 };
 
