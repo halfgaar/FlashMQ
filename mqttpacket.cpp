@@ -282,6 +282,9 @@ MqttPacket::MqttPacket(const Connect &connect) :
     if (connect.fmq_client_group_id)
         non_optional(properties)->writeUserProperty(FMQ_CLIENT_GROUP_ID, connect.fmq_client_group_id.value());
 
+    if (connect.clientid_prefix)
+        non_optional(properties)->writeUserProperty(FMQ_CLIENT_ID_PREFIX, connect.clientid_prefix.value());
+
     std::optional<Mqtt5PropertyBuilder> will_properties;
 
     if (connect.will && this->protocolVersion >= ProtocolVersion::Mqtt5)
@@ -769,9 +772,13 @@ ConnectData MqttPacket::parseConnectData(std::shared_ptr<Client> &sender)
         }
 
         result.fmq_client_group_id = publishData.getFirstUserProperty(FMQ_CLIENT_GROUP_ID);
+        result.client_id_prefix = publishData.getFirstUserProperty(FMQ_CLIENT_ID_PREFIX);
 
         if (result.fmq_client_group_id.has_value() && result.fmq_client_group_id.value().size() > 24)
             throw ProtocolError("FMQ Client group ID can't be longer than 24 chars.", ReasonCodes::ImplementationSpecificError);
+
+        if (result.client_id_prefix.has_value() && result.client_id_prefix.value().length() > 12)
+            throw ProtocolError("User property with client ID prefix is too long.", ReasonCodes::ImplementationSpecificError);
     }
 
     if (result.authenticationMethod.empty() && !result.authenticationData.empty())
@@ -783,6 +790,9 @@ ConnectData MqttPacket::parseConnectData(std::shared_ptr<Client> &sender)
     }
 
     result.client_id = readBytesToString(settings.maxStringLength);
+
+    if (result.client_id_prefix && (result.client_id_prefix.value().empty() || !startsWith(result.client_id, result.client_id_prefix.value())))
+        throw ProtocolError("Client ID prefix must a substring of client ID", ReasonCodes::ImplementationSpecificError);
 
     if (result.will_flag)
     {
@@ -1182,6 +1192,7 @@ void MqttPacket::handleConnect(std::shared_ptr<Client> &sender)
     }
 
     sender->setClientId(connectData.client_id);
+    sender->setClientIdPrefix(connectData.client_id_prefix);
 
     std::string username = connectData.username ? connectData.username.value() : "";
 

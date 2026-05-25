@@ -41,6 +41,7 @@ struct ConnectData
     std::string authenticationData;
 
     std::optional<std::string> fmq_client_group_id;
+    std::optional<std::string> client_id_prefix;
 
     // Content from Payload
     std::string client_id;

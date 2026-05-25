@@ -132,6 +132,7 @@ class Client
     std::string clientid;
     std::string username;
     std::optional<std::string> fmq_client_group_id;
+    std::optional<std::string> client_id_prefix;
     uint16_t keepalive = 10;
     bool clean_start = false;
     X509ClientVerification x509ClientVerification = X509ClientVerification::None;
@@ -219,7 +220,9 @@ public:
     bool hasConnectPacketSeen() { return connectPacketSeen; }
     void setHasConnectPacketSeen() { connectPacketSeen = true; }
     const std::string &getClientId() { return this->clientid; }
+    std::string getClientIdOrPrefix() const;
     void setClientId(const std::string &id);
+    void setClientIdPrefix(const std::optional<std::string> &p);
     const std::string &getUsername() const { return this->username; }
     const std::optional<std::string> &getFmqClientGroupId() const { return this->fmq_client_group_id; }
     std::string &getMutableUsername();

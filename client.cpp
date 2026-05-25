@@ -547,6 +547,7 @@ void Client::writeLoginPacket()
     connectInfo.maxIncomingTopicAliasValue = config->c.maxIncomingTopicAliases;
     connectInfo.bridgeProtocolBit = config->c.bridgeProtocolBit;
     connectInfo.fmq_client_group_id = config->c.getFmqClientGroupId();
+    connectInfo.clientid_prefix = config->c.clientidPrefix;
 
     MqttPacket pack(connectInfo);
     writeMqttPacket(pack);
@@ -839,6 +840,7 @@ void Client::setBridgeState(std::shared_ptr<BridgeState> bridgeState)
         this->clean_start = bridgeState->c.localCleanStart;
         this->clientid = bridgeState->c.getClientid();
         this->fmq_client_group_id = bridgeState->c.getFmqClientGroupId();
+        this->client_id_prefix = bridgeState->c.clientidPrefix;
         this->username = bridgeState->c.local_username.value_or(std::string());
         this->keepalive = bridgeState->c.keepalive;
         this->addr.setAddressName(bridgeState->c.address);
@@ -1099,6 +1101,16 @@ void Client::setClientProperties(bool connectPacketSeen, uint16_t keepalive, uin
     }
 }
 
+void Client::setClientIdPrefix(const std::optional<std::string> &p)
+{
+    assert(!this->client_id_prefix);
+
+    if (p && (p.value().empty() || !startsWith(this->clientid, p.value())))
+        throw ProtocolError("Client ID prefix must a substring of client ID", ReasonCodes::ImplementationSpecificError);
+
+    this->client_id_prefix = p;
+}
+
 void Client::stageWill(WillPublish &&willPublish)
 {
     this->stagedWillPublish = std::make_shared<WillPublish>(std::move(willPublish));
@@ -1210,6 +1222,11 @@ void Client::clearWill()
 
     if (session)
         session->clearWill();
+}
+
+std::string Client::getClientIdOrPrefix() const
+{
+    return client_id_prefix.value_or(clientid);
 }
 
 void Client::setClientId(const std::string &id)

@@ -23,6 +23,7 @@ See LICENSE for license details.
 #include "nocopy.h"
 
 #define FMQ_CLIENT_GROUP_ID "fmq_client_group_id"
+#define FMQ_CLIENT_ID_PREFIX "fmq_client_id_prefix"
 
 enum class PacketType
 {
@@ -335,6 +336,7 @@ struct Connect
     bool clean_start = true;
     bool bridgeProtocolBit = false;
     std::string clientid;
+    std::optional<std::string> clientid_prefix;
     std::optional<std::string> fmq_client_group_id;
     std::optional<std::string> username;
     std::optional<std::string> password;
