@@ -47,7 +47,7 @@ class MqttPacket
     Publish publishData;
     size_t fixed_header_length = 0; // if 0, this packet does not contain the bytes of the fixed header.
     VariableByteInt remainingLength;
-    char first_byte = 0;
+    uint8_t first_byte = 0;
     size_t pos = 0;
     size_t packet_id_pos = 0;
     uint16_t packet_id = 0;
@@ -66,7 +66,7 @@ class MqttPacket
     std::string_view readBytes(size_t length);
     char readByte();
     uint8_t readUint8();
-    void writeByte(char b);
+    void writeByte(uint8_t b);
     void writeUint16(uint16_t x);
 
     template<typename T>

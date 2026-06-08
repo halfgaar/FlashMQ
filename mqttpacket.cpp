@@ -13,6 +13,7 @@ See LICENSE for license details.
 #include <iostream>
 #include <list>
 #include <cassert>
+#include <bit>
 
 #include "globals.h"
 #include "threaddata.h"
@@ -20,6 +21,27 @@ See LICENSE for license details.
 #include "utils.h"
 #include "subscriptionstore.h"
 #include "acksender.h"
+
+uint8_t generate_first_byte(const PacketType type)
+{
+    unsigned int lsb = 0;
+
+    switch (type)
+    {
+    case PacketType::PUBREL:
+    case PacketType::SUBSCRIBE:
+    case PacketType::UNSUBSCRIBE:
+        lsb = 2;
+        break;
+    default:
+        break;
+    }
+
+    unsigned int x { static_cast<unsigned int>(type) << 4 };
+    x = { x | lsb };
+    const uint8_t result { static_cast<uint8_t>(x & 0xFF) };
+    return result;
+}
 
 // constructor for parsing incoming packets
 MqttPacket::MqttPacket(std::vector<char> &&packet_bytes, size_t fixed_header_length, std::shared_ptr<Client> &sender) :
@@ -33,18 +55,56 @@ MqttPacket::MqttPacket(std::vector<char> &&packet_bytes, size_t fixed_header_len
         throw ProtocolError("Incoming packet size exceeded.", ReasonCodes::PacketTooLarge);
 
     protocolVersion = sender->getProtocolVersion();
-    first_byte = bites[0];
-    unsigned char _packetType = (first_byte & 0xF0) >> 4;
-    packetType = (PacketType)_packetType;
+    first_byte = std::bit_cast<uint8_t>(bites[0]);
+    packetType = static_cast<PacketType>((first_byte & 0xF0) >> 4);
     pos += fixed_header_length;
     externallyReceived = true;
+
+    if (packetType == PacketType::Reserved || (this->protocolVersion < ProtocolVersion::Mqtt5 && packetType > PacketType::DISCONNECT))
+    {
+        throw ProtocolError(
+            "Packet type " + packetTypeToString(packetType) + " invalid for protocol version " + protocolVersionString(this->protocolVersion),
+            ReasonCodes::MalformedPacket);
+    }
+
+    const unsigned int four_lsb = first_byte & 0x0F;
+    std::optional<unsigned int> four_lsb_required;
+
+    switch(packetType)
+    {
+    case PacketType::CONNECT:
+    case PacketType::CONNACK:
+    case PacketType::PUBACK:
+    case PacketType::PUBREC:
+    case PacketType::PUBCOMP:
+    case PacketType::SUBACK:
+    case PacketType::UNSUBACK:
+    case PacketType::PINGREQ:
+    case PacketType::PINGRESP:
+    case PacketType::DISCONNECT:
+    case PacketType::AUTH:
+        four_lsb_required = 0;
+        break;
+    case PacketType::PUBREL:
+    case PacketType::SUBSCRIBE:
+    case PacketType::UNSUBSCRIBE:
+        four_lsb_required = 0b10;
+        break;
+    default:
+        break;
+    }
+
+    if (four_lsb_required && four_lsb != four_lsb_required)
+    {
+        throw ProtocolError(packetTypeToString(packetType) + " has malformed four LSB in first byte", ReasonCodes::MalformedPacket);
+    }
 }
 
 MqttPacket::MqttPacket(const ConnAck &connAck) :
     bites(connAck.getLengthWithoutFixedHeader())
 {
     packetType = PacketType::CONNACK;
-    first_byte = static_cast<char>(packetType) << 4;
+    first_byte = generate_first_byte(packetType);
     writeByte(connAck.session_present & 0b00000001); // all connect-ack flags are 0, except session-present. [MQTT-3.2.2.1]
     writeByte(connAck.return_code);
 
@@ -62,7 +122,7 @@ MqttPacket::MqttPacket(const SubAck &subAck) :
     bites(subAck.getLengthWithoutFixedHeader())
 {
     packetType = PacketType::SUBACK;
-    first_byte = static_cast<char>(packetType) << 4;
+    first_byte = generate_first_byte(packetType);
     writeUint16(subAck.packet_id);
 
     if (subAck.protocol_version >= ProtocolVersion::Mqtt5)
@@ -87,7 +147,7 @@ MqttPacket::MqttPacket(const UnsubAck &unsubAck) :
     bites(unsubAck.getLengthWithoutFixedHeader())
 {
     packetType = PacketType::UNSUBACK;
-    first_byte = static_cast<char>(packetType) << 4;
+    first_byte = generate_first_byte(packetType);
     writeUint16(unsubAck.packet_id);
 
     if (unsubAck.protocol_version >= ProtocolVersion::Mqtt5)
@@ -140,7 +200,7 @@ MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, const Publish &_pu
         throw ProtocolError("Topic path too long.", ReasonCodes::ProtocolError);
     }
 
-    first_byte = static_cast<char>(packetType) << 4;
+    first_byte = generate_first_byte(packetType);
     first_byte |= (this->publishData.qos << 1);
     first_byte |= (static_cast<char>(publishData.retain) & 0b00000001);
 
@@ -207,8 +267,7 @@ MqttPacket::MqttPacket(const PubResponse &pubAck) :
     this->packetType = pubAck.packet_type;
 
     fixed_header_length = 2;
-    const uint8_t firstByteDefaultBits = pubAck.packet_type == PacketType::PUBREL ? 0b0010 : 0;
-    this->first_byte = (static_cast<uint8_t>(pubAck.packet_type) << 4) | firstByteDefaultBits;
+    this->first_byte = generate_first_byte(packetType);
     writeByte(first_byte);
     writeByte(pubAck.getRemainingLength());
     this->packet_id_pos = this->pos;
@@ -233,7 +292,7 @@ MqttPacket::MqttPacket(const Disconnect &disconnect) :
     this->protocolVersion = disconnect.protocolVersion;
 
     packetType = PacketType::DISCONNECT;
-    first_byte = static_cast<char>(packetType) << 4;
+    first_byte = generate_first_byte(packetType);
 
     if (this->protocolVersion >= ProtocolVersion::Mqtt5)
     {
@@ -249,7 +308,7 @@ MqttPacket::MqttPacket(const Auth &auth) :
     protocolVersion(ProtocolVersion::Mqtt5),
     packetType(PacketType::AUTH)
 {
-    first_byte = static_cast<char>(packetType) << 4;
+    first_byte = generate_first_byte(packetType);
 
     writeByte(static_cast<uint8_t>(auth.reasonCode));
     writeProperties(auth.propertyBuilder);
@@ -260,7 +319,7 @@ MqttPacket::MqttPacket(const Connect &connect) :
     protocolVersion(connect.protocolVersion),
     packetType(PacketType::CONNECT)
 {
-    first_byte = static_cast<char>(packetType) << 4;
+    first_byte = generate_first_byte(packetType);
     const std::string_view magicString = connect.getMagicString();
 
     std::optional<Mqtt5PropertyBuilder> properties;
@@ -376,8 +435,7 @@ MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, const uint16_t pac
 {
     assert(!subscriptions.empty());
 
-    first_byte = static_cast<char>(packetType) << 4;
-    first_byte |= 2; // required reserved bit
+    first_byte = generate_first_byte(packetType);
 
     std::optional<Mqtt5PropertyBuilder> properties;
 
@@ -437,8 +495,7 @@ MqttPacket::MqttPacket(const ProtocolVersion protocolVersion, const uint16_t pac
     throw NotImplementedException("Code is only for testing.");
 #endif
 
-    first_byte = static_cast<char>(packetType) << 4;
-    first_byte |= 2; // required reserved bit
+    first_byte = generate_first_byte(packetType);
 
     std::optional<Mqtt5PropertyBuilder> properties;
 
@@ -2249,7 +2306,7 @@ void MqttPacket::handlePublish(std::shared_ptr<Client> &sender)
                 {
                     publishData.retain = false;
                     bites[0] &= 0b11111110;
-                    first_byte = bites[0];
+                    first_byte = std::bit_cast<uint8_t>(bites[0]);
                 }
             }
 
@@ -2257,7 +2314,7 @@ void MqttPacket::handlePublish(std::shared_ptr<Client> &sender)
             {
                 // Set dup flag to 0, because that must not be propagated [MQTT-3.3.1-3].
                 bites[0] &= 0b11110111;
-                first_byte = bites[0];
+                first_byte = std::bit_cast<uint8_t>(bites[0]);
 
                 PublishCopyFactory factory(this);
                 ackSender.sendNow(sender.get());
@@ -2636,12 +2693,12 @@ uint8_t MqttPacket::readUint8()
     return static_cast<uint8_t>(r);
 }
 
-void MqttPacket::writeByte(char b)
+void MqttPacket::writeByte(uint8_t b)
 {
     if (pos + 1 > bites.size())
         throw ProtocolError("Exceeding packet size", ReasonCodes::MalformedPacket);
 
-    bites[pos++] = b;
+    bites[pos++] = std::bit_cast<char>(b);
 }
 
 void MqttPacket::writeUint16(uint16_t x)
