@@ -116,6 +116,16 @@ public:
         m.lock();
     }
 
+    MutexOwned(const MutexOwned &) = delete;
+    MutexOwned &operator=(const MutexOwned&) = delete;
+
+    void* operator new(size_t) = delete;
+    void operator delete(void*) = delete;
+    void* operator new[](size_t) = delete;
+    void operator delete[](void*) = delete;
+    void* operator new(size_t, void*) = delete;
+    void* operator new[](size_t, void*) = delete;
+
     MutexLocked<T> lock()
     {
         MutexLocked<T> r(d, m);
