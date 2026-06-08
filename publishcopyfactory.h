@@ -40,7 +40,14 @@ public:
     PublishCopyFactory(MqttPacket *packet);
     PublishCopyFactory(Publish *publish);
     PublishCopyFactory(const PublishCopyFactory &other) = delete;
-    PublishCopyFactory(PublishCopyFactory &&other) = delete;
+    PublishCopyFactory &operator=(const PublishCopyFactory&) = delete;
+
+    void* operator new(size_t) = delete;
+    void operator delete(void*) = delete;
+    void* operator new[](size_t) = delete;
+    void operator delete[](void*) = delete;
+    void* operator new(size_t, void*) = delete;
+    void* operator new[](size_t, void*) = delete;
 
     MqttPacket *getOptimumPacket(
         const uint8_t max_qos, const ProtocolVersion protocolVersion, uint16_t topic_alias, bool skip_topic, uint32_t subscriptionIdentifier,
