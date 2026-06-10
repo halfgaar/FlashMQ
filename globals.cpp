@@ -30,3 +30,17 @@ CheckedSharedPtr<ThreadData> Globals::GlobalsData::getDeterministicThreadData()
     thread_data_copy_weak = result2;
     return result2;
 }
+
+CheckedSharedPtr<LazySubscriptions> Globals::GlobalsData::getLazySubscriptions(bool construct)
+{
+    auto locked = lazySubscriptions.lock();
+    CheckedSharedPtr<LazySubscriptions> &locked_inner = *locked;
+
+    if (construct && !locked_inner)
+    {
+        locked_inner = std::make_shared<LazySubscriptions>();
+    }
+
+    return locked_inner;
+}
+

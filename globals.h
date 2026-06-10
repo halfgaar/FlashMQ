@@ -20,17 +20,20 @@
  */
 class Globals
 {
-    struct GlobalsData
+    class GlobalsData
     {
+        MutexOwned<CheckedSharedPtr<LazySubscriptions>> lazySubscriptions;
+
+    public:
         bool quitting = false;
         pthread_t createdByThread = pthread_self();
         std::shared_ptr<SubscriptionStore> subscriptionStore = std::make_shared<SubscriptionStore>();
         GlobalStats stats;
         BridgeClientGroupIds bridgeClientGroupIds;
         MutexOwned<std::vector<std::shared_ptr<ThreadData>>> threadDatas;
-        std::optional<LazySubscriptions> lazySubscriptions;
 
         CheckedSharedPtr<ThreadData> getDeterministicThreadData();
+        CheckedSharedPtr<LazySubscriptions> getLazySubscriptions(bool construct);
     };
 
     std::shared_ptr<GlobalsData> data = std::make_shared<GlobalsData>();
