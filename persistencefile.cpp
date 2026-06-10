@@ -327,12 +327,11 @@ void PersistenceFile::openWrite(const std::string &versionString)
     if (openMode != FileMode::unknown)
         throw std::runtime_error("File is already open.");
 
-    int fd = creat(filePathTemp.c_str(), S_IRUSR | S_IWUSR);
+    int fd = open(filePathTemp.c_str(), O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
     if (fd < 0)
         throw std::runtime_error("Creating " + filePathTemp + " failed");
-    close(fd);
 
-    f = fopen(filePathTemp.c_str(), "w+b");
+    f = fdopen(fd, "w+");
 
     if (f == nullptr)
     {
