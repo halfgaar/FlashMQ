@@ -186,7 +186,8 @@ void LazySubscriptions::addSubscription(
     const std::shared_ptr<LazySubscriptionNode> node = getDeepestNode(subtopics);
     auto subscribers = node->subscriber_groups.unique_lock();
     assert(!bridgeState->threadData->expired());
-    subscribers->operator[](bridgeState->c.getUnmultipliedClientIdPrefix()).emplace_back(
+    std::vector<LazySubscriber> &group = subscribers->operator[](bridgeState->c.getUnmultipliedClientIdPrefix());
+    group.emplace_back(
         bridgeState, bridgeState->threadData->lock(), distribution_group_name, min_required_wildcard_depth, qos);
     bridgeState->constructTrackedSubscriptions();
 }
