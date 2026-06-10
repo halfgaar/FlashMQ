@@ -267,8 +267,9 @@ AddSubscriptionResult SubscriptionStore::addSubscription(
 
     AddSubscriptionResult result;
 
-    if (globals->lazySubscriptions)
-        result.expanded_count = globals->lazySubscriptions->expandLazySubscriptions(TrackedSubscriptionMutationTask::Subscribe, session, sub_ack_release_trigger, subtopics, qos);
+    auto lazy_subscriptions = globals->getLazySubscriptions(false);
+    if (lazy_subscriptions)
+        result.expanded_count = lazy_subscriptions->expandLazySubscriptions(TrackedSubscriptionMutationTask::Subscribe, session, sub_ack_release_trigger, subtopics, qos);
 
     result.type = deepestNode->addSubscriber(session, qos, noLocal, retainAsPublished, shareName, subscriptionIdentifier);
     return result;
@@ -285,8 +286,10 @@ void SubscriptionStore::removeSubscription(
     if (!node)
         return;
 
-    if (globals->lazySubscriptions)
-        globals->lazySubscriptions->expandLazySubscriptions(TrackedSubscriptionMutationTask::Unsubscribe, session, 0, subtopics, 0);
+    auto lazy_subs = globals->getLazySubscriptions(false);
+    if (lazy_subs)
+        lazy_subs->expandLazySubscriptions(TrackedSubscriptionMutationTask::Unsubscribe, session, 0, subtopics, 0);
+
     node->removeSubscriber(session, shareName);
 }
 

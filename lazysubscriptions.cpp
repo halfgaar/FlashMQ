@@ -344,12 +344,10 @@ void registerLazySubscriptions(std::shared_ptr<BridgeState> &bridgeState)
     if (!bridgeState)
         return;
 
-    if (!globals->lazySubscriptions)
-        globals->lazySubscriptions.emplace();
-
     for (const BridgeLazySubscription &lazy_sub : bridgeState->c.lazySubscriptions)
     {
-        globals->lazySubscriptions.value().addSubscription(bridgeState, lazy_sub.pattern, lazy_sub.qos, bridgeState->c.getFmqClientGroupId().value());
+        auto lazy_subscriptions = globals->getLazySubscriptions(true);
+        lazy_subscriptions->addSubscription(bridgeState, lazy_sub.pattern, lazy_sub.qos, bridgeState->c.getFmqClientGroupId().value());
     }
 }
 
