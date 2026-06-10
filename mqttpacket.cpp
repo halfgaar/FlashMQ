@@ -2267,7 +2267,7 @@ void MqttPacket::handlePublish(std::shared_ptr<Client> &sender)
     }
     else if (publishData.qos == 2 && sender->getSession()->incomingQoS2MessageIdInTransit(_packet_id))
     {
-        ackSender.setAckCode(ReasonCodes::PacketIdentifierInUse);
+        ackSender.setAckCode(ReasonCodes::Success);
     }
     else
     {
