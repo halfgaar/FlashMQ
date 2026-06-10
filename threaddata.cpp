@@ -1084,6 +1084,14 @@ void ThreadData::acceptPendingBridges()
         {
             priv->clients.bridges[bridgeState->c.clientidPrefix] = bridgeState;
         }
+
+        // If the candidate is actually used, register the lazy subscriptions.
+        {
+            auto npos = priv->clients.bridges.find(bridgeState->c.clientidPrefix);
+
+            if (npos->second == bridgeState)
+                registerLazySubscriptions(bridgeState);
+        }
     }
 }
 

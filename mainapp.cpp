@@ -380,7 +380,6 @@ void MainApp::sendBridgesToThreads()
         {
             std::shared_ptr<BridgeState> bridgeState = std::make_shared<BridgeState>(bridge);
             bridgeState->threadData = std::weak_ptr<ThreadData>(owner);
-            registerLazySubscriptions(bridgeState);
             owner->giveBridge(bridgeState);
         }
     }
