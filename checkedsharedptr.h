@@ -43,6 +43,11 @@ public:
         return d.get();
     }
 
+    const std::shared_ptr<T> &get() const
+    {
+        return d;
+    }
+
     operator bool() const
     {
         return static_cast<bool>(d);
