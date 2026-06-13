@@ -99,6 +99,7 @@ set(FLASHMQ_HEADERS
     ${RELPATH}lazysubscriptions.h
     ${RELPATH}trackedsubscriptions.h
     ${RELPATH}trackedsubscriptionstate.h
+    ${RELPATH}entropy.h
 )
 
 set(FLASHMQ_IMPLS
@@ -171,4 +172,5 @@ set(FLASHMQ_IMPLS
     ${RELPATH}lazysubscriptions.cpp
     ${RELPATH}trackedsubscriptions.cpp
     ${RELPATH}trackedsubscriptionstate.cpp
+    ${RELPATH}entropy.cpp
     )
