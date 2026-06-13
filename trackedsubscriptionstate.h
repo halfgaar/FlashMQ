@@ -58,6 +58,7 @@ public:
         const std::shared_ptr<BridgeState> &bridgeState, const ProcessTrackedSubscriptionMutationsModifier modifier);
     void cleanupExpiredTrackedSubscriptions(
         const std::shared_ptr<BridgeState> &bridgeState, const PurgeTrackedSubscriptionModifier modifier);
+    void expireOldMutations();
     bool requiresProcessingTrackedSubscriptions();
     bool requiresContinuationOfPurging();
     void handledSubackActions(const uint16_t id);
