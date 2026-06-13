@@ -838,6 +838,48 @@ multi-value-param one 'two' "three" "with ' char"
         </listitem>
       </varlistentry>
 
+      <varlistentry xml:id="lazy_subscription_relay_timeout" condition="flashmq ≥ 1.28.0">
+        <term><option>lazy_subscription_relay_timeout</option> <replaceable>seconds</replaceable></term>
+        <listitem>
+          <para>
+            When a bridge has lazy subscriptions configured, all incoming subscriptions that match are kept as a list of mutations to be sent to the other side. When there is a connection problem, this list would grow out of control. With this setting you can configure how long the mutations are kept until they are removed.
+          </para>
+          <para>
+            Default: 600 seconds.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry xml:id="orphaned_lazy_subscription_retention" condition="flashmq ≥ 1.28.0">
+        <term><option>orphaned_lazy_subscription_retention</option> <replaceable>seconds</replaceable></term>
+        <listitem>
+          <para>
+            When a bridge has lazy subscriptions configured and they are sent as 'tracked subscriptions' to the other side, it will eventually get orphaned because the originating client is gone. This setting defines how long an orphaned subscription is maintained on the other side. It can happen that subscriptions come and go a lot, and this saves frequent subscription and unsubscription.
+          </para>
+          <para>
+            Default: 3600 seconds.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry xml:id="lazy_subscription_packet_max_batch_size" condition="flashmq ≥ 1.28.0">
+        <term><option>lazy_subscription_packet_max_batch_size</option> <replaceable>number</replaceable></term>
+        <term><option>lazy_subscription_packet_max_size</option> <replaceable>bytes</replaceable></term>
+        <listitem>
+          <para>
+            When sending or resending expanded lazy subscriptions to the other side, they are batched per single packet. These parameters define per how many they are batched. Larger packets are more efficient, but sending too many at once can cause (momentary) overloads, or cause latency spikes.
+          </para>
+          <itemizedlist>
+            <listitem>
+              <para>Default lazy_subscription_packet_max_batch_size: 200</para>
+            </listitem>
+            <listitem>
+              <para>Default lazy_subscription_packet_max_size: 2048</para>
+            </listitem>
+          </itemizedlist>
+        </listitem>
+      </varlistentry>
+
     </variablelist>
   </refsect1>
 
@@ -1175,6 +1217,22 @@ backend backend_server
         </listitem>
       </varlistentry>
 
+      <varlistentry xml:id="listen__routing_group_id" condition="flashmq ≥ 1.28.0">
+        <term><option>routing_group_id</option> <replaceable>random_string</replaceable></term>
+        <listitem>
+          <para>
+            Does explicitily what a bridge's <option>connection_count</option> does implicitly. By using this on bridges and listeners, you can bridge many servers to each other without causing loops. Clients connected to this listener will be given this routing group. Dedicated listeners should therefore be created for accepting such bridge connections.
+          </para>
+          <para>
+            The string has to be 12 characters, and must be fully random. This is checked on config test, and a good suggestion is offered if not.
+          </para>
+
+          <para>
+            Also see <link xlink:href="#bridge__routing_group_id"><option>routing_group_id</option></link> bridge option. However, also specifying it on the listener's adds security because it can't be spoofed, but it also treats this incoming connection as special for publishing connection quality stats on $SYS.
+          </para>
+        </listitem>
+      </varlistentry>
+
     </variablelist>
   </refsect1>
 
@@ -1229,7 +1287,7 @@ listen {
   <refsect1 xml:id="bridge" condition="flashmq ≥ 1.7.0">
     <title>Bridge configuration</title>
     <para>
-      Bridges can be defined inside <literal>bridge { }</literal> blocks. A bridge is essentially just an outgoing connection to another server with loop-detection and retain flag relaying. It is not a form of clustering, although with careful design, it can be deployed to achieve some sort of load balancing. Note that normally (unless <option>connection_count</option> is set) one bridge is one connection, and because FlashMQ's threading model is that clients are serviced by one selected thread only, a bridge has the potential to saturate a thread, if it's heavily loaded. You can improve that with <option>connection_count</option>.
+      Bridges can be defined inside <literal>bridge { }</literal> blocks. A bridge is essentially just an outgoing connection to another server with loop-detection and retain flag relaying. By itself, it's not a form of clustering, although with careful design, like with the lazy subscription feature, it can be deployed in a load-balancing and/or decentralized way. Note that normally (unless <option>connection_count</option> is set) one bridge is one connection, and because FlashMQ's threading model is that clients are serviced by one selected thread only, a bridge has the potential to saturate a thread, if it's heavily loaded. You can improve that with <option>connection_count</option>.
     </para>
 
     <para>
@@ -1609,7 +1667,7 @@ listen {
             The <option>shared_subscription_targeting</option> mode is automatically set to <literal>sender_hash</literal>. This is required to ensure sequential message relaying (to retain ordering), and it's also better in plugin code when messages from one source are kept to one thread, as it would be under normal circumstances.
           </para>
           <para>
-            If FlashMQ is also on the receiving end of these load balanced connections, it uses an extra feature to group clients of one bridge together to enhance loop detection. Normally MQTT5 supports the 'no-local' subscription option for that, but the standard states that is not allowed for shared subscriptions. FlashMQ uses 'user properties' to communicate the group they belong to, so that we can still do this kind of loop detection. This allows you to specify overlapping paths in the <option>subscribe</option> and <option>publish</option> options of a bridge. Note that both ends should use FlashMQ version 1.22.0 or higher.
+            If FlashMQ is also on the receiving end of these load balanced connections, it uses an extra feature to group clients of one bridge together to enhance loop detection. Normally MQTT5 supports the 'no-local' subscription option for that, but the standard states that is not allowed for shared subscriptions. FlashMQ uses 'user properties' to communicate the group they belong to, so that we can still do this kind of loop detection. This allows you to specify overlapping paths in the <option>subscribe</option> and <option>publish</option> options of a bridge. Note that both ends should use FlashMQ version 1.22.0 or higher. Also see <option>routing_group_id</option> to set this manually, to group multiple servers together this way.
           </para>
           <para>
             When the target server indeed is also FlashMQ, it may be smart to create a dedicated listener, for several reasons. One is that incoming connections are given to threads in a sequential order per listener, this ensures the best spread over worker threads. It also allows you to set <option>overload_mode</option>, <option>max_buffer_size</option> and posssibly <option>only_allow_from</option> and <option>deny_from</option> differently for that listener.
@@ -1635,6 +1693,59 @@ listen {
         </listitem>
       </varlistentry>
 
+      <varlistentry xml:id="bridge__routing_group_id" condition="flashmq ≥ 1.28.0">
+        <term><option>routing_group_id</option> <replaceable>random_string</replaceable></term>
+        <listitem>
+          <para>
+            Does explicitily what <option>connection_count</option> does implicitly. By using this on bridges and listeners, you can bridge many servers to each other without causing loops. 
+          </para>
+          <para>
+            The string has to be 12 characters, and must be fully random. This is checked on config test, and a good suggestion is offered if not.
+          </para>
+          <para>
+            Also see <link xlink:href="#listen__routing_group_id"><option>routing_group_id</option></link>. It's best to define the group on both ends: the bridge config, and a dedicated listener defined on the other side.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry xml:id="bridge__lazy_subscription" condition="flashmq ≥ 1.28.0">
+        <term><option>lazy_subscription</option> <replaceable>{block}</replaceable></term>
+        <listitem>
+          <para>
+            NOTE: lazy subscriptions are (somewhat) experimental as of version 1.28.0.
+          </para>
+          <para>
+            Lazy subscriptions are a way of expressing interesting in traffic from other (FlashMQ) servers without actually getting it yet, until there is a local client that subscribes to it. It allows servers to be placed near clients (in a typical IoT setup), while also being able to receive and send traffic from all other servers (in the world).
+          </para>
+          <para>
+            Let's say devices publish messages like: <literal>devices/dev123/temperature</literal>, <literal>devices/dev456/temperature</literal>, etc, the following would be good lazy subscription:
+          </para>
+          <literallayout language="flashmq.conf" class="monospaced"><![CDATA[
+lazy_subscription {
+  subscribe devices/#
+  qos 0
+}
+]]></literallayout>
+          <para>
+            This will match any incoming subscription like <literal>devices/dev123/#</literal>, <literal>devices/dev123/anything/#</literal>, <literal>devices/dev123/temperature/+/x</literal> and relay it as <literal>devices/dev123/#</literal> to the other side. In other words, always one level deeper than the match pattern, and always ending in <literal>#</literal>.
+          </para>
+          <para>
+            Note that subscriptions to <literal>devices/#</literal> don't match. Otherwise it would ingest all traffic of the other server(s). It's recommened to also use <option>minimum_wildcard_subscription_depth</option> to force your clients to have compatible subscriptions. When using a custom plugin, it's also possible to intercept such broad subscriptions, and automatically convert them to multiple subscriptions to any devices that a user may have access to. The plugin functions for placing subscriptions on the server also have their subscriptions matched to the lazy subscription, and relayed.
+          </para>
+          <para>
+            Each participating server can, or rather should, have a bridge defined to connect to all other servers. It's recommended to make a dedicated listener (with limited access) for the other FlashMQ servers to connect to, and both the listener and the bridge configuration should have a <option>routing_group_id</option> defined in the bridge configuration, to help in loop detection/prevention.
+          </para>
+          <para>
+            When you have a connection count > 1, the connection used is determined by the hash of the expanded subscription. This will make sure all traffic that match that subscription stays sequential, and in one thread.
+          </para>
+          <para>
+            When the connection is lost or a server restarts, the subscriptions are resent in the order they were originally placed, and incoming (un)subscriptions received while this process is going on are placed at the trailing end of this queue. 
+          </para>
+          <para>
+            When using lazy subscriptions, other recommended settings are <option>connection_count</option> and <option>max_buffer_size</option>, because you likely want to scale. There are also global config directives that influence lazy subscriptions; see elsewhere.
+          </para>
+        </listitem>
+      </varlistentry>
 
     </variablelist>
   </refsect1>
