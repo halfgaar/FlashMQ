@@ -276,20 +276,12 @@ void TrackedSubscriptionState::processTrackedSubscriptionMutations(
         if (locked->empty())
             return;
 
-        const auto now_at_start = std::chrono::steady_clock::now();
-
         size_t batch_entry = 0;
         size_t cur_packet_size = 0;
         const auto limit = std::chrono::steady_clock::now() + std::chrono::milliseconds(300);
         while (!locked->empty() && cur_packet_size <= packet_size_limit && batch_entry <= batch_size && std::chrono::steady_clock::now() < limit)
         {
             TrackedSubscriptionMutation &mutation = locked->front();
-
-            if (mutation.createdAt + settings->lazySubscriptionRelayTimeout < now_at_start)
-            {
-                locked->pop_front();
-                continue;
-            }
 
             batch_entry++;
             cur_packet_size += 3 + mutation.pattern.size();
@@ -552,6 +544,27 @@ void TrackedSubscriptionState::cleanupExpiredTrackedSubscriptions(
         // We have no unsubacks to retrigger us, so we have to requeue ourselves.
         if (t)
             t->queuePurgeStaleTrackedLazySubscriptions(bridgeState, PurgeTrackedSubscriptionModifier::Continue);
+    }
+}
+
+void TrackedSubscriptionState::expireOldMutations()
+{
+    const auto nowish = std::chrono::steady_clock::now();
+    const std::chrono::seconds timeout = ThreadGlobals::getSettings()->lazySubscriptionRelayTimeout;
+    auto locked = trackedSubscriptionMutations.lock();
+
+    while (!locked->empty())
+    {
+        const TrackedSubscriptionMutation &mutation = locked->front();
+
+        if (mutation.createdAt + timeout < nowish)
+        {
+            Logger::getInstance()->log(LOG_WARNING) << "Expiring tracked subscription mutation for " << mutation.pattern;
+            locked->pop_front();
+            continue;
+        }
+
+        break;
     }
 }
 
