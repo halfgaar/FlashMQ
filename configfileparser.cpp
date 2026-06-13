@@ -27,6 +27,7 @@ See LICENSE for license details.
 #include "utils.h"
 #include "globber.h"
 #include "globals.h"
+#include "entropy.h"
 
 /**
  * @brief Like std::stoi, but demands that the entire value is consumed
@@ -60,6 +61,25 @@ unsigned long full_stoul(const std::string &key, const std::string &value, int b
         throw ConfigFileException(formatString("%s's value of '%s' can't be parsed to a number", key.c_str(), value.c_str()));
     }
     return newVal;
+}
+
+void check_valid_routing_group_id(const std::string &id)
+{
+    std::string suggestion;
+
+    while (!isRandomEnough(suggestion))
+    {
+        suggestion = getSecureRandomString(12);
+    }
+
+    if (id.length() != 12)
+        throw ConfigFileException("Routing group IDs need to be 12 chars. Random suggestion: " + suggestion);
+
+    if (!std::all_of(id.begin(), id.end(), [](unsigned char c) { return std::isalnum(c); }))
+        throw ConfigFileException("Routing group IDs have to be alphanumeric. Random suggestion: " + suggestion);
+
+    if (!isRandomEnough(id))
+        throw ConfigFileException("Routing group id '" + id + "' is not random enough. Random suggestion: " + suggestion);
 }
 
 void ConfigFileParser::testCorrectNumberOfValues(const std::string &key, size_t expected_values, const std::vector<std::string> &values)
@@ -726,9 +746,7 @@ void ConfigFileParser::loadFile(bool test)
                 }
                 if (testKeyValidity(key, "routing_group_id", validListenKeys))
                 {
-                    if (valueTrimmed.length() != 12)
-                        throw ConfigFileException("Length of " + key + " must be 12 chars (and fully random)");
-
+                    check_valid_routing_group_id(valueTrimmed);
                     curListener->fmq_client_group_id = valueTrimmed;
                 }
 
@@ -965,9 +983,7 @@ void ConfigFileParser::loadFile(bool test)
                 }
                 if (testKeyValidity(key, "routing_group_id", validBridgeKeys))
                 {
-                    if (valueTrimmed.length() != 12)
-                        throw ConfigFileException("Length of " + key + " must be 12 chars (and fully random)");
-
+                    check_valid_routing_group_id(valueTrimmed);
                     curBridge->setFmqClientGroupId(valueTrimmed);
                 }
 
