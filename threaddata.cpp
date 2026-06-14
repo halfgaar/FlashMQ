@@ -574,6 +574,7 @@ void ThreadData::publishStatsOnDollarTopic(std::vector<std::shared_ptr<ThreadDat
     std::shared_ptr<SubscriptionStore> subscriptionStore = globals->subscriptionStore;
 
     publishStat("$SYS/broker/retained messages/count", subscriptionStore->getRetainedMessageCount());
+    publishStat("$SYS/broker/retained messages/node_count", subscriptionStore->getRetainedNodeCount());
 
     publishStat("$SYS/broker/sessions/total", subscriptionStore->getSessionCount());
 

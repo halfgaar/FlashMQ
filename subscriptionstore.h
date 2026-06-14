@@ -79,15 +79,22 @@ class RetainedMessageNode
 {
     friend class SubscriptionStore;
 
+    std::weak_ptr<RetainedMessageNode> parent;
     std::unordered_map<std::string, std::shared_ptr<RetainedMessageNode>> children;
     std::mutex messageSetMutex;
     std::unique_ptr<RetainedMessage> message;
     std::chrono::time_point<std::chrono::steady_clock> messageSetAt;
+    ssize_t recursiveChildCount {};
 
     ssize_t addPayload(const Publish &publish);
     std::shared_ptr<RetainedMessageNode> getChildren(const std::string &subtopic) const;
     bool isOrphaned() const;
     const std::chrono::time_point<std::chrono::steady_clock> getMessageSetAt() const;
+    void propagateChildCountIncrement();
+
+public:
+    RetainedMessageNode(const std::shared_ptr<RetainedMessageNode> &parent);
+    ~RetainedMessageNode();
 };
 
 class QueuedWill
@@ -140,8 +147,9 @@ class SubscriptionStore
     std::deque<std::weak_ptr<RetainedMessageNode>> deferredRetainedMessageNodeToPurge;
     size_t retainedMessageDeferredCounter = 0;
 
-    const std::shared_ptr<RetainedMessageNode> retainedMessagesRoot = std::make_shared<RetainedMessageNode>();
-    const std::shared_ptr<RetainedMessageNode> retainedMessagesRootDollar = std::make_shared<RetainedMessageNode>();
+    std::unordered_set<const RetainedMessageNode*> retainedMessagesNodesLimitsLogged;
+    const std::shared_ptr<RetainedMessageNode> retainedMessagesRoot = std::make_shared<RetainedMessageNode>(nullptr);
+    const std::shared_ptr<RetainedMessageNode> retainedMessagesRootDollar = std::make_shared<RetainedMessageNode>(nullptr);
 
     /*
      * Retained messages are hard to count correctly because of how they expire, so this counter is not 100%
@@ -194,6 +202,8 @@ class SubscriptionStore
     std::shared_ptr<SubscriptionNode> getDeepestNode(const std::vector<std::string> &subtopics, bool abort_on_dead_end=false);
 
     void sendWill(const std::shared_ptr<WillPublish> will, const std::shared_ptr<Session> session, const std::string &log);
+
+    bool setRetainedLimitReached(const Settings *settings, const RetainedMessageNode *node, const std::vector<std::string> &subtopics);
 public:
     SubscriptionStore();
 
@@ -231,6 +241,8 @@ public:
     bool expireRetainedMessages();
 
     size_t getRetainedMessageCount() const;
+    size_t getRetainedNodeCount() const { return retainedMessagesRoot->recursiveChildCount; }
+    size_t getSoft() const;
     uint64_t getSessionCount() const;
     size_t getSubscriptionCount();
 

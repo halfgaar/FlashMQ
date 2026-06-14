@@ -57,6 +57,12 @@ enum class PersistenceDataToSave
     BridgeInfo = 3
 };
 
+enum class RetainedMessagesNodeCreationLimitEnforcementMode
+{
+    Reject,
+    Log
+};
+
 void checkUniqueBridgeNames(const std::list<BridgeConfig> &bridges);
 
 class Settings
@@ -110,6 +116,9 @@ public:
     uint32_t retainedMessagesDeliveryLimit = 2048;
     std::chrono::seconds subscriptionNodeLifetime = std::chrono::seconds(3600);
     uint32_t retainedMessagesNodeLimit = std::numeric_limits<uint32_t>::max();
+    RetainedMessagesNodeCreationLimitEnforcementMode retainedMessagesNodeCreationLimitEnforcementMode = RetainedMessagesNodeCreationLimitEnforcementMode::Reject;
+    ssize_t retainedMessagesNodeCreationLimitEnforcementDepth = std::numeric_limits<uint16_t>::max();
+    ssize_t retainedMessagesNodeCreationLimit = std::numeric_limits<ssize_t>::max();
     std::chrono::seconds retainedMessageNodeLifetime = std::chrono::seconds(0);
     RetainedMessagesMode retainedMessagesMode = RetainedMessagesMode::Enabled;
     SharedSubscriptionTargeting sharedSubscriptionTargeting = SharedSubscriptionTargeting::RoundRobin;

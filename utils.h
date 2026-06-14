@@ -60,6 +60,8 @@ std::list<std::string> split(const std::string &input, const char sep, size_t ma
 std::vector<std::string> splitToVector(const std::string &input, const char sep, size_t max = std::numeric_limits<int>::max(), bool keep_empty_parts = true);
 std::vector<std::string> splitTopic(const std::string &topic);
 
+std::string recompose_topic(const std::vector<std::string> &subtopics);
+
 bool isValidUtf8Generic(const char *s, bool alsoCheckInvalidPublishChars = false);
 
 template<typename T>
