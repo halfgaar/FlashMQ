@@ -579,6 +579,37 @@ multi-value-param one 'two' "three" "with ' char"
         </listitem>
       </varlistentry>
 
+      <varlistentry xml:id="retained_messages_node_creation_limits" condition="flashmq ≥ 1.27.0">
+        <term xml:id="retained_messages_node_creation_limit_enforcement_mode"><option>retained_messages_node_creation_limit_enforcement_mode</option> <replaceable>log|reject</replaceable></term>
+        <term xml:id="retained_messages_node_creation_limit_enforcement_depth"><option>retained_messages_node_creation_limit_enforcement_depth</option> <replaceable>number</replaceable></term>
+        <term xml:id="retained_messages_node_creation_limit"><option>retained_messages_node_creation_limit</option> <replaceable>number</replaceable></term>
+        <listitem>
+          <para>
+            To prevent excessive resource use by (misbehaving) clients, you can limit the amount of retained message nodes that can be created. Note that the topic <literal>one/two/three</literal> is three nodes, and each node doesn't necessarily need to contain a message. A rejected message is still delivered to on-line clients, it's just not set as retained message.
+          </para>
+          <para>
+            The <option>retained_messages_node_creation_limit_enforcement_depth</option> is the depth in the tree at which the enforcement starts. Default is 0, meaning the root of the tree, so that the limit is a global limit. Using a value higher than 0 makes sense when combining it with a permission system. For instance, if your topics are like <literal>dev123/temperature</literal>, <literal>dev456/temperature</literal>, you can set it to 1, so that a client is limited to their own topic tree, and can't block other clients from setting messages by flooding the server.
+          </para>
+          <para>
+            When the limit a reached, a unique message per enforcement node is logged. Clients don't get to see that their publish message did not result in a retained message. There are various reasons for that. QoS 0 messages don't have ACKs, MQTT3 doesn't even have the ability to report a deny for QoS messages, and neither MQTT3 or MQTT5 have the ability to report the message was accepted, just not for retained. Furthermore, there are various asynchronous or background ways to set retained messages, like last will and testament.
+          </para>
+          <para>
+            Defaults:
+          </para>
+          <itemizedlist>
+            <listitem>
+              <para>retained_messages_node_creation_limit_enforcement_mode: reject</para>
+            </listitem>
+            <listitem>
+              <para>retained_messages_node_creation_limit_enforcement_depth: 65535 (effectively disabled)</para>
+            </listitem>
+            <listitem>
+              <para>retained_messages_node_creation_limit: unlimited</para>
+            </listitem>
+          </itemizedlist>
+        </listitem>
+      </varlistentry>
+
       <varlistentry xml:id="set_retained_message_defer_timeout" condition="flashmq ≥ 1.14.0">
         <term><option>set_retained_message_defer_timeout</option> <replaceable>milliseconds</replaceable></term>
         <listitem>
