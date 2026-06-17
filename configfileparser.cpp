@@ -220,6 +220,7 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validKeys.insert("retained_messages_node_creation_limit_enforcement_mode");
     validKeys.insert("retained_messages_node_creation_limit_enforcement_depth");
     validKeys.insert("retained_messages_node_creation_limit");
+    validKeys.insert("retained_message_max_payload_size");
     validKeys.insert("expire_retained_messages_after_seconds");
     validKeys.insert("retained_message_node_lifetime");
     validKeys.insert("expire_retained_messages_time_budget_ms");
@@ -1268,6 +1269,12 @@ void ConfigFileParser::loadFile(bool test)
                 {
                     const ssize_t newVal{value_to_int_ranged<uint32_t>(key, value, 1)};
                     tmpSettings.retainedMessagesNodeCreationLimit = newVal;
+                }
+
+                if (testKeyValidity(key, "retained_message_max_payload_size", validKeys))
+                {
+                    const size_t newVal{value_to_int_ranged<uint32_t>(key, value, 1)};
+                    tmpSettings.retainedMessageMaxPayloadSize = newVal;
                 }
 
                 if (testKeyValidity(key, "minimum_wildcard_subscription_depth", validKeys))

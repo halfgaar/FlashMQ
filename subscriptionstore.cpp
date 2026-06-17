@@ -1100,12 +1100,20 @@ bool SubscriptionStore::setRetainedMessage(const Publish &publish, const std::ve
 
     assert(cur_level == static_cast<int>(subtopics.size()));
 
-    if (selected_node)
+    if (!selected_node)
+        return true;
+
+    if (publish.payload.size() <= settings->retainedMessageMaxPayloadSize)
     {
         const ssize_t diff = selected_node->addPayload(publish);
 
         if (diff != 0)
             this->retainedMessageCount.fetch_add(diff);
+    }
+    else
+    {
+        if (std::get<bool>(retainedMessagesNodesLimitsLogged.insert(selected_node.get())))
+            Logger::getInstance()->log(LOG_WARNING) << "Payload size exceeded max for " << recompose_topic(subtopics);
     }
 
     return true;

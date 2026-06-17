@@ -119,6 +119,7 @@ public:
     RetainedMessagesNodeCreationLimitEnforcementMode retainedMessagesNodeCreationLimitEnforcementMode = RetainedMessagesNodeCreationLimitEnforcementMode::Reject;
     ssize_t retainedMessagesNodeCreationLimitEnforcementDepth = std::numeric_limits<uint16_t>::max();
     ssize_t retainedMessagesNodeCreationLimit = std::numeric_limits<ssize_t>::max();
+    size_t retainedMessageMaxPayloadSize = std::numeric_limits<size_t>::max();
     std::chrono::seconds retainedMessageNodeLifetime = std::chrono::seconds(0);
     RetainedMessagesMode retainedMessagesMode = RetainedMessagesMode::Enabled;
     SharedSubscriptionTargeting sharedSubscriptionTargeting = SharedSubscriptionTargeting::RoundRobin;
