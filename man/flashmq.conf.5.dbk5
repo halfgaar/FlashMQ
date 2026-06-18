@@ -610,6 +610,18 @@ multi-value-param one 'two' "three" "with ' char"
         </listitem>
       </varlistentry>
 
+      <varlistentry xml:id="retained_message_max_payload_size" condition="flashmq ≥ 1.27.0">
+        <term><option>retained_message_max_payload_size</option> <replaceable>bytes</replaceable></term>
+        <listitem>
+          <para>
+            To prevent excessive resource use by (misbehaving) clients, you can set a maximum payload size of a retained message. When the limit is exceeded, a unique message per node is logged. Clients don't get to see that their message was rejected. There are various reasons for that, as outlined at <option>retained_messages_node_creation_limit</option>.
+          </para>
+          <para>
+            Default value: unlimited (max packet size)
+          </para>
+        </listitem>
+      </varlistentry>
+
       <varlistentry xml:id="set_retained_message_defer_timeout" condition="flashmq ≥ 1.14.0">
         <term><option>set_retained_message_defer_timeout</option> <replaceable>milliseconds</replaceable></term>
         <listitem>
