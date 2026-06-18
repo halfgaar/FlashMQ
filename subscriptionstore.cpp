@@ -1617,20 +1617,14 @@ void SubscriptionStore::expireRetainedMessages(
     if (this_node->message)
         real_message_counter++;
 
-    auto cpos = this_node->children.begin();
-    while (cpos != this_node->children.end())
+    for (auto _ = this_node->children.begin(); _ != this_node->children.end(); )
     {
-        auto cur = cpos;
-        cpos++;
-
-        if (std::chrono::steady_clock::now() > limit)
-        {
-            deferred.push_back(cur->second);
-            continue;
-        }
-
+        auto cur = _;
+        _++;
         const std::shared_ptr<RetainedMessageNode> &child = cur->second;
-        expireRetainedMessages(child.get(), limit, deferred, real_message_counter);
+
+        if (std::chrono::steady_clock::now() <= limit)
+            expireRetainedMessages(child.get(), limit, deferred, real_message_counter);
 
         if (child->isOrphaned())
         {
@@ -1639,6 +1633,10 @@ void SubscriptionStore::expireRetainedMessages(
             {
                 this_node->children.erase(cur);
             }
+        }
+        else if (std::chrono::steady_clock::now() > limit)
+        {
+            deferred.push_back(child);
         }
     }
 }
