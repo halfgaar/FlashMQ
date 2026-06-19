@@ -1069,6 +1069,11 @@ bool SubscriptionStore::setRetainedMessage(const Publish &publish, const std::ve
         else
             locker.wrlock();
 
+        // In other words, these nodes are not orphaned. If they are, there is a bug, like the purger interfering between when we went
+        // from read lock to write lock.
+        assert(retry_point.use_count() > 1);
+        assert(!enforcement_node || enforcement_node.use_count() > 1);
+
         deepestNode = &retry_point;
 
         while(subtopic_pos != subtopics.end())
@@ -1625,6 +1630,10 @@ void SubscriptionStore::expireRetainedMessages(
 
         if (std::chrono::steady_clock::now() <= limit)
             expireRetainedMessages(child.get(), limit, deferred, real_message_counter);
+
+        // See setRetainedMessage(..). It does two stage (re) locking, so we need to check this.
+        if (child.use_count() > 1)
+            continue;
 
         if (child->isOrphaned())
         {
