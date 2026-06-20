@@ -5,7 +5,7 @@
 \\$2 \(la\\$1\(ra\\$3
 ..
 .if \n(.g .mso www.tmac
-.TH flashmq.conf 5 "Jan 28 2026" "" ""
+.TH flashmq.conf 5 "jun 20 2026" "" ""
 .SH NAME
 flashmq.conf \- FlashMQ configuration file format
 .SH SYNOPSIS
@@ -289,6 +289,35 @@ When clients place a subscription, they will get the retained messages matching 
 Note that the topic \fIone/two/three\fR is three nodes, and each node doesn't necessarilly need to contain a message.
 
 Default value: \fI\m[blue]4294967295\m[]\fR
+.TP
+\*(T<\fB\m[green]retained_messages_node_creation_limit_enforcement_mode\m[] \fI\m[cyan]log|reject\m[]\fR\fR\*(T>
+.TQ
+\*(T<\fB\m[green]retained_messages_node_creation_limit_enforcement_depth\m[] \fI\m[cyan]number\m[]\fR\fR\*(T>
+.TQ
+\*(T<\fB\m[green]retained_messages_node_creation_limit\m[] \fI\m[cyan]number\m[]\fR\fR\*(T>
+To prevent excessive resource use by (misbehaving) clients, you can limit the amount of retained message nodes that can be created. Note that the topic \fIone/two/three\fR is three nodes, and each node doesn't necessarily need to contain a message. A rejected message is still delivered to on-line clients, it's just not set as retained message.
+
+The \fB\m[green]retained_messages_node_creation_limit_enforcement_depth\fR\m[] is the depth in the tree at which the enforcement starts. Default is 0, meaning the root of the tree, so that the limit is a global limit. Using a value higher than 0 makes sense when combining it with a permission system. For instance, if your topics are like \fIdev123/temperature\fR, \fIdev456/temperature\fR, you can set it to 1, so that a client is limited to their own topic tree, and can't block other clients from setting messages by flooding the server.
+
+When the limit a reached, a unique message per enforcement node is logged. Clients don't get to see that their publish message did not result in a retained message. There are various reasons for that. QoS 0 messages don't have ACKs, MQTT3 doesn't even have the ability to report a deny for QoS messages, and neither MQTT3 or MQTT5 have the ability to report the message was accepted, just not for retained. Furthermore, there are various asynchronous or background ways to set retained messages, like last will and testament.
+
+Defaults:
+.RS
+.TP 0.2i
+\(bu
+retained_messages_node_creation_limit_enforcement_mode: reject
+.TP 0.2i
+\(bu
+retained_messages_node_creation_limit_enforcement_depth: 65535 (effectively disabled)
+.TP 0.2i
+\(bu
+retained_messages_node_creation_limit: unlimited
+.RE
+.TP
+\*(T<\fB\m[green]retained_message_max_payload_size\m[] \fI\m[cyan]bytes\m[]\fR\fR\*(T>
+To prevent excessive resource use by (misbehaving) clients, you can set a maximum payload size of a retained message. When the limit is exceeded, a unique message per node is logged. Clients don't get to see that their message was rejected. There are various reasons for that, as outlined at \fB\m[green]retained_messages_node_creation_limit\fR\m[].
+
+Default value: unlimited (max packet size)
 .TP
 \*(T<\fB\m[green]set_retained_message_defer_timeout\m[] \fI\m[cyan]milliseconds\m[]\fR\fR\*(T>
 The time after which FlashMQ will fall back to (b)locking vs queued mode for setting retained messages. 0, the default, disables queued mode altogether. It's disabled by default because it can incur some extra CPU and memory overhead.
