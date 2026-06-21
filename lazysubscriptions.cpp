@@ -317,7 +317,8 @@ size_t LazySubscriptions::expandLazySubscriptions(
     {
         assert(receiver.thread.lock());
 
-        std::string pattern = receiver.getPattern(subtopics);
+        const std::string pattern_with_share = receiver.getPattern(subtopics);
+        const std::string pattern_without_share = stripSubscriptionShare(pattern_with_share);
         uint8_t effective_qos = std::min(receiver.qos, qos);
 
         std::shared_ptr<BridgeState> bridgeState = receiver.receiver.lock();
@@ -330,7 +331,20 @@ size_t LazySubscriptions::expandLazySubscriptions(
         if (!tracked_subs)
             continue;
 
-        TrackedSubscriptionMutation mutation(pattern, effective_qos, originating_session->getClientId(), originating_session, suback_release_trigger, task);
+        if (tracked_subs->isTrackingSubscription(pattern_without_share, effective_qos))
+        {
+            if (Logger::getInstance()->wouldLog(LOG_SUBSCRIBE))
+            {
+                Logger::getInstance()->log(LOG_SUBSCRIBE)
+                    << "Already tracked: not sending tracked subscription '" << pattern_with_share << "' to server '"
+                    << bridgeState->c.getClientid() << "' with effective QoS = " << static_cast<int>(effective_qos)
+                    << ", originating from client '" << originating_session->getClientId() << "'.";
+            }
+
+            continue;
+        }
+
+        TrackedSubscriptionMutation mutation(pattern_with_share, effective_qos, originating_session->getClientId(), originating_session, suback_release_trigger, task);
         tracked_subs->addTrackedSubscriptionMutation(std::move(mutation));
 
         result++;
