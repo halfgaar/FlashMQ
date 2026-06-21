@@ -1778,7 +1778,7 @@ void MqttPacket::handleSubscribe(std::shared_ptr<Client> &sender)
 
     Authentication &authentication = ThreadGlobals::getThreadData()->authentication;
 
-    std::forward_list<SubscriptionTuple> deferredSubscribes;
+    std::vector<SubscriptionTuple> deferredSubscribes;
 
     std::vector<ReasonCodes> subs_reponse_codes;
     while (remainingAfterPos() > 0)
@@ -1869,7 +1869,7 @@ void MqttPacket::handleSubscribe(std::shared_ptr<Client> &sender)
         if (authResult == AuthResult::success || authResult == AuthResult::success_without_retained_delivery || authResult == AuthResult::success_but_drop)
         {
             const uint32_t subscr_id = settings->subscriptionIdentifierEnabled ? subscription_identifier : 0;
-            deferredSubscribes.emplace_front(topic, subtopics, qos, noLocal, retainedAsPublished, shareName, authResult, subscr_id, retainHandling);
+            deferredSubscribes.emplace_back(topic, subtopics, qos, noLocal, retainedAsPublished, shareName, authResult, subscr_id, retainHandling);
             subs_reponse_codes.push_back(static_cast<ReasonCodes>(qos));
         }
         else

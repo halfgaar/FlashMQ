@@ -634,6 +634,21 @@ int maskAllSignalsCurrentThread()
     return r;
 }
 
+std::string stripSubscriptionShare(const std::string &pattern)
+{
+    const std::string prefix = "$share/";
+
+    if (!pattern.starts_with(prefix))
+        return pattern;
+
+    std::size_t second = pattern.find('/', prefix.size());
+
+    if (second == std::string::npos)
+        return pattern;
+
+    return pattern.substr(second + 1);
+}
+
 void parseSubscriptionShare(std::vector<std::string> &subtopics, std::string &shareName, std::string &topic)
 {
     if (subtopics.size() < 3)

@@ -276,6 +276,7 @@ ReasonCodes authResultToReasonCode(AuthResult authResult);
 
 int maskAllSignalsCurrentThread();
 
+std::string stripSubscriptionShare(const std::string &pattern);
 void parseSubscriptionShare(std::vector<std::string> &subtopics, std::string &shareName, std::string &topic);
 
 std::string timestampWithMillis();

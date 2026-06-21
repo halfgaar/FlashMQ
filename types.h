@@ -23,6 +23,7 @@ See LICENSE for license details.
 #include "forward_declarations.h"
 #include "nocopy.h"
 #include "enums.h"
+#include "flashmq_public.h"
 
 #define FMQ_CLIENT_GROUP_ID "fmq_client_group_id"
 #define FMQ_CLIENT_ID_PREFIX "fmq_client_id_prefix"
@@ -403,6 +404,28 @@ struct DeferredRetainedSending
     DeferredRetainedSending(const std::vector<std::string> &subtopics, const uint8_t qos, const uint32_t subscriptionIdentifier);
 };
 
+struct TrackedSubscriptionFields
+{
+    const std::string pattern;
+    const uint8_t qos{};
+
+    TrackedSubscriptionFields(const std::string &pattern, const uint8_t qos);
+
+    bool operator==(const TrackedSubscriptionFields &rhs) const
+    {
+        return pattern == rhs.pattern;
+    }
+};
+
+template <>
+struct std::hash<TrackedSubscriptionFields>
+{
+    std::size_t operator()(const TrackedSubscriptionFields &t) const
+    {
+        return std::hash<std::string>()(t.pattern);
+    }
+};
+
 class SubAckReleaseTrigger
 {
     std::shared_ptr<bool> m_sent = std::make_shared<bool>(false);
@@ -411,6 +434,7 @@ public:
     const std::weak_ptr<Client> m_client;
     const std::shared_ptr<ThreadData> m_client_thread;
     const uint16_t m_staged_suback_packet_id {};
+    std::optional<TrackedSubscriptionFields> m_tracked_sub_to_confirm;
 
     SubAckReleaseTrigger() = delete;
     SubAckReleaseTrigger(const SubAckReleaseTrigger&) = default;
