@@ -37,7 +37,7 @@ class TrackedSubscription
 
 public:
     const std::string pattern;
-    const uint8_t qos{};
+    uint8_t qos{};
 
     TrackedSubscription() = delete;
     FMQ_DISABLE_COPY(TrackedSubscription);

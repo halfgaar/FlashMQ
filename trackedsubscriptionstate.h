@@ -5,6 +5,7 @@
 #include <deque>
 #include <map>
 #include "mutexowned.h"
+#include "sharedmutexowned.h"
 #include "reentrantmap.h"
 #include "trackedsubscriptions.h"
 
@@ -29,6 +30,7 @@ class TrackedSubscriptionState
 {
     MutexOwned<std::deque<TrackedSubscriptionMutation>> trackedSubscriptionMutations;
     std::unique_ptr<ReentrantMap<std::string, TrackedSubscription>> trackedSubscriptions = std::make_unique<ReentrantMap<std::string, TrackedSubscription>>();
+    SharedMutexOwned<std::unordered_set<TrackedSubscriptionFields>> trackedSubscriptionsConfirmed;
 
     ReentrantMap<std::string, TrackedSubscription>::iterator curPosResending;
     size_t resendCount = 0;
@@ -73,6 +75,8 @@ public:
 
     size_t getResendCount() const { return this->resendCount; }
     size_t getResendTotal() const { return this->resendTotal; }
+
+    bool isTrackingSubscription(const std::string &pattern, const uint8_t qos);
 };
 
 #endif // TRACKEDSUBSCRIPTIONSTATE_H

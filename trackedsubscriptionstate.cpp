@@ -297,36 +297,19 @@ void TrackedSubscriptionState::processTrackedSubscriptionMutations(
     {
         if (mut.task == TrackedSubscriptionMutationTask::Subscribe)
         {
-            bool send_subscription = false;
-            const auto emplacement_result = this->trackedSubscriptions->try_emplace(mut.pattern, mut.pattern, mut.qos);
+            auto emplacement_result = this->trackedSubscriptions->try_emplace(mut.pattern, mut.pattern, mut.qos);
             auto emplacementResultPos = emplacement_result.first.lock();
 
+            assert(emplacementResultPos);
             if (!emplacementResultPos)
                 continue;
 
             TrackedSubscription &subscription = emplacementResultPos->val;
+
+            if (mut.qos > subscription.qos)
+                emplacementResultPos->val.qos = mut.qos;
+
             subscription.add_session(mut.originatingSession);
-
-            if (emplacement_result.second)
-                send_subscription = true;
-            else
-                send_subscription = mut.qos > subscription.qos;
-
-            if (!send_subscription)
-            {
-                if (Logger::getInstance()->wouldLog(LOG_SUBSCRIBE))
-                {
-                    Logger::getInstance()->log(LOG_SUBSCRIBE)
-                        << "Subscription already relayed: not relaying subscription by client '"
-                        << mut.originatingClientId << "' to pattern '"
-                        << mut.pattern << "' to server '" << network_client->getClientId() << ", effective QoS = " << static_cast<int>(mut.qos) << ".";
-                }
-
-                // We don't have to wait for a remote ack because we're not relaying a subscription. So, we can send this now.
-                queueSendSubAckInOriginatingClient(mut.subAckReleaseTrigger);
-
-                continue;
-            }
 
             if (!pack_id)
             {
@@ -339,13 +322,16 @@ void TrackedSubscriptionState::processTrackedSubscriptionMutations(
             if (Logger::getInstance()->wouldLog(LOG_SUBSCRIBE))
             {
                 Logger::getInstance()->log(LOG_SUBSCRIBE)
-                    << "Relaying subscription by client '" << mut.originatingClientId << "' to pattern '"
-                    << mut.pattern << "' to server '" << network_client->getClientId()
-                    << "', effective QoS = " << static_cast<int>(mut.qos) << ". Packet ID = " << pack_id.value();
+                    << "Sending tracked subscription '" << mut.pattern << "' to server '"
+                    << network_client->getClientId() << "' with effective QoS = " << static_cast<int>(mut.qos)
+                    << ", originating from client '" << mut.originatingClientId << "'. Packet ID = " << pack_id.value();
             }
 
             if (mut.subAckReleaseTrigger)
-                outgoingSubscriptionsToSubackReleases.emplace(pack_id.value(), *mut.subAckReleaseTrigger);
+            {
+                auto x = outgoingSubscriptionsToSubackReleases.emplace(pack_id.value(), mut.subAckReleaseTrigger.value());
+                x->second.m_tracked_sub_to_confirm.emplace(stripSubscriptionShare(mut.pattern), mut.qos);
+            }
 
             Subscribe &sub = subscribes.emplace_back(mut.pattern, mut.qos);
             sub.retainAsPublished = true;
@@ -516,6 +502,14 @@ void TrackedSubscriptionState::cleanupExpiredTrackedSubscriptions(
                     << "' at server '" << network_client->getClientId() << "'. Packet ID = " << pack_id.value();
             }
 
+            {
+                auto tsc_locked = this->trackedSubscriptionsConfirmed.unique_lock();
+                auto pos = tsc_locked->find({stripSubscriptionShare(filter), 0});
+                assert(pos != tsc_locked->end());
+                if (pos != tsc_locked->end())
+                    tsc_locked->erase(pos);
+            }
+
             unsubs.emplace_back(filter);
             this->trackedSubscriptions->erase(cur);
         }
@@ -600,6 +594,13 @@ void TrackedSubscriptionState::sendArmedStagedSuback(const uint16_t id)
     {
         auto pos = i++;
         const SubAckReleaseTrigger &t = pos->second;
+
+        if (t.m_tracked_sub_to_confirm)
+        {
+            auto l = trackedSubscriptionsConfirmed.unique_lock();
+            l->insert(t.m_tracked_sub_to_confirm.value());
+        }
+
         queueSendSubAckInOriginatingClient(t);
         outgoingSubscriptionsToSubackReleases.erase(pos);
     }
@@ -641,5 +642,19 @@ size_t TrackedSubscriptionState::trackedSubscriptionMutationCount()
 {
     auto locked = trackedSubscriptionMutations.lock();
     return locked->size();
+}
+
+bool TrackedSubscriptionState::isTrackingSubscription(const std::string &pattern, const uint8_t qos)
+{
+    auto l = trackedSubscriptionsConfirmed.shared_lock();
+    auto pos = l->find({pattern, 0});
+
+    if (pos == l->end())
+        return false;
+
+    if (qos <= pos->qos)
+        return true;
+
+    return false;
 }
 
