@@ -11,7 +11,7 @@
 #include "utils.h"
 #include "threadlocked.h"
 #include "trackedsubscriptionstate.h"
-#include "checkeduniqueptr.h"
+#include "checkedsharedptr.h"
 
 enum class BridgeTLSMode
 {
@@ -147,7 +147,9 @@ class BridgeState
     int reconnectCounter = 0;
     const int baseReconnectInterval = (get_random_int<int>() % 30) + 30;
     int intervalLogged = 0;
-    CheckedUniquePtr<TrackedSubscriptionState> mTrackedSubscriptions;
+
+    // Mutex-owned because it's created on demand after initial construction.
+    MutexOwned<CheckedSharedPtr<TrackedSubscriptionState>> mTrackedSubscriptions;
 
 public:
     const BridgeConfig c;
@@ -167,7 +169,7 @@ public:
     void resetReconnectCounter();
     void resetThreadOwners();
     void constructTrackedSubscriptions();
-    CheckedUniquePtr<TrackedSubscriptionState> &getTrackedSubscriptions();
+    CheckedSharedPtr<TrackedSubscriptionState> getTrackedSubscriptions();
     void stealTrackedSubscriptions(BridgeState &other);
 };
 

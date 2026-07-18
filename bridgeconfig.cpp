@@ -217,14 +217,15 @@ void BridgeState::resetThreadOwners()
 
 void BridgeState::constructTrackedSubscriptions()
 {
-    if (mTrackedSubscriptions)
+    auto locked = mTrackedSubscriptions.lock();
+    if (*locked)
         return;
-    mTrackedSubscriptions = std::make_unique<TrackedSubscriptionState>();
+    *locked = std::make_shared<TrackedSubscriptionState>();
 }
 
-CheckedUniquePtr<TrackedSubscriptionState> &BridgeState::getTrackedSubscriptions()
+CheckedSharedPtr<TrackedSubscriptionState> BridgeState::getTrackedSubscriptions()
 {
-    return mTrackedSubscriptions;
+    return *mTrackedSubscriptions.lock();
 }
 
 /**
@@ -238,14 +239,17 @@ CheckedUniquePtr<TrackedSubscriptionState> &BridgeState::getTrackedSubscriptions
  */
 void BridgeState::stealTrackedSubscriptions(BridgeState &source)
 {
-    if (!mTrackedSubscriptions || !source.mTrackedSubscriptions)
+    auto locked_this = mTrackedSubscriptions.lock();
+    auto locked_arg = source.mTrackedSubscriptions.lock();
+
+    if (!*locked_this || !*locked_arg)
         return;
 
     Logger::getInstance()->log(LOG_WARNING)
             << "Migrating 'tracked subscriptions' from the old connection of " << source.c.clientidPrefix << "' is somewhat experimental. "
             << "There is a chance (un)subscriptions received during the connection transition aren't correctly processed.";
 
-    this->mTrackedSubscriptions->replaceTrackedSubscriptions(source.mTrackedSubscriptions->stealTrackedSubscriptions());
+    (*locked_this)->replaceTrackedSubscriptions((*locked_arg)->stealTrackedSubscriptions());
 }
 
 /**

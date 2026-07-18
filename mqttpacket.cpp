@@ -1925,7 +1925,7 @@ void MqttPacket::handleSubAck(std::shared_ptr<Client> &sender)
 
     session->increaseFlowControlQuotaLocked(data.packet_id);
 
-    auto &tracked_subs = bridgeState->getTrackedSubscriptions();
+    auto tracked_subs = bridgeState->getTrackedSubscriptions();
 
     if (tracked_subs)
     {
@@ -2041,7 +2041,7 @@ void MqttPacket::handleUnsubAck(std::shared_ptr<Client> &sender)
 
     session->increaseFlowControlQuotaLocked(data.packet_id);
 
-    auto &tracked_subs = bridgeState->getTrackedSubscriptions();
+    auto tracked_subs = bridgeState->getTrackedSubscriptions();
 
     if (tracked_subs)
     {

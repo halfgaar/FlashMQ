@@ -239,7 +239,7 @@ void ThreadData::queuePublishLazySubscriptionStats()
             if (!bridge)
                 continue;
 
-            CheckedUniquePtr<TrackedSubscriptionState> &tracked_subs = bridge->getTrackedSubscriptions();
+            CheckedSharedPtr<TrackedSubscriptionState> tracked_subs = bridge->getTrackedSubscriptions();
 
             if (!tracked_subs)
                 continue;
@@ -344,7 +344,7 @@ void ThreadData::queuePurgeStaleTrackedLazySubscriptionsAll(const PurgeTrackedSu
             if (!pair.second)
                 continue;
 
-            auto &tracked_subs = pair.second->getTrackedSubscriptions();
+            auto tracked_subs = pair.second->getTrackedSubscriptions();
 
             if (!tracked_subs)
                 continue;
@@ -367,13 +367,13 @@ void ThreadData::queuePurgeStaleTrackedLazySubscriptions(const std::shared_ptr<B
     if (!bridgeState)
         return;
 
-    auto &tracked_subs = bridgeState->getTrackedSubscriptions();
+    auto tracked_subs = bridgeState->getTrackedSubscriptions();
 
     if (!tracked_subs)
         return;
 
     auto f = [bridgeState, modifier]() {
-        auto &tracked_subs = bridgeState->getTrackedSubscriptions();
+        auto tracked_subs = bridgeState->getTrackedSubscriptions();
         tracked_subs->cleanupExpiredTrackedSubscriptions(bridgeState, modifier);
     };
 
@@ -1107,7 +1107,7 @@ void ThreadData::retryProcessingTrackedSubscriptionMutationsAll(ProcessTrackedSu
             if (!bridge)
                 continue;
 
-            auto &tracked_subs = bridge->getTrackedSubscriptions();
+            auto tracked_subs = bridge->getTrackedSubscriptions();
 
             if (!tracked_subs)
                 continue;
@@ -1170,13 +1170,13 @@ void ThreadData::queueProcessTrackedSubscriptionMutations(const std::shared_ptr<
     if (!bridgeState)
         return;
 
-    auto &tracked_subs = bridgeState->getTrackedSubscriptions();
+    auto tracked_subs = bridgeState->getTrackedSubscriptions();
 
     if (!tracked_subs)
         return;
 
     auto f = [bridgeState, modifier]() {
-        auto &tracked_subs = bridgeState->getTrackedSubscriptions();
+        auto tracked_subs = bridgeState->getTrackedSubscriptions();
         tracked_subs->processTrackedSubscriptionMutations(bridgeState, modifier);
     };
     addImmediateTask(f);
@@ -1578,7 +1578,7 @@ void ThreadData::processLazySubsubscriptionsAllBridges() noexcept
             if (!bridge_pair.second)
                 continue;
 
-            auto &tracked_subs = bridge_pair.second->getTrackedSubscriptions();
+            auto tracked_subs = bridge_pair.second->getTrackedSubscriptions();
 
             if (!tracked_subs)
                 continue;
