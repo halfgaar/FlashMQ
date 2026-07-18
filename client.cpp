@@ -623,7 +623,7 @@ std::string Client::repr()
     if (this->fmq_client_group_id)
     {
         fmq_client_group_id_part.append("fmq_client_group_id='");
-        fmq_client_group_id_part.append(this->fmq_client_group_id.value());
+        fmq_client_group_id_part.append(redact_right(this->fmq_client_group_id.value()));
         fmq_client_group_id_part.append("', ");
     }
 

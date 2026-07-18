@@ -434,4 +434,7 @@ std::string make_string(const T &input, const size_t offset, const size_t len)
     return std::string(input.begin() + offset, input.begin() + offset + len);
 }
 
+std::string redact_right(std::string s);
+
+
 #endif // UTILS_H

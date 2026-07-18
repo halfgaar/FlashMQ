@@ -1059,3 +1059,10 @@ std::string recompose_topic(const std::vector<std::string> &subtopics)
 
     return result;
 }
+
+std::string redact_right(std::string s)
+{
+    const std::size_t start = s.size() / 2;
+    std::fill(s.begin() + start, s.end(), 'X');
+    return s;
+}
