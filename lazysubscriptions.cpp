@@ -326,7 +326,7 @@ size_t LazySubscriptions::expandLazySubscriptions(
         if (!bridgeState)
             continue;
 
-        auto &tracked_subs = bridgeState->getTrackedSubscriptions();
+        auto tracked_subs = bridgeState->getTrackedSubscriptions();
 
         if (!tracked_subs)
             continue;
