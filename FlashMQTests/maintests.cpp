@@ -337,6 +337,7 @@ MainTests::MainTests()
     REGISTER_FUNCTION3(testUsedIds2);
     REGISTER_FUNCTION3(testUsedIds3);
     REGISTER_FUNCTION3(testUsedIds4);
+    REGISTER_FUNCTION3(testUsedIdsRandomDraining);
     REGISTER_FUNCTION3(testUsedIdsSpeed);
     REGISTER_FUNCTION(testSessionTakeoverOtherUsername);
     REGISTER_FUNCTION(testCorrelationData);

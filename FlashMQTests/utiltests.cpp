@@ -438,16 +438,58 @@ void MainTests::testUsedIds4()
 {
     UsedIds ids;
 
-    for (uint16_t i = 1; i <= 8; i++)
+    for (int upper = 3; upper < 100; upper++)
     {
-        ids.insert(i);
+        for (uint16_t i = 1; i <= upper; i++)
+        {
+            ids.insert(i);
+        }
+
+        const uint16_t erase_me = upper - 2;
+        ids.erase(erase_me);
+
+        for (uint16_t i = 1; i <= upper; i++)
+        {
+            if (i == erase_me)
+                FMQ_VERIFY(!ids.contains(i));
+            else
+                FMQ_VERIFY(ids.contains(i));
+        }
+    }
+}
+
+void MainTests::testUsedIdsRandomDraining()
+{
+    std::minstd_rand rnd;
+    rnd.seed(1344676);
+
+    UsedIds ids;
+    std::set<uint16_t> reference;
+    std::vector<uint16_t> removals;
+
+    for (uint32_t id = 1; id <= 0xFFFF; id++)
+    {
+        ids.insert(id);
+        removals.push_back(id);
+        reference.insert(id);
     }
 
-    ids.erase(1);
+    std::shuffle(removals.begin(), removals.end(), rnd);
 
-    for (uint16_t i = 2; i <= 8; i++)
+    for (const uint16_t id : removals)
     {
-        FMQ_VERIFY(ids.contains(i));
+        ids.erase(id);
+        reference.erase(id);
+
+        FMQ_COMPARE(ids.contains(id), static_cast<bool>(reference.count(id)));
+
+        if (reference.size() < 20 || reference.size() % 1000 == 0)
+        {
+            for (uint32_t id_to_test = 1; id_to_test <= 0xFFFF; id_to_test++)
+            {
+                FMQ_COMPARE(ids.contains(id_to_test), static_cast<bool>(reference.count(id_to_test)));
+            }
+        }
     }
 }
 

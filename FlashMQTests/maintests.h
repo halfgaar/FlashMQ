@@ -248,6 +248,7 @@ class MainTests
     void testUsedIds2();
     void testUsedIds3();
     void testUsedIds4();
+    void testUsedIdsRandomDraining();
     void testUsedIdsSpeed();
     void testBase64();
     void testNoCopy();
