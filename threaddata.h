@@ -146,6 +146,7 @@ private:
     void quit();
     void publishStatsOnDollarTopic(std::vector<std::shared_ptr<ThreadData>> &threads);
     void publishStat(const std::string &topic, int64_t n);
+    void publishStat(const std::string &topic, const std::string &payload);
     void sendQueuedWills();
     void removeExpiredSessions();
     void purgeSubscriptionTree();

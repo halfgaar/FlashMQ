@@ -582,15 +582,20 @@ void ThreadData::publishStatsOnDollarTopic(std::vector<std::shared_ptr<ThreadDat
 
     for (auto &pair : globals->stats.getExtras())
     {
-        Publish p(pair.first, pair.second, 0);
-        publishWithAcl(p);
+        publishStat(pair.first, pair.second);
     }
 }
 
 void ThreadData::publishStat(const std::string &topic, int64_t n)
 {
     const std::string payload = std::to_string(n);
+    publishStat(topic, payload);
+}
+
+void ThreadData::publishStat(const std::string &topic, const std::string &payload)
+{
     Publish p(topic, payload, 0);
+    p.setExpireAfter(60);
     publishWithAcl(p, true);
 }
 
@@ -607,9 +612,7 @@ void ThreadData::publishBridgeState(std::shared_ptr<BridgeState> bridge, bool co
         const std::string topic = ss.str();
 
         globals->stats.setExtra(topic, payload);
-
-        Publish p(topic, payload, 0);
-        publishWithAcl(p, true);
+        publishStat(topic, payload);
     }
 
     {
@@ -618,8 +621,7 @@ void ThreadData::publishBridgeState(std::shared_ptr<BridgeState> bridge, bool co
         const std::string topic = "$SYS/broker/bridge/" + bridge->c.clientidPrefix + "/connection_status";
 
         globals->stats.setExtra(topic, message);
-        Publish p(topic, message, 0);
-        publishWithAcl(p, true);
+        publishStat(topic, message);
     }
 }
 
