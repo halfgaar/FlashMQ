@@ -203,6 +203,21 @@ void API flashmq_publish_message(
     const std::vector<std::pair<std::string, std::string>> *userProperties = nullptr,
     const std::string *responseTopic=nullptr, const std::string *correlationData=nullptr, const std::string *contentType=nullptr);
 
+
+/**
+ * @brief flashmq_set_sys_topic allows publishing $SYS topics. Can be called from any thread.
+ * @param topic The topic on which the message is published. The prefix $SYS/ is added.
+ * @param payload
+ * @param volatile_message If true, the retained message will expire after 60 seconds if not continuously reset.
+ * @param publish_now In addition to setting the topic for inclusion in periodic publishing, also publish now.
+ *
+ * Note that the message also passes through the ACL hook with AclAccess::write (for hooking on certain events),
+ * but the action is always allowed.
+ *
+ * [Introduced in FlashMQ version 1.27.0]
+ */
+void API flashmq_set_sys_topic(const std::string &topic, const std::string &payload, const bool volatile_message, const bool publish_now);
+
 /**
  * @brief flashmq_get_client_address_v4
  * @param client A client pointer as provided by 'flashmq_plugin_login_check'.

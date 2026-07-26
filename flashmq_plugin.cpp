@@ -199,6 +199,33 @@ void flashmq_publish_message(const std::string &topic, const uint8_t qos, const 
     td->addImmediateTask(f_bound);
 }
 
+void flashmq_set_sys_topic(const std::string &topic, const std::string &payload, const bool volatile_message, const bool publish_now)
+{
+    const std::string prefixed_topic("$SYS/" + topic);
+    globals->stats.setExtra(prefixed_topic, payload, volatile_message);
+
+    if (!publish_now)
+        return;
+
+    {
+        CheckedSharedPtr<ThreadData> td_local = ThreadGlobals::getThreadData();
+
+        if (td_local)
+        {
+            td_local->publishStat(prefixed_topic, payload);
+            return;
+        }
+    }
+
+    CheckedSharedPtr<ThreadData> td = globals->getDeterministicThreadData();
+
+    auto queued = [td, prefixed_topic, payload](){
+        td->publishStat(prefixed_topic, payload);
+    };
+
+    td->addImmediateTask(queued);
+}
+
 void flashmq_get_client_address(const std::weak_ptr<Client> &client, std::string *text, FlashMQSockAddr *addr)
 {
     if (addr)
