@@ -26,6 +26,10 @@ CheckedSharedPtr<ThreadData> Globals::GlobalsData::getDeterministicThreadData()
 
     static std::atomic<size_t> index {0};
     auto locked = threadDatas.lock();
+
+    if (locked->empty())
+        throw std::runtime_error("Called getDeterministicThreadData too early: there are no threads yet.");
+
     result2 = locked->at(index++ % locked->size());
     thread_data_copy_weak = result2;
     return result2;
