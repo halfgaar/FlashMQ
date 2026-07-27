@@ -15,16 +15,22 @@ GlobalStats::GlobalStats()
 
 }
 
-void GlobalStats::setExtra(const std::string &topic, const std::string &payload)
+void GlobalStats::setExtra(const std::string &topic, const std::string &payload,  const bool volatile_message)
 {
     auto locked_data = extras.lock();
-    locked_data->operator[](topic) = payload;
+
+    if (volatile_message)
+        locked_data->extras_volatile[topic] = payload;
+    else
+        locked_data->extras_fixed[topic] = payload;
 }
 
 std::unordered_map<std::string, std::string> GlobalStats::getExtras()
 {
     auto locked_data = extras.lock();
-    std::unordered_map<std::string, std::string> r = *locked_data;
-    return r;
+    std::unordered_map<std::string, std::string> result = locked_data->extras_fixed;
+    result.insert(locked_data->extras_volatile.begin(), locked_data->extras_volatile.end());
+    locked_data->extras_volatile.clear();
+    return result;
 }
 

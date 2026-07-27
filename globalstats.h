@@ -20,14 +20,20 @@ See LICENSE for license details.
 
 class GlobalStats
 {
-    MutexOwned<std::unordered_map<std::string, std::string>> extras;
+    struct Stats
+    {
+        std::unordered_map<std::string, std::string> extras_fixed;
+        std::unordered_map<std::string, std::string> extras_volatile;
+    };
+
+    MutexOwned<Stats> extras;
 
 public:
     GlobalStats();
 
     DerivableCounter socketConnects;
 
-    void setExtra(const std::string &topic, const std::string &payload);
+    void setExtra(const std::string &topic, const std::string &payload, const bool volatile_message);
     std::unordered_map<std::string, std::string> getExtras();
 };
 

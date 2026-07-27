@@ -611,7 +611,7 @@ void ThreadData::publishBridgeState(std::shared_ptr<BridgeState> bridge, bool co
         ss << "$SYS/broker/bridge/" << bridge->c.clientidPrefix << "/connected";
         const std::string topic = ss.str();
 
-        globals->stats.setExtra(topic, payload);
+        globals->stats.setExtra(topic, payload, false);
         publishStat(topic, payload);
     }
 
@@ -620,7 +620,7 @@ void ThreadData::publishBridgeState(std::shared_ptr<BridgeState> bridge, bool co
         const std::string message = error.value_or(message_on_no_error);
         const std::string topic = "$SYS/broker/bridge/" + bridge->c.clientidPrefix + "/connection_status";
 
-        globals->stats.setExtra(topic, message);
+        globals->stats.setExtra(topic, message, false);
         publishStat(topic, message);
     }
 }
