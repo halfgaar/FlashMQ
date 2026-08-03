@@ -38,7 +38,6 @@ See LICENSE for license details.
 MainApp::MainApp(const std::string &configFilePath)
 {
     globals = Globals();
-    subscriptionStore = globals->subscriptionStore;
 
     epollFdAccept = check<std::runtime_error>(epoll_create(999));
     taskEventFd = eventfd(0, EFD_NONBLOCK);
@@ -70,11 +69,11 @@ MainApp::MainApp(const std::string &configFilePath)
 
         const std::string retainedDbPath = settings.getRetainedMessagesDBFile();
         if (settings.retainedMessagesMode == RetainedMessagesMode::Enabled)
-            subscriptionStore->loadRetainedMessages(settings.getRetainedMessagesDBFile());
+            globals->subscriptionStore.loadRetainedMessages(settings.getRetainedMessagesDBFile());
         else
             logger->logf(LOG_INFO, "Not loading '%s', because 'retained_messages_mode' is not 'enabled'.", retainedDbPath.c_str());
 
-        subscriptionStore->loadSessionsAndSubscriptions(settings.getSessionsDBFile());
+        globals->subscriptionStore.loadSessionsAndSubscriptions(settings.getSessionsDBFile());
     }
 }
 
@@ -626,12 +625,12 @@ void MainApp::start()
             websocketsubscriber->setClientProperties(ProtocolVersion::Mqtt311, "websocketsubscriber", {}, "websocksubuser", true, 60);
             websocketsubscriber->setAuthenticated(true);
             websocketsubscriber->setFakeUpgraded();
-            subscriptionStore->registerClientAndKickExistingOne(websocketsubscriber);
+            globals->subscriptionStore.registerClientAndKickExistingOne(websocketsubscriber);
             subtopics = splitTopic("#");
-            subscriptionStore->addSubscription(websocketsubscriber->getSession(), subtopics, 0, false, false, empty, 0);
+            globals->subscriptionStore.addSubscription(websocketsubscriber->getSession(), subtopics, 0, false, false, empty, 0);
 
-            subscriptionStore->registerClientAndKickExistingOne(subscriber);
-            subscriptionStore->addSubscription(subscriber->getSession(), subtopics, 0, false, false, empty, 0);
+            globals->subscriptionStore.registerClientAndKickExistingOne(subscriber);
+            globals->subscriptionStore.addSubscription(subscriber->getSession(), subtopics, 0, false, false, empty, 0);
 
             if (connectionProtocol == ConnectionProtocol::WebsocketMqtt && strContains(fuzzFilePathLower, "upgrade"))
             {

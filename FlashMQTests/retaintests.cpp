@@ -543,8 +543,6 @@ void MainTests::test_retained_per_message_expire()
 
 void MainTests::test_retained_tree_purging()
 {
-    std::shared_ptr<SubscriptionStore> store = globals->subscriptionStore;
-
     int toDeleteCount = 0;
 
     for (int i = 0; i < 10; i++)
@@ -563,26 +561,26 @@ void MainTests::test_retained_tree_purging()
             }
 
             std::vector<std::string> subtopics = splitTopic(topic);
-            store->setRetainedMessage(pub, subtopics);
+            globals->subscriptionStore.setRetainedMessage(pub, subtopics);
         }
     }
 
     {
         Publish pubStray("retain0/bla5", "willnotexpire", 0);
         std::vector<std::string> subtopics = splitTopic(pubStray.topic);
-        store->setRetainedMessage(pubStray, subtopics);
+        globals->subscriptionStore.setRetainedMessage(pubStray, subtopics);
     }
 
-    const int beforeCount = store->getAllRetainedMessages().size();
+    const int beforeCount = globals->subscriptionStore.getAllRetainedMessages().size();
 
     usleep(2000000);
 
-    store->expireRetainedMessages();
+    globals->subscriptionStore.expireRetainedMessages();
 
     std::vector<RetainedMessage> list;
     const std::chrono::time_point<std::chrono::steady_clock> limit = std::chrono::steady_clock::now() + std::chrono::milliseconds(1000);
     std::deque<std::weak_ptr<RetainedMessageNode>> deferred;
-    store->getRetainedMessages(store->retainedMessagesRoot.get(), list, limit, 100000, deferred);
+    globals->subscriptionStore.getRetainedMessages(globals->subscriptionStore.retainedMessagesRoot.get(), list, limit, 100000, deferred);
 
     QVERIFY(deferred.empty());
 
@@ -594,7 +592,7 @@ void MainTests::test_retained_tree_purging()
         return rm.publish.payload == "willnotexpire";
     }));
 
-    MYCASTCOMPARE(store->getAllRetainedMessages().size(), beforeCount - toDeleteCount);
+    MYCASTCOMPARE(globals->subscriptionStore.getAllRetainedMessages().size(), beforeCount - toDeleteCount);
 }
 
 void MainTests::testRetainAsPublished()

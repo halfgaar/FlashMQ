@@ -43,8 +43,7 @@ void mosquitto_log_printf(int level, const char *fmt, ...)
  */
 void flashmq_plugin_remove_client(const std::string &clientid, bool alsoSession, ServerDisconnectReasons reasonCode)
 {
-    std::shared_ptr<SubscriptionStore> store = globals->subscriptionStore;
-    std::shared_ptr<Session> session = store->lockSession(clientid);
+    std::shared_ptr<Session> session = globals->subscriptionStore.lockSession(clientid);
 
     if (session)
     {
@@ -62,14 +61,12 @@ void flashmq_plugin_remove_client(const std::string &clientid, bool alsoSession,
         }
 
         if (alsoSession)
-            store->removeSession(session);
+            globals->subscriptionStore.removeSession(session);
     }
 }
 
 void flashmq_plugin_remove_client_v4(const std::weak_ptr<Session> &session, bool alsoSession, ServerDisconnectReasons reasonCode)
 {
-    std::shared_ptr<SubscriptionStore> store = globals->subscriptionStore;
-    if (!store) return;
     std::shared_ptr<Session> session_locked = session.lock();
     if (!session_locked) return;
     std::shared_ptr<Client> client = session_locked->makeSharedClient();
@@ -81,7 +78,7 @@ void flashmq_plugin_remove_client_v4(const std::weak_ptr<Session> &session, bool
     td->serverInitiatedDisconnect(client, _code, "Removed from plugin");
 
     if (alsoSession)
-        store->removeSession(session_locked);
+        globals->subscriptionStore.removeSession(session_locked);
 }
 
 /**
@@ -92,8 +89,7 @@ void flashmq_plugin_remove_subscription(const std::string &clientid, const std::
     if (!(isValidUtf8(topicFilter) && isValidSubscribePath(topicFilter)))
         throw std::runtime_error("Unsubscribing from plugin failed: invalid topic filter: " + topicFilter);
 
-    std::shared_ptr<SubscriptionStore> store = globals->subscriptionStore;
-    std::shared_ptr<Session> session = store->lockSession(clientid);
+    std::shared_ptr<Session> session = globals->subscriptionStore.lockSession(clientid);
     if (!session) return;
 
     std::vector<std::string> subtopics = splitTopic(topicFilter);
@@ -101,7 +97,7 @@ void flashmq_plugin_remove_subscription(const std::string &clientid, const std::
     std::string _;
     parseSubscriptionShare(subtopics, shareName, _);
 
-    store->removeSubscription(session, subtopics, shareName);
+    globals->subscriptionStore.removeSubscription(session, subtopics, shareName);
 }
 
 void flashmq_plugin_remove_subscription_v4(const std::weak_ptr<Session> &session, const std::string &topicFilter)
@@ -109,7 +105,6 @@ void flashmq_plugin_remove_subscription_v4(const std::weak_ptr<Session> &session
     if (!(isValidUtf8(topicFilter) && isValidSubscribePath(topicFilter)))
         throw std::runtime_error("Unsubscribing from plugin failed: invalid topic filter: " + topicFilter);
 
-    std::shared_ptr<SubscriptionStore> store = globals->subscriptionStore;
     std::shared_ptr<Session> session_locked = session.lock();
     if (!session_locked) return;
 
@@ -118,7 +113,7 @@ void flashmq_plugin_remove_subscription_v4(const std::weak_ptr<Session> &session
     std::string _;
     parseSubscriptionShare(subtopics, shareName, _);
 
-    store->removeSubscription(session_locked, subtopics, shareName);
+    globals->subscriptionStore.removeSubscription(session_locked, subtopics, shareName);
 }
 
 bool flashmq_plugin_add_subscription(
@@ -128,8 +123,6 @@ bool flashmq_plugin_add_subscription(
     if (!(isValidUtf8(topicFilter) && isValidSubscribePath(topicFilter)))
         throw std::runtime_error("Subscribing from plugin failed: invalid topic filter: " + topicFilter);
 
-    std::shared_ptr<SubscriptionStore> store = globals->subscriptionStore;
-    if (!store) return false;
     std::shared_ptr<Session> session_locked = session.lock();
     if (!session_locked) return false;
 
@@ -138,7 +131,7 @@ bool flashmq_plugin_add_subscription(
     std::string topicDummy;
     parseSubscriptionShare(subtopics, shareName, topicDummy);
 
-    const AddSubscriptionType result = store->addSubscription(session_locked, subtopics, qos, noLocal, retainAsPublished, shareName, subscriptionIdentifier);
+    const AddSubscriptionType result = globals->subscriptionStore.addSubscription(session_locked, subtopics, qos, noLocal, retainAsPublished, shareName, subscriptionIdentifier);
     return result == AddSubscriptionType::Invalid ? false : true;
 }
 
@@ -169,15 +162,13 @@ void flashmq_publish_message(const std::string &topic, const uint8_t qos, const 
                              const std::string *responseTopic, const std::string *correlationData, const std::string *contentType)
 {
     auto do_publish = [](Publish &pub){
-        std::shared_ptr<SubscriptionStore> store = globals->subscriptionStore;
-
         if (pub.retain)
         {
-            store->setRetainedMessage(pub, pub.getSubtopics());
+            globals->subscriptionStore.setRetainedMessage(pub, pub.getSubtopics());
         }
 
         PublishCopyFactory factory(&pub);
-        store->queuePacketAtSubscribers(factory, "", {});
+        globals->subscriptionStore.queuePacketAtSubscribers(factory, "", {});
     };
 
     auto f2 = [do_publish](std::shared_ptr<Publish> &pub){
@@ -325,9 +316,7 @@ void flashmq_remove_task(uint32_t id)
 
 void flashmq_get_session_pointer(const std::string &clientid, const std::string &username, std::weak_ptr<Session> &sessionOut)
 {
-    std::shared_ptr<SubscriptionStore> store = globals->subscriptionStore;
-    if (!store) return;
-    std::shared_ptr<Session> session = store->lockSession(clientid);
+    std::shared_ptr<Session> session = globals->subscriptionStore.lockSession(clientid);
     if (!session) return;
     if (session->getUsername() != username) return;
     sessionOut = session;

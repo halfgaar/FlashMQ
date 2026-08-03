@@ -752,8 +752,7 @@ void MainTests::testClientRemovalByPlugin()
         QVERIFY(ro->receivedPackets.size() == 1);
         QVERIFY(ro->receivedPackets.front().packetType == PacketType::DISCONNECT);
 
-        std::shared_ptr<SubscriptionStore> store = globals->subscriptionStore;
-        std::shared_ptr<Session> session = store->lockSession(sender_client_id);
+        std::shared_ptr<Session> session = globals->subscriptionStore.lockSession(sender_client_id);
 
         if (method == "removeclient")
         {

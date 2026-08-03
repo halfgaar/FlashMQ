@@ -11,7 +11,7 @@
 #include "mutexowned.h"
 
 /**
- * The idea about it being a shared pointer is having globals that are still tied to a MainApp instance (which
+ * The idea about Globals being recreatable is having globals that are still tied to a MainApp instance (which
  * should assign a new global object upon creation and destruction). This is mainly for keeping the memory model
  * between normal FlashMQ and the re-instantiated MainApps in the test program the same, which wouldn't be the
  * case by when having static variables for globals.
@@ -22,15 +22,19 @@ class Globals
     {
         bool quitting = false;
         pthread_t createdByThread = pthread_self();
-        std::shared_ptr<SubscriptionStore> subscriptionStore = std::make_shared<SubscriptionStore>();
+        SubscriptionStore subscriptionStore;
         GlobalStats stats;
         BridgeClientGroupIds bridgeClientGroupIds;
         MutexOwned<std::vector<std::shared_ptr<ThreadData>>> threadDatas;
 
         CheckedSharedPtr<ThreadData> getDeterministicThreadData();
+
+        GlobalsData() = default;
+        GlobalsData(const GlobalsData&) = delete;
+        GlobalsData &operator=(const GlobalsData&) = delete;
     };
 
-    std::shared_ptr<GlobalsData> data = std::make_shared<GlobalsData>();
+    std::unique_ptr<GlobalsData> data = std::make_unique<GlobalsData>();
 public:
 
     GlobalsData *operator->() const

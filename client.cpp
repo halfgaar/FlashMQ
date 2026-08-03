@@ -736,8 +736,7 @@ void Client::sendOrQueueWill()
     if (!this->willPublish)
         return;
 
-    std::shared_ptr<SubscriptionStore> store = globals->subscriptionStore;
-    store->queueOrSendWillMessage(willPublish, session);
+    globals->subscriptionStore.queueOrSendWillMessage(willPublish, session);
     this->willPublish.reset();
 }
 

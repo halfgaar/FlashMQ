@@ -31,19 +31,17 @@ void saveState(const Settings &settings, const std::list<BridgeInfoForSerializin
         if (settings.persistenceDataToSave.hasNone())
             return;
 
-        std::shared_ptr<SubscriptionStore> subscriptionStore = globals->subscriptionStore;
-
         if (settings.persistenceDataToSave.hasFlagSet(PersistenceDataToSave::RetainedMessages)
             && settings.retainedMessagesMode == RetainedMessagesMode::Enabled)
         {
             const std::string retainedDBPath = settings.getRetainedMessagesDBFile();
-            subscriptionStore->saveRetainedMessages(retainedDBPath, in_background);
+            globals->subscriptionStore.saveRetainedMessages(retainedDBPath, in_background);
         }
 
         if (settings.persistenceDataToSave.hasFlagSet(PersistenceDataToSave::SessionsAndSubscriptions))
         {
             const std::string sessionsDBPath = settings.getSessionsDBFile();
-            subscriptionStore->saveSessionsAndSubscriptions(sessionsDBPath);
+            globals->subscriptionStore.saveSessionsAndSubscriptions(sessionsDBPath);
         }
 
         if (settings.persistenceDataToSave.hasFlagSet(PersistenceDataToSave::BridgeInfo))
