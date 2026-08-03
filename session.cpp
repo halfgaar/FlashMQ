@@ -283,7 +283,8 @@ PacketDropReason Session::writePacket(PublishCopyFactory &copyFactory, const uin
             {
                 logger->log(LOG_WARNING)
                     << "Dropping QoS message(s) for off-line client '" << client_id << "', because the limit has been reached. "
-                    << "You can increase 'max_qos_msg_pending_per_client' and/or 'max_qos_bytes_pending_per_client' to buffer more.";
+                    << "The limit is influenced by the client's 'receive max', and the server's 'max_qos_msg_pending_per_client' "
+                    << "and/or 'max_qos_bytes_pending_per_client'.";
             }
 
             qos_locked->markQoSLogPrinted();
