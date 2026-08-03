@@ -817,15 +817,20 @@ ssize_t IoWrapper::websocketBytesToReadBuffer(void *buf, const size_t nbytes, Io
             uint8_t reserved = (byte1 & 0b01110000) >> 4;
             WebsocketOpcode opcode = (WebsocketOpcode)(byte1 & 0b00001111);
             const uint8_t payloadLength = byte2 & 0b01111111;
-            size_t realPayloadLength = payloadLength;
+            uint64_t realPayloadLength { payloadLength };
             uint64_t extendedPayloadLengthLength = 0;
             uint8_t headerLength = masked ? 6 : 2;
+
+            std::optional<uint64_t> extendedPayloadLength;
 
             if (payloadLength == 126)
                 extendedPayloadLengthLength = 2;
             else if (payloadLength == 127)
                 extendedPayloadLengthLength = 8;
             headerLength += extendedPayloadLengthLength;
+
+            if (extendedPayloadLengthLength > 0)
+                extendedPayloadLength.emplace();
 
             //if (!masked)
             //    throw BadClientException("Client must send masked websocket bytes.");
@@ -836,19 +841,21 @@ ssize_t IoWrapper::websocketBytesToReadBuffer(void *buf, const size_t nbytes, Io
             if (headerLength > websocketPendingBytes.usedBytes())
                 return nbytesRead;
 
-            uint64_t extendedPayloadLength = 0;
-
             int i = 2;
             int shift = extendedPayloadLengthLength * 8;
             while (shift > 0)
             {
                 shift -= 8;
                 uint64_t byte {static_cast<uint8_t>(websocketPendingBytes.peakAhead(i++))};
-                extendedPayloadLength += (byte << shift);
+                extendedPayloadLength.value() += (byte << shift);
             }
 
-            if (extendedPayloadLength > 0)
-                realPayloadLength = extendedPayloadLength;
+            if (extendedPayloadLength)
+                realPayloadLength = { extendedPayloadLength.value() };
+
+            // This also deals with the fact that many of our int operations are done with size_t, which is too small for the complete frame on 32 bit.
+            if (realPayloadLength > std::numeric_limits<size_t>::max())
+                throw BadClientException("Unlikely big websocket frame");
 
             if (headerLength > websocketPendingBytes.usedBytes())
                 return nbytesRead;
@@ -865,7 +872,7 @@ ssize_t IoWrapper::websocketBytesToReadBuffer(void *buf, const size_t nbytes, Io
             assert(headerLength <= websocketPendingBytes.usedBytes());
             websocketPendingBytes.advanceTail(headerLength);
 
-            incompleteWebsocketRead.frame_bytes_left = realPayloadLength;
+            incompleteWebsocketRead.frame_bytes_left = { realPayloadLength };
             incompleteWebsocketRead.opcode = opcode;
         }
 

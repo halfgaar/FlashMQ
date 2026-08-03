@@ -75,7 +75,7 @@ struct IncompleteSslWrite
 
 struct IncompleteWebsocketRead
 {
-    size_t frame_bytes_left = 0;
+    uint64_t frame_bytes_left = 0;
     char maskingKey[4];
     unsigned int maskingKeyI = 0;
     WebsocketOpcode opcode;
