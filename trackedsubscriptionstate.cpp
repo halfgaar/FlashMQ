@@ -291,7 +291,8 @@ void TrackedSubscriptionState::processTrackedSubscriptionMutations(
         }
     }
 
-    std::vector<Subscribe> subscribes;
+    std::unordered_set<TrackedSubscriptionFields> deduplicated_subscribes;
+
 
     for (TrackedSubscriptionMutation &mut : muts)
     {
@@ -319,30 +320,29 @@ void TrackedSubscriptionState::processTrackedSubscriptionMutations(
                     return;
             }
 
-            if (Logger::getInstance()->wouldLog(LOG_SUBSCRIBE))
-            {
-                Logger::getInstance()->log(LOG_SUBSCRIBE)
-                    << "Sending tracked subscription '" << mut.pattern << "' to server '"
-                    << network_client->getClientId() << "' with effective QoS = " << static_cast<int>(mut.qos)
-                    << ", originating from client '" << mut.originatingClientId << "'. Packet ID = " << pack_id.value();
-            }
-
             if (mut.subAckReleaseTrigger)
             {
                 auto x = outgoingSubscriptionsToSubackReleases.emplace(pack_id.value(), mut.subAckReleaseTrigger.value());
                 x->second.m_tracked_sub_to_confirm.emplace(stripSubscriptionShare(mut.pattern), mut.qos);
             }
 
-            Subscribe &sub = subscribes.emplace_back(mut.pattern, mut.qos);
-            sub.retainAsPublished = true;
+            std::string verb("Sending");
+            const auto insert_result = deduplicated_subscribes.insert({mut.pattern, mut.qos});
 
-            /*
-             * Because of the nature of the feature, multiple clients subscribing to one pattern at different QoS levels
-             * use the same subscription at the other end. We have to request the retained message because it may now
-             * be with a different QoS. Because FlashMQ sends retain messages to each other with the custom 'no
-             * relay' feature, this will not cause a stray publish at clients.
-             */
-            sub.retainHandling = RetainHandling::SendRetainedMessagesAtSubscribe;
+            if (!std::get<bool>(insert_result))
+            {
+                verb = "Already about to send";
+                if (mut.qos > insert_result.first->qos)
+                    insert_result.first->qos = mut.qos;
+            }
+
+            if (Logger::getInstance()->wouldLog(LOG_SUBSCRIBE))
+            {
+                Logger::getInstance()->log(LOG_SUBSCRIBE)
+                    << verb << " tracked subscription '" << mut.pattern << "' to server '"
+                    << network_client->getClientId() << "' with effective QoS = " << static_cast<int>(mut.qos)
+                    << ", originating from client '" << mut.originatingClientId << "'. Packet ID = " << pack_id.value();
+            }
         }
         else if (mut.task == TrackedSubscriptionMutationTask::Unsubscribe)
         {
@@ -363,6 +363,22 @@ void TrackedSubscriptionState::processTrackedSubscriptionMutations(
              * are coming and going, the periodic cleanup will ultimately send the unsubscribe.
              */
         }
+    }
+
+    std::vector<Subscribe> subscribes;
+
+    for (const TrackedSubscriptionFields &x : deduplicated_subscribes)
+    {
+        Subscribe &sub = subscribes.emplace_back(x.pattern, x.qos);
+        sub.retainAsPublished = true;
+
+        /*
+         * Because of the nature of the feature, multiple clients subscribing to one pattern at different QoS levels
+         * use the same subscription at the other end. We have to request the retained message because it may now
+         * be with a different QoS. Because FlashMQ sends retain messages to each other with the custom 'no
+         * relay' feature, this will not cause a stray publish at clients.
+         */
+        sub.retainHandling = RetainHandling::SendRetainedMessagesAtSubscribe;
     }
 
     if (!subscribes.empty())
