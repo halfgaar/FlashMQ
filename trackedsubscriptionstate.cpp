@@ -598,7 +598,10 @@ void TrackedSubscriptionState::sendArmedStagedSuback(const uint16_t id)
         if (t.m_tracked_sub_to_confirm)
         {
             auto l = trackedSubscriptionsConfirmed.unique_lock();
-            l->insert(t.m_tracked_sub_to_confirm.value());
+            auto result = l->insert(t.m_tracked_sub_to_confirm.value());
+
+            if (!std::get<bool>(result))
+                result.first->qos = t.m_tracked_sub_to_confirm->qos;
         }
 
         queueSendSubAckInOriginatingClient(t);

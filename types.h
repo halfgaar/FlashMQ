@@ -407,7 +407,7 @@ struct DeferredRetainedSending
 struct TrackedSubscriptionFields
 {
     const std::string pattern;
-    const uint8_t qos{};
+    mutable uint8_t qos{};
 
     TrackedSubscriptionFields(const std::string &pattern, const uint8_t qos);
 
