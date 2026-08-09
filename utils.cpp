@@ -60,12 +60,23 @@ bool strContains(const std::string &s, const std::string &needle)
     return s.find(needle) != std::string::npos;
 }
 
+#ifdef TESTING
 // Only necessary for tests at this point.
 bool isValidUtf8Generic(const char *s, bool alsoCheckInvalidPublishChars)
 {
     const std::string s2(s);
     return isValidUtf8Generic(s2, alsoCheckInvalidPublishChars);
 }
+
+// Only necessary for tests at this point.
+#ifdef __SSE4_2__
+bool isValidUtf8Sse(const char *s, bool alsoCheckInvalidPublishChars)
+{
+    const std::string s2(s);
+    return isValidUtf8Sse(s2, alsoCheckInvalidPublishChars);
+}
+#endif
+#endif
 
 bool isValidPublishPath(const std::string &s)
 {

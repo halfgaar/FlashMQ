@@ -62,7 +62,12 @@ std::vector<std::string> splitTopic(const std::string &topic);
 
 std::string recompose_topic(const std::vector<std::string> &subtopics);
 
+#ifdef TESTING
 bool isValidUtf8Generic(const char *s, bool alsoCheckInvalidPublishChars = false);
+#ifdef __SSE4_2__
+bool isValidUtf8Sse(const char *s, bool alsoCheckInvalidPublishChars = false);
+#endif
+#endif
 
 template<typename T>
 bool isValidUtf8Generic(const T &s, bool alsoCheckInvalidPublishChars = false)
@@ -153,6 +158,122 @@ bool isValidUtf8Generic(const T &s, bool alsoCheckInvalidPublishChars = false)
     }
     return multibyte_remain == 0;
 }
+
+#ifdef __SSE4_2__
+template<typename T>
+bool isValidUtf8Sse(const T &s, bool alsoCheckInvalidPublishChars=false)
+{
+    const __m128i lowerBound = _mm_set1_epi8(0x20);
+    const __m128i msbMask = _mm_set1_epi8(0b10000000);
+    const __m128i lastAsciiChar = _mm_set1_epi8(0x7E);
+    const __m128i pound = _mm_set1_epi8('#');
+    const __m128i plus = _mm_set1_epi8('+');
+
+    size_t i = 0;
+    size_t next_vector_point = 0;
+
+    while (i < s.size())
+    {
+        if (i >= next_vector_point && i + 16 <= s.size())
+        {
+            next_vector_point = i + 16;
+
+            const __m128i loaded = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s.data() + i));
+
+            if (alsoCheckInvalidPublishChars && (_mm_movemask_epi8(_mm_cmpeq_epi8(loaded, pound) || _mm_movemask_epi8(_mm_cmpeq_epi8(loaded, plus)))))
+                return false;
+
+            const __m128i above_ascii_vector =  _mm_and_si128(loaded, msbMask);
+            const int above_ascii_present = _mm_movemask_epi8(above_ascii_vector);
+
+            if (!above_ascii_present)
+            {
+                i += 16;
+
+                if (_mm_movemask_epi8(_mm_cmplt_epi8(loaded, lowerBound)))
+                    return false;
+
+                if (_mm_movemask_epi8(_mm_cmpgt_epi8(loaded, lastAsciiChar)))
+                    return false;
+
+                continue;
+            }
+        }
+
+        uint8_t x = s[i++];
+        int8_t char_len_left = 0;
+        int8_t total_char_len = 0;
+        uint32_t cur_code_point = 0;
+
+        if ((x & 0b10000000) == 0) // 1 byte char
+        {
+            if (alsoCheckInvalidPublishChars && (x == '#' || x == '+'))
+                return false;
+            if (x < 0x0020 || x > 0x007e)
+                return false;
+            continue;
+        }
+
+        if((x & 0b11100000) == 0b11000000) // 2 byte char
+        {
+            char_len_left = 1;
+            cur_code_point += ((x & 0b00011111) << 6);
+        }
+        else if((x & 0b11110000) == 0b11100000) // 3 byte char
+        {
+            char_len_left = 2;
+            cur_code_point += ((x & 0b00001111) << 12);
+        }
+        else if((x & 0b11111000) == 0b11110000) // 4 byte char
+        {
+            char_len_left = 3;
+            cur_code_point += ((x & 0b00000111) << 18);
+        }
+        else
+            return false;
+
+        total_char_len = char_len_left + 1;
+
+        while (char_len_left > 0)
+        {
+            if (i >= s.size())
+                return false;
+
+            x = s[i++];
+
+            if((x & 0b11000000) != 0b10000000) // All remainer bytes of this code point needs to start with 10
+                return false;
+            char_len_left--;
+            cur_code_point += ((x & 0b00111111) << (6*char_len_left));
+        }
+
+        // Check overlong values, to avoid having mulitiple representations of the same value.
+        if (total_char_len == 2 && cur_code_point < 0x80)
+            return false;
+        else if (total_char_len == 3 && cur_code_point < 0x800)
+            return false;
+        else if (total_char_len == 4 && cur_code_point < 0x10000)
+            return false;
+
+        if (cur_code_point >= 0xD800 && cur_code_point <= 0xDFFF) // Dec 55296-57343
+            return false;
+
+        if (cur_code_point >= 0x7F && cur_code_point <= 0x009F)
+            return false;
+
+        // Unicode spec: "Which code points are noncharacters?".
+        if (cur_code_point >= 0xFDD0 && cur_code_point <= 0xFDEF)
+            return false;
+        // The last two code points of each of the 17 planes are the remaining 34 non-chars.
+        const uint32_t plane = (cur_code_point & 0x1F0000) >> 16;
+        const uint32_t last_16_bit = cur_code_point & 0xFFFF;
+        if (plane <= 16 && (last_16_bit == 0xFFFE || last_16_bit == 0xFFFF))
+            return false;
+    }
+
+    return true;
+}
+#endif
 
 template<typename T>
 bool isValidUtf8(const T &s, bool alsoCheckInvalidPublishChars = false)
