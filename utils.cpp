@@ -1066,3 +1066,33 @@ std::string redact_right(std::string s)
     std::fill(s.begin() + start, s.end(), 'X');
     return s;
 }
+
+bool contains_value_greater_than(const std::vector<uint8_t> &data, const uint8_t val)
+{
+    size_t i = 0;
+
+#ifdef __SSE4_2__
+    if (data.size() >= 16)
+    {
+        const __m128i val_vector = _mm_set1_epi8(val);
+
+        for (; i <= data.size() - 16; i += 16)
+        {
+            const __m128i x = _mm_loadu_si128(reinterpret_cast<const __m128i*>(data.data() + i));
+            const __m128i clamped = _mm_min_epu8(x, val_vector);
+            const __m128i different = _mm_cmpeq_epi8(x, clamped);
+
+            if (_mm_movemask_epi8(different) != 0xFFFF)
+                return true;
+        }
+    }
+#endif
+
+    for (; i < data.size(); ++i)
+    {
+        if (data[i] > val)
+            return true;
+    }
+
+    return false;
+}

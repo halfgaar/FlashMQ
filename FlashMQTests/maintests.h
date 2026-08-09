@@ -250,6 +250,7 @@ class MainTests
     void testUsedIds4();
     void testUsedIdsRandomDraining();
     void testUsedIdsSpeed();
+    void test_contains_value_greater_than();
     void testBase64();
     void testNoCopy();
     void testSessionTakeoverOtherUsername();

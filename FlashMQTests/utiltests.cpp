@@ -532,5 +532,24 @@ void MainTests::testUsedIdsSpeed()
     FMQ_VERIFY(a > 0 || b > 0);
 }
 
+void MainTests::test_contains_value_greater_than()
+{
+    {
+        std::vector<uint8_t> data(20);
+        FMQ_VERIFY(!contains_value_greater_than(data, 2));
+    }
+
+    {
+        std::vector<uint8_t> data {1,2,3,4,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5};
+        FMQ_VERIFY(contains_value_greater_than(data, 2));
+    }
+
+    {
+        std::vector<uint8_t> data {1,2,3,4,5};
+        FMQ_VERIFY(contains_value_greater_than(data, 2));
+    }
+
+}
+
 
 

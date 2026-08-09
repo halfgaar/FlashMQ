@@ -436,5 +436,6 @@ std::string make_string(const T &input, const size_t offset, const size_t len)
 
 std::string redact_right(std::string s);
 
+bool contains_value_greater_than(const std::vector<uint8_t> &v, const uint8_t x);
 
 #endif // UTILS_H
