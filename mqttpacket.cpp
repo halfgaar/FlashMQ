@@ -1929,6 +1929,9 @@ void MqttPacket::handleSubAck(std::shared_ptr<Client> &sender)
 
     if (tracked_subs)
     {
+        if (contains_value_greater_than(data.subAckCodes, 2))
+            throw ProtocolError("Lazy subscriptions can't handle rejected subscriptions. Configure proper auth", ReasonCodes::ImplementationSpecificError);
+
         tracked_subs->handledSubackActions(data.packet_id);
 
         if (tracked_subs->requiresProcessingTrackedSubscriptions())
