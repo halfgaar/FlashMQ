@@ -1224,7 +1224,7 @@ void MqttPacket::handleConnect(std::shared_ptr<Client> &sender)
     sender->setClientId(connectData.client_id);
     sender->setClientIdPrefix(connectData.client_id_prefix);
 
-    std::string username = connectData.username ? connectData.username.value() : "";
+    std::optional<std::string> username = connectData.username;
 
     if (sender->getX509ClientVerification() > X509ClientVerification::None && sender->getHaProxyMode() >= HaProxyMode::HaProxyClientVerification)
     {
@@ -1251,7 +1251,7 @@ void MqttPacket::handleConnect(std::shared_ptr<Client> &sender)
         username = haproxy_username.value();
     }
 
-    sender->setClientProperties(protocolVersion, connectData.client_id, connectData.fmq_client_group_id, username, true, connectData.keep_alive,
+    sender->setClientProperties(protocolVersion, connectData.client_id, connectData.fmq_client_group_id, username.value_or(""), true, connectData.keep_alive,
                                 connectData.max_outgoing_packet_size, connectData.max_outgoing_topic_aliases);
 
     if (settings.willsEnabled && connectData.will_flag)
@@ -1322,7 +1322,7 @@ void MqttPacket::handleConnect(std::shared_ptr<Client> &sender)
         allowAnonymous = sender->getAllowAnonymousOverride() == AllowListenerAnonymous::Yes;
     }
 
-    if (!connectData.username && connectData.authenticationMethod.empty() && allowAnonymous)
+    if (!username && connectData.authenticationMethod.empty() && allowAnonymous)
     {
         authResult = AuthResult::success;
     }
@@ -1333,7 +1333,7 @@ void MqttPacket::handleConnect(std::shared_ptr<Client> &sender)
     }
     else if (connectData.authenticationMethod.empty())
     {
-        authResult = authentication.loginCheck(connectData.client_id, username, connectData.password, getUserProperties(), sender, allowAnonymous);
+        authResult = authentication.loginCheck(connectData.client_id, username.value_or(""), connectData.password, getUserProperties(), sender, allowAnonymous);
     }
     else
     {
