@@ -158,7 +158,7 @@ private:
     void bridgeReconnect();
 
     void removeQueuedClients();
-    void publishWithAcl(Publish &pub, bool setRetain=false);
+    void publishStatWithAcl(Publish &pub, bool setRetain=false);
     void removeBridge(const BridgeConfig &bridgeConfig, const std::string &reason);
 
 public:

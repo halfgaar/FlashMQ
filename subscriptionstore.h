@@ -231,7 +231,7 @@ public:
                                                     const uint32_t subscription_identifier);
 
     void trySetRetainedMessages(const Publish &publish, const std::vector<std::string> &subtopics);
-    bool setRetainedMessage(const Publish &publish, const std::vector<std::string> &subtopics, bool try_lock_fail=false);
+    bool setRetainedMessage(const Publish &publish, const std::vector<std::string> &subtopics, const bool dollar, bool try_lock_fail);
 
     void removeSession(const std::shared_ptr<Session> &session);
     void removeExpiredSessionsClients();

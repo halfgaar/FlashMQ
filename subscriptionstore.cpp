@@ -420,7 +420,7 @@ void SubscriptionStore::sendWill(const std::shared_ptr<WillPublish> will, const 
         queuePacketAtSubscribers(factory, will->client_id, {});
 
         if (will->retain && authResult == AuthResult::success)
-            setRetainedMessage(*will, will->getSubtopics());
+            setRetainedMessage(*will, will->getSubtopics(), false, false);
     }
 }
 
@@ -942,7 +942,7 @@ void SubscriptionStore::trySetRetainedMessages(const Publish &publish, const std
     td->retainedMessageSet.inc(1);
 
     // Only do direct setting when there are none queued, to avoid out of order races, which would result in the wrong ultimate value.
-    if (td->queuedRetainedMessagesEmpty() && setRetainedMessage(publish, subtopics, try_lock_fail))
+    if (td->queuedRetainedMessagesEmpty() && setRetainedMessage(publish, subtopics, false, try_lock_fail))
         return;
 
     auto spread {settings->setRetainedMessageDeferTimeoutSpread};
@@ -987,18 +987,21 @@ bool SubscriptionStore::setRetainedLimitReached(const Settings *settings, const 
     return result;
 }
 
-bool SubscriptionStore::setRetainedMessage(const Publish &publish, const std::vector<std::string> &subtopics, bool try_lock_fail)
+bool SubscriptionStore::setRetainedMessage(const Publish &publish, const std::vector<std::string> &subtopics, const bool dollar, bool try_lock_fail)
 {
     assert(!subtopics.empty());
+    assert(recompose_topic(subtopics) == publish.topic);
+
+    // Ignore for the same reason in queuePacketAtSubscribers.
+    if (!dollar && !publish.topic.empty() && publish.topic[0] == '$')
+        return true;
 
     const Settings *settings = ThreadGlobals::getSettings();
 
     if (settings->retainedMessagesMode >= RetainedMessagesMode::EnabledWithoutRetaining)
         return true;
 
-    const std::shared_ptr<RetainedMessageNode> *deepestNode = &retainedMessagesRoot;
-    if (!subtopics.empty() && !subtopics[0].empty() > 0 && subtopics[0][0] == '$')
-        deepestNode = &retainedMessagesRootDollar;
+    const std::shared_ptr<RetainedMessageNode> *deepestNode = dollar ? &retainedMessagesRootDollar : &retainedMessagesRoot;
 
     std::shared_ptr<RetainedMessageNode> enforcement_node;
 
@@ -1717,7 +1720,7 @@ void SubscriptionStore::loadRetainedMessages(const std::string &filePath)
 
             for (RetainedMessage &rm : messages)
             {
-                setRetainedMessage(rm.publish, rm.publish.getSubtopics());
+                setRetainedMessage(rm.publish, rm.publish.getSubtopics(), false, false);
             }
         } while (count > 0);
 

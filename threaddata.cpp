@@ -585,7 +585,7 @@ void ThreadData::publishStat(const std::string &topic, const std::string &payloa
 {
     Publish p(topic, payload, 0);
     p.setExpireAfter(60);
-    publishWithAcl(p, true);
+    publishStatWithAcl(p, true);
 }
 
 void ThreadData::publishBridgeState(std::shared_ptr<BridgeState> bridge, bool connected, const std::optional<std::string> &error)
@@ -625,7 +625,7 @@ void ThreadData::queueSettingRetainedMessage(const Publish &p, const std::vector
         wakeUpThread();
 }
 
-void ThreadData::publishWithAcl(Publish &pub, bool setRetain)
+void ThreadData::publishStatWithAcl(Publish &pub, bool setRetain)
 {
     authentication.aclCheck(pub, pub.payload, AclAccess::write);
 
@@ -633,7 +633,7 @@ void ThreadData::publishWithAcl(Publish &pub, bool setRetain)
     globals->subscriptionStore.queuePacketAtSubscribers(factory, "", {}, true);
 
     if (setRetain)
-        globals->subscriptionStore.setRetainedMessage(pub, factory.getSubtopics());
+        globals->subscriptionStore.setRetainedMessage(pub, factory.getSubtopics(), true, false);
 }
 
 /**
@@ -880,7 +880,7 @@ void ThreadData::setQueuedRetainedMessages()
             deferredRetainedMessagesSetTimeout.inc(1);
         }
 
-        if (globals->subscriptionStore.setRetainedMessage(cur->p, cur->subtopics, try_lock_fail))
+        if (globals->subscriptionStore.setRetainedMessage(cur->p, cur->subtopics, false, try_lock_fail))
         {
             priv->queuedRetainedMessages.erase(cur);
             continue;

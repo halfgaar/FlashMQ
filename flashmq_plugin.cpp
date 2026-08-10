@@ -164,7 +164,7 @@ void flashmq_publish_message(const std::string &topic, const uint8_t qos, const 
     auto do_publish = [](Publish &pub){
         if (pub.retain)
         {
-            globals->subscriptionStore.setRetainedMessage(pub, pub.getSubtopics());
+            globals->subscriptionStore.setRetainedMessage(pub, pub.getSubtopics(), false, false);
         }
 
         PublishCopyFactory factory(&pub);

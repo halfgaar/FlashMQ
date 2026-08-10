@@ -561,14 +561,14 @@ void MainTests::test_retained_tree_purging()
             }
 
             std::vector<std::string> subtopics = splitTopic(topic);
-            globals->subscriptionStore.setRetainedMessage(pub, subtopics);
+            globals->subscriptionStore.setRetainedMessage(pub, subtopics, false, false);
         }
     }
 
     {
         Publish pubStray("retain0/bla5", "willnotexpire", 0);
         std::vector<std::string> subtopics = splitTopic(pubStray.topic);
-        globals->subscriptionStore.setRetainedMessage(pubStray, subtopics);
+        globals->subscriptionStore.setRetainedMessage(pubStray, subtopics, false, false);
     }
 
     const int beforeCount = globals->subscriptionStore.getAllRetainedMessages().size();
