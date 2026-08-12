@@ -70,37 +70,7 @@ MqttPacket::MqttPacket(std::vector<char> &&packet_bytes, size_t fixed_header_len
             ReasonCodes::MalformedPacket);
     }
 
-    const unsigned int four_lsb = first_byte & 0x0F;
-    std::optional<unsigned int> four_lsb_required;
-
-    switch(packetType)
-    {
-    case PacketType::CONNECT:
-    case PacketType::CONNACK:
-    case PacketType::PUBACK:
-    case PacketType::PUBREC:
-    case PacketType::PUBCOMP:
-    case PacketType::SUBACK:
-    case PacketType::UNSUBACK:
-    case PacketType::PINGREQ:
-    case PacketType::PINGRESP:
-    case PacketType::DISCONNECT:
-    case PacketType::AUTH:
-        four_lsb_required = 0;
-        break;
-    case PacketType::PUBREL:
-    case PacketType::SUBSCRIBE:
-    case PacketType::UNSUBSCRIBE:
-        four_lsb_required = 0b10;
-        break;
-    default:
-        break;
-    }
-
-    if (four_lsb_required && four_lsb != four_lsb_required)
-    {
-        throw ProtocolError(packetTypeToString(packetType) + " has malformed four LSB in first byte", ReasonCodes::MalformedPacket);
-    }
+    validateFirstByteLSB();
 }
 
 MqttPacket::MqttPacket(const ConnAck &connAck) :
@@ -711,6 +681,8 @@ ConnectData MqttPacket::parseConnectData(std::shared_ptr<Client> &sender)
 
     // Even though we're still parsing, setting this helps the exception handler to make decisions.
     sender->setProtocolVersion(this->protocolVersion);
+
+    validateFirstByteLSB();
 
     char flagByte = readByte();
     bool reserved = !!(flagByte & 0b00000001);
@@ -2553,6 +2525,46 @@ bool MqttPacket::withinBound(const size_t limit) const
         throw ProtocolError("Out of bounds", ReasonCodes::MalformedPacket);
 
     return pos < limit;
+}
+
+void MqttPacket::validateFirstByteLSB() const
+{
+    // In MQTT3, the four LSB technically have a value. This check also means it does nothing for new
+    // clients, whose connect packet hasn't been parsed yet.
+    if (this->protocolVersion < ProtocolVersion::Mqtt311)
+        return;
+
+    const unsigned int four_lsb = first_byte & 0x0F;
+    std::optional<unsigned int> four_lsb_required;
+
+    switch(packetType)
+    {
+    case PacketType::CONNECT:
+    case PacketType::CONNACK:
+    case PacketType::PUBACK:
+    case PacketType::PUBREC:
+    case PacketType::PUBCOMP:
+    case PacketType::SUBACK:
+    case PacketType::UNSUBACK:
+    case PacketType::PINGREQ:
+    case PacketType::PINGRESP:
+    case PacketType::DISCONNECT:
+    case PacketType::AUTH:
+        four_lsb_required = 0;
+        break;
+    case PacketType::PUBREL:
+    case PacketType::SUBSCRIBE:
+    case PacketType::UNSUBSCRIBE:
+        four_lsb_required = 0b10;
+        break;
+    default:
+        break;
+    }
+
+    if (four_lsb_required && four_lsb != four_lsb_required)
+    {
+        throw ProtocolError(packetTypeToString(packetType) + " has malformed four LSB in first byte", ReasonCodes::MalformedPacket);
+    }
 }
 
 void MqttPacket::setPacketId(uint16_t packet_id)
