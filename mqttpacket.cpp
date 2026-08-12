@@ -62,6 +62,9 @@ MqttPacket::MqttPacket(std::vector<char> &&packet_bytes, size_t fixed_header_len
 
     if (packetType == PacketType::Reserved || (this->protocolVersion < ProtocolVersion::Mqtt5 && packetType > PacketType::DISCONNECT))
     {
+        if (this->protocolVersion == ProtocolVersion::None)
+            throw BadClientException("Likely not an MQTT client");
+
         throw ProtocolError(
             "Packet type " + packetTypeToString(packetType) + " invalid for protocol version " + protocolVersionString(this->protocolVersion),
             ReasonCodes::MalformedPacket);
