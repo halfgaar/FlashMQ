@@ -279,8 +279,7 @@ template<typename T>
 bool isValidUtf8(const T &s, bool alsoCheckInvalidPublishChars = false)
 {
 #ifdef __SSE4_2__
-    thread_local static SimdUtils simdUtils;
-    return simdUtils.isValidUtf8(s, alsoCheckInvalidPublishChars);
+    return isValidUtf8Sse(s, alsoCheckInvalidPublishChars);
 #else
     return isValidUtf8Generic(s, alsoCheckInvalidPublishChars);
 #endif

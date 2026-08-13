@@ -36,7 +36,6 @@ public:
     SimdUtils() = default;
 
     std::vector<std::string> splitTopic(const std::string &topic);
-    bool isValidUtf8(const std::string &s, bool alsoCheckInvalidPublishChars = false);
 };
 
 #endif
