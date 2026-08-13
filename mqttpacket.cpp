@@ -933,7 +933,7 @@ ConnectData MqttPacket::parseConnectData(std::shared_ptr<Client> &sender)
         uint16_t will_payload_length = readTwoBytesToUInt16();
         result.willpublish.payload = readBytes(will_payload_length);
 
-        if (result.willpublish.payloadUtf8 && !isValidUtf8Generic(result.willpublish.payload))
+        if (result.willpublish.payloadUtf8 && !isValidUtf8(result.willpublish.payload))
         {
             throw ProtocolError("Will payload announced as UTF8, but it's not valid.", ReasonCodes::PayloadFormatInvalid);
         }
@@ -2155,8 +2155,7 @@ void MqttPacket::parsePublishData(std::shared_ptr<Client> &sender)
     payloadLen = remainingAfterPos();
     payloadStart = pos;
 
-    // Not using SIMD UTF8 checker because that requires making a copy, and requires being able to deal with large strings.
-    if (publishData.payloadUtf8 && !isValidUtf8Generic(getPayloadView()))
+    if (publishData.payloadUtf8 && !isValidUtf8(getPayloadView()))
     {
         throw ProtocolError("Payload announced as UTF8, but it's not valid.", ReasonCodes::PayloadFormatInvalid);
     }
