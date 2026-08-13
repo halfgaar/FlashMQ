@@ -222,7 +222,9 @@ MainTests::MainTests()
     REGISTER_FUNCTION3(test_validUtf8Sse);
     REGISTER_FUNCTION3(test_utf8_nonchars);
     REGISTER_FUNCTION3(test_utf8_overlong);
+    REGISTER_FUNCTION3(test_utf8_ascii_range_among_multi_byte);
     REGISTER_FUNCTION3(test_utf8_compare_implementation);
+    REGISTER_FUNCTION3(test_utf8_compare_implementation2);
 #endif
 
     REGISTER_FUNCTION3(testPacketInt16Parse);

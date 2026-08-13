@@ -786,6 +786,23 @@ void MainTests::test_utf8_overlong()
     }
 }
 
+void MainTests::test_utf8_ascii_range_among_multi_byte()
+{
+    SimdUtils simd_utils;
+
+    std::string test_me;
+    test_me.push_back(0x14);
+    test_me.push_back(0xd3);
+    test_me.push_back(0xa3);
+
+    const bool a = simd_utils.isValidUtf8(test_me);
+    const bool b = isValidUtf8Sse(test_me);
+    const bool c = isValidUtf8Generic(test_me);
+
+    QVERIFY(a == b);
+    QVERIFY(b == c);
+}
+
 void MainTests::test_utf8_compare_implementation()
 {
     SimdUtils simd_utils;
@@ -815,6 +832,34 @@ void MainTests::test_utf8_compare_implementation()
     }
 
     QVERIFY(line_count > 40);
+}
+
+void MainTests::test_utf8_compare_implementation2()
+{
+    SimdUtils simd_utils;
+    std::array<char, 128> buf {};
+    const auto limit = std::chrono::steady_clock::now() + std::chrono::seconds(3);
+
+    while (std::chrono::steady_clock::now() < limit)
+    {
+        const size_t random_length = get_random_int<size_t>() % buf.size();
+        getrandom(buf.data(), random_length, 0);
+        const bool also_check_invalid_publish = static_cast<bool>(get_random_int<int>() % 2);
+        const std::string test_me(buf.data(), random_length);
+
+        const bool a = simd_utils.isValidUtf8(test_me);
+        const bool b = isValidUtf8Sse(test_me, also_check_invalid_publish);
+        const bool c = isValidUtf8Generic(test_me, also_check_invalid_publish);
+
+        if (a != c && false)
+        {
+            std::ofstream f("/tmp/utf8-test-mismatch.dat", std::ios::binary);
+            f << test_me;
+        }
+
+        QVERIFY(a == b);
+        QVERIFY(b == c);
+    }
 }
 #endif
 

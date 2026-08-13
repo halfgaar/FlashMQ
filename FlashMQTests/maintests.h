@@ -93,7 +93,9 @@ class MainTests
     void test_validUtf8Sse();
     void test_utf8_nonchars();
     void test_utf8_overlong();
+    void test_utf8_ascii_range_among_multi_byte();
     void test_utf8_compare_implementation();
+    void test_utf8_compare_implementation2();
 #endif
 
     void testPacketInt16Parse();
