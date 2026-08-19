@@ -109,6 +109,7 @@ void Session::QoSData::clearExpiredMessagesFromQueue()
 
 void Session::QoSData::decreaseFlowControlQuotaAgain(const uint16_t packet_id)
 {
+    (void)packet_id;
     assert(this->usedIds.contains(packet_id));
     this->flowControlQuota--;
 }
