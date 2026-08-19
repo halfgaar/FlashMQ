@@ -22,9 +22,11 @@ See LICENSE for license details.
 
 #include <cassert>
 
-SubscriptionForSerializing::SubscriptionForSerializing(const std::string &clientId, uint8_t qos, bool noLocal, bool retainAsPublished,
-                                                       uint32_t subscriptionidentifier) :
+SubscriptionForSerializing::SubscriptionForSerializing(
+        const std::string &clientId, const std::weak_ptr<Session> &session, uint8_t qos, bool noLocal,
+        bool retainAsPublished, uint32_t subscriptionidentifier) :
     clientId(clientId),
+    session(session),
     qos(qos),
     noLocal(noLocal),
     retainAsPublished(retainAsPublished),
@@ -33,9 +35,11 @@ SubscriptionForSerializing::SubscriptionForSerializing(const std::string &client
 
 }
 
-SubscriptionForSerializing::SubscriptionForSerializing(const std::string &clientId, uint8_t qos, bool noLocal, bool retainAsPublished,
-                                                       uint32_t subscriptionidentifier, const std::string &shareName) :
+SubscriptionForSerializing::SubscriptionForSerializing(
+        const std::string &clientId, const std::weak_ptr<Session> &session, uint8_t qos, bool noLocal,
+        bool retainAsPublished, uint32_t subscriptionidentifier, const std::string &shareName) :
     clientId(clientId),
+    session(session),
     qos(qos),
     shareName(shareName),
     noLocal(noLocal),
@@ -45,9 +49,11 @@ SubscriptionForSerializing::SubscriptionForSerializing(const std::string &client
 
 }
 
-SubscriptionForSerializing::SubscriptionForSerializing(const std::string &&clientId, uint8_t qos, bool noLocal, bool retainAsPublished,
-                                                       uint32_t subscriptionidentifier) :
+SubscriptionForSerializing::SubscriptionForSerializing(
+        const std::string &&clientId, const std::weak_ptr<Session> &session, uint8_t qos, bool noLocal,
+        bool retainAsPublished, uint32_t subscriptionidentifier) :
     clientId(std::move(clientId)),
+    session(session),
     qos(qos),
     noLocal(noLocal),
     retainAsPublished(retainAsPublished),
@@ -56,9 +62,11 @@ SubscriptionForSerializing::SubscriptionForSerializing(const std::string &&clien
 
 }
 
-SubscriptionForSerializing::SubscriptionForSerializing(const std::string &&clientId, SubscriptionOptionsByte options,
-                                                       uint32_t subscriptionidentifier, const std::string &shareName) :
+SubscriptionForSerializing::SubscriptionForSerializing(
+        const std::string &&clientId, const std::weak_ptr<Session> &session, SubscriptionOptionsByte options,
+        uint32_t subscriptionidentifier, const std::string &shareName) :
     clientId(std::move(clientId)),
+    session(session),
     qos(options.getQos()),
     shareName(shareName),
     noLocal(options.getNoLocal()),
@@ -291,7 +299,7 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV3V4V5V6V7()
                 if (logger->wouldLog(LOG_DEBUG))
                     logger->logf(LOG_DEBUG, "Loading session '%s' subscription to '%s' QoS %d.", clientId.c_str(), topic.c_str(), subscriptionOptions.getQos());
 
-                SubscriptionForSerializing sub(std::move(clientId), subscriptionOptions, subscription_identifier, sharename);
+                SubscriptionForSerializing sub(std::move(clientId), {}, subscriptionOptions, subscription_identifier, sharename);
                 result.subscriptions[topic].push_back(std::move(sub));
             }
 

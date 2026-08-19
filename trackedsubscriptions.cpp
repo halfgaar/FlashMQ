@@ -13,13 +13,15 @@ bool InFlightTrackedUnsubscription::outdated() const
 
 TrackedSubscriptionMutation::TrackedSubscriptionMutation(
         const std::string &pattern, const uint8_t qos, const std::string &originatingClientId,
-        const std::shared_ptr<Session> &originatingSession, const SubAckReleaseTrigger *subAckReleaseTrigger, TrackedSubscriptionMutationTask task) :
+        const std::shared_ptr<Session> &originatingSession, const SubAckReleaseTrigger *subAckReleaseTrigger, TrackedSubscriptionMutationTask task,
+         const InsertionLocation loc) :
     pattern(pattern),
     qos(qos),
     originatingClientId(originatingClientId),
     originatingSession(originatingSession),
     subAckReleaseTrigger(subAckReleaseTrigger ? *subAckReleaseTrigger : std::optional<SubAckReleaseTrigger>()),
-    task(task)
+    task(task),
+    location(loc)
 {
 
 }

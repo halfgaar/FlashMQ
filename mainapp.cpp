@@ -342,6 +342,8 @@ void MainApp::queuePurgeStaleTrackedLazySubscriptions()
 
 void MainApp::sendBridgesToThreads()
 {
+    this->threadsPendingLazySubsRegistering.reset();
+
     if (threads.empty())
         return;
 
@@ -382,15 +384,35 @@ void MainApp::sendBridgesToThreads()
             owner->giveBridge(bridgeState);
         }
     }
+
+    this->threadsPendingLazySubsRegistering.emplace(threads.size());
+}
+
+void MainApp::expandAllCurrentSubscriptions()
+{
+    assert(!threads.empty());
+    if (threads.empty())
+        return;
+
+    const size_t threadnr { rand() % threads.size() };
+    threads.at(threadnr).callIfThread(&ThreadData::queueExpandAllCurrentSubscriptions);
 }
 
 void MainApp::queueBridgeReconnectAllThreads()
 {
     try
     {
+        bool do_mainapp_callback = false;
+
+        if (this->threadsPendingLazySubsRegistering.has_value())
+        {
+            do_mainapp_callback = !this->threadsPendingLazySubsRegistering.value().started;
+            this->threadsPendingLazySubsRegistering.value().started = true;
+        }
+
         for (ThreadDataOwner &thread : threads)
         {
-            thread.callIfThread(&ThreadData::queueBridgeReconnect);
+            thread.callIfThread(&ThreadData::queueBridgeReconnect, do_mainapp_callback);
         }
     }
     catch (std::exception &ex)
@@ -1422,4 +1444,50 @@ void MainApp::queueThreadInitDecrement()
     addImmediateTask(f);
 }
 
+void MainApp::queueThreadsPendingLazySubsRegisteringDecrement(bool new_lazy_subs)
+{
+    auto f = [this, new_lazy_subs]() {
+        if (!this->threadsPendingLazySubsRegistering.has_value())
+            return;
 
+        // Protection against strays.
+        if (this->threadsPendingLazySubsRegistering->m_thread_left == 0)
+            return;
+
+        this->threadsPendingLazySubsRegistering.value().m_thread_left--;
+
+        if (new_lazy_subs)
+            this->threadsPendingLazySubsRegistering.value().m_threads_with_newly_registered_lazy_subs++;
+
+        // Still expecting more.
+        if (this->threadsPendingLazySubsRegistering.value().m_thread_left != 0)
+            return;
+
+        Logger::getInstance()->log(LOG_NOTICE) << "All threads have reported they accepted new bridges.";
+
+        if (this->threadsPendingLazySubsRegistering.value().m_threads_with_newly_registered_lazy_subs > 0)
+        {
+            if (!this->bridgeConfigs.empty())
+                expandAllCurrentSubscriptions();
+        }
+
+        this->threadsPendingLazySubsRegistering.reset();
+    };
+
+    addImmediateTask(f);
+}
+
+void MainApp::queueInitiateAllTrackedSubscriptionMutationsProcessing()
+{
+    auto f = [this]()
+    {
+        Logger::getInstance()->log(LOG_NOTICE) << "Telling all bridges in all threads they can start processing tracked subscription mutations";
+
+        for (ThreadDataOwner &thread : threads)
+        {
+            thread.callIfThread(&ThreadData::queueInitiateAllTrackedSubscriptionMutationsProcessing);
+        }
+    };
+
+    addImmediateTask(f);
+}

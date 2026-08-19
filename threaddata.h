@@ -174,7 +174,7 @@ private:
     void clientDisconnectActions(
             bool authenticated, const std::string &clientid, std::shared_ptr<WillPublish> &willPublish, std::shared_ptr<Session> &session,
             std::weak_ptr<BridgeState> &bridgeState, const std::string &disconnect_reason);
-    void bridgeReconnect();
+    void bridgeReconnect(bool do_mainapp_callback);
 
     void removeQueuedClients();
     void publishStatWithAcl(Publish &pub, bool setRetain=false);
@@ -253,18 +253,20 @@ public:
     void queueClientDisconnectActions(
             bool authenticated, const std::string &clientid, std::shared_ptr<WillPublish> &&willPublish, std::shared_ptr<Session> &&session,
             std::weak_ptr<BridgeState> &&bridgeState, const std::string &disconnect_reason);
-    void queueBridgeReconnect();
+    void queueBridgeReconnect(bool do_mainapp_callback);
     void publishBridgeState(std::shared_ptr<BridgeState> bridge, bool connected, const std::optional<std::string> &error);
     void queueSettingRetainedMessage(const Publish &p, const std::vector<std::string> &subtopics, const std::chrono::time_point<std::chrono::steady_clock> limit);
     void setQueuedRetainedMessages();
     bool queuedRetainedMessagesEmpty() const;
     void clearQueuedRetainedMessages();
     void acceptPendingClients();
-    void acceptPendingBridges();
+    void acceptPendingBridges(bool do_mainapp_callback);
     void deleteClients();
     void clear();
 
     void queuePublishLazySubscriptionStats();
+    void queueExpandAllCurrentSubscriptions();
+    void expandAllCurrentSubscriptionsImpl(const std::shared_ptr<std::unordered_map<std::string, std::list<SubscriptionForSerializing>>> &subs);
     void queuePurgeStaleTrackedLazySubscriptionsAll(const PurgeTrackedSubscriptionModifier modifier);
     void queuePurgeStaleTrackedLazySubscriptions(const std::shared_ptr<BridgeState> &bridgeState, const PurgeTrackedSubscriptionModifier modifier);
     void retryProcessingTrackedSubscriptionMutationsAll(ProcessTrackedSubscriptionMutationsModifier modifier);
@@ -274,6 +276,7 @@ public:
     void processLazySubsubscriptionsAllBridges() noexcept;
     void addThreadToDeferredMutationProcessing(const std::weak_ptr<ThreadData> &td);
     void queueAllDeferredMutationProcessing() noexcept;
+    void queueInitiateAllTrackedSubscriptionMutationsProcessing();
 
     size_t getNrOfClients();
     void updateNrOfClients();

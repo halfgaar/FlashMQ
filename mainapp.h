@@ -55,6 +55,7 @@ class MainApp
     bool errorExit = false;
     bool doMemoryTrim = false;
     size_t threadsPendingInit = 0;
+    std::optional<ThreadsPendingLazySubsRegistering> threadsPendingLazySubsRegistering;
     QueuedTasks timed_tasks;
     MutexOwned<std::vector<std::function<void()>>> taskQueue;
 
@@ -101,6 +102,7 @@ class MainApp
     void queueRetainedMessageExpiration();
     void queuePurgeStaleTrackedLazySubscriptions();
     void sendBridgesToThreads();
+    void expandAllCurrentSubscriptions();
     void queueBridgeReconnectAllThreads();
     void queueInternalHeartbeat();
     void performAllImmediateTasks();
@@ -124,6 +126,8 @@ public:
     void queueMemoryTrim();
     void memoryTrim();
     void queueThreadInitDecrement();
+    void queueThreadsPendingLazySubsRegisteringDecrement(bool new_lazy_subs);
+    void queueInitiateAllTrackedSubscriptionMutationsProcessing();
 };
 
 #endif // MAINAPP_H

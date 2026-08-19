@@ -29,22 +29,32 @@ See LICENSE for license details.
 #define RESERVED_SPACE_SESSIONS_DB_V2 32
 
 /**
- * @brief The SubscriptionForSerializing struct contains the fields we're interested in when saving a subscription.
+ * @brief The SubscriptionForSerializing struct contains the fields we're interested in when saving a subscription, though was
+ * given extra use later.
  */
 struct SubscriptionForSerializing
 {
     const std::string clientId;
+    const std::weak_ptr<Session> session; // Was added later because it was convenient, but (as of now) not used in (de)serialization to storage.
     const uint8_t qos = 0;
     const std::string shareName;
     const bool noLocal = false;
     const bool retainAsPublished = false;
     const uint32_t subscriptionidentifier = 0;
 
-    SubscriptionForSerializing(const std::string &clientId, uint8_t qos, bool noLocal, bool retainAsPublished, uint32_t subscriptionidentifier);
-    SubscriptionForSerializing(const std::string &clientId, uint8_t qos, bool noLocal, bool retainAsPublished, uint32_t subscriptionidentifier, const std::string &shareName);
-    SubscriptionForSerializing(const std::string &&clientId, uint8_t qos, bool noLocal, bool retainAsPublished, uint32_t subscriptionidentifier);
+    SubscriptionForSerializing(
+            const std::string &clientId, const std::weak_ptr<Session> &session, uint8_t qos, bool noLocal,
+            bool retainAsPublished, uint32_t subscriptionidentifier);
+    SubscriptionForSerializing(
+            const std::string &clientId, const std::weak_ptr<Session> &session, uint8_t qos, bool noLocal,
+            bool retainAsPublished, uint32_t subscriptionidentifier, const std::string &shareName);
+    SubscriptionForSerializing(
+            const std::string &&clientId, const std::weak_ptr<Session> &session, uint8_t qos, bool noLocal,
+            bool retainAsPublished, uint32_t subscriptionidentifier);
 
-    SubscriptionForSerializing(const std::string &&clientId, SubscriptionOptionsByte options, uint32_t subscriptionidentifier, const std::string &shareName);
+    SubscriptionForSerializing(
+            const std::string &&clientId, const std::weak_ptr<Session> &session, SubscriptionOptionsByte options,
+            uint32_t subscriptionidentifier, const std::string &shareName);
 
     SubscriptionOptionsByte getSubscriptionOptions() const;
 };
