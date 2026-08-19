@@ -269,7 +269,11 @@ AddSubscriptionResult SubscriptionStore::addSubscription(
 
     auto lazy_subscriptions = globals->getLazySubscriptions(false);
     if (lazy_subscriptions)
-        result.expanded_count = lazy_subscriptions->expandLazySubscriptions(TrackedSubscriptionMutationTask::Subscribe, session, sub_ack_release_trigger, subtopics, qos);
+    {
+        result.expanded_count = lazy_subscriptions->expandLazySubscriptions(
+            TrackedSubscriptionMutationTask::Subscribe, TrackedSubscriptionMutation::InsertionLocation::Back,
+            session, sub_ack_release_trigger, subtopics, qos);
+    }
 
     result.type = deepestNode->addSubscriber(session, qos, noLocal, retainAsPublished, shareName, subscriptionIdentifier);
     return result;
@@ -288,7 +292,11 @@ void SubscriptionStore::removeSubscription(
 
     auto lazy_subs = globals->getLazySubscriptions(false);
     if (lazy_subs)
-        lazy_subs->expandLazySubscriptions(TrackedSubscriptionMutationTask::Unsubscribe, session, 0, subtopics, 0);
+    {
+        lazy_subs->expandLazySubscriptions(
+            TrackedSubscriptionMutationTask::Unsubscribe, TrackedSubscriptionMutation::InsertionLocation::Back,
+            session, 0, subtopics, 0);
+    }
 
     node->removeSubscriber(session, shareName);
 }
@@ -1547,7 +1555,7 @@ void SubscriptionStore::getSubscriptions(SubscriptionNode *this_node, const std:
         std::shared_ptr<Session> ses = node.session.lock();
         if (ses)
         {
-            SubscriptionForSerializing sub(ses->getClientId(), node.qos, node.noLocal, node.retainAsPublished, node.subscriptionIdentifier);
+            SubscriptionForSerializing sub(ses->getClientId(), node.session, node.qos, node.noLocal, node.retainAsPublished, node.subscriptionIdentifier);
             outputList[composedTopic].push_back(sub);
         }
     }
@@ -1632,6 +1640,55 @@ std::unordered_map<std::string, std::list<SubscriptionForSerializing>> Subscript
     }
 
     return subscriptionCopies;
+}
+
+void SubscriptionStore::doWithSubscriptionsImpl(
+        std::shared_ptr<std::deque<DeferredGetSubscription>> deferred,
+        std::shared_ptr<std::unordered_map<std::string, std::list<SubscriptionForSerializing>>> result,
+        std::function<void (const std::shared_ptr<std::unordered_map<std::string, std::list<SubscriptionForSerializing>>> &subs)> f)
+{
+    while (!deferred->empty())
+    {
+        std::shared_lock locker(subscriptions_lock);
+
+        const DeferredGetSubscription def = deferred->front();
+        std::shared_ptr<SubscriptionNode> node = def.node.lock();
+
+        deferred->pop_front();
+
+        if (!node)
+            continue;
+
+        const std::chrono::time_point<std::chrono::steady_clock> limit = std::chrono::steady_clock::now() + std::chrono::milliseconds(10);
+        getSubscriptions(node.get(), def.composedTopic, def.root, *result, *deferred, limit);
+
+        if (std::chrono::steady_clock::now() >= limit)
+        {
+            auto f2 = std::bind(&SubscriptionStore::doWithSubscriptionsImpl, this, deferred, result, f);
+            ThreadGlobals::getThreadData()->addImmediateTask(f2);
+            return;
+        }
+    }
+
+    f(result);
+}
+
+/**
+ * @brief This is a queued function because retrieving the list of subscriptions is done in the background with short-held locks.
+ * @param f
+ */
+void SubscriptionStore::doWithSubscriptions(
+        std::function<void (const std::shared_ptr<std::unordered_map<std::string, std::list<SubscriptionForSerializing>>> &subs)> f)
+{
+    // Meant to be called in a worker thread.
+    assert(static_cast<bool>(ThreadGlobals::getThreadData()));
+
+    std::shared_ptr<std::deque<DeferredGetSubscription>> deferred = std::make_shared<std::deque<DeferredGetSubscription>>();
+    std::shared_ptr<std::unordered_map<std::string, std::list<SubscriptionForSerializing>>> result =
+            std::make_shared<std::unordered_map<std::string, std::list<SubscriptionForSerializing>>>();
+    DeferredGetSubscription start(root, "", true);
+    deferred->push_front(std::move(start));
+    doWithSubscriptionsImpl(deferred, result, f);
 }
 
 void SubscriptionStore::expireRetainedMessages(

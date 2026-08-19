@@ -21,7 +21,10 @@ void queueSendSubAckInOriginatingClient(const std::optional<SubAckReleaseTrigger
 void TrackedSubscriptionState::addTrackedSubscriptionMutation(TrackedSubscriptionMutation &&mut)
 {
     auto locked = trackedSubscriptionMutations.lock();
-    locked->emplace_back(std::move(mut));
+    if (mut.location == TrackedSubscriptionMutation::InsertionLocation::Back)
+        locked->emplace_back(std::move(mut));
+    else if (mut.location == TrackedSubscriptionMutation::InsertionLocation::Front)
+        locked->emplace_front(std::move(mut));
 }
 
 void TrackedSubscriptionState::stageInFlightTrackedSubscriptions(std::vector<Subscribe> &&subscribes, uint16_t pack_id)
@@ -140,6 +143,9 @@ void TrackedSubscriptionState::processTrackedSubscriptionMutations(
     std::shared_ptr<Client> network_client = session->makeSharedClient();
 
     if (!network_client || !network_client->getAuthenticated())
+        return;
+
+    if (!this->processMutations)
         return;
 
     if (modifier == ProcessTrackedSubscriptionMutationsModifier::StartResending)
@@ -611,6 +617,12 @@ void TrackedSubscriptionState::sendArmedStagedSuback(const uint16_t id)
         auto pos = i++;
         const SubAckReleaseTrigger &t = pos->second;
 
+        /*
+         * Currently, because tracking confirmed subscriptions is part of the object that tracks the originating
+         * subscription that caused this tracked subscription, keeping track is not done for subscribing
+         * remotely when a new bridge with lazy subs is added the the server and a SIGHUP is sent. For now at least,
+         * this little bit of unnecessary repeat subscriptions it may cause is just accepted.
+         */
         if (t.m_tracked_sub_to_confirm)
         {
             auto l = trackedSubscriptionsConfirmed.unique_lock();
@@ -655,6 +667,11 @@ bool TrackedSubscriptionState::hasOutdatedInFlightTrackedSubscriptions() const
 bool TrackedSubscriptionState::hasOutdatedInFlightTrackedUnsubscriptions() const
 {
     return this->inFlightTrackedUnsubscriptions && this->inFlightTrackedUnsubscriptions.value().outdated();
+}
+
+void TrackedSubscriptionState::startProcessingMutations()
+{
+    this->processMutations = true;
 }
 
 size_t TrackedSubscriptionState::trackedSubscriptionMutationCount()

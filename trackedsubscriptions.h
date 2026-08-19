@@ -14,12 +14,19 @@ enum class TrackedSubscriptionMutationTask
 
 struct TrackedSubscriptionMutation
 {
+    enum class InsertionLocation
+    {
+        Back,
+        Front
+    };
+
     const std::string pattern;
     const uint8_t qos{};
     const std::string originatingClientId;
     const std::weak_ptr<Session> originatingSession;
     const std::optional<SubAckReleaseTrigger> subAckReleaseTrigger;
     const TrackedSubscriptionMutationTask task{};
+    const InsertionLocation location {};
     const std::chrono::time_point<std::chrono::steady_clock> createdAt {std::chrono::steady_clock::now()};
 
     TrackedSubscriptionMutation() = delete;
@@ -27,7 +34,8 @@ struct TrackedSubscriptionMutation
     TrackedSubscriptionMutation(TrackedSubscriptionMutation&&) = default;
     TrackedSubscriptionMutation(
         const std::string &pattern, const uint8_t qos, const std::string &originatingClientId,
-        const std::shared_ptr<Session> &originatingSession, const SubAckReleaseTrigger *subAckReleaseTrigger, TrackedSubscriptionMutationTask task);
+        const std::shared_ptr<Session> &originatingSession, const SubAckReleaseTrigger *subAckReleaseTrigger, TrackedSubscriptionMutationTask task,
+        const InsertionLocation loc);
 };
 
 class TrackedSubscription

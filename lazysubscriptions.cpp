@@ -288,8 +288,8 @@ void LazySubscriptions::collectClients(
 }
 
 size_t LazySubscriptions::expandLazySubscriptions(
-    TrackedSubscriptionMutationTask task, const std::shared_ptr<Session> &originating_session, const SubAckReleaseTrigger *suback_release_trigger,
-    const std::vector<std::string> &subtopics, const uint8_t qos)
+    TrackedSubscriptionMutationTask task, TrackedSubscriptionMutation::InsertionLocation loc, const std::shared_ptr<Session> &originating_session,
+    const SubAckReleaseTrigger *suback_release_trigger, const std::vector<std::string> &subtopics, const uint8_t qos)
 {
     assert(subtopics.size() == 0 || subtopics.at(0) != "$share");
 
@@ -344,7 +344,8 @@ size_t LazySubscriptions::expandLazySubscriptions(
             continue;
         }
 
-        TrackedSubscriptionMutation mutation(pattern_with_share, effective_qos, originating_session->getClientId(), originating_session, suback_release_trigger, task);
+        TrackedSubscriptionMutation mutation(
+            pattern_with_share, effective_qos, originating_session->getClientId(), originating_session, suback_release_trigger, task, loc);
         tracked_subs->addTrackedSubscriptionMutation(std::move(mutation));
 
         result++;
@@ -354,16 +355,21 @@ size_t LazySubscriptions::expandLazySubscriptions(
     return result;
 }
 
-void registerLazySubscriptions(std::shared_ptr<BridgeState> &bridgeState)
+bool registerLazySubscriptions(std::shared_ptr<BridgeState> &bridgeState)
 {
+    bool result = false;
+
     if (!bridgeState)
-        return;
+        return result;
 
     for (const BridgeLazySubscription &lazy_sub : bridgeState->c.lazySubscriptions)
     {
+        result = true;
         auto lazy_subscriptions = globals->getLazySubscriptions(true);
         lazy_subscriptions->addSubscription(bridgeState, lazy_sub.pattern, lazy_sub.qos, bridgeState->c.getFmqClientGroupId().value());
     }
+
+    return result;
 }
 
 

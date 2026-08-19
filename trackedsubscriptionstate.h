@@ -31,6 +31,7 @@ class TrackedSubscriptionState
     MutexOwned<std::deque<TrackedSubscriptionMutation>> trackedSubscriptionMutations;
     std::unique_ptr<ReentrantMap<std::string, TrackedSubscription>> trackedSubscriptions = std::make_unique<ReentrantMap<std::string, TrackedSubscription>>();
     SharedMutexOwned<std::unordered_set<TrackedSubscriptionFields>> trackedSubscriptionsConfirmed;
+    bool processMutations = false;
 
     ReentrantMap<std::string, TrackedSubscription>::iterator curPosResending;
     size_t resendCount = 0;
@@ -69,6 +70,7 @@ public:
     void removeMatchingInFlightTrackedUnsubscriptions(uint16_t id);
     bool hasOutdatedInFlightTrackedSubscriptions() const;
     bool hasOutdatedInFlightTrackedUnsubscriptions() const;
+    void startProcessingMutations();
 
     size_t trackedSubscriptionCount() const { return trackedSubscriptions->size(); }
     size_t trackedSubscriptionMutationCount();

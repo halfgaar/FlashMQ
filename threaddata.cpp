@@ -336,6 +336,85 @@ void ThreadData::queuePublishLazySubscriptionStats()
     this->addImmediateTask(f);
 }
 
+void ThreadData::expandAllCurrentSubscriptionsImpl(
+        const std::shared_ptr<std::unordered_map<std::string, std::list<SubscriptionForSerializing>>> &subs)
+{
+    auto lazy_subscriptions = globals->getLazySubscriptions(false);
+    if (!lazy_subscriptions)
+        return;
+
+    if (!subs)
+        return;
+
+    Logger::getInstance()->log(LOG_NOTICE) << subs->size() << " subscriptions obtained to process through lazy subscription expansion.";
+
+    const auto limit = std::chrono::steady_clock::now() + std::chrono::milliseconds(50);
+
+    for (auto _ = subs->begin(); _ != subs->end();)
+    {
+        auto pos = _++;
+        const std::string &topic = pos->first;
+        const auto &infos = pos->second;
+
+        const std::vector<std::string> subtopics = splitTopic(topic);
+
+        for (const SubscriptionForSerializing &info : infos)
+        {
+            std::shared_ptr<Session> session = info.session.lock();
+
+            if (!session)
+                continue;
+
+            lazy_subscriptions->expandLazySubscriptions(
+                TrackedSubscriptionMutationTask::Subscribe, TrackedSubscriptionMutation::InsertionLocation::Front,
+                session, nullptr, subtopics, info.qos);
+        }
+
+        subs->erase(pos);
+
+        if (std::chrono::steady_clock::now() > limit)
+            break;
+    }
+
+    if (!subs->empty())
+    {
+        auto f = std::bind(&ThreadData::expandAllCurrentSubscriptionsImpl, this, subs);
+        addImmediateTask(f);
+    }
+    else
+    {
+        std::shared_ptr<MainApp> main_app = mMainApp.lock();
+
+        if (main_app)
+        {
+            main_app->queueInitiateAllTrackedSubscriptionMutationsProcessing();
+        }
+    }
+}
+
+/**
+ * @brief Process all existing subscriptions to (new) lazy subscriptions.
+ *
+ * The primary reason for this function is when a running server gets new lazy subscriptions, either on an existing or new
+ * bridge. Normally lazy subscriptions are expanded as they come in, but we need to do that retroactively for all existing
+ * subscriptions.
+ *
+ * The insertion of the mutions to the front of the mutation list should ensure full integrity of the tracked
+ * subscriptions.
+ */
+void ThreadData::queueExpandAllCurrentSubscriptions()
+{
+    auto start = [this]()
+    {
+        auto f = std::bind(&ThreadData::expandAllCurrentSubscriptionsImpl, this, std::placeholders::_1);
+        globals->subscriptionStore.doWithSubscriptions(f);
+    };
+
+    addImmediateTask(start);
+}
+
+
+
 void ThreadData::queuePurgeStaleTrackedLazySubscriptionsAll(const PurgeTrackedSubscriptionModifier modifier)
 {
     auto f = [this, modifier](){
@@ -470,9 +549,9 @@ void ThreadData::clientDisconnectEvent(const std::string &clientid)
     authentication.clientDisconnected(clientid);
 }
 
-void ThreadData::bridgeReconnect()
+void ThreadData::bridgeReconnect(bool do_mainapp_callback)
 {
-    acceptPendingBridges();
+    acceptPendingBridges(do_mainapp_callback);
 
     bool requeue = false;
     std::shared_ptr<BridgeState> bridge;
@@ -596,7 +675,7 @@ void ThreadData::bridgeReconnect()
 
     if (requeue)
     {
-        auto f = std::bind(&ThreadData::bridgeReconnect, this);
+        auto f = std::bind(&ThreadData::bridgeReconnect, this, false);
         pub->delayedTasks.addTask(f, 500);
     }
 }
@@ -672,9 +751,9 @@ void ThreadData::queueClientDisconnectActions(
     wakeUpThread();
 }
 
-void ThreadData::queueBridgeReconnect()
+void ThreadData::queueBridgeReconnect(bool do_mainapp_callback)
 {
-    auto f = std::bind(&ThreadData::bridgeReconnect, this);
+    auto f = std::bind(&ThreadData::bridgeReconnect, this, do_mainapp_callback);
 
     {
         auto task_queue_locked = pub->taskQueue.lock();
@@ -1044,10 +1123,11 @@ void ThreadData::acceptPendingClients()
     }
 }
 
-void ThreadData::acceptPendingBridges()
+void ThreadData::acceptPendingBridges(bool do_mainapp_callback)
 {
     assert(pthread_self() == thread_id);
 
+    bool new_lazy_subs = false;
     std::vector<std::shared_ptr<BridgeState>> bridgesToAccept = pub->acceptQueue.takeBridges();
 
     for (std::shared_ptr<BridgeState> &bridgeState : bridgesToAccept)
@@ -1082,7 +1162,22 @@ void ThreadData::acceptPendingBridges()
             auto npos = priv->clients.bridges.find(bridgeState->c.clientidPrefix);
 
             if (npos->second == bridgeState)
-                registerLazySubscriptions(bridgeState);
+            {
+                if (registerLazySubscriptions(bridgeState))
+                    new_lazy_subs = true;
+            }
+        }
+    }
+
+    if (do_mainapp_callback)
+    {
+        auto lockedMainApp = mMainApp.lock();
+
+        if (lockedMainApp)
+        {
+            Logger::getInstance()->log(LOG_NOTICE)
+                    << "Thread " << threadnr << " informing main thread bridges have been accecpted. New lazy subs: " << std::boolalpha << new_lazy_subs;
+            lockedMainApp->queueThreadsPendingLazySubsRegisteringDecrement(new_lazy_subs);
         }
     }
 }
@@ -1665,6 +1760,26 @@ void ThreadData::queueAllDeferredMutationProcessing() noexcept
             << "Error in queueAllDeferredMutationProcessing: " << ex.what() << ". This shouldn't "
             << "happen and is likely a bug.";
     }
+}
+
+void ThreadData::queueInitiateAllTrackedSubscriptionMutationsProcessing()
+{
+    auto f = [this]()
+    {
+        for (auto &pair : priv->clients.bridges)
+        {
+            auto t = pair.second->getTrackedSubscriptions();
+
+            if (!t)
+                continue;
+
+            t->startProcessingMutations();
+        }
+
+        retryProcessingTrackedSubscriptionMutationsAll(ProcessTrackedSubscriptionMutationsModifier::Continue);
+    };
+
+    addImmediateTask(f);
 }
 
 void ThreadData::doKeepAliveCheck()

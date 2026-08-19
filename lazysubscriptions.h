@@ -81,10 +81,10 @@ public:
         const std::shared_ptr<BridgeState> &bridgeState, const std::string &pattern,
         uint8_t qos, const std::string &distribution_group_name);
     size_t expandLazySubscriptions(
-        TrackedSubscriptionMutationTask task, const std::shared_ptr<Session> &originating_session, const SubAckReleaseTrigger *suback_release_trigger,
-        const std::vector<std::string> &subtopics, const uint8_t qos);
+        TrackedSubscriptionMutationTask task, TrackedSubscriptionMutation::InsertionLocation loc, const std::shared_ptr<Session> &originating_session,
+        const SubAckReleaseTrigger *suback_release_trigger, const std::vector<std::string> &subtopics, const uint8_t qos);
 };
 
-void registerLazySubscriptions(std::shared_ptr<BridgeState> &bridgeState);
+bool registerLazySubscriptions(std::shared_ptr<BridgeState> &bridgeState);
 
 #endif // LAZYSUBSCRIPTIONS_H

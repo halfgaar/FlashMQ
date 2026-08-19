@@ -476,4 +476,18 @@ struct AddSubscriptionResult
     size_t expanded_count {};
 };
 
+struct ThreadsPendingLazySubsRegistering
+{
+    bool started = false;
+    size_t m_thread_left = 0;
+    size_t m_threads_with_newly_registered_lazy_subs = 0;
+
+    explicit ThreadsPendingLazySubsRegistering(size_t initial) :
+        m_thread_left(initial),
+        m_threads_with_newly_registered_lazy_subs(0)
+    {
+
+    }
+};
+
 #endif // TYPES_H

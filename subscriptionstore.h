@@ -190,6 +190,10 @@ class SubscriptionStore
                           std::unordered_map<std::string, std::list<SubscriptionForSerializing>> &outputList,
                           std::deque<DeferredGetSubscription> &deferred, const std::chrono::time_point<std::chrono::steady_clock> limit) const;
     std::unordered_map<std::string, std::list<SubscriptionForSerializing>> getSubscriptions();
+    void doWithSubscriptionsImpl(
+            std::shared_ptr<std::deque<DeferredGetSubscription>> deferred,
+            std::shared_ptr<std::unordered_map<std::string, std::list<SubscriptionForSerializing>>> result,
+            std::function<void (const std::shared_ptr<std::unordered_map<std::string, std::list<SubscriptionForSerializing>>> &subs)> f);
     static void expireRetainedMessages(
         RetainedMessageNode *this_node, const std::chrono::time_point<std::chrono::steady_clock> &limit,
         std::deque<std::weak_ptr<RetainedMessageNode>> &deferred, size_t &real_message_counter);
@@ -210,6 +214,8 @@ public:
     void registerClientAndKickExistingOne(std::shared_ptr<Client> &client);
     void registerClientAndKickExistingOne(std::shared_ptr<Client> &client, bool clean_start, uint16_t clientReceiveMax, uint32_t sessionExpiryInterval);
     std::shared_ptr<Session> lockSession(const std::string &clientid);
+
+    void doWithSubscriptions(std::function<void (const std::shared_ptr<std::unordered_map<std::string, std::list<SubscriptionForSerializing>>> &subs)> f);
 
     void sendQueuedWillMessages();
     void queueOrSendWillMessage(
