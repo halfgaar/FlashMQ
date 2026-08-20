@@ -1030,13 +1030,23 @@ bool MainApp::getFuzzMode() const
 
 void MainApp::setlimits()
 {
-    rlim_t nofile = settings.rlimitNoFile;
-    logger->log(LOG_INFO) << "Setting rlimit nofile to " << nofile;
-    struct rlimit v = { nofile, nofile };
+    rlimit current {};
+    if (getrlimit(RLIMIT_NOFILE, &current) != 0)
+    {
+        logger->log(LOG_ERR) << "Failure to obtain current rlimit nofile. Not setting new limit.";
+        return;
+    }
+
+    const rlim_t nofile = std::min<rlim_t>(current.rlim_max, settings.rlimitNoFile);
+    logger->log(LOG_INFO)
+        << "Setting rlimit nofile to " << nofile << ", minimum of current hard limit ("
+        << current.rlim_max << ") and config file (" << settings.rlimitNoFile << ").";
+    const struct rlimit v = { nofile, nofile };
     if (setrlimit(RLIMIT_NOFILE, &v) < 0)
     {
-        logger->logf(LOG_ERR, "Setting ulimit nofile failed: '%s'. This means the default is used. Note. It's also subject to systemd's 'LimitNOFILE', "
-                              "which in turn is maxed to '/proc/sys/fs/nr_open', which can be set like 'sysctl fs.nr_open=15000000'", strerror(errno));
+        logger->log(LOG_ERR)
+            << "Setting ulimit nofile failed: '" << strerror(errno) << "'. This means the default is used. Note. It's also subject to systemd's 'LimitNOFILE', "
+            << "which in turn is maxed to '/proc/sys/fs/nr_open', which can be set like 'sysctl fs.nr_open=15000000'";
     }
 }
 
