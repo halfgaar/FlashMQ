@@ -1127,7 +1127,7 @@ void ThreadData::acceptPendingBridges(bool do_mainapp_callback)
 {
     assert(pthread_self() == thread_id);
 
-    bool new_lazy_subs = false;
+    std::optional<ThreadBridgeAcceptLazySubscriptionResult> new_lazy_subs;
     std::vector<std::shared_ptr<BridgeState>> bridgesToAccept = pub->acceptQueue.takeBridges();
 
     for (std::shared_ptr<BridgeState> &bridgeState : bridgesToAccept)
@@ -1164,20 +1164,31 @@ void ThreadData::acceptPendingBridges(bool do_mainapp_callback)
             if (npos->second == bridgeState)
             {
                 if (registerLazySubscriptions(bridgeState))
-                    new_lazy_subs = true;
+                    new_lazy_subs = ThreadBridgeAcceptLazySubscriptionResult::New;
             }
         }
     }
 
     if (do_mainapp_callback)
     {
+        if (!new_lazy_subs.has_value())
+        {
+            new_lazy_subs = ThreadBridgeAcceptLazySubscriptionResult::None;
+
+            if (std::any_of(priv->clients.bridges.begin(), priv->clients.bridges.end(), [](const auto &c){
+                return !c.second->c.lazySubscriptions.empty();}))
+            {
+                new_lazy_subs = ThreadBridgeAcceptLazySubscriptionResult::NoNew;
+            }
+        }
+
         auto lockedMainApp = mMainApp.lock();
 
         if (lockedMainApp)
         {
             Logger::getInstance()->log(LOG_NOTICE)
-                    << "Thread " << threadnr << " informing main thread bridges have been accecpted. New lazy subs: " << std::boolalpha << new_lazy_subs;
-            lockedMainApp->queueThreadsPendingLazySubsRegisteringDecrement(new_lazy_subs);
+                    << "Thread " << threadnr << " informing main thread bridges have been accecpted. New lazy subs: " << static_cast<int>(new_lazy_subs.value());
+            lockedMainApp->queueThreadsPendingLazySubsRegisteringDecrement(new_lazy_subs.value());
         }
     }
 }

@@ -126,7 +126,7 @@ public:
     void queueMemoryTrim();
     void memoryTrim();
     void queueThreadInitDecrement();
-    void queueThreadsPendingLazySubsRegisteringDecrement(bool new_lazy_subs);
+    void queueThreadsPendingLazySubsRegisteringDecrement(ThreadBridgeAcceptLazySubscriptionResult result);
     void queueInitiateAllTrackedSubscriptionMutationsProcessing();
 };
 

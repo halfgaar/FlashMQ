@@ -33,6 +33,7 @@ class Globals
 
         CheckedSharedPtr<ThreadData> getDeterministicThreadData();
         CheckedSharedPtr<LazySubscriptions> getLazySubscriptions(bool construct);
+        void destroyLazySubscriptions();
 
         GlobalsData() = default;
         GlobalsData(const GlobalsData&) = delete;

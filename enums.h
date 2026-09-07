@@ -67,4 +67,11 @@ enum class AddSubscriptionType
     ExistingSubscription
 };
 
+enum class ThreadBridgeAcceptLazySubscriptionResult
+{
+    None,
+    NoNew,
+    New
+};
+
 #endif // ENUMS_H

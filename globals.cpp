@@ -48,3 +48,8 @@ CheckedSharedPtr<LazySubscriptions> Globals::GlobalsData::getLazySubscriptions(b
     return locked_inner;
 }
 
+void Globals::GlobalsData::destroyLazySubscriptions()
+{
+    lazySubscriptions.lock()->reset();
+}
+

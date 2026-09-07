@@ -1444,9 +1444,9 @@ void MainApp::queueThreadInitDecrement()
     addImmediateTask(f);
 }
 
-void MainApp::queueThreadsPendingLazySubsRegisteringDecrement(bool new_lazy_subs)
+void MainApp::queueThreadsPendingLazySubsRegisteringDecrement(ThreadBridgeAcceptLazySubscriptionResult result)
 {
-    auto f = [this, new_lazy_subs]() {
+    auto f = [this, result]() {
         if (!this->threadsPendingLazySubsRegistering.has_value())
             return;
 
@@ -1456,7 +1456,10 @@ void MainApp::queueThreadsPendingLazySubsRegisteringDecrement(bool new_lazy_subs
 
         this->threadsPendingLazySubsRegistering.value().m_thread_left--;
 
-        if (new_lazy_subs)
+        if (result > ThreadBridgeAcceptLazySubscriptionResult::None)
+            this->threadsPendingLazySubsRegistering.value().m_threads_with_lazy_subs++;
+
+        if (result == ThreadBridgeAcceptLazySubscriptionResult::New)
             this->threadsPendingLazySubsRegistering.value().m_threads_with_newly_registered_lazy_subs++;
 
         // Still expecting more.
@@ -1465,7 +1468,12 @@ void MainApp::queueThreadsPendingLazySubsRegisteringDecrement(bool new_lazy_subs
 
         Logger::getInstance()->log(LOG_NOTICE) << "All threads have reported they accepted new bridges.";
 
-        if (this->threadsPendingLazySubsRegistering.value().m_threads_with_newly_registered_lazy_subs > 0)
+        if (this->threadsPendingLazySubsRegistering.value().m_threads_with_lazy_subs == 0)
+        {
+            Logger::getInstance()->log(LOG_NOTICE) << "No threads have bridges with lazy subscriptions. Destroying them if present.";
+            globals->destroyLazySubscriptions();
+        }
+        else if (this->threadsPendingLazySubsRegistering.value().m_threads_with_newly_registered_lazy_subs > 0)
         {
             if (!this->bridgeConfigs.empty())
                 expandAllCurrentSubscriptions();
