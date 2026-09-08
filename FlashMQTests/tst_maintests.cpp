@@ -21,7 +21,6 @@ See LICENSE for license details.
 #include "mainappasfork.h"
 
 #include "threadglobals.h"
-#include "threadlocalutils.h"
 #include "retainedmessagesdb.h"
 #include "utils.h"
 #include "exceptions.h"
@@ -503,11 +502,8 @@ void MainTests::test_loading_acl_file()
     QVERIFY(true);
 }
 
-#ifndef FMQ_NO_SSE
-void MainTests::test_sse_split()
+void MainTests::test_split()
 {
-    SimdUtils data;
-
     std::list<std::string> topics;
     topics.push_back("one/two/threeabcasdfasdf/koe");
     topics.push_back("/two/threeabcasdfasdf/koe"); // Test empty component.
@@ -525,11 +521,10 @@ void MainTests::test_sse_split()
 
     for (const std::string &t : topics)
     {
-        std::vector<std::string> output = data.splitTopic(t);
+        std::vector<std::string> output = splitTopic(t);
         QCOMPARE(output, splitToVector(t, '/'));
     }
 }
-#endif
 
 void MainTests::test_validUtf8Generic()
 {
@@ -824,7 +819,6 @@ void MainTests::test_utf8_compare_implementation()
 
 void MainTests::test_utf8_compare_implementation2()
 {
-    SimdUtils simd_utils;
     std::array<char, 128> buf {};
     const auto limit = std::chrono::steady_clock::now() + std::chrono::seconds(3);
 

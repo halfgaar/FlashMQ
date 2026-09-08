@@ -28,11 +28,14 @@ See LICENSE for license details.
 #include <cassert>
 #include <cstring>
 
+#ifdef __SSE4_2__
+#include <immintrin.h>
+#endif
+
 #include "cirbuf.h"
 #include "bindaddr.h"
 #include "types.h"
 #include "flashmq_plugin.h"
-#include "threadlocalutils.h"
 #include "expected.h"
 
 #define UNUSED(expr) do { (void)(expr); } while (0)

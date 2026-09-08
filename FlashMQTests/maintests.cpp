@@ -216,9 +216,9 @@ MainTests::MainTests()
     REGISTER_FUNCTION3(test_loading_second_value);
     REGISTER_FUNCTION3(test_parsing_numbers);
     REGISTER_FUNCTION3(test_validUtf8Generic);
+    REGISTER_FUNCTION3(test_split);
 
 #ifndef FMQ_NO_SSE
-    REGISTER_FUNCTION3(test_sse_split);
     REGISTER_FUNCTION3(test_validUtf8Sse);
     REGISTER_FUNCTION3(test_utf8_nonchars);
     REGISTER_FUNCTION3(test_utf8_overlong);

@@ -87,9 +87,9 @@ class MainTests
     void test_loading_second_value();
     void test_parsing_numbers();
     void test_validUtf8Generic();
+    void test_split();
 
 #ifndef FMQ_NO_SSE
-    void test_sse_split();
     void test_validUtf8Sse();
     void test_utf8_nonchars();
     void test_utf8_overlong();

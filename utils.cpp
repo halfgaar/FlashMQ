@@ -157,10 +157,6 @@ std::vector<std::string> splitTopic(const std::string &topic)
     const size_t limit{settings ? settings->maxTopicSplitDepth : std::numeric_limits<uint16_t>::max()};
     assert(limit > 0);
 
-#ifdef __SSE4_2__
-    thread_local static SimdUtils simdUtils;
-    const std::vector<std::string> output = simdUtils.splitTopic(topic);
-#else
     std::vector<std::string> output;
     output.reserve(16);
     std::string::const_iterator start = topic.begin();
@@ -171,7 +167,6 @@ std::vector<std::string> splitTopic(const std::string &topic)
         output.emplace_back(start, sep_pos);
         start = sep_pos + 1;
     } while (sep_pos != topic.end());
-#endif
 
     if (output.size() > limit)
         throw std::runtime_error("Topic/filter contains more components than 'max_topic_split_depth'");

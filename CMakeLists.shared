@@ -46,7 +46,6 @@ set(FLASHMQ_HEADERS
     ${RELPATH}evpencodectxmanager.h
     ${RELPATH}acltree.h
     ${RELPATH}enums.h
-    ${RELPATH}threadlocalutils.h
     ${RELPATH}flashmq_plugin.h
     ${RELPATH}flashmq_plugin_deprecated.h
     ${RELPATH}retainedmessagesdb.h
@@ -124,7 +123,6 @@ set(FLASHMQ_IMPLS
     ${RELPATH}oneinstancelock.cpp
     ${RELPATH}evpencodectxmanager.cpp
     ${RELPATH}acltree.cpp
-    ${RELPATH}threadlocalutils.cpp
     ${RELPATH}flashmq_plugin.cpp
     ${RELPATH}retainedmessagesdb.cpp
     ${RELPATH}persistencefile.cpp
