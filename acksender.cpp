@@ -23,7 +23,7 @@ AckSender::AckSender(uint8_t qos, uint16_t packetId, ProtocolVersion protocolVer
 
 AckSender::~AckSender()
 {
-    assert(sent);
+
 }
 
 void AckSender::sendNow(Client *client)
