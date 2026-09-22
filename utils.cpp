@@ -676,12 +676,14 @@ void parseSubscriptionShare(std::vector<std::string> &subtopics, std::string &sh
         throw ProtocolError("The / character after a shared subscription name MUST be followed by a topic filter.", ReasonCodes::ProtocolError);
 
     topic.clear();
+    bool first = true;
 
     for(const std::string &s : subtopics)
     {
-        if (!topic.empty())
+        if (!first)
             topic.append("/");
         topic.append(s);
+        first = false;
     }
 
     shareName = _shareName;
