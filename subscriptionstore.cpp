@@ -969,11 +969,13 @@ bool SubscriptionStore::setRetainedLimitReached(const Settings *settings, const 
     if (node->recursiveChildCount < settings->retainedMessagesNodeCreationLimit)
         return false;
 
-    const bool do_log = std::get<bool>(retainedMessagesNodesLimitsLogged.insert(node));
+    const bool do_log = retainedMessagesNodesLimitsLogged.shared_lock()->count(node) == 0;
     const bool result = settings->retainedMessagesNodeCreationLimitEnforcementMode == RetainedMessagesNodeCreationLimitEnforcementMode::Reject;
 
     if (!do_log)
         return result;
+
+    retainedMessagesNodesLimitsLogged.unique_lock()->insert(node);
 
     std::string msg("Limit reached setting retained message for topic '" + recompose_topic(subtopics) + "'.");
 
@@ -1120,8 +1122,10 @@ bool SubscriptionStore::setRetainedMessage(const Publish &publish, const std::ve
     }
     else
     {
-        if (std::get<bool>(retainedMessagesNodesLimitsLogged.insert(selected_node.get())))
+        if (retainedMessagesNodesLimitsLogged.shared_lock()->count(selected_node.get()) == 0)
         {
+            retainedMessagesNodesLimitsLogged.unique_lock()->insert(selected_node.get());
+
             Logger::getInstance()->log(LOG_WARNING)
                 << "Payload size of " << publish.payload.size() << " exceeded max of " << settings->retainedMessageMaxPayloadSize
                 << " for " << recompose_topic(subtopics);
@@ -1424,7 +1428,7 @@ bool SubscriptionStore::expireRetainedMessages()
         RWLockGuard lock_guard(&retainedMessagesRwlock);
         lock_guard.wrlock();
         retainedMessageDeferredCounter = 0;
-        retainedMessagesNodesLimitsLogged.clear();
+        retainedMessagesNodesLimitsLogged.unique_lock()->clear();
         this->expireRetainedMessages(retainedMessagesRoot.get(), limit, deferredRetainedMessageNodeToPurge, retainedMessageDeferredCounter);
 
         logger->log(LOG_INFO) << "Expiring retained messages done, with " << deferredRetainedMessageNodeToPurge.size() << " deferred nodes to check.";

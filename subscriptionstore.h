@@ -27,6 +27,7 @@ See LICENSE for license details.
 #include "logger.h"
 #include "subscription.h"
 #include "sharedsubscribers.h"
+#include "sharedmutexowned.h"
 
 
 struct ReceivingSubscriber
@@ -147,7 +148,7 @@ class SubscriptionStore
     std::deque<std::weak_ptr<RetainedMessageNode>> deferredRetainedMessageNodeToPurge;
     size_t retainedMessageDeferredCounter = 0;
 
-    std::unordered_set<const RetainedMessageNode*> retainedMessagesNodesLimitsLogged;
+    SharedMutexOwned<std::unordered_set<const RetainedMessageNode*>> retainedMessagesNodesLimitsLogged;
     const std::shared_ptr<RetainedMessageNode> retainedMessagesRoot = std::make_shared<RetainedMessageNode>(nullptr);
     const std::shared_ptr<RetainedMessageNode> retainedMessagesRootDollar = std::make_shared<RetainedMessageNode>(nullptr);
 
