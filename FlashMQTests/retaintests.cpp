@@ -21,7 +21,7 @@ void MainTests::test_retained()
             receiver.start();
 
             const std::string payload = "We are testing";
-            const std::string topic = "retaintopic";
+            const std::string topic = "/retaintopic";
 
             sender.connectClient(senderVersion);
 

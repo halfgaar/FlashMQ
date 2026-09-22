@@ -1060,12 +1060,14 @@ std::optional<unsigned long> try_stoul(const std::string &s) noexcept
 std::string recompose_topic(const std::vector<std::string> &subtopics)
 {
     std::string result;
+    bool first = true;
 
     for (const auto &s : subtopics)
     {
-        if (!result.empty())
+        if (!first)
             result.push_back('/');
         result.append(s);
+        first = false;
     }
 
     return result;
