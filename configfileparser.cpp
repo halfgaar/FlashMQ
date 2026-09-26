@@ -265,7 +265,6 @@ ConfigFileParser::ConfigFileParser(const std::string &path) :
     validKeys.insert("subscription_identifiers_enabled");
     validKeys.insert("persistence_data_to_save");
     validKeys.insert("max_string_length");
-    validKeys.insert("lazy_subscription_relay_timeout");
     validKeys.insert("orphaned_lazy_subscription_retention");
     validKeys.insert("lazy_subscription_packet_max_batch_size");
     validKeys.insert("lazy_subscription_packet_max_size");
@@ -1503,11 +1502,6 @@ void ConfigFileParser::loadFile(bool test)
                 if (testKeyValidity(key, "max_string_length", validKeys))
                 {
                     tmpSettings.maxStringLength = value_to_int_ranged<uint16_t>(key, valueTrimmed);
-                }
-
-                if (testKeyValidity(key, "lazy_subscription_relay_timeout", validKeys))
-                {
-                    tmpSettings.lazySubscriptionRelayTimeout = std::chrono::seconds(value_to_int_ranged<uint32_t>(key, valueTrimmed, 300));
                 }
 
                 if (testKeyValidity(key, "orphaned_lazy_subscription_retention", validKeys))

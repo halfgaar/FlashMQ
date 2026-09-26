@@ -428,8 +428,6 @@ void ThreadData::queuePurgeStaleTrackedLazySubscriptionsAll(const PurgeTrackedSu
             if (!tracked_subs)
                 continue;
 
-            tracked_subs->expireOldMutations();
-
             if (modifier == PurgeTrackedSubscriptionModifier::Retry && !tracked_subs->hasOutdatedInFlightTrackedUnsubscriptions())
                 continue;
 

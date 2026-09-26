@@ -142,13 +142,23 @@ void TrackedSubscriptionState::processTrackedSubscriptionMutations(
     if (!session)
         return;
 
+    const Settings *settings = ThreadGlobals::getSettings();
+    const size_t packet_size_limit = settings->lazySubscriptionPacketMaxSize;
+    const size_t batch_size = settings->lazySubscriptionPacketMaxBatchSize;
+
     std::shared_ptr<Client> network_client = session->makeSharedClient();
 
+    bool online = true;
+
     if (!network_client || !network_client->getAuthenticated())
-        return;
+    {
+        online = false;
+        goto after_retry_and_resending;
+    }
 
     if (!this->processMutations)
         return;
+
 
     if (modifier == ProcessTrackedSubscriptionMutationsModifier::StartResending)
     {
@@ -164,6 +174,7 @@ void TrackedSubscriptionState::processTrackedSubscriptionMutations(
         purgeCount = 0;
         purgeCount = 0;
     }
+
 
     // First cover the retry case. If a SUBACK is properly processed, this is always false.
     if (inFlightTrackedSubscriptions)
@@ -198,10 +209,6 @@ void TrackedSubscriptionState::processTrackedSubscriptionMutations(
         return;
     }
 
-    const Settings *settings = ThreadGlobals::getSettings();
-
-    const size_t packet_size_limit = settings->lazySubscriptionPacketMaxSize;
-    const size_t batch_size = settings->lazySubscriptionPacketMaxBatchSize;
 
     if (curPosResending != trackedSubscriptions->end())
     {
@@ -274,6 +281,8 @@ void TrackedSubscriptionState::processTrackedSubscriptionMutations(
         return;
     }
 
+    after_retry_and_resending:
+
     std::optional<uint16_t> pack_id;
     std::vector<TrackedSubscriptionMutation> muts;
     muts.reserve(256);
@@ -301,7 +310,6 @@ void TrackedSubscriptionState::processTrackedSubscriptionMutations(
 
     std::unordered_set<TrackedSubscriptionFields> deduplicated_subscribes;
 
-
     for (TrackedSubscriptionMutation &mut : muts)
     {
         if (mut.task == TrackedSubscriptionMutationTask::Subscribe)
@@ -319,6 +327,22 @@ void TrackedSubscriptionState::processTrackedSubscriptionMutations(
                 emplacementResultPos->val.qos = mut.qos;
 
             subscription.add_session(mut.originatingSession);
+
+            if (!online)
+            {
+                Logger::getInstance()->log(LOG_SUBSCRIBE)
+                    << "Storing tracked subscription '" << mut.pattern << "' unacknowledged to offline server '"
+                    << session->getClientId() << "' with effective QoS = " << static_cast<int>(mut.qos)
+                    << ", originating from client '" << mut.originatingClientId << "'.";
+
+                /*
+                 * The subscriptions are not stored as confirmed here. The result is that clients sending subscriptions
+                 * will have to wait for the suback timeout before they get their SUBACK (See queueSubackReleaseTimeout()
+                 * for current timeout).
+                 */
+
+                continue;
+            }
 
             if (!pack_id)
             {
@@ -388,6 +412,8 @@ void TrackedSubscriptionState::processTrackedSubscriptionMutations(
          */
         sub.retainHandling = RetainHandling::SendRetainedMessagesAtSubscribe;
     }
+
+    assert(online || subscribes.empty());
 
     if (!subscribes.empty())
     {
@@ -562,27 +588,6 @@ void TrackedSubscriptionState::cleanupExpiredTrackedSubscriptions(
         // We have no unsubacks to retrigger us, so we have to requeue ourselves.
         if (t)
             t->queuePurgeStaleTrackedLazySubscriptions(bridgeState, PurgeTrackedSubscriptionModifier::Continue);
-    }
-}
-
-void TrackedSubscriptionState::expireOldMutations()
-{
-    const auto nowish = std::chrono::steady_clock::now();
-    const std::chrono::seconds timeout = ThreadGlobals::getSettings()->lazySubscriptionRelayTimeout;
-    auto locked = trackedSubscriptionMutations.lock();
-
-    while (!locked->empty())
-    {
-        const TrackedSubscriptionMutation &mutation = locked->front();
-
-        if (mutation.createdAt + timeout < nowish)
-        {
-            Logger::getInstance()->log(LOG_WARNING) << "Expiring tracked subscription mutation for " << mutation.pattern;
-            locked->pop_front();
-            continue;
-        }
-
-        break;
     }
 }
 
