@@ -300,6 +300,14 @@ void TrackedSubscriptionState::processTrackedSubscriptionMutations(
         {
             TrackedSubscriptionMutation &mutation = locked->front();
 
+            if (online && mutation.task == TrackedSubscriptionMutationTask::Subscribe && !pack_id)
+            {
+                pack_id = session->getNextPacketIdLocked();
+
+                if (!pack_id)
+                    break;
+            }
+
             batch_entry++;
             cur_packet_size += 3 + mutation.pattern.size();
 
@@ -344,13 +352,7 @@ void TrackedSubscriptionState::processTrackedSubscriptionMutations(
                 continue;
             }
 
-            if (!pack_id)
-            {
-                pack_id = session->getNextPacketIdLocked();
-
-                if (!pack_id)
-                    return;
-            }
+            assert(pack_id.has_value());
 
             if (mut.subAckReleaseTrigger)
             {
