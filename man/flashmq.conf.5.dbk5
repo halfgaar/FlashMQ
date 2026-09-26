@@ -838,18 +838,6 @@ multi-value-param one 'two' "three" "with ' char"
         </listitem>
       </varlistentry>
 
-      <varlistentry xml:id="lazy_subscription_relay_timeout" condition="flashmq ≥ 1.28.0">
-        <term><option>lazy_subscription_relay_timeout</option> <replaceable>seconds</replaceable></term>
-        <listitem>
-          <para>
-            When a bridge has lazy subscriptions configured, all incoming subscriptions that match are kept as a list of mutations to be sent to the other side. When there is a connection problem, this list would grow out of control. With this setting you can configure how long the mutations are kept until they are removed.
-          </para>
-          <para>
-            Default: 600 seconds.
-          </para>
-        </listitem>
-      </varlistentry>
-
       <varlistentry xml:id="orphaned_lazy_subscription_retention" condition="flashmq ≥ 1.28.0">
         <term><option>orphaned_lazy_subscription_retention</option> <replaceable>seconds</replaceable></term>
         <listitem>
