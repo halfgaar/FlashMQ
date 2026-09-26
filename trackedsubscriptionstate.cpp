@@ -627,11 +627,7 @@ void TrackedSubscriptionState::sendArmedStagedSuback(const uint16_t id)
          */
         if (t.m_tracked_sub_to_confirm)
         {
-            auto l = trackedSubscriptionsConfirmed.unique_lock();
-            auto result = l->insert(t.m_tracked_sub_to_confirm.value());
-
-            if (!std::get<bool>(result))
-                result.first->qos = t.m_tracked_sub_to_confirm->qos;
+            confirmTrackedSubscription(t.m_tracked_sub_to_confirm.value());
         }
 
         queueSendSubAckInOriginatingClient(t);
@@ -680,6 +676,18 @@ size_t TrackedSubscriptionState::trackedSubscriptionMutationCount()
 {
     auto locked = trackedSubscriptionMutations.lock();
     return locked->size();
+}
+
+void TrackedSubscriptionState::confirmTrackedSubscription(const TrackedSubscriptionFields &new_sub)
+{
+    auto l = trackedSubscriptionsConfirmed.unique_lock();
+    auto result = l->insert(new_sub);
+
+    if (!std::get<bool>(result))
+    {
+        if (new_sub.qos > result.first->qos)
+            result.first->qos = new_sub.qos;
+    }
 }
 
 bool TrackedSubscriptionState::isTrackingSubscription(const std::string &pattern, const uint8_t qos)

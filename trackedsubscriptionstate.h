@@ -52,6 +52,7 @@ class TrackedSubscriptionState
     void sendInFlightTrackedUnsubscriptions(Client *network_client);
     void resetIterators();
     void assumePendingPacketIdsLost(Session *session);
+    void confirmTrackedSubscription(const TrackedSubscriptionFields &new_sub);
 
 public:
     std::unique_ptr<ReentrantMap<std::string, TrackedSubscription>> stealTrackedSubscriptions();
