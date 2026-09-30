@@ -557,7 +557,6 @@ void TrackedSubscriptionState::cleanupExpiredTrackedSubscriptions(
             {
                 auto tsc_locked = this->trackedSubscriptionsConfirmed.unique_lock();
                 auto pos = tsc_locked->find({stripSubscriptionShare(filter), 0});
-                assert(pos != tsc_locked->end());
                 if (pos != tsc_locked->end())
                     tsc_locked->erase(pos);
             }
