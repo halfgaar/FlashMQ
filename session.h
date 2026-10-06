@@ -144,13 +144,14 @@ public:
     std::optional<uint16_t> getNextPacketIdLocked();
     void resetQoSData();
 
-    bool getDestroyOnDisconnect() const;
+    bool getDestroyOnDisconnect();
 
     void setSessionProperties(uint16_t clientReceiveMax, uint32_t sessionExpiryInterval, bool clean_start, ProtocolVersion protocol_version);
     void setSessionExpiryInterval(uint32_t newVal);
     void setQueuedRemovalAt();
     uint32_t getSessionExpiryInterval() const;
     uint32_t getCurrentSessionExpiryInterval();
+    bool expireNow();
 
     void setLocalPrefix(const std::optional<std::string> &s);
     void setRemotePrefix(const std::optional<std::string> &s);

@@ -529,9 +529,9 @@ void Session::resetQoSData()
  *
  * MQTT5: Setting Clean Start to 1 and a Session Expiry Interval of 0, is equivalent to setting CleanSession to 1 in the MQTT Specification Version 3.1.1.
  */
-bool Session::getDestroyOnDisconnect() const
+bool Session::getDestroyOnDisconnect()
 {
-    return destroyOnDisconnect;
+    return destroyOnDisconnect || expireNow();
 }
 
 void Session::setSessionProperties(uint16_t clientReceiveMax, uint32_t sessionExpiryInterval, bool clean_start, ProtocolVersion protocol_version)
@@ -558,6 +558,7 @@ void Session::setSessionExpiryInterval(uint32_t newVal)
     }
 
     this->sessionExpiryInterval = newVal;
+    this->destroyOnDisconnect = this->sessionExpiryInterval == 0;
 }
 
 void Session::setQueuedRemovalAt()
@@ -580,6 +581,11 @@ uint32_t Session::getCurrentSessionExpiryInterval()
     const uint32_t ageInSeconds = age.count();
     const uint32_t result = ageInSeconds <= this->sessionExpiryInterval ? this->sessionExpiryInterval - age.count() : 0;
     return result;
+}
+
+bool Session::expireNow()
+{
+    return getCurrentSessionExpiryInterval() == 0;
 }
 
 void Session::setLocalPrefix(const std::optional<std::string> &s)
