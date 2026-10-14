@@ -398,8 +398,18 @@ void Session::sendAllPendingQosData()
         {
             Publish &pub = std::get<Publish>(p);
             PublishCopyFactory fac(&pub);
-            const bool retain = !c->isRetainedAvailable() ? false : pub.retain;
-            c->writeMqttPacketAndBlameThisClient(fac, pub.qos, std::get<uint16_t>(p), retain, pub.subscriptionIdentifier, std::get<std::optional<std::string>>(p));
+
+            /*
+             * Max QoS and retain-as-published are just dummy, meaning the values required to get the original attributes of
+             * the queued messages, because the Publish object was already queued with those properties corrected.
+             */
+            const AclReadCheckResult acl_result = fac.aclReadCheck(c->getClientId(), c->getUsername(), 2, true);
+
+            if (acl_result.auth_result != AuthResult::success)
+                continue;
+
+            const bool retain = !c->isRetainedAvailable() ? false : acl_result.effective_retain;
+            c->writeMqttPacketAndBlameThisClient(fac, acl_result.effective_qos, std::get<uint16_t>(p), retain, pub.subscriptionIdentifier, std::get<std::optional<std::string>>(p));
         }
 
         for(uint16_t id : copiedQoS2Ids)
