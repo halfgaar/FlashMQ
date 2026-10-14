@@ -215,16 +215,10 @@ PacketDropReason Session::writePacket(PublishCopyFactory &copyFactory, const uin
 
     assert(max_qos <= 2);
 
-    const uint8_t effectiveQos = copyFactory.getEffectiveQos(max_qos);
     retainAsPublished = retainAsPublished || clientType == ClientType::Mqtt3DefactoBridge;
-    bool effectiveRetain = copyFactory.getEffectiveRetain(retainAsPublished);
+    AclReadCheckResult readCheckResult = copyFactory.aclReadCheck(client_id, username, max_qos, retainAsPublished);
 
-    const AuthResult aclResult = ThreadGlobals::getThreadData()->authentication.aclCheck(
-        client_id, username, copyFactory.getTopic(), copyFactory.getSubtopics(), "", copyFactory.getPayload(), AclAccess::read,
-        effectiveQos, effectiveRetain, copyFactory.getCorrelationData(), copyFactory.getResponseTopic(), copyFactory.getContentType(),
-        copyFactory.getExpiresAt(), copyFactory.getUserProperties());
-
-    if (aclResult != AuthResult::success)
+    if (readCheckResult.auth_result != AuthResult::success)
     {
         return PacketDropReason::AuthDenied;
     }
@@ -250,7 +244,7 @@ PacketDropReason Session::writePacket(PublishCopyFactory &copyFactory, const uin
 
     std::optional<uint16_t> pack_id;
 
-    if (__builtin_expect(effectiveQos > 0, 0))
+    if (__builtin_expect(readCheckResult.effective_qos > 0, 0))
     {
         const Settings *settings = ThreadGlobals::getSettings();
         MutexLocked<QoSData> qos_locked = qos.lock();
@@ -293,16 +287,20 @@ PacketDropReason Session::writePacket(PublishCopyFactory &copyFactory, const uin
         }
 
         if (!destroyOnDisconnect)
-            qos_locked->queuePublish(copyFactory, pack_id.value(), effectiveQos, effectiveRetain, subscriptionIdentifier, topic_override);
+        {
+            qos_locked->queuePublish(
+                copyFactory, pack_id.value(), readCheckResult.effective_qos, readCheckResult.effective_retain, subscriptionIdentifier, topic_override);
+        }
     }
 
     if (!c)
         return PacketDropReason::ClientOffline;
 
     if (!c->isRetainedAvailable())
-        effectiveRetain = false;
+        readCheckResult.effective_retain = false;
 
-    return c->writeMqttPacketAndBlameThisClient(copyFactory, effectiveQos, pack_id.value_or(0), effectiveRetain, subscriptionIdentifier, topic_override);
+    return c->writeMqttPacketAndBlameThisClient(
+        copyFactory, readCheckResult.effective_qos, pack_id.value_or(0), readCheckResult.effective_retain, subscriptionIdentifier, topic_override);
 }
 
 /**

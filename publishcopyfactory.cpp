@@ -11,6 +11,8 @@ See LICENSE for license details.
 #include <cassert>
 #include <stdexcept>
 
+#include "threadglobals.h"
+#include "threaddata.h"
 #include "publishcopyfactory.h"
 #include "mqttpacket.h"
 
@@ -235,6 +237,20 @@ int PublishCopyFactory::getPublishLayoutCompareKey(ProtocolVersion pv, uint8_t q
 
     key = (key * 10) + static_cast<bool>(qos);
     return key;
+}
+
+AclReadCheckResult PublishCopyFactory::aclReadCheck(
+    const std::string client_id, const std::string &username, const uint8_t max_qos, const bool retainAsPublished)
+{
+    AclReadCheckResult result;
+    result.effective_qos = getEffectiveQos(max_qos);
+    result.effective_retain = getEffectiveRetain(retainAsPublished);
+
+    result.auth_result = ThreadGlobals::getThreadData()->authentication.aclCheck(
+        client_id, username, getTopic(), getSubtopics(), "", getPayload(), AclAccess::read,
+        result.effective_qos, result.effective_retain, getCorrelationData(), getResponseTopic(), getContentType(),
+        getExpiresAt(), getUserProperties());
+    return result;
 }
 
 
