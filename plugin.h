@@ -215,7 +215,7 @@ public:
         const std::shared_ptr<Session> &session, const std::string &clientid,
         const std::string &username, const std::string &topic, const std::vector<std::string> &subtopics,
         const std::string &shareName, const std::vector<std::pair<std::string, std::string>> *userProperties) const;
-    AuthResult aclCheck(Publish &publishData, std::string_view payload, AclAccess access = AclAccess::write);
+    AuthResult aclWriteCheck(Publish &publishData, std::string_view payload, AclAccess access = AclAccess::write);
     AuthResult aclCheck(
             const std::string &clientid, const std::string &username, const std::string &topic, const std::vector<std::string> &subtopics,
             const std::string &sharename, std::string_view payload, AclAccess access, uint8_t qos, bool retain, const std::optional<std::string> &correlationData,

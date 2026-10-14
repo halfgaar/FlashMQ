@@ -370,7 +370,7 @@ void Session::sendAllPendingQosData()
 
                 Publish &pub = qp->getPublish();
 
-                if (pub.hasExpired() || (authentication.aclCheck(pub, pub.payload) != AuthResult::success))
+                if (pub.hasExpired() || (authentication.aclWriteCheck(pub, pub.payload) != AuthResult::success))
                 {
                     qos_locked->eraseQueuedPublish(qp->getPacketId());
                     qos_locked->releasePacketId(qp->getPacketId());

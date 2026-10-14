@@ -210,7 +210,7 @@ void ThreadData::continuationOfAuthentication(std::shared_ptr<Client> &client, A
 
             const std::shared_ptr<WillPublish> will = client->getStagedWill();
 
-            if (will && authentication.aclCheck(*will, will->payload, AclAccess::register_will) == AuthResult::success)
+            if (will && authentication.aclWriteCheck(*will, will->payload, AclAccess::register_will) == AuthResult::success)
             {
                 client->setWillFromStaged();
             }
@@ -627,7 +627,7 @@ void ThreadData::queueSettingRetainedMessage(const Publish &p, const std::vector
 
 void ThreadData::publishStatWithAcl(Publish &pub, bool setRetain)
 {
-    authentication.aclCheck(pub, pub.payload, AclAccess::write);
+    authentication.aclWriteCheck(pub, pub.payload, AclAccess::write);
 
     PublishCopyFactory factory(&pub);
     globals->subscriptionStore.queuePacketAtSubscribers(factory, "", {}, true);

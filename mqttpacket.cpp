@@ -2261,7 +2261,7 @@ void MqttPacket::handlePublish(std::shared_ptr<Client> &sender)
         if (altered || qos_org != this->publishData.qos)
             this->dontReuseBites = true;
 
-        const AuthResult authResult = authentication.aclCheck(this->publishData, getPayloadView());
+        const AuthResult authResult = authentication.aclWriteCheck(this->publishData, getPayloadView());
         if (authResult == AuthResult::success || authResult == AuthResult::success_without_setting_retained)
         {
             if (publishData.retain)

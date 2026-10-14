@@ -409,7 +409,7 @@ void SubscriptionStore::sendWill(const std::shared_ptr<WillPublish> will, const 
     logger->log(LOG_DEBUG) << log << " " << will->topic;
 
     Authentication &auth = ThreadGlobals::getThreadData()->authentication;
-    const AuthResult authResult = auth.aclCheck(*will, will->payload, AclAccess::write);
+    const AuthResult authResult = auth.aclWriteCheck(*will, will->payload, AclAccess::write);
 
     if (authResult == AuthResult::success || authResult == AuthResult::success_without_setting_retained)
     {
@@ -712,7 +712,7 @@ void SubscriptionStore::giveClientRetainedMessagesRecursively(std::vector<std::s
             if (!rm.hasExpired()) // We can't also erase here, because we're operating under a read lock.
             {
                 Publish publish = rm.publish;
-                if (auth.aclCheck(publish, publish.payload) == AuthResult::success)
+                if (auth.aclWriteCheck(publish, publish.payload) == AuthResult::success)
                 {
                     PublishCopyFactory copyFactory(&publish);
                     const PacketDropReason drop_reason = session->writePacket(copyFactory, max_qos, true, subscription_identifier);
