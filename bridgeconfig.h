@@ -53,6 +53,35 @@ public:
     void saveShareNames(const std::string &path) const;
 };
 
+class TlsFilesTimes
+{
+    struct TimeSpec
+    {
+        time_t m_sec {};
+        int64_t m_nano {};
+
+        TimeSpec() = default;
+        TimeSpec (timespec &t) : m_sec(t.tv_sec), m_nano(t.tv_nsec) { }
+        bool operator==(const TimeSpec&) const = default;
+        TimeSpec &operator=(const timespec &t)
+        {
+            m_sec = t.tv_sec;
+            m_nano = t.tv_nsec;
+            return *this;
+        }
+    };
+
+    TimeSpec m_a {};
+    TimeSpec m_b {};
+    TimeSpec m_c {};
+    TimeSpec m_d {};
+
+public:
+
+    TlsFilesTimes(const std::string &a, const std::string &b, const std::string &c, const std::string &d);
+    bool operator==(const TlsFilesTimes&) const = default;
+};
+
 class BridgeConfig
 {
     std::string clientid;
@@ -112,11 +141,13 @@ public:
 
 class BridgeState
 {
-    bool sslInitialized = false;
     std::chrono::time_point<std::chrono::steady_clock> lastReconnectAttempt;
     int reconnectCounter = 0;
     const int baseReconnectInterval = (get_random_int<int>() % 30) + 30;
     int intervalLogged = 0;
+    std::optional<TlsFilesTimes> tlsCacheKey;
+
+    void initSSL(bool force);
 public:
     const BridgeConfig c;
     ThreadLocked<std::weak_ptr<Session>> session;
@@ -128,8 +159,7 @@ public:
     std::list<FMQSockaddr> dnsResults;
 
     FMQSockaddr popDnsResult();
-    void initSSL(bool reloadCertificates);
-
+    void initSSLAllowSoftfail(bool force);
     bool timeForNewReconnectAttempt();
     void registerReconnect();
     void resetReconnectCounter();

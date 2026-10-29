@@ -10,6 +10,23 @@
 #include "bridgeinfodb.h"
 #include "globals.h"
 
+TlsFilesTimes::TlsFilesTimes(const std::string &a, const std::string &b, const std::string &c, const std::string &d)
+{
+    auto aa = fmq_stat(a);
+    auto bb = fmq_stat(b);
+    auto cc = fmq_stat(c);
+    auto dd = fmq_stat(d);
+
+    if (aa)
+        m_a = aa.value().st_ctim;
+    if (bb)
+        m_b = bb.value().st_ctim;
+    if (cc)
+        m_c = cc.value().st_ctim;
+    if (dd)
+        m_d = dd.value().st_ctim;
+}
+
 std::string BridgeClientGroupIds::getClientGroupShareName(const std::string &client_id_prefix)
 {
     std::string &s = this->bridge_share_names[client_id_prefix];
@@ -104,45 +121,46 @@ FMQSockaddr BridgeState::popDnsResult()
     return addr;
 }
 
-void BridgeState::initSSL(bool reloadCertificates)
+void BridgeState::initSSL(bool force)
 {
     if (this->c.tlsMode == BridgeTLSMode::None)
         return;
 
-    if (reloadCertificates)
-        this->sslInitialized = false;
+    TlsFilesTimes x(c.sslFullchain, c.sslPrivkey, c.caFile, c.caDir);
 
-    if (this->sslInitialized)
+    if (!force && this->tlsCacheKey.has_value() && this->tlsCacheKey.value() == x)
         return;
 
-    sslctx.emplace(TLS_client_method());
-    sslctx->setMinimumTlsVersion(c.minimumTlsVersion);
-    SSL_CTX_set_mode(sslctx->get(), SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
+    std::optional<SslCtxManager> sslctx_new(TLS_client_method());
+
+    sslctx_new.emplace(TLS_client_method());
+    sslctx_new->setMinimumTlsVersion(c.minimumTlsVersion);
+    SSL_CTX_set_mode(sslctx_new->get(), SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
 
     const char *privkey = c.sslPrivkey.empty() ? nullptr : c.sslPrivkey.c_str();
     const char *fullchain = c.sslFullchain.empty() ? nullptr : c.sslFullchain.c_str();
 
     if (fullchain)
     {
-        if (SSL_CTX_use_certificate_chain_file(sslctx->get(), fullchain) != 1)
+        if (SSL_CTX_use_certificate_chain_file(sslctx_new->get(), fullchain) != 1)
         {
             ERR_print_errors_cb(logSslError, NULL);
-            throw std::runtime_error("Loading bridge SSL fullchain failed. This was after test loading the certificate, so is very unexpected.");
+            throw std::runtime_error("Loading bridge SSL fullchain failed.");
         }
     }
 
     if (privkey)
     {
-        if (SSL_CTX_use_PrivateKey_file(sslctx->get(), privkey, SSL_FILETYPE_PEM) != 1)
+        if (SSL_CTX_use_PrivateKey_file(sslctx_new->get(), privkey, SSL_FILETYPE_PEM) != 1)
         {
             ERR_print_errors_cb(logSslError, NULL);
-            throw std::runtime_error("Loading bridge SSL privkey failed. This was after test loading the certificate, so is very unexpected.");
+            throw std::runtime_error("Loading bridge SSL privkey failed.");
         }
 
-        if (SSL_CTX_check_private_key(sslctx->get()) != 1)
+        if (SSL_CTX_check_private_key(sslctx_new->get()) != 1)
         {
             ERR_print_errors_cb(logSslError, NULL);
-            throw std::runtime_error("Verifying bridge SSL privkey failed. This was after test loading the certificate, so is very unexpected.");
+            throw std::runtime_error("Verifying bridge SSL privkey failed.");
         }
     }
 
@@ -151,22 +169,41 @@ void BridgeState::initSSL(bool reloadCertificates)
 
     if (ca_file || ca_dir)
     {
-        if (SSL_CTX_load_verify_locations(sslctx->get(), ca_file, ca_dir) != 1)
+        if (SSL_CTX_load_verify_locations(sslctx_new->get(), ca_file, ca_dir) != 1)
         {
             ERR_print_errors_cb(logSslError, NULL);
-            throw std::runtime_error("Loading ca_dir/ca_file failed. This was after test loading the certificate, so is very unexpected.");
+            throw std::runtime_error("Loading ca_dir/ca_file failed.");
         }
     }
     else
     {
-        if (SSL_CTX_set_default_verify_paths(sslctx->get()) != 1)
+        if (SSL_CTX_set_default_verify_paths(sslctx_new->get()) != 1)
         {
             ERR_print_errors_cb(logSslError, NULL);
             throw std::runtime_error("Setting default SSL paths failed.");
         }
     }
 
-    this->sslInitialized = true;
+    this->sslctx = std::move(sslctx_new);
+    this->tlsCacheKey = x;
+}
+
+void BridgeState::initSSLAllowSoftfail(bool force)
+{
+    if (this->c.tlsMode == BridgeTLSMode::None)
+        return;
+
+    try
+    {
+        initSSL(force);
+    }
+    catch (std::exception &ex)
+    {
+        Logger::getInstance()->log(LOG_ERROR) << "Error loading (new) SSL data for bridge '" << c.clientidPrefix << "': " << ex.what();
+    }
+
+    if (!sslctx)
+        throw std::runtime_error("Bridge '" + c.clientidPrefix + "' has no SSL data loaded.");
 }
 
 bool BridgeState::timeForNewReconnectAttempt()

@@ -271,8 +271,6 @@ void ThreadData::bridgeReconnect()
 
         try
         {
-            bridge->initSSL(false);
-
             std::shared_ptr<Client> client;
             std::shared_ptr<Session> session = bridge->session->lock();
 
@@ -318,6 +316,7 @@ void ThreadData::bridgeReconnect()
 
             FMQSockaddr addr = bridge->popDnsResult();
 
+            bridge->initSSLAllowSoftfail(false);
             bridge->registerReconnect();
 
             int sockfd = check<std::runtime_error>(socket(addr.getFamily(), SOCK_STREAM, 0));
@@ -327,7 +326,7 @@ void ThreadData::bridgeReconnect()
             FmqSsl clientSSL;
             if (bridge->c.tlsMode > BridgeTLSMode::None)
             {
-                clientSSL = FmqSsl(*bridge->sslctx);
+                clientSSL = FmqSsl(bridge->sslctx.value());
 
                 if (!clientSSL)
                 {
@@ -1337,7 +1336,7 @@ void ThreadData::reload(const Settings &settings)
             if (!b)
                 continue;
 
-            b->initSSL(true);
+            b->initSSLAllowSoftfail(true);
         }
 
         authentication.securityCleanup(true);
