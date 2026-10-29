@@ -25,6 +25,7 @@ See LICENSE for license details.
 #include <signal.h>
 #include <pwd.h>
 #include <grp.h>
+#include <sys/stat.h>
 
 #include <openssl/ssl.h>
 #include <openssl/err.h>
@@ -1110,4 +1111,14 @@ bool contains_value_greater_than(const std::vector<uint8_t> &data, const uint8_t
     }
 
     return false;
+}
+
+Expected<struct stat> fmq_stat(const std::string &path)
+{
+    struct stat statbuf {};
+
+    if (stat(path.c_str(), &statbuf) < 0)
+        return std::runtime_error(strerror(errno));
+
+    return statbuf;
 }

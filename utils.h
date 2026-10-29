@@ -33,6 +33,7 @@ See LICENSE for license details.
 #include "types.h"
 #include "flashmq_plugin.h"
 #include "threadlocalutils.h"
+#include "expected.h"
 
 #define UNUSED(expr) do { (void)(expr); } while (0)
 
@@ -557,5 +558,7 @@ std::string make_string(const T &input, const size_t offset, const size_t len)
 std::string redact_right(std::string s);
 
 bool contains_value_greater_than(const std::vector<uint8_t> &v, const uint8_t x);
+
+Expected<struct stat> fmq_stat(const std::string &path);
 
 #endif // UTILS_H
