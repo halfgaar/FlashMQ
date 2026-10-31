@@ -1267,7 +1267,7 @@ void ConfigFileParser::loadFile(bool test)
 
                 if (testKeyValidity(key, "retained_messages_node_creation_limit", validKeys))
                 {
-                    const ssize_t newVal{value_to_int_ranged<uint32_t>(key, value, 1)};
+                    const ssize_t newVal{value_to_int_ranged<int32_t>(key, value, 1)};
                     tmpSettings.retainedMessagesNodeCreationLimit = newVal;
                 }
 
