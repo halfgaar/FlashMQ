@@ -151,22 +151,21 @@ void Listener::loadCertAndKeyFromConfig()
     if (!isSsl())
         return;
 
-    if (!sslctx)
-    {
-        sslctx.emplace();
-        sslctx->setMinimumTlsVersion(minimumTlsVersion);
-        SSL_CTX_set_mode(sslctx->get(), SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
+    std::optional<SslCtxManager> sslctx_new;
+    sslctx_new.emplace();
+    sslctx_new.value().setMinimumTlsVersion(minimumTlsVersion);
 
-        /*
-         * Session cache requires active shutdown of SSL connections, which we don't have right now. We
-         * might as well just turn the session cache off, at least until we do have session shutdown.
-         */
-        SSL_CTX_set_session_cache_mode(sslctx->get(), SSL_SESS_CACHE_OFF);
-    }
+    SSL_CTX_set_mode(sslctx_new.value().get(), SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
 
-    if (SSL_CTX_use_certificate_chain_file(sslctx->get(), sslFullchain.c_str()) != 1)
+    /*
+     * Session cache requires active shutdown of SSL connections, which we don't have right now. We
+     * might as well just turn the session cache off, at least until we do have session shutdown.
+     */
+    SSL_CTX_set_session_cache_mode(sslctx_new.value().get(), SSL_SESS_CACHE_OFF);
+
+    if (SSL_CTX_use_certificate_chain_file(sslctx_new.value().get(), sslFullchain.c_str()) != 1)
         throw std::runtime_error("Loading cert failed. This was after test loading the certificate, so is very unexpected.");
-    if (SSL_CTX_use_PrivateKey_file(sslctx->get(), sslPrivkey.c_str(), SSL_FILETYPE_PEM) != 1)
+    if (SSL_CTX_use_PrivateKey_file(sslctx_new.value().get(), sslPrivkey.c_str(), SSL_FILETYPE_PEM) != 1)
         throw std::runtime_error("Loading key failed. This was after test loading the certificate, so is very unexpected.");
 
     {
@@ -175,7 +174,7 @@ void Listener::loadCertAndKeyFromConfig()
 
         if (ca_file || ca_dir)
         {
-            if (SSL_CTX_load_verify_locations(sslctx->get(), ca_file, ca_dir) != 1)
+            if (SSL_CTX_load_verify_locations(sslctx_new.value().get(), ca_file, ca_dir) != 1)
             {
                 ERR_print_errors_cb(logSslError, NULL);
                 throw std::runtime_error("Loading client_verification_ca_dir/client_verification_ca_file failed. "
@@ -183,6 +182,8 @@ void Listener::loadCertAndKeyFromConfig()
             }
         }
     }
+
+    this->sslctx = std::move(sslctx_new);
 }
 
 X509ClientVerification Listener::getX509ClientVerficationMode() const
