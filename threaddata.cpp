@@ -1336,6 +1336,7 @@ void ThreadData::reload(const Settings &settings)
             if (!b)
                 continue;
 
+            b->resetReconnectCounter();
             b->initSSLAllowSoftfail(true);
         }
 
