@@ -567,15 +567,6 @@ void MainApp::start()
 {
     assert(mInitializedByThread == pthread_self());
 
-#ifndef NDEBUG
-#ifndef TESTING
-    if (!getFuzzMode())
-    {
-        oneInstanceLock.lock();
-    }
-#endif
-#endif
-
 #ifdef NDEBUG
     logger->noLongerLogToStd();
 #endif
@@ -933,8 +924,6 @@ void MainApp::start()
     {
         thread.callIfThread(&ThreadData::queueSendDisconnects);
     }
-
-    oneInstanceLock.unlock();
 
     bool waitTimeExpired = false;
 

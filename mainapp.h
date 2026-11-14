@@ -27,7 +27,6 @@ See LICENSE for license details.
 #include "subscriptionstore.h"
 #include "configfileparser.h"
 #include "scopedsocket.h"
-#include "oneinstancelock.h"
 #include "bridgeinfodb.h"
 #include "backgroundworker.h"
 #include "driftcounter.h"
@@ -70,7 +69,6 @@ class MainApp
     std::unordered_map<std::string, BridgeConfig> bridgeConfigs;
     std::mutex quitMutex;
     std::string fuzzFilePath;
-    OneInstanceLock oneInstanceLock;
     const pthread_t mInitializedByThread = pthread_self();
 
     Logger *logger = Logger::getInstance();

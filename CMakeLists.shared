@@ -42,7 +42,6 @@ set(FLASHMQ_HEADERS
     ${RELPATH}unscopedlock.h
     ${RELPATH}scopedsocket.h
     ${RELPATH}bindaddr.h
-    ${RELPATH}oneinstancelock.h
     ${RELPATH}evpencodectxmanager.h
     ${RELPATH}acltree.h
     ${RELPATH}enums.h
@@ -120,7 +119,6 @@ set(FLASHMQ_IMPLS
     ${RELPATH}unscopedlock.cpp
     ${RELPATH}scopedsocket.cpp
     ${RELPATH}bindaddr.cpp
-    ${RELPATH}oneinstancelock.cpp
     ${RELPATH}evpencodectxmanager.cpp
     ${RELPATH}acltree.cpp
     ${RELPATH}flashmq_plugin.cpp
