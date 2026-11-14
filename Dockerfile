@@ -1,3 +1,7 @@
+# Note than when running containerized, you may want to consider Docker's
+# 'host' network mode. This avoid NAT tracking overhead an client count
+# limitations.
+
 # build target, used for building the binary, providing shared libraries and could be used as a development env
 FROM debian:trixie-slim AS build
 

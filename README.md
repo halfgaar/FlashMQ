@@ -40,7 +40,13 @@ To run:
 docker run -p 1883:1883 -v /srv/flashmq/etc/:/etc/flashmq --user 1000:1000 halfgaar/flashmq
 ```
 
-Create extra volumes as you need, for the persistence DB file, logs, password files, plugin, etc.
+Or, to avoid Docker NAT tracking or proxy (client count) limitations and overhead, use host based networking:
+
+```
+docker run --network=host -v /srv/flashmq/etc/:/etc/flashmq --user 1000:1000 halfgaar/flashmq
+```
+
+Create extra volumes as you need, for the persistence DB file, logs, password files, plugin, etc. Though note that plugin ABI compatibility is required, and that may require building using all the same libs as the Docker base image.
 
 For development you can target the build stage to get an image you can use for development:
 
