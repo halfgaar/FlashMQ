@@ -111,11 +111,6 @@ public:
 
     }
 
-    ~MutexOwned()
-    {
-        m.lock();
-    }
-
     MutexOwned(const MutexOwned &) = delete;
     MutexOwned &operator=(const MutexOwned&) = delete;
 
