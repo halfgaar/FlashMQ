@@ -103,6 +103,7 @@ void FMQSockaddr::setAddress(const std::string &address)
 
             memcpy(dat.data(), &addr, sizeof(addr));
             text = sockaddrToString(getSockaddr());
+            family = AF_INET;
 
             return;
         }
@@ -120,6 +121,7 @@ void FMQSockaddr::setAddress(const std::string &address)
 
             memcpy(dat.data(), &addr, sizeof(addr));
             text = sockaddrToString(getSockaddr());
+            family = AF_INET6;
         }
     }
 }
