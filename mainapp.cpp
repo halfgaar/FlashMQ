@@ -203,9 +203,12 @@ std::list<ScopedSocket> MainApp::createListenSocket(const std::shared_ptr<Listen
             }
             else
             {
-                // Not needed for now. Maybe I will make multiple accept threads later, with SO_REUSEPORT.
-                int optval = 1;
-                check<std::runtime_error>(setsockopt(uniqueListenFd.get(), SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &optval, sizeof(optval)));
+                const int optval = 1;
+                check<std::runtime_error>(setsockopt(uniqueListenFd.get(), SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)));
+
+                // This is needed to avoid 'Address already in use' errors when having ipv4 and ipv6 'any' listeners, and also not needing SO_REUSEPORT.
+                if (family == AF_INET6)
+                    check<std::runtime_error>(setsockopt(uniqueListenFd.get(), IPPROTO_IPV6, IPV6_V6ONLY, &optval, sizeof(optval)));
 
                 if (listener->isTcpNoDelay())
                 {
