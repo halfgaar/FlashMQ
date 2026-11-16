@@ -82,7 +82,7 @@ void do_thread_work(std::shared_ptr<ThreadData> &&threadData)
         }
         for (int i = 0; i < fdcount; i++)
         {
-            struct epoll_event cur_ev = events[i];
+            struct epoll_event cur_ev = events.at(i);
             int fd = cur_ev.data.fd;
 
             if (fd == threadData->taskEventFd)

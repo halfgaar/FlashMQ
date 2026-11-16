@@ -720,7 +720,7 @@ void MainApp::start()
 
         for (int i = 0; i < num_fds; i++)
         {
-            int cur_fd = events[i].data.fd;
+            int cur_fd = events.at(i).data.fd;
             try
             {
                 if (cur_fd != taskEventFd)
