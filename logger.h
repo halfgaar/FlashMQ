@@ -19,6 +19,7 @@ See LICENSE for license details.
 #include <optional>
 #include <fstream>
 #include "semaphore.h"
+#include "mutexowned.h"
 
 #include "flashmq_plugin.h"
 
@@ -64,11 +65,15 @@ public:
 
 class Logger
 {
-    std::string logPath;
+    struct SynchronizedData
+    {
+        std::string logPath;
+        std::queue<LogLine> lines;
+    };
+
+    MutexOwned<SynchronizedData> data;
     int curLogLevel = LOG_ERR | LOG_WARNING | LOG_NOTICE | LOG_INFO | LOG_SUBSCRIBE | LOG_UNSUBSCRIBE ;
-    std::mutex logMutex;
     std::mutex startStopMutex;
-    std::queue<LogLine> lines;
     sem_t linesPending;
     std::thread writerThread;
     bool running = true;
