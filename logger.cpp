@@ -143,21 +143,30 @@ void Logger::reOpen()
         ofile.close();
     }
 
-    if (logPath.empty())
+    auto locked = data.lock();
+
+    if (locked->logPath.empty())
         return;
 
-    ofile.open(logPath, std::ios::app | std::ios::out);
+    ofile.open(locked->logPath, std::ios::app | std::ios::out);
 
     if (!ofile.good())
     {
         ofile.close();
-        logf(LOG_ERR, "(Re)opening log file '%s' error: %s. Logging to stdout.", logPath.c_str(), strerror(errno));
+        logf(LOG_ERR, "(Re)opening log file '%s' error: %s. Logging to stdout.", locked->logPath.c_str(), strerror(errno));
     }
 }
 
 // I want all messages logged during app startup to also show on stdout/err, otherwise failure can look so silent. So, call this when the app started.
 void Logger::noLongerLogToStd()
 {
+    std::string logPath;
+
+    {
+        auto locked = data.lock();
+        logPath = locked->logPath;
+    }
+
     if (!logPath.empty())
         logf(LOG_INFO, "Switching logging from stdout to logfile '%s'", logPath.c_str());
     alsoLogToStd = false;
@@ -165,7 +174,7 @@ void Logger::noLongerLogToStd()
 
 void Logger::setLogPath(const std::string &path)
 {
-    this->logPath = path;
+    this->data.lock()->logPath = path;
 }
 
 /**
@@ -261,7 +270,7 @@ void Logger::writeLog()
     int graceCounter = 0;
 
     LogLine line;
-    while(running || (!lines.empty() && graceCounter++ < 1000 ))
+    while(running || (!data.lock()->lines.empty() && graceCounter++ < 1000 ))
     {
         sem_wait(&linesPending);
 
@@ -271,13 +280,13 @@ void Logger::writeLog()
         }
 
         {
-            std::lock_guard<std::mutex> locker(logMutex);
+            auto locked = data.lock();
 
-            if (lines.empty())
+            if (locked->lines.empty())
                 continue;
 
-            line = std::move(lines.front());
-            lines.pop();
+            line = std::move(locked->lines.front());
+            locked->lines.pop();
         }
 
         if (ofile.is_open())
@@ -357,12 +366,7 @@ void Logger::logstring(int level, const std::string &str)
     std::string s = getPrefix(level);
     s.append(str);
     LogLine line(std::move(s), alsoLogToStd);
-
-    {
-        std::lock_guard<std::mutex> locker(logMutex);
-        lines.push(std::move(line));
-    }
-
+    data.lock()->lines.push(std::move(line));
     sem_post(&linesPending);
 }
 
@@ -389,12 +393,7 @@ void Logger::logf(int level, const char *str, va_list valist)
         return;
     size_t len = std::min<size_t>(buf_size, strlen(buf));
     LogLine line(buf, len, alsoLogToStd);
-
-    {
-        std::lock_guard<std::mutex> locker(logMutex);
-        lines.push(std::move(line));
-    }
-
+    data.lock()->lines.push(std::move(line));
     sem_post(&linesPending);
 }
 
