@@ -143,17 +143,17 @@ void Logger::reOpen()
         ofile.close();
     }
 
-    auto locked = data.lock();
+    const std::string log_path = data.lock()->logPath;
 
-    if (locked->logPath.empty())
+    if (log_path.empty())
         return;
 
-    ofile.open(locked->logPath, std::ios::app | std::ios::out);
+    ofile.open(log_path, std::ios::app | std::ios::out);
 
     if (!ofile.good())
     {
         ofile.close();
-        logf(LOG_ERR, "(Re)opening log file '%s' error: %s. Logging to stdout.", locked->logPath.c_str(), strerror(errno));
+        logf(LOG_ERR, "(Re)opening log file '%s' error: %s. Logging to stdout.", log_path.c_str(), strerror(errno));
     }
 }
 
