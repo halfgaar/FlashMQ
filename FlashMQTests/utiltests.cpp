@@ -8,6 +8,7 @@
 #include "conffiletemp.h"
 #include "nocopy.h"
 #include "usedids.h"
+#include "session.h"
 
 void MainTests::testStringValuesParsing()
 {
@@ -553,3 +554,31 @@ void MainTests::test_contains_value_greater_than()
 
 
 
+/**
+ * When all packet IDs are in use but the flow control quota isn't exhausted (like after a reconnect resets the
+ * quota while QoS 2 IDs await PUBCOMP), getNextPacketId() must return nothing instead of looping forever.
+ */
+void MainTests::testNextPacketIdAllUsed()
+{
+    Session::QoSData q(0xFFFF);
+
+    for (int i = 1; i <= 0xFFFF; i++)
+    {
+        const std::optional<uint16_t> id = q.getNextPacketId();
+        FMQ_VERIFY(id.has_value());
+        MYCASTCOMPARE(id.value(), i);
+    }
+
+    // Simulate a reconnect: quota back to full, but all IDs still used.
+    q.resetFlowControlCounters(0xFFFF);
+
+    FMQ_VERIFY(!q.getNextPacketId().has_value());
+
+    // Freeing one makes it available again.
+    q.releasePacketId(1234);
+    const std::optional<uint16_t> id = q.getNextPacketId();
+    FMQ_VERIFY(id.has_value());
+    MYCASTCOMPARE(id.value(), 1234);
+
+    FMQ_VERIFY(!q.getNextPacketId().has_value());
+}
