@@ -297,7 +297,7 @@ bool stringTruthiness(const std::string &val)
 
 bool isPowerOfTwo(int n)
 {
-    return (n != 0) && (n & (n - 1)) == 0;
+    return (n > 0) && (n & (n - 1)) == 0;
 }
 
 std::vector<unsigned char> base64Decode(const std::string &s)
