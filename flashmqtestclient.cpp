@@ -167,8 +167,12 @@ void FlashMQTestClient::connectClient(ProtocolVersion protocolVersion, bool clea
         else if (pack.packetType == PacketType::PUBREL)
         {
             pack.parsePubRelData();
-            PubResponse pubComp(client->getProtocolVersion(), PacketType::PUBCOMP, ReasonCodes::Success, pack.getPacketId());
-            client->writeMqttPacketAndBlameThisClient(pubComp);
+
+            if (!dontSendPubComp)
+            {
+                PubResponse pubComp(client->getProtocolVersion(), PacketType::PUBCOMP, ReasonCodes::Success, pack.getPacketId());
+                client->writeMqttPacketAndBlameThisClient(pubComp);
+            }
         }
         else if (pack.packetType == PacketType::PUBREC)
         {

@@ -80,6 +80,8 @@ class Session
         std::optional<uint16_t> getNextPacketId();
         uint16_t getInternalNextPacketId() const;
         void releasePacketId(const uint16_t id);
+        bool packetIdInUse(const uint16_t packet_id) const;
+        void loadUsedPacketId(const uint16_t packet_id);
     };
 
     friend class SessionsAndSubscriptionsDB;

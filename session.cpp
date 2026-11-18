@@ -29,14 +29,34 @@ Session::Session(const std::string &clientid, const std::string &username, const
     this->sessionExpiryInterval = ThreadGlobals::getSettings()->expireSessionsAfterSeconds;
 }
 
+/**
+ * @brief Return quota for a packet ID whose QoS flow has ended. Acks for IDs that aren't in use (which a client
+ * can send at will) are ignored, so the quota can never get ahead of the IDs actually in flight.
+ */
 void Session::QoSData::increaseFlowControlQuota(const uint16_t packet_id)
 {
+    if (!packetIdInUse(packet_id))
+        return;
+
+    usedIds.erase(packet_id);
     flowControlQuota++;
     flowControlQuota = std::min<int>(flowControlQuota, flowControlCealing);
-#ifdef TESTING
-    assert(this->usedIds.contains(packet_id));
-#endif
-    usedIds.erase(packet_id);
+}
+
+bool Session::QoSData::packetIdInUse(const uint16_t packet_id) const
+{
+    return packet_id > 0 && usedIds.contains(packet_id);
+}
+
+/**
+ * @brief For loading sessions from disk: marks IDs of queued and in-flight messages as used.
+ */
+void Session::QoSData::loadUsedPacketId(const uint16_t packet_id)
+{
+    if (packet_id == 0)
+        return;
+
+    usedIds.insert(packet_id);
 }
 
 void Session::QoSData::resetFlowControlCounters(const uint16_t receive_max)
@@ -107,10 +127,15 @@ void Session::QoSData::clearExpiredMessagesFromQueue()
     }
 }
 
+/**
+ * @brief On reconnect, take quota again for a packet ID that is still in flight. Can make the quota negative, when
+ * the client reconnected with a lower receive maximum than what is in flight.
+ */
 void Session::QoSData::decreaseFlowControlQuotaAgain(const uint16_t packet_id)
 {
-    (void)packet_id;
-    assert(this->usedIds.contains(packet_id));
+    if (!packetIdInUse(packet_id))
+        return;
+
     this->flowControlQuota--;
 }
 
@@ -122,7 +147,7 @@ void Session::QoSData::decreaseFlowControlQuotaAgain(const uint16_t packet_id)
  */
 std::optional<uint16_t> Session::QoSData::getNextPacketId()
 {
-    if (flowControlQuota == 0)
+    if (flowControlExhausted())
         return {};
 
     const uint16_t end = nextPacketId;
@@ -388,8 +413,10 @@ void Session::sendAllPendingQosData()
                 copiedPublishes.emplace_back(pub, qp->getTopicOverride(), qp->getPacketId());
             }
 
+            // Messages awaiting PUBCOMP still count towards the client's receive maximum [MQTT-4.9.0-2].
             for (const uint16_t packet_id : qos_locked->outgoingQoS2MessageIds)
             {
+                qos_locked->decreaseFlowControlQuotaAgain(packet_id);
                 copiedQoS2Ids.push_back(packet_id);
             }
         }

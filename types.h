@@ -343,6 +343,7 @@ struct Connect
     uint16_t keepalive = 60;
     uint32_t sessionExpiryInterval = 0;
     uint16_t maxIncomingTopicAliasValue = 0;
+    std::optional<uint16_t> receiveMax;
     std::shared_ptr<WillPublish> will;
     std::optional<std::string> authenticationMethod;
     std::optional<std::string> authenticationData;

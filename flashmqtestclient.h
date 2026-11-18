@@ -53,6 +53,9 @@ class FlashMQTestClient
 public:
     MutexOwned<ReceivedObjects> receivedObjects;
 
+    // To simulate a client that leaves QoS 2 flows unfinished. Set before connecting.
+    bool dontSendPubComp = false;
+
     FlashMQTestClient();
     ~FlashMQTestClient();
 

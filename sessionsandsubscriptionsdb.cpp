@@ -195,6 +195,7 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV3V4V5V6V7()
                     if (logger->wouldLog(LOG_DEBUG))
                         logger->logf(LOG_DEBUG, "Loaded QoS %d message for topic '%s' for session '%s'.", pub.qos, pub.topic.c_str(), ses->getClientId().c_str());
                     qos_locked->queuePublish(std::move(pub), id, topic_override);
+                    qos_locked->loadUsedPacketId(id);
                 }
 
                 const uint32_t nrOfIncomingPacketIds = readUint32(eofFound);
@@ -215,6 +216,7 @@ SessionsAndSubscriptionsResult SessionsAndSubscriptionsDB::readDataV3V4V5V6V7()
                     if (logger->wouldLog(LOG_DEBUG))
                         logger->logf(LOG_DEBUG, "Loaded outgoing QoS2 message id %d.", id);
                     qos_locked->outgoingQoS2MessageIds.insert(id);
+                    qos_locked->loadUsedPacketId(id);
                 }
 
                 const uint16_t nextPacketId = readUint16(eofFound);

@@ -343,6 +343,9 @@ MainTests::MainTests()
     REGISTER_FUNCTION3(test_contains_value_greater_than);
     REGISTER_FUNCTION3(testUsedIdsSpeed);
     REGISTER_FUNCTION3(testNextPacketIdAllUsed);
+    REGISTER_FUNCTION3(testFlowControlIgnoresUnknownAcks);
+    REGISTER_FUNCTION3(testFlowControlNegativeQuota);
+    REGISTER_FUNCTION(testFlowControlQuotaAfterReconnectWithInflightQoS2);
     REGISTER_FUNCTION(testSessionTakeoverOtherUsername);
     REGISTER_FUNCTION(testCorrelationData);
     REGISTER_FUNCTION(testSubscriptionIdOnlineClient);

@@ -1045,6 +1045,8 @@ void MainTests::testSavingSessions()
         MYCASTCOMPARE(store->sessionsById.size(), 2);
         MYCASTCOMPARE(store2->sessionsById.size(), 2);
 
+        int loadedIdsChecked = 0;
+
         for (auto &pair : store->sessionsById)
         {
             std::shared_ptr<Session> &ses = pair.second;
@@ -1059,7 +1061,23 @@ void MainTests::testSavingSessions()
             QCOMPARE(qos_locked->incomingQoS2MessageIds, qos_locked2->incomingQoS2MessageIds);
             QCOMPARE(qos_locked->outgoingQoS2MessageIds, qos_locked2->outgoingQoS2MessageIds);
             QCOMPARE(qos_locked->getInternalNextPacketId(), qos_locked2->getInternalNextPacketId());
+
+            // Packet IDs of in-flight QoS 2 flows and queued messages must be marked used after loading.
+            for (const uint16_t id : qos_locked2->outgoingQoS2MessageIds)
+            {
+                QVERIFY(qos_locked2->packetIdInUse(id));
+                loadedIdsChecked++;
+            }
+
+            for (std::shared_ptr<QueuedPublish> qp = qos_locked2->getQoSQueueTail(); qp; qp = qp->next.lock())
+            {
+                QVERIFY(qos_locked2->packetIdInUse(qp->getPacketId()));
+                loadedIdsChecked++;
+            }
         }
+
+        // 55 and 66 for c2, and one queued message for c1.
+        MYCASTCOMPARE(loadedIdsChecked, 3);
 
         std::unordered_map<std::string, std::list<SubscriptionForSerializing>> store1Subscriptions;
         store1Subscriptions = store->getSubscriptions();
@@ -3295,4 +3313,90 @@ void MainTests::testCorrelationData()
     FMQ_COMPARE(pack.publishData.correlationData, "INsI8czE8y3IZBxY");
     FMQ_COMPARE(pack.getTopic(), "several/sub/topics");
     FMQ_COMPARE(pack.getPayloadView(), "payload");
+}
+
+/**
+ * QoS 2 messages that got PUBREC but no PUBCOMP still count towards the client's receive maximum after a
+ * reconnect [MQTT-4.9.0-2]. Before, a reconnect reset the quota to full while those packet IDs stayed in use.
+ */
+void MainTests::testFlowControlQuotaAfterReconnectWithInflightQoS2()
+{
+    const std::string receiver_id = "flowcontrol_receiver";
+    const std::string topic = "flowcontrol/topic";
+
+    auto waitUntil = [](std::function<bool()> f) {
+        for (int i = 0; i < 200 && !f(); i++)
+            usleep(10000);
+        return f();
+    };
+
+    auto pubRelCount = [](FlashMQTestClient &c) {
+        auto ro = c.receivedObjects.lock();
+        return std::count_if(ro->receivedPackets.begin(), ro->receivedPackets.end(), [](const MqttPacket &p) {
+            return p.packetType == PacketType::PUBREL;
+        });
+    };
+
+    auto connectReceiver = [&](FlashMQTestClient &c) {
+        c.dontSendPubComp = true;
+        c.start();
+        c.connectClient(ProtocolVersion::Mqtt5, false, 120, [&](Connect &connect) {
+            connect.clientid = receiver_id;
+            connect.receiveMax = 3;
+        });
+    };
+
+    FlashMQTestClient sender;
+    sender.start();
+    sender.connectClient(ProtocolVersion::Mqtt5);
+
+    {
+        FlashMQTestClient receiver;
+        connectReceiver(receiver);
+        receiver.subscribe(topic, 2);
+
+        for (int i = 0; i < 3; i++)
+            sender.publish(topic, "payload", 2);
+
+        receiver.waitForMessageCount(3);
+        QVERIFY(waitUntil([&]() { return pubRelCount(receiver) == 3; }));
+    }
+
+    FlashMQTestClient receiver2;
+    connectReceiver(receiver2);
+
+    // The server resends the PUBRELs for the three unfinished flows.
+    QVERIFY(waitUntil([&]() { return pubRelCount(receiver2) == 3; }));
+
+    std::shared_ptr<Session> session = globals->subscriptionStore.lockSession(receiver_id);
+    QVERIFY(session);
+
+    uint16_t inflight_id = 0;
+
+    {
+        MutexLocked<Session::QoSData> qos_locked = session->qos.lock();
+        MYCASTCOMPARE(qos_locked->outgoingQoS2MessageIds.size(), 3);
+        QVERIFY(qos_locked->flowControlExhausted());
+        inflight_id = *qos_locked->outgoingQoS2MessageIds.begin();
+    }
+
+    // With the quota used up, a new QoS message must not be delivered.
+    sender.publish(topic, "payload", 2);
+    usleep(300000);
+    MYCASTCOMPARE(receiver2.receivedObjects.lock()->receivedPublishes.size(), 0);
+
+    // Completing one flow gives back exactly one.
+    PubResponse pubComp(ProtocolVersion::Mqtt5, PacketType::PUBCOMP, ReasonCodes::Success, inflight_id);
+    receiver2.getClient()->writeMqttPacketAndBlameThisClient(pubComp);
+
+    QVERIFY(waitUntil([&]() {
+        MutexLocked<Session::QoSData> qos_locked = session->qos.lock();
+        return !qos_locked->flowControlExhausted();
+    }));
+
+    {
+        MutexLocked<Session::QoSData> qos_locked = session->qos.lock();
+        MYCASTCOMPARE(qos_locked->outgoingQoS2MessageIds.size(), 2);
+        QVERIFY(!qos_locked->packetIdInUse(inflight_id));
+    }
 }

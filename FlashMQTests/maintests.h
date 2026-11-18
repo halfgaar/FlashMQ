@@ -253,6 +253,9 @@ class MainTests
     void testUsedIdsRandomDraining();
     void testUsedIdsSpeed();
     void testNextPacketIdAllUsed();
+    void testFlowControlIgnoresUnknownAcks();
+    void testFlowControlNegativeQuota();
+    void testFlowControlQuotaAfterReconnectWithInflightQoS2();
     void test_contains_value_greater_than();
     void testBase64();
     void testNoCopy();

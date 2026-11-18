@@ -582,3 +582,74 @@ void MainTests::testNextPacketIdAllUsed()
 
     FMQ_VERIFY(!q.getNextPacketId().has_value());
 }
+
+/**
+ * Acks for packet IDs that aren't in use must not raise the flow control quota.
+ */
+void MainTests::testFlowControlIgnoresUnknownAcks()
+{
+    Session::QoSData q(3);
+
+    std::vector<uint16_t> ids;
+    for (int i = 0; i < 3; i++)
+    {
+        const std::optional<uint16_t> id = q.getNextPacketId();
+        FMQ_VERIFY(id.has_value());
+        ids.push_back(id.value());
+    }
+
+    FMQ_VERIFY(q.flowControlExhausted());
+    FMQ_VERIFY(!q.getNextPacketId().has_value());
+
+    // Bogus acks: an ID never handed out, and ID 0.
+    q.increaseFlowControlQuota(999);
+    q.increaseFlowControlQuota(0);
+    FMQ_VERIFY(q.flowControlExhausted());
+    FMQ_VERIFY(!q.getNextPacketId().has_value());
+
+    // A real ack frees exactly one.
+    q.increaseFlowControlQuota(ids.at(1));
+    FMQ_VERIFY(!q.packetIdInUse(ids.at(1)));
+    FMQ_VERIFY(q.getNextPacketId().has_value());
+    FMQ_VERIFY(!q.getNextPacketId().has_value());
+
+    // Acking the same ID twice only counts once.
+    q.increaseFlowControlQuota(ids.at(0));
+    q.increaseFlowControlQuota(ids.at(0));
+    FMQ_VERIFY(q.getNextPacketId().has_value());
+    FMQ_VERIFY(!q.getNextPacketId().has_value());
+}
+
+/**
+ * When a client reconnects with a lower receive maximum than what is in flight, the quota goes negative, and
+ * no new IDs may be handed out until enough acks have come in.
+ */
+void MainTests::testFlowControlNegativeQuota()
+{
+    Session::QoSData q(10);
+
+    std::vector<uint16_t> ids;
+    for (int i = 0; i < 5; i++)
+        ids.push_back(q.getNextPacketId().value());
+
+    // Reconnect with receive maximum 2, while 5 are in flight.
+    q.resetFlowControlCounters(2);
+    for (uint16_t id : ids)
+        q.decreaseFlowControlQuotaAgain(id);
+
+    // Quota is now -3.
+    FMQ_VERIFY(q.flowControlExhausted());
+    FMQ_VERIFY(!q.getNextPacketId().has_value());
+
+    for (int i = 0; i < 3; i++)
+    {
+        q.increaseFlowControlQuota(ids.at(i));
+        FMQ_VERIFY(q.flowControlExhausted());
+        FMQ_VERIFY(!q.getNextPacketId().has_value());
+    }
+
+    q.increaseFlowControlQuota(ids.at(3));
+    FMQ_VERIFY(!q.flowControlExhausted());
+    FMQ_VERIFY(q.getNextPacketId().has_value());
+    FMQ_VERIFY(!q.getNextPacketId().has_value());
+}

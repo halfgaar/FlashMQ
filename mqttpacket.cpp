@@ -305,6 +305,9 @@ MqttPacket::MqttPacket(const Connect &connect) :
     if (connect.maxIncomingTopicAliasValue)
         non_optional(properties)->writeMaxTopicAliases(connect.maxIncomingTopicAliasValue);
 
+    if (connect.receiveMax)
+        non_optional(properties)->writeReceiveMax(connect.receiveMax.value());
+
     if (connect.authenticationMethod)
         non_optional(properties)->writeAuthenticationMethod(connect.authenticationMethod.value());
 
