@@ -48,7 +48,7 @@ PersistenceFile::~PersistenceFile()
     }
     catch(std::exception &ex)
     {
-        Logger::getInstance()->logf(LOG_WARNING, ex.what());
+        Logger::getInstance()->log(LOG_WARNING) << ex.what();
     }
 
     if (f != nullptr)
