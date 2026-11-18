@@ -407,7 +407,7 @@ void MainApp::queueBridgeReconnectAllThreads()
     catch (std::exception &ex)
     {
         Logger *logger = Logger::getInstance();
-        logger->logf(LOG_ERR, ex.what());
+        logger->log(LOG_ERR) << ex.what();
     }
 }
 
