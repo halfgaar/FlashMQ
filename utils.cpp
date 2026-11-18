@@ -328,16 +328,19 @@ std::vector<unsigned char> base64Decode(const std::string &s)
     return result;
 }
 
-std::string base64Encode(const unsigned char *input, const int length)
+std::string base64Encode(const unsigned char *input, const size_t length)
 {
-    const int pl = 4*((length+2)/3);
-    std::vector<unsigned char> output(pl + 1);
-    const int ol = EVP_EncodeBlock(output.data(), input, length);
+    if (length > (std::numeric_limits<int>::max() / 2))
+        throw std::runtime_error("Base64 encode: invalid input length.");
 
-    if (pl != ol)
+    const size_t pl { 4*((length+2)/3) };
+    std::vector<unsigned char> output(pl + 1);
+    const int ol { EVP_EncodeBlock(output.data(), input, length) };
+
+    if (pl != static_cast<size_t>(ol))
         throw std::runtime_error("Base64 encode error.");
 
-    std::string result = make_string(output, 0, ol);
+    std::string result = make_string(output, 0, pl);
     return result;
 }
 
