@@ -360,6 +360,9 @@ unsigned int distanceBetweenStrings(const std::string &stringA, const std::strin
 template<typename it>
 it findCloseStringMatch(it first, it last, const std::string &s)
 {
+    if (s.empty())
+        return last;
+
     it alternative = last;
     unsigned int alternative_distance = UINT_MAX;
 
