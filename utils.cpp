@@ -302,6 +302,9 @@ bool isPowerOfTwo(int n)
 
 std::vector<unsigned char> base64Decode(const std::string &s)
 {
+    if (s.length() > (std::numeric_limits<int>::max() / 2))
+        throw std::runtime_error("Base64 encode: invalid input length.");
+
     if (s.length() % 4 != 0)
         throw std::runtime_error("Decoding invalid base64 string");
 
