@@ -320,6 +320,7 @@ std::vector<unsigned char> base64Decode(const std::string &s)
     outl_total += outl;
     if (EVP_DecodeFinal(b64_ctx.ctx.get(), tmp.data() + outl_total, &outl) < 0)
         throw std::runtime_error("Failure in EVP_DecodeFinal()");
+    outl_total += outl;
     std::vector<unsigned char> result = make_vector<unsigned char>(tmp, 0, outl_total);
     return result;
 }
