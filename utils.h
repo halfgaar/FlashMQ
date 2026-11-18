@@ -310,7 +310,7 @@ bool stringTruthiness(const std::string &val);
 bool isPowerOfTwo(int val);
 
 std::vector<unsigned char> base64Decode(const std::string &s);
-std::string base64Encode(const unsigned char *input, const int length);
+std::string base64Encode(const unsigned char *input, const size_t length);
 
 
 void testSsl(const std::string &fullchain, const std::string &privkey);
