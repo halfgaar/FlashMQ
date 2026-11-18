@@ -130,14 +130,14 @@ std::optional<uint16_t> Session::QoSData::getNextPacketId()
     {
         nextPacketId++;
 
+        if (nextPacketId == end)
+            return {};
+
         if (nextPacketId == 0)
             continue;
 
         if (usedIds.contains(nextPacketId))
             continue;
-
-        if (nextPacketId == end)
-            return {};
 
         break;
     }
