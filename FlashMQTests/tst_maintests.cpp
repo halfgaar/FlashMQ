@@ -3400,3 +3400,77 @@ void MainTests::testFlowControlQuotaAfterReconnectWithInflightQoS2()
         QVERIFY(!qos_locked->packetIdInUse(inflight_id));
     }
 }
+
+/**
+ * A PUBREC for a packet ID the server never sent must not be recorded as an in-flight QoS 2 flow, for both
+ * persistent sessions and sessions that are destroyed on disconnect. The server still answers with a PUBREL.
+ */
+void MainTests::testPubRecForUnknownIdNotRecorded()
+{
+    auto waitUntil = [](std::function<bool()> f) {
+        for (int i = 0; i < 200 && !f(); i++)
+            usleep(10000);
+        return f();
+    };
+
+    auto pubRelIds = [](FlashMQTestClient &c) {
+        std::vector<uint16_t> result;
+        auto ro = c.receivedObjects.lock();
+        for (MqttPacket &p : ro->receivedPackets)
+        {
+            if (p.packetType == PacketType::PUBREL)
+                result.push_back(p.getPacketId());
+        }
+        return result;
+    };
+
+    for (const uint32_t session_expiry : {0u, 120u})
+    {
+        const std::string receiver_id = "pubrec_receiver_" + std::to_string(session_expiry);
+        const std::string topic = "pubrec/topic";
+
+        FlashMQTestClient sender;
+        sender.start();
+        sender.connectClient(ProtocolVersion::Mqtt5);
+
+        FlashMQTestClient receiver;
+        receiver.dontSendPubComp = true;
+        receiver.start();
+        receiver.connectClient(ProtocolVersion::Mqtt5, true, session_expiry, [&](Connect &connect) {
+            connect.clientid = receiver_id;
+        });
+        receiver.subscribe(topic, 2);
+
+        // A real QoS 2 flow, left unfinished.
+        sender.publish(topic, "payload", 2);
+        receiver.waitForMessageCount(1);
+        QVERIFY(waitUntil([&]() { return pubRelIds(receiver).size() == 1; }));
+
+        std::shared_ptr<Session> session = globals->subscriptionStore.lockSession(receiver_id);
+        QVERIFY(session);
+
+        uint16_t real_id = 0;
+        {
+            MutexLocked<Session::QoSData> qos_locked = session->qos.lock();
+            MYCASTCOMPARE(qos_locked->outgoingQoS2MessageIds.size(), 1);
+            real_id = *qos_locked->outgoingQoS2MessageIds.begin();
+        }
+
+        // A PUBREC for an ID the server never sent.
+        const uint16_t made_up_id = real_id + 1000;
+        PubResponse pubRec(ProtocolVersion::Mqtt5, PacketType::PUBREC, ReasonCodes::Success, made_up_id);
+        receiver.getClient()->writeMqttPacketAndBlameThisClient(pubRec);
+
+        // The server still answers with a PUBREL...
+        QVERIFY(waitUntil([&]() { return pubRelIds(receiver).size() == 2; }));
+        MYCASTCOMPARE(pubRelIds(receiver).back(), made_up_id);
+
+        // ...but doesn't record it.
+        {
+            MutexLocked<Session::QoSData> qos_locked = session->qos.lock();
+            MYCASTCOMPARE(qos_locked->outgoingQoS2MessageIds.size(), 1);
+            QVERIFY(qos_locked->outgoingQoS2MessageIds.count(real_id) == 1);
+            QVERIFY(qos_locked->outgoingQoS2MessageIds.count(made_up_id) == 0);
+        }
+    }
+}

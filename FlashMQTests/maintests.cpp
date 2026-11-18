@@ -346,6 +346,7 @@ MainTests::MainTests()
     REGISTER_FUNCTION3(testFlowControlIgnoresUnknownAcks);
     REGISTER_FUNCTION3(testFlowControlNegativeQuota);
     REGISTER_FUNCTION(testFlowControlQuotaAfterReconnectWithInflightQoS2);
+    REGISTER_FUNCTION(testPubRecForUnknownIdNotRecorded);
     REGISTER_FUNCTION(testSessionTakeoverOtherUsername);
     REGISTER_FUNCTION(testCorrelationData);
     REGISTER_FUNCTION(testSubscriptionIdOnlineClient);

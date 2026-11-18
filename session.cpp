@@ -343,12 +343,11 @@ bool Session::clearQosMessage(uint16_t packet_id, bool qosHandshakeEnds)
     if (logger->wouldLog(LOG_PUBLISH))
         logger->logf(LOG_PUBLISH, "Clearing QoS message for '%s', packet id '%d'. Left in queue: %d", client_id.c_str(), packet_id, qos_locked->getQueuedCount());
 
+    // Sessions destroyed on disconnect don't queue QoS messages, but the packet ID is still marked used while in flight.
     if (!destroyOnDisconnect)
         result = qos_locked->eraseQueuedPublish(packet_id);
     else
-    {
-        result = true;
-    }
+        result = qos_locked->packetIdInUse(packet_id);
 
     if (qosHandshakeEnds && result)
     {

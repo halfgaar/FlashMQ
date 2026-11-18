@@ -2387,7 +2387,9 @@ void MqttPacket::handlePubRec(std::shared_ptr<Client> &sender)
     // that contains that Packet Identifier as being a new Application Message."
     if (!publishTerminatesHere)
     {
-        sender->getSession()->addOutgoingQoS2MessageId(packet_id);
+        // Don't keep state for IDs we never sent; we still answer with a PUBREL, as required.
+        if (foundAndRemoved)
+            sender->getSession()->addOutgoingQoS2MessageId(packet_id);
 
         // MQTT5: "[The sender] MUST send a PUBREL packet when it receives a PUBREC packet from the receiver with a Reason Code value less than 0x80"
         const ReasonCodes reason = foundAndRemoved ? ReasonCodes::Success : ReasonCodes::PacketIdentifierNotFound;

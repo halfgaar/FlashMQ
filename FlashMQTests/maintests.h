@@ -256,6 +256,7 @@ class MainTests
     void testFlowControlIgnoresUnknownAcks();
     void testFlowControlNegativeQuota();
     void testFlowControlQuotaAfterReconnectWithInflightQoS2();
+    void testPubRecForUnknownIdNotRecorded();
     void test_contains_value_greater_than();
     void testBase64();
     void testNoCopy();
