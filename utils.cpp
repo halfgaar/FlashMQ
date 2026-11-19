@@ -227,6 +227,46 @@ std::string &rtrim(std::string &s, unsigned char c)
     return s;
 }
 
+/**
+ * @brief Like std::getline, but the delimiter is "\r\n" instead of a single character.
+ *
+ * A lone '\r' or '\n' is kept as part of the line. Like std::getline, an unterminated last line
+ * is returned with eofbit set, and failbit is set if nothing was extracted.
+ */
+std::istream &get_rn_line(std::istream &is, std::string &line)
+{
+    line.clear();
+
+    std::istream::sentry sentry(is, true);
+    if (!sentry)
+        return is;
+
+    using traits = std::istream::traits_type;
+    std::streambuf *sb = is.rdbuf();
+
+    while (true)
+    {
+        const traits::int_type c = sb->sbumpc();
+
+        if (traits::eq_int_type(c, traits::eof()))
+        {
+            std::ios_base::iostate state = std::ios_base::eofbit;
+            if (line.empty())
+                state |= std::ios_base::failbit;
+            is.setstate(state);
+            return is;
+        }
+
+        if (traits::to_char_type(c) == '\r' && traits::eq_int_type(sb->sgetc(), traits::to_int_type('\n')))
+        {
+            sb->sbumpc();
+            return is;
+        }
+
+        line.push_back(traits::to_char_type(c));
+    }
+}
+
 bool startsWith(const std::string &s, const std::string &needle)
 {
     if (s.length() < needle.length())
