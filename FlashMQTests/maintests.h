@@ -233,6 +233,9 @@ class MainTests
     void testWebsocketHugePing();
     void testWebsocketManyBigPingFrames();
     void testWebsocketClose();
+    void testHttpHeaderNewlines();
+
+    void testGetRnLine();
 
     void testStartsWith();
 

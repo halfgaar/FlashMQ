@@ -1,4 +1,5 @@
 #include <random>
+#include <sstream>
 
 #include "maintests.h"
 #include "testhelpers.h"
@@ -652,4 +653,27 @@ void MainTests::testFlowControlNegativeQuota()
     FMQ_VERIFY(!q.flowControlExhausted());
     FMQ_VERIFY(q.getNextPacketId().has_value());
     FMQ_VERIFY(!q.getNextPacketId().has_value());
+}
+
+void MainTests::testGetRnLine()
+{
+    std::istringstream is("one\r\ntwo\rx\nthree\r\n\r\nlast\r");
+    std::string line;
+
+    QVERIFY(get_rn_line(is, line));
+    QCOMPARE(line, "one");
+
+    QVERIFY(get_rn_line(is, line));
+    QCOMPARE(line, "two\rx\nthree");
+
+    QVERIFY(get_rn_line(is, line));
+    QCOMPARE(line, "");
+
+    // Unterminated last line is returned, with eof set, like std::getline.
+    QVERIFY(get_rn_line(is, line));
+    QCOMPARE(line, "last\r");
+    QVERIFY(is.eof());
+
+    QVERIFY(!get_rn_line(is, line));
+    QCOMPARE(line, "");
 }

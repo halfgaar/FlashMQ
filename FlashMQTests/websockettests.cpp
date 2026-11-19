@@ -7,6 +7,7 @@
 #include <poll.h>
 
 #include "threadglobals.h"
+#include "http.h"
 
 #include "filecloser.h"
 
@@ -726,5 +727,51 @@ void MainTests::testWebsocketClose()
     catch (std::exception &ex)
     {
         QVERIFY2(false, ex.what());
+    }
+}
+
+static std::optional<HttpRequest> parseHttpHeaderFromString(const std::string &s)
+{
+    CirBuf buf(1024);
+    buf.write(s.data(), s.size());
+    return parseHttpHeader(buf);
+}
+
+/**
+ * Header parsing must end exactly at the first "\r\n\r\n" and reject stray CR or LF characters.
+ */
+void MainTests::testHttpHeaderNewlines()
+{
+    const std::string start = "GET / HTTP/1.1\r\nUpgrade: websocket\r\nSec-WebSocket-Key: abc\r\n";
+
+    // Normal request.
+    {
+        std::optional<HttpRequest> r = parseHttpHeaderFromString(start + "\r\n");
+        QVERIFY(r);
+        QVERIFY(r.value());
+        QVERIFY(r->value().upgrade);
+        QCOMPARE(r->value().websocketKey.value_or(""), "abc");
+    }
+
+    // Header split across reads, right before the final LF: not complete yet.
+    QVERIFY(!parseHttpHeaderFromString(start + "\r"));
+
+    // Bare LF line endings never complete the header.
+    QVERIFY(!parseHttpHeaderFromString("GET / HTTP/1.1\nUpgrade: websocket\n\n"));
+
+    const std::vector<std::string> invalid = {
+        "GET / HTTP/1.1\r\n \r\nUpgrade: websocket\r\n\r\n",                   // Whitespace-only line
+        "GET / HTTP/1.1\r\n\r\r\nUpgrade: websocket\r\n\r\n",                  // CR-only line
+        "GET / HTTP/1.1\r\nX: a\rSec-WebSocket-Key: evil\r\n\r\n",             // Embedded CR
+        "GET / HTTP/1.1\r\nX: a\nSec-WebSocket-Key: evil\r\n\r\n",             // Embedded LF
+        "GET / HTTP/1.1\nUpgrade: websocket\n\nxx\r\n\r\n",                    // Bare LF, with CRLFCRLF later
+        std::string("\x10\x20\x00\x04MQTT", 8),                                // Not HTTP, no terminator
+    };
+
+    for (const std::string &s : invalid)
+    {
+        std::optional<HttpRequest> r = parseHttpHeaderFromString(s);
+        QVERIFY2(r, s.c_str());
+        QVERIFY2(!r.value(), s.c_str());
     }
 }

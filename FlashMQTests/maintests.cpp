@@ -327,6 +327,8 @@ MainTests::MainTests()
     REGISTER_FUNCTION(testWebsocketHugePing);
     REGISTER_FUNCTION(testWebsocketManyBigPingFrames);
     REGISTER_FUNCTION(testWebsocketClose);
+    REGISTER_FUNCTION3(testHttpHeaderNewlines);
+    REGISTER_FUNCTION3(testGetRnLine);
     REGISTER_FUNCTION3(testStartsWith);
     REGISTER_FUNCTION3(testStringValuesParsing);
     REGISTER_FUNCTION3(testStringValuesParsingEscaping);
