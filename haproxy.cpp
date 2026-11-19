@@ -71,7 +71,7 @@ HaProxySslData read_ha_proxy_pp2_ssl(const std::vector<unsigned char> &data, int
 
     for (int shift = 24; shift >= 0; shift -= 8)
     {
-        result.verify = (data.at(pos++) << shift);
+        result.verify |= (data.at(pos++) << shift);
     }
 
     auto sub_vec = make_vector<unsigned char>(data, pos, data.size() - pos);
