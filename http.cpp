@@ -1,6 +1,7 @@
 #include "http.h"
 
 #include <sstream>
+#include <array>
 
 #include <openssl/evp.h>
 #include <openssl/ssl.h>
@@ -86,8 +87,6 @@ std::optional<HttpRequest> parseHttpHeader(CirBuf &buf)
     std::vector<std::string> lines;
 
     {
-        bool doubleEmptyLine = false; // meaning, the HTTP header is complete
-
         const std::vector<char> buf_data = buf.peekAllToVector();
 
         const std::string beginning(buf_data.data(), std::min<size_t>(4, buf_data.size()));
@@ -97,23 +96,20 @@ std::optional<HttpRequest> parseHttpHeader(CirBuf &buf)
             return BadHttpRequest("HTTP request should start with GET.");
         }
 
-        const std::string s(buf_data.data(), buf_data.size());
-        std::istringstream is(s);
-        for (std::string line; std::getline(is, line);)
-        {
-            trim(line);
+        static constexpr std::array<char, 4> delim{'\r', '\n', '\r', '\n'};
+        const auto headers_end = std::search(buf_data.begin(), buf_data.end(), delim.begin(), delim.end());
+        if (headers_end == buf_data.end())
+            return {};
 
-            if (line.empty())
-            {
-                doubleEmptyLine = true;
-                break;
-            }
+        const std::string s(buf_data.begin(), headers_end);
+        std::istringstream is(s);
+        for (std::string line; get_rn_line(is, line);)
+        {
+            if (line.find('\r') != std::string::npos || line.find('\n') != std::string::npos)
+                return BadHttpRequest("Trying to inject newlines in headers.");
 
             lines.push_back(line);
         }
-
-        if (!doubleEmptyLine)
-            return {};
     }
 
     bool firstLine = true;
